@@ -17,11 +17,7 @@ import sys
 import subprocess as subp
 from glob import glob
 import pdb
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(dir_path[:-4]+'/lib')
 import global_config as gc
-
 
 
 def rasrmg(uwfile,mlifile,width,reducfac,logfilename):

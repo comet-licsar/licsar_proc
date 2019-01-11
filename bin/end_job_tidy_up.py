@@ -10,13 +10,6 @@ import sys
 import getopt
 import datetime as dt
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(dir_path[:-4])
-sys.path.append(dir_path[:-4]+'/bin')
-sys.path.append(dir_path[:-4]+'/lib')
-sys.path.append(dir_path[:-4]+'/LiCSdb')
-sys.path.append(dir_path[:-4]+'/python')
-
 import global_config as gc
 import LiCSquery as lq
 from gamma_functions import *

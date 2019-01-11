@@ -61,9 +61,9 @@ import os
 import sys
 import numpy as np
 import datetime as dt
-dir_path = os.path.dirname(os.path.realpath(__file__)) # This should be gone...
-sys.path.append(dir_path[:-4]+'/lib')
-sys.path.append(dir_path[:-4]+'/LiCSdb')
+# dir_path = os.path.dirname(os.path.realpath(__file__)) # This should be gone...
+# sys.path.append(dir_path[:-4]+'/lib')
+# sys.path.append(dir_path[:-4]+'/LiCSdb')
 import global_config as gc
 from LiCSAR_lib.mk_imag_lib import *
 from LiCSAR_lib.LiCSAR_misc import *
