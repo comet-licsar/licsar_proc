@@ -1,0 +1,76 @@
+#!/bin/bash
+#################################################################
+# Function to generate an external DEM for the region of interest
+# using mk_dem subfunction
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+# Last revision: 2016/01/25 [add parsing arguments]
+# Last revision: 2016/01/25 [add recreate argument]
+#################################################################
+  
+# Parsing input [Check number of input arguments, and dump help if not correct]
+USAGE="$0: DEM/dem_crop [recreate=1]" 
+if [ $# -lt 1 ]; then echo -e "Error: Name of DEM needed.\n$USAGE" >&2; exit 1; fi
+if [ $# -gt 2 ]; then echo -e "Error: Only two arguments maximum.\n$USAGE" >&2; exit 1; fi
+dem=$1
+recreate=$2
+
+function mainfunc(){
+  local dem=$1
+  local recreate=$2
+
+  # Create a crop of DEM for the area to cover all SLCs
+  echo " Running doDEMcrop step (01_doDEMcrop.log)"
+  if [ ! -e "${dem}.dem" ] ; then
+    echo "   Creating external DEM ... "
+    mk_dem $dem 1 > 01_doDEMcrop.log 
+  else
+    if [ "$recreate" == "1" ]; then
+      echo "   Recreating external DEM ... "
+      mk_dem $dem 1 > 01_doDEMcrop.log 
+    else
+      echo "   DEM already exists [force create again by using option recreate=1 ] "
+    fi
+  fi
+}
+
+function mk_dem(){
+  local dem=$1
+  if [ -z "$2" ]; then plotme=0; else plotme=$2; fi 
+
+  echo "File DEM/dem_crop does not exist."
+  # 1) Read spatial extend of the master image and create a local DEM or crop it from an existing large one
+  # Add geoid heights
+  # a) Output bounding box coordinates for all files with same master date
+  for i in `ls SLC/20??????/*.zip`; do
+    echo "zipSAFE_2_bounding_box.py $i >> coordinates.$$" 
+    zipSAFE_2_SLCbb.py $i >> coordinates.$$
+  done
+  SLCbb_minmax.py coordinates.$$ > coordinates
+  local lonmin=`awk '{print $1}' coordinates`; 
+  local lonmax=`awk '{print $2}' coordinates`;
+  local latmin=`awk '{print $3}' coordinates`;
+  local latmax=`awk '{print $4}' coordinates`;
+  rm coordinates*
+  # b) Pass the maximum bounding box to the make_gdem2dem and/or make_srtm2dem script
+  # b.1) Within make_srtm2dem check version of the gamma and accordingly use Geoid height or not
+  if [ ! -d "DEM" ]; then mkdir DEM; fi
+  # Branching here to select SRTM or GDEM
+  #if [ ${latmin} -lt "60.0" || ${latmax} -lt "-56.0" ]; then # #if [ ${latmin} > "60.0" ]; then #
+  if [ `echo $latmin'<'60.0 | bc -l` == 0 ]; then
+    echo "USE make_gdem2insar [some files might not exist. It could not be a problem...]"
+    mk_gdem2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
+  else
+    echo "USE make_srtm2insar [some files might not exist. It could not be a problem...]"
+    mk_srtm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
+  fi
+  
+  if [ ${plotme} == "1" ]; then
+    wdem=`awk '$1 ~ /width:/ {print $2}' ${dem}.dem_par`
+    rashgt ${dem}.dem - ${wdem} - - - 5 5 500 > /dev/null 2>&1
+  fi
+  
+}
+
+mainfunc $dem $recreate

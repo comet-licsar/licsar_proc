@@ -1,0 +1,203 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+#################################################################
+
+#LiCSAR_03_mk_SLC2RSLC $master_date zipfile.list $rlks $azlks $outres 
+master=$1         # Master date
+zipfile_list=$2   # List of images to be processed 
+rlks=$3           # Multilooking factor for range
+azlks=$4          # Multilooking factor for azimuth
+outres=$5         # Output resolution of final products (decimal degrees)
+specdiv=$6        # Do spectral diversity to compute Resampled SLC
+polygon_file=$7
+burstid_file=$(basename $polygon_file .xy)_burst_ids.txt
+plotme=1
+
+# In case we cropped based on geographical coordinates we have to ensure that we always process the same subswaths 
+# That happens when the SLC_tab files are created
+if [ -e minmaxIW ]; then 
+  IW1=`awk '{print $1}' minmaxIW`
+  IW3=`awk '{print $2}' minmaxIW`
+else
+  IW1=1 
+  IW3=3
+fi
+if [ ! -d "RSLC" ]; then mkdir RSLC; fi 
+
+function masterDEMcrop(){
+  local master=$1
+  local masterslcdir=$2
+  local dem=$3
+  local dempar=$4
+  local outres=$5  
+  local masterdem=$6
+  local height_threshold=$7
+  
+  width=`awk '$1 == "range_samples:" {print $2}' ${masterslcdir}/${master}.slc.mli.par`; #echo $width
+  length=`awk '$1 == "azimuth_lines:" {print $2}' ${masterslcdir}/${master}.slc.mli.par`; #echo $length
+  reducfac=`echo $width | awk '{if(int($1/1000) > 1) print int($1/1000); else print 1}'`
+  echo " DEM in radar coordinates does not exist,... computing it "
+  demresN=`awk '$1 == "post_lat:" {print $2}' ${dempar}`
+  ovrfactN=`echo $demresN $outres | awk '{print -1*($1/$2)}' `
+  demresE=`awk '$1 == "post_lon:" {print $2}' ${dempar}`
+  ovrfactE=`echo $demresE $outres | awk '{print $1/$2}'`
+  echo "  Computing lookup table (from DEM to master geometry) "
+  gc_map ${masterslcdir}/${master}.slc.mli.par - ${dempar} ${dem} ${masterdem}/EQA.dem_par ${masterdem}/EQA.dem ${masterdem}/${master}.lt $ovrfactN $ovrfactE ${masterdem}/${master}.sim_sar ${masterdem}/u ${masterdem}/v ${masterdem}/inc ${masterdem}/psi ${masterdem}/pix ${masterdem}/ls_map 8 2 >> $logfile
+  width_dem=`awk '$1 == "width:" {print $2}' ${masterdem}/EQA.dem_par`
+  length_dem=`awk '$1 == "nlines:" {print $2}' ${masterdem}/EQA.dem_par`
+  echo "  Simulate master amplitude image "
+  pixel_area ${masterslcdir}/${master}.slc.mli.par ${masterdem}/EQA.dem_par ${masterdem}/EQA.dem ${masterdem}/${master}.lt ${masterdem}/ls_map ${masterdem}/inc ${masterdem}/pix_sigma0 ${masterdem}/pix_gamma0 >> $logfile
+  echo "  Compute offsets between master amplitude image and simulated master amplitude image "
+  create_diff_par ${masterslcdir}/${master}.slc.mli.par - ${masterdem}/${master}.diff_par 1 0 >> $logfile 
+  offset_pwrm ${masterdem}/pix_sigma0 ${masterslcdir}/${master}.slc.mli ${masterdem}/${master}.diff_par ${masterdem}/${master}.offs ${masterdem}/${master}.ccp 256 256 offsets 2 64 64 0.2 >> $logfile
+  offset_fitm ${masterdem}/${master}.offs ${masterdem}/${master}.ccp ${masterdem}/${master}.diff_par ${masterdem}/coffs ${masterdem}/coffsets 0.2 1  >> $logfile
+  echo "  Refine lookup table using offsets "
+  gc_map_fine ${masterdem}/$master.lt ${width_dem} ${masterdem}/$master.diff_par ${masterdem}/$master.lt_fine 1  >> $logfile
+  echo "  Geocode the master amplitude image "
+  geocode_back ${masterslcdir}/${master}.slc.mli $width ${masterdem}/$master.lt_fine ${masterdem}/EQA.${master}.slc.mli ${width_dem} ${length_dem} 2 0  >> $logfile
+  echo "  Convert to master radar geometry the cropped DEM (geo/EQA.dem): geo/${master}.hgt "
+  geocode ${masterdem}/$master.lt_fine ${masterdem}/EQA.dem ${width_dem} ${masterdem}/${master}.hgt ${width} ${length} 2 0 >> $logfile
+  rashgt ${masterdem}/${master}.hgt ${masterslcdir}/${master}.slc.mli $width - - - $reducfac $reducfac 500 >> $logfile
+  rashgt ${masterdem}/EQA.dem ${masterdem}/EQA.${master}.slc.mli ${width_dem} - - - $reducfac $reducfac 500 >> $logfile
+  echo "  Apply a water mask based on elevation (geo/${master}.hgt): Threshold ${height_threshold} [m] "
+  rascc_mask ${masterdem}/${master}.hgt - ${width} - - - - - ${height_threshold} - 0 1 - - - ${masterdem}/${master}.hgt_mask.ras >> $logfile
+  mask_data ${masterdem}/${master}.hgt ${width} ${masterdem}/${master}.masked.hgt ${masterdem}/${master}.hgt_mask.ras 0 >> $logfile
+  rashgt ${masterdem}/${master}.masked.hgt ${masterslcdir}/${master}.slc.mli $width - - - $reducfac $reducfac 500 >> $logfile
+  rm -f ${masterdem}/offsets ${masterdem}/coffs ${masterdem}/coffsets ${masterdem}/${master}.diff_par ${masterdem}/${master}.offs ${masterdem}/${master}.ccp  
+}
+
+###########################################################################################
+###########################################################################################
+# 1. Create master files (DEM and resampled SLC)
+masterslcdir=SLC/${master}
+masterrslcdir=RSLC/${master}
+dem=DEM/dem_crop.dem
+dempar=${dem}_par
+masterdemdir=geo
+height_threshold=0.1
+
+if [ ! -d "${masterdemdir}" ]; then mkdir ${masterdemdir}; fi 
+if [ -e ${masterdemdir}/${master}.masked.hgt ]; then
+  echo " DEM already in radar coordinates, skipping step "
+else
+  # Create Geocoding products convert DEM to radar coordinates
+  echo " Running doDEM2RadarGeom step "
+  echo "   check doDEM2RadarGeom.log if something goes wrong "
+  logfile=07_doDEM2RadarGeom.log; rm -f $logfile
+  masterDEMcrop $master $masterslcdir $dem $dempar $outres $masterdemdir $height_threshold 
+fi
+
+echo " Running doCoregTOPS step "
+logfile=08_doCoregTOPS.log; rm -f $logfile
+echo "   check $logfile if something goes wrong "
+# Copy the master image to the RSLC folder (create soft links and raster image)
+if [ ! -d "${masterrslcdir}" ]; then 
+  mkdir ${masterrslcdir}
+  echo "  Creating/linking resampled version of the mega - Master SLC "
+  cd ${masterrslcdir}
+  mk_masterRSLClinks ../../${masterslcdir}/${master} ${master} ${IW1} ${IW3}   
+  cd ../..
+  multilookRSLC $master $rlks $azlks $plotme ${masterrslcdir}
+fi
+
+###########################################################################################
+###########################################################################################
+# Coregistration of TOPS SLCs
+# 2. For each slave image, check if there are common bursts
+# 2.1. Overlap is perfect, continue with resampling
+# 2.2. Missing bursts, reshape master and slave, 
+
+width=`awk '$1 == "range_samples:" {print $2}' ${masterslcdir}/${master}.slc.mli.par`; #echo $width
+length=`awk '$1 == "azimuth_lines:" {print $2}' ${masterslcdir}/${master}.slc.mli.par`; #echo $length  
+# Slaves coregistration - Looping over all available SLCs
+# First we generate the list of dates we want to process. Read the zip list and extract the unique yyyymmdd dates
+#for slave in `cat $zipfile_list | sed 's/.*\///' | awk '{print substr($1,18,8)}' | uniq | sort` ; do
+for slave in `cat $zipfile_list | awk '{print $1}'` ; do
+  rslcdir=RSLC/$slave
+  slcdir=SLC/$slave
+  if [ "$master" == "$slave" ]; then
+    echo "  Skipping resampling SLC from master orbit"
+  else
+    echo "  Working on RSLC/$slave "
+    # Determine the closest slave image that has been already coregistered to perform spectral diversity "maximizing coherence"
+    ls -d RSLC/* | awk '{if($1 != "RSLC/"'"${slave}"'"" && $1 != "RSLC/"'"${master}"'"") print substr($1,6,8)}' > slaves.list
+    slave3=`awk -v c=1 -v t=${slave} 'NR==1{d=$c-t;d=d<0?-d:d;v=$c;next}{m=$c-t;m=m<0?-m:m}m<d{d=m;v=$c}END{print v}' slaves.list`
+    rm -f slaves.list
+    # Check if there are burst missing 
+    missingbursts=`check_missing_bursts ${polygon_file} ${burstid_file} $slcdir ${slave} ${IW1} ${IW3}`
+    if [ "${missingbursts}" == "0" ]; then
+      echo " Resampling geometrically the slave: $slave"
+      if [ ! -d "${rslcdir}" ]; then mkdir ${rslcdir}; fi
+      # Make Geometric coregistration only (geometric)
+      echo "  mk_geom_coreg_TOPS $master $slave $masterdemdir ${IW1} ${IW3} $logfile"
+      mk_geom_coreg_TOPS $master $slave $masterdemdir ${IW1} ${IW3} $logfile
+      if [ "$specdiv" == "1" ]; then
+        echo " Resampling slave [$slave]: using spectral diversity master-slave  [${master} - ${slave}]"
+        echo "                            or if available, slave2-slave [${slave3} - ${slave}]"
+        echo "  mk_coreg_TOPS_specdiv $master $slave $width $rlks $azlks $logfile ${IW1} ${IW3} ${slave3}"
+        mk_coreg_TOPS_specdiv $master $slave $width $rlks $azlks $logfile ${IW1} ${IW3} ${slave3}
+      fi
+      multilookRSLC $slave $rlks $azlks $plotme ${rslcdir}
+      rm -f slaves.list SLC1_tab SLC2_tab RSLC2_tab RSLC3_tab
+    else
+      if [ "${missingbursts}" == "-1" ]; then
+        echo " Skipping ${slave} data product: "
+        echo "   There seem to be missing bursts, either due to a missing slice product(s) or bad formatted ESA product(s) "
+      else
+        echo " Working ${slave} data product: "
+        echo "   There seem to be some missing bursts w.r.t. master, trying to fill gaps and resampling. "      
+        if [ ! -d "${rslcdir}" ]; then mkdir ${rslcdir} ; fi
+        if [ ! -d "${rslcdir}/geo" ]; then mkdir ${rslcdir}/geo ; fi
+        # We require to generate a master for this slave 
+        # Check burst of master against the slave
+        for i in `seq ${IW1} ${IW3}`; do
+          BurstList2CommonBursts.py SLC/${master}/${master}_IW${i}.burstlist $slcdir/${slave}_IW${i}.burstlist >> ${rslcdir}/${master}_IW${i}.commonburst
+        done
+        # Crop the master to the slave size
+        echo "mk_recrop SLC/${master}/${master} ${rslcdir}/${master} ${IW1} ${IW3} "
+        mk_recrop SLC/${master}/${master} ${rslcdir}/${master} ${IW1} ${IW3} >> $logfile
+        echo "multilookSLC $master $rlks $azlks 1 ${rslcdir}"
+        multilookSLC $master $rlks $azlks $plotme ${rslcdir}
+        # Recreate the dem for the new master
+        echo "masterDEMcrop $master RSLC/${slave} $dem $dempar $outres ${rslcdir}/geo $height_threshold"
+        masterDEMcrop $master RSLC/${slave} $dem $dempar $outres ${rslcdir}/geo $height_threshold >> $logfile
+        # For the moment only Geometrically coregister cropped master and slave
+        echo "mk_geom_coreg_TOPS_recropmaster $master $slave ${rslcdir}/geo ${IW1} ${IW3} $logfile "
+        mk_geom_coreg_TOPS_recropmaster $master $slave ${rslcdir}/geo ${IW1} ${IW3} $logfile 
+        echo "multilookRSLC $slave $rlks $azlks $plotme ${rslcdir}"
+        multilookRSLC $slave $rlks $azlks $plotme ${rslcdir}
+        # Spectral diversity not yet implemented, because that will force us to reshape the slave3 image too!
+        if [ "$specdiv" == "1" ]; then
+          echo " Resampling slave [$slave]: using spectral diversity master-slave  [${master} - ${slave}]"
+          echo "                            or if available, slave2-slave [${slave3} - ${slave}]"
+          echo "  mk_coreg_TOPS_specdiv $master $slave $width $rlks $azlks $logfile ${IW1} ${IW3} ${slave3}"
+          # Force spectral diversity to master - slave, but not slave3
+          mk_coreg_TOPS_specdiv_crop $master $slave $width $rlks $azlks $logfile ${IW1} ${IW3} 
+        fi
+        multilookRSLC $slave $rlks $azlks $plotme ${rslcdir}
+        rm -f slaves.list SLC1_tab SLC2_tab RSLC2_tab RSLC3_tab
+        
+        # Generate a mosaicked slave of the original master size
+        # Abandoned: Method 1: a) We first read the indexes of the burst of the master; b) Then identify which bursts are in this 
+        # Method 2: 
+        # a) Compute the offset in lines between master and cropped master 
+        azoffset=`master2mastercrop_offset.sh RSLC/${master}/${master} rslc ${rslcdir}/${master} slc`
+        # b) create a new slave image shifted according the $azoffset to match size of $master (full size)
+        #    update the .par files 
+        echo "rslc2rslc.sh RSLC/${master}/${master}.rslc ${rslcdir}/${slave}.rslc $azoffset "
+        rslc2rslc.sh RSLC/${master}/${master} ${rslcdir}/${slave} $azoffset 
+        # c) Multilook the resampled slave slc with the new full master size
+        #echo "multilookRSLC $slave $rlks $azlks $plotme RSLC/${slave}"
+        multilookRSLC $slave $rlks $azlks $plotme ${rslcdir}
+
+        rm -f ${rslcdir}/${master}_IW*.commonburst SLC1_tab SLC2_tab RSLC2_tab RSLC3_tab offsets
+      fi
+    fi
+  fi
+done
+

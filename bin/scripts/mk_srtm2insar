@@ -1,0 +1,93 @@
+#!/bin/bash
+####################################################
+#
+# Dependencies: python 2.7, 
+####################################################
+
+output=$1
+# Input coordinate limits
+west=$2
+east=$3
+south=$4
+north=$5
+
+# Round coordinates appropiately
+west=`python -c "from math import ceil; print ceil($west-1.25)" | awk '{printf "%.0f\n", $1}'`
+east=`python -c "from math import floor; print floor($east+1.25)" | awk '{printf "%.0f\n", $1}'`
+south=`python -c "from math import ceil; print ceil($south-1.25)" | awk '{printf "%.0f\n", $1}'`
+north=`python -c "from math import floor; print floor($north+1.25)" | awk '{printf "%.0f\n", $1}'`
+
+AWK=awk
+
+# Location of the SRTM files
+DEMsDIR=${DEMs_DIR}/srtm/srtm_1arcsec_filled_voids
+
+# Cp srtm to working directory
+for ((long=$west; long <= $east; long++)); do
+  for ((lat=$south; lat <= $north; lat++)); do
+    long1=$long
+    lat1=$lat
+
+    if [ $long1 -lt 0 ] && [ $lat1 -lt 0 ]; then 
+      let "long1 = (( 0 - $long1 ))"
+      let "lat1 = (( 0 - $lat1 ))"
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=S${lat1}W${long1}.SRTMGL1.hgt
+    elif [ $long1 -lt 0 ] && [ $lat1 -ge 0 ]; then 
+      let "long1 = (( 0 - $long1 ))"
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=N${lat1}W${long1}.SRTMGL1.hgt
+    elif [ $long1 -ge 0 ] && [ $lat1 -lt 0 ]; then 
+      let "lat1 = (( 0 - $lat1 ))"
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=S${lat1}E${long1}.SRTMGL1.hgt
+    elif [ $long1 -ge 0 ] && [ $lat1 -ge 0 ]; then
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=N${lat1}E${long1}.SRTMGL1.hgt
+    fi
+
+    echo "Copy file" $file "..."
+    if [ ! -e "$DEMsDIR/$file" ]; then
+      # copy tile
+      cp $DEMsDIR/${file}.zip .
+      chmod u+w ${file}.zip
+      if [ -e "${file}.zip" ]; then
+          echo "File found"
+          #unzip -o ${file}.zip
+          jar xf ${file}.zip    # Update to increase performance of unzipping
+          rm ${file}.zip
+      fi
+    else
+      echo "File does not existed."
+    fi
+
+  done
+done
+
+# Emma Hatton - addition to prevent overwriting of data in the LiCSAR_temp area
+# Assumes the last part of the processing dir is something unique
+tmpnm=`pwd | awk -F '/' '{print $NF}'`
+
+# Merge all files and convert into a large geotif file (depend of GDAL)
+# gdalwarp has poor performance adjusting the cache memory [e.g. 1Gb] performance increases
+# see https://trac.osgeo.org/gdal/wiki/UserDocs/GdalWarp
+gdalwarp -multi --config GDAL_CACHEMAX 1000 -wm 1000 -overwrite -of GTiff `ls *.hgt` ${LiCSAR_temp}/${tmpnm}.tif 
+mv ${LiCSAR_temp}/${tmpnm}.tif ${output}.tif
+# 
+
+# Check gamma version to add geoid heights
+# This is a version that work with GAMMA 20151209
+export DISP_HOME=$(which srtm2dem | sed 's/bin\/srtm2dem//') #required to get srtm2dem working, possible gamma bug?
+geoid_height=0
+resampled_geoid_map='tmp.map'
+#srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 $geoid_height #Gamma20151209 vers.
+srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 $geoid_height $resampled_geoid_map #Gamme20171201 vers.
+#srtm2dem ${output}.tif ${output}.dem ${output}.dem_par $geoid_height # GAMMA 201507 version
+
+rm -f *.hgt
+rm srtm_tmp.hdr srtm2dem.log ${output}.tif 
+

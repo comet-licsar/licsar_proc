@@ -1,0 +1,148 @@
+#!/bin/bash
+# ======================================================================================
+# LiCSAR_mk_aps_S1_SLCs Download and compute Atmospheric Phase Screens for each SLC date
+#
+# To use this script the user must have access to the server of ECMWF (login and password)
+# https://software.ecmwf.int/wiki/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch
+# when you get it a key have to be store at ${HOME}/.ecmwfapirc containing something like this:
+# {
+#     "url"   : "https://api.ecmwf.int/v1",
+#     "key"   : "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+#     "email" : "user@domain.com"
+# }
+#
+#
+# Author: Pablo J. Gonzalez
+# Date: 2013/08/12
+# 
+# Changes: (date of change -> change explanation)
+# 18/09/2013: Changes to be compatible with read GAMMA resampled SLCs  
+# 22/01/2016: Renamed and changed to incorporate it into the LiCSAR package
+# 09/02/2016: Changes to use incidence angle for LiCSAR and work from main Track directory
+# ======================================================================================
+
+echo " "
+PRG=`basename "$0"`
+VER="LiCSAR, LiCS project inSAR processing system "
+AUT="Pablo J. Gonzalez (p.j.gonzalez[at]leeds.com), (c)2014-2016"
+echo -e "$PRG\n $VER\n $AUT"
+echo " To print help type: $PRG --help"
+echo " "
+
+### Handle wrong input (no input)
+if [ "$1" == "--help" ]; then
+cat << __EOFHD
+
+  DOCUMENTATION:
+
+          $PRG 
+
+      This bash-script creates atmospheric phase screens for each 
+      SLC image in an stack for correcting corrected tropospheric 
+      atmospheric phase delays in MultiTemporal InSAR processing
+
+      The program should be run in the INSAR_MASTERDATE folder. 
+      It reads file dimension size information, multilooking factors, etc
+      from auxiliary ascii files in this folder.
+      and dem related information from the first slave image folder.
+      
+      plotme_flag,    1 for plotting SLC epoch delay maps 
+                      0 for not plotting SLC epoch delay maps 
+
+  EXAMPLE:
+
+      $PRG plotme_flag
+
+  OUTPUT:
+      yyyymmdd.aps    matrix of same dimensions as multilooked interferograms
+                      with radar delay values in radians
+
+  DEPENDENCIES:
+
+      paste, awk, ls, cat, basename, echo, head 
+      python 2.7 and pyAPS (earthdef.caltech.edu/projects/pyaps/wiki/Main)
+
+__EOFHD
+  exit 1
+fi
+
+masterdate=$1
+zipfile_list=$2
+if [ "$3" == "1" ]; then plotme=1 ; else plotme=0 ; fi
+rslcmasterdir=RSLC/$masterdate
+
+# First create a folder to save the APS for each SLC
+if [ ! -d "APS" ]; then mkdir APS; fi
+
+# Read info from master date and resampled stacked RSLCs
+wid=`awk '$1 == "width:" {print $2}' geo/EQA.dem_par`;
+len=`awk '$1 == "nlines:" {print $2}' geo/EQA.dem_par`;
+wid1=`awk '$1 == "width:" {print $2-1}' geo/EQA.dem_par`;
+len1=`awk '$1 == "nlines:" {print $2-1}' geo/EQA.dem_par`;
+corner_lat=`awk '$1 == "corner_lat:" {print $2}' geo/EQA.dem_par`;
+corner_lon=`awk '$1 == "corner_lon:" {print $2}' geo/EQA.dem_par`;
+post_lat=`awk '$1 == "post_lat:" {print $2}' geo/EQA.dem_par`;
+post_lon=`awk '$1 == "post_lon:" {print $2}' geo/EQA.dem_par`;
+
+if [ ! -d "geo/EQA.dem.littleendian" ]; then
+# Convert endianess to avoid problems with pyAPS
+swap_bytes geo/EQA.dem geo/EQA.dem.littleendian 4
+# Write rsc file associated to dem in geographical coordinates
+cat << ___EOFHEREDOC___ > geo/EQA.dem.littleendian.rsc                 
+WIDTH                                    $wid
+FILE_LENGTH                              $len   
+XMIN                                     0                             
+XMAX                                     $wid1
+YMIN                                     0                             
+YMAX                                     $len1                    
+X_FIRST                                  $corner_lon
+Y_FIRST                                  $corner_lat
+X_STEP                                   $post_lon
+Y_STEP                                   $post_lat
+X_UNIT                                   degres
+Y_UNIT                                   degres
+Z_OFFSET                                 0
+Z_SCALE                                  1
+PROJECTION                               LATLON
+DATUM                                    WGS84
+___EOFHEREDOC___
+fi
+
+# Extract closest hour (00, 06, 12, 18)
+multiple=6
+hour=`awk '$1 == "date:" {print $5}' ${rslcmasterdir}/${masterdate}.rslc.mli.par`;
+hour=`echo $hour $multiple | awk '{if ($1 % $2 < $2 / 2) { print $1 - ($1 % $2); } else { print (r = $1 % $2) ? $1 + ($2 - r) : $1; }}'`
+hour=`echo $hour | awk '{if($1==24) {print "00";} else {print $1} }'` # if $hour=24 convert to $hour=00
+lambda=`awk '$1 == "radar_frequency:" {print 299792458/$2}' ${rslcmasterdir}/${masterdate}.rslc.mli.par`; # Radar wavelength [in m]
+
+# Create the list of SLCs: Generate the list of dates we want to process. Read the zip list and extract the unique yyyymmdd dates
+rm -f tmp_slc.list
+for imagesource in `cat $zipfile_list` ; do
+  imagezipfilename=`basename ${imagesource}`
+  echo ${imagezipfilename:17:8} >> tmp_slc.list
+done
+
+for slcdate in `cat tmp_slc.list`; do
+  outdir=APS/$slcdate
+  if [ ! -d "$outdir" ]; then mkdir $outdir; fi
+  # This call returns delays in radians
+  if [ -e ../geo/${masterdate}.deg.inc ]; then
+    LiCSAR_mk_aps_SLC.py $outdir $slcdate geo/EQA.dem.littleendian $hour $lambda 
+  else
+    LiCSAR_mk_aps_SLC.py $outdir $slcdate geo/EQA.dem.littleendian $hour $lambda geo/${masterdate}.deg.inc
+  fi
+done
+
+# Create the same map but for radar coordinates
+width=`awk '$1 == "range_samples:" {print $2}' ${rslcmasterdir}/${masterdate}.rslc.mli.par`
+length=`awk '$1 == "azimuth_lines:" {print $2}' ${rslcmasterdir}/${masterdate}.rslc.mli.par`
+for slcdate in `cat tmp_slc.list`; do
+  outdir=APS/$slcdate
+  swap_bytes ${outdir}/${slcdate}.geo.delay ${outdir}/${slcdate}.geo.aps 4
+  geocode geo/${masterdate}.lt_fine ${outdir}/${slcdate}.geo.aps ${wid} ${outdir}/${slcdate}.aps ${width} ${length} 2 0 
+  rm -f ${outdir}/${slcdate}.geo.delay 
+done
+
+rm -f tmp_slc.list
+
+

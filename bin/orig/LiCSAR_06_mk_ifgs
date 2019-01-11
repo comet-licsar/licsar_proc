@@ -1,0 +1,106 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+#################################################################
+
+master=$1         # Master date
+slcs_list=$2      # List of images to be processed 
+rlks=$3           # Multilooking factor for range
+azlks=$4          # Multilooking factor for azimuth
+outres=$5         # Output resolution of final products (decimal degrees)
+# In case we cropped based on geographical coordinates we have to ensure that we always process the same subswaths 
+# That happens when the SLC_tab files are created
+if [ -e minmaxIW ]; then 
+  IW1=`awk '{print $1}' minmaxIW`
+  IW3=`awk '{print $2}' minmaxIW`
+else
+  IW1=1 
+  IW3=3
+fi
+dem=DEM/dem_crop.dem
+dempar=${dem}_par
+# Select Bperp (m) and Bt (days) limits
+bplim=10000   # Basically accept all perpendicular baselines   
+btlim=100    # 365 days temporal baselines
+delta_n_max=3 # pairs with max distance of 3 SLC regardless of temporal baseline
+
+#################################################################
+#################################################################
+#################################################################
+
+#----------------------------------------------------------------------------------------#
+# Extract information about the master file (dimension, coordinates, etc.)
+if [ -e SLC/${master}/${master}.slc.mli.par ]; then
+  width=`awk '$1 == "range_samples:" {print $2}' SLC/${master}/${master}.slc.mli.par`; #echo $width
+  length=`awk '$1 == "azimuth_lines:" {print $2}' SLC/${master}/${master}.slc.mli.par`; #echo $length
+  reducfac=`echo $width | awk '{if(int($1/1000) > 1) print int($1/1000); else print 1}'`
+fi
+
+echo " Running doBperp_Compute step "
+echo "   check doBperp_Compute.log if something goes wrong "
+logfile=06_doBperp_Compute.log
+rm -f $logfile
+#for image in `cat $slcs_list | awk '{print $1}'`; do #for image in `ls -d RSLC/2* | sed 's/.*\///'`; do
+while read line; do
+  image=`echo $line | awk '{print $1}'`; 
+  validity=`echo $line | awk '{print $2}'`; 
+  if [ "$validity" == "1" ]; then
+    echo "RSLC/${image}/${image}.rslc RSLC/${image}/${image}.rslc.par" >> SLC_mosaics_tab
+  fi
+done < $slcs_list 
+base_calc SLC_mosaics_tab RSLC/$master/$master.rslc.par bperp_file itab 1 0 0 $bplim 1 $btlim $delta_n_max >> $logfile
+rm -f base.out base_calc.log SLC_mosaics_tab
+
+echo " Running doInterferogram step "
+echo "   check 10_doInterferogram.log if something goes wrong "
+logfile=10_doInterferogram.log
+rm -f $logfile
+# Compute interferograms
+if [ ! -d "IFG" ]; then mkdir IFG; fi 
+while read line ; do 
+  m_slc=`echo $line | awk '{print $2}'`; 
+  s_slc=`echo $line | awk '{print $3}'`;
+  ifgpar="${m_slc}_${s_slc}"
+ echo "   Computing inteferogram: ${ifgpar}" ; 
+  if [ ! -d "IFG/${ifgpar}" ]; then mkdir IFG/${ifgpar}; fi 
+  offsetfile=IFG/${ifgpar}/${ifgpar}.off
+  echo -e "${m_slc} ${s_slc}\n\n\n\n\n\n\n " > IFG/${ifgpar}/off_par.in 
+  create_offset RSLC/${m_slc}/${m_slc}.rslc.par RSLC/${s_slc}/${s_slc}.rslc.par IFG/${ifgpar}/${ifgpar}.off 1 $rlks $azlks < IFG/${ifgpar}/off_par.in >> $logfile > /dev/null 2>&1
+  phase_sim_orb RSLC/${m_slc}/${m_slc}.rslc.par RSLC/${s_slc}/${s_slc}.rslc.par IFG/${ifgpar}/${ifgpar}.off geo/${master}.masked.hgt IFG/${ifgpar}/${ifgpar}.sim_unw RSLC/${master}/${master}.rslc.par - - 1 1 >> $logfile
+  
+  # Check if the interferometric pair is across the 15 of March 2015; master older than 20150315, and slave younger than 20150315; then add 1.25 rad to the IW1 of master
+  if [[ "${m_slc}" -lt "20150315" && "${s_slc}" -gt "20150315" && "${IW1}" == "1" ]]; then
+    echo "   IFG across the ESA IPF phase anomaly (2015/03/15),... RSLC ${m_slc} needs reformatting prior IFG formation"
+    # Modified master RSLC by adding the phase shift to the IW1
+    phshift=-1.25 # radians
+    # The following method is accurate to 1-2 pixels in the full resolution version of the RSLC, so it should be ok after multilooking
+    # 1) Compute the column in the full resolution mosaic rslc that comes from the IW1 
+    # widthIW1inMosaicRSLC = (burst_win_1 IW2 - burst_win_1 IW1) / range_pixel_spacing
+    bwinIW1=`awk '$1 == "burst_win_1:" {print $2}' RSLC/${m_slc}/${m_slc}.IW1.rslc.TOPS_par`
+    bwinIW2=`awk '$1 == "burst_win_1:" {print $2}' RSLC/${m_slc}/${m_slc}.IW2.rslc.TOPS_par`
+    rngpix=`awk '$1 == "range_pixel_spacing:" {print $2}' RSLC/${m_slc}/${m_slc}.rslc.par`
+    colIW1=`echo $bwinIW2 $bwinIW1 $rngpix | awk '{printf "%d", int(($1-$2)/$3)}'`
+    ml_colIW1=`echo $bwinIW2 $bwinIW1 $rngpix $rlks | awk '{printf "%d", int(int((($1-$2)/$3))/$4)}'`
+    # 2) Compute the interferogram  
+    SLC_diff_intf RSLC/${m_slc}/${m_slc}.rslc RSLC/${s_slc}/${s_slc}.rslc RSLC/${m_slc}/${m_slc}.rslc.par RSLC/${s_slc}/${s_slc}.rslc.par IFG/${ifgpar}/${ifgpar}.off IFG/${ifgpar}/${ifgpar}.sim_unw IFG/${ifgpar}/${ifgpar}.diff $rlks $azlks 0 0 0.2 1 1 >> $logfile     
+    # 3) Shift the phase of the interferogram
+    echo "IFGphaseoffset.py IFG/${ifgpar}/${ifgpar}.diff $width $length IFG/${ifgpar}/${ifgpar}.diff $phshift $ml_colIW1 "
+    IFGphaseoffset.py IFG/${ifgpar}/${ifgpar}.diff $width $length IFG/${ifgpar}/${ifgpar}.diff $phshift $ml_colIW1 >> $logfile
+  else
+    echo "   Normal IFGs ${ifgpar} "
+    SLC_diff_intf RSLC/${m_slc}/${m_slc}.rslc RSLC/${s_slc}/${s_slc}.rslc RSLC/${m_slc}/${m_slc}.rslc.par RSLC/${s_slc}/${s_slc}.rslc.par IFG/${ifgpar}/${ifgpar}.off IFG/${ifgpar}/${ifgpar}.sim_unw IFG/${ifgpar}/${ifgpar}.diff $rlks $azlks 0 0 0.2 1 1 >> $logfile     
+  fi
+  
+  #base_init RSLC/${m_slc}/${m_slc}.rslc.mli.par RSLC/${s_slc}/${s_slc}.rslc.mli.par IFG/${ifgpar}/${ifgpar}.off IFG/${ifgpar}/${ifgpar}.diff IFG/${ifgpar}/${ifgpar}.base 2 # method 2 is time-consuming!!
+  base_init RSLC/${m_slc}/${m_slc}.rslc.mli.par RSLC/${s_slc}/${s_slc}.rslc.mli.par IFG/${ifgpar}/${ifgpar}.off IFG/${ifgpar}/${ifgpar}.diff IFG/${ifgpar}/${ifgpar}.base 0 >> $logfile
+  rasmph_pwr IFG/${ifgpar}/${ifgpar}.diff RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 0.8 0.35  >> $logfile
+  cc_wave IFG/${ifgpar}/${ifgpar}.diff RSLC/${m_slc}/${m_slc}.rslc.mli RSLC/${s_slc}/${s_slc}.rslc.mli IFG/${ifgpar}/${ifgpar}.cc $width >> $logfile
+  rascc IFG/${ifgpar}/${ifgpar}.cc RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 0.0 1.0 0.8 0.35 >> $logfile
+
+done < bperp_file
+
+ 

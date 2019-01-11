@@ -1,0 +1,86 @@
+#!/bin/bash
+# ======================================================================================
+# LiCSAR_mk_aps_S1_SLCs Download and compute Atmospheric Phase Screens for each SLC date
+#
+# To use this script the user must have access to the server of ECMWF (login and password)
+# https://software.ecmwf.int/wiki/display/WEBAPI/Accessing+ECMWF+data+servers+in+batch
+# when you get it a key have to be store at ${HOME}/.ecmwfapirc containing something like this:
+# {
+#     "url"   : "https://api.ecmwf.int/v1",
+#     "key"   : "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+#     "email" : "user@domain.com"
+# }
+#
+#
+# Author: Pablo J. Gonzalez
+# Date: 2013/08/12
+# 
+# Changes: (date of change -> change explanation)
+# 18/09/2013: Changes to be compatible with read GAMMA resampled SLCs  
+# 22/01/2016: Renamed and changed to incorporate it into the LiCSAR package
+# ======================================================================================
+
+echo " "
+PRG=`basename "$0"`
+VER="LiCSAR, LiCS project InSAR processing system "
+AUT="Pablo J. Gonzalez (p.j.gonzalez[at]leeds.com), (c)2014-2016"
+echo -e "$PRG\n $VER\n $AUT"
+echo " To print help type: $PRG --help"
+echo " "
+
+### Handle wrong input (no input)
+if [ "$1" == "--help" ]; then
+cat << __EOFHD
+
+  DOCUMENTATION:
+
+          $PRG 
+
+      This bash-script creates atmospheric phase screens for each 
+      SLC image in an stack for correcting corrected tropospheric 
+      atmospheric phase delays in MultiTemporal InSAR processing
+
+      The program should be run in the INSAR_MASTERDATE folder. 
+      It reads file dimension size information, multilooking factors, etc
+      from auxiliary ascii files in this folder.
+      and dem related information from the first slave image folder.
+      
+      plotme_flag,    1 for plotting SLC epoch delay maps 
+                      0 for not plotting SLC epoch delay maps 
+
+  EXAMPLE:
+
+      $PRG plotme_flag
+
+  OUTPUT:
+      yyyymmdd.aps    matrix of same dimensions as multilooked interferograms
+                      with radar delay values in radians
+
+  DEPENDENCIES:
+
+      paste, awk, ls, cat, basename, echo, head 
+      python 2.7 
+
+__EOFHD
+  exit 1
+fi
+
+masterdate=$1
+ifglist=$2
+
+width=`awk '$1 == "range_samples:" {print $2}' RSLC/${masterdate}/$masterdate.rslc.mli.par`
+reducfac=`echo $width | awk '{if(int($1/2000) > 1) print int($1/2000); else print 1}'`
+
+while read line ; do 
+  mdate=`echo $line | awk '{print $2}'`; 
+  sdate=`echo $line | awk '{print $3}'`; 
+  echo "   Computing inteferogram: ${mdate}_${sdate}" ; 
+  LiCSAR_mk_aps_IFG.py APS IFG/${mdate}_${sdate} $mdate $sdate 
+  create_diff_par RSLC/${mdate}/${mdate}.rslc.mli.par RSLC/${sdate}/${sdate}.rslc.mli.par IFG/${mdate}_${sdate}/${mdate}_${sdate}.diff_par 1 0
+  sub_phase IFG/${mdate}_${sdate}/${mdate}_${sdate}.diff IFG/${mdate}_${sdate}/${mdate}_${sdate}.aps IFG/${mdate}_${sdate}/${mdate}_${sdate}.diff_par IFG/${mdate}_${sdate}/${mdate}_${sdate}.diff.aps 1 0
+  if [ "$3" == 1 ]; then
+    rasrmg IFG/${mdate}_${sdate}/${mdate}_${sdate}.aps RSLC/${masterdate}/${masterdate}.rslc.mli $width - - - $reducfac $reducfac 1
+    rasmph_pwr IFG/${mdate}_${sdate}/${mdate}_${sdate}.diff.aps RSLC/${masterdate}/${masterdate}.rslc.mli $width 1 1 0 $reducfac $reducfac 0.8 0.35 IFG/${mdate}_${sdate}/${mdate}_${sdate}.diff.aps.bmp 
+  fi
+done < $ifglist
+

@@ -1,0 +1,97 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# In this script 
+#  1) Unzip files zip 2 SAFE/ folders
+#  2) Read SAFE format to GAMMA format
+#  3) Merge all slc from the same date
+#  4) Crop master against all slaves, and crop slaves to the master
+#  5) Generate quicklook images (reduce size)
+#  6) Update annotated orbit information with precise/restituted orbits
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2016/01/26
+#################################################################
+
+master=$1         # Master date
+rlks=$2           # Multilooking factor for range
+azlks=$3          # Multilooking factor for azimuth
+if [ "$#" -gt 3 ]; then
+   polygon_file=$4
+   burstid_file=$(basename $polygon_file .xy)_burst_ids.txt
+   doCropGeo=1
+fi
+if [ -e minmaxIW ]; then 
+  IW1=`awk '{print $1}' minmaxIW`
+  IW3=`awk '{print $2}' minmaxIW`
+else
+  IW1=1 
+  IW3=3
+fi
+
+# #----------------------------------------------------------------------------------------#
+# # Read SLCs from SAFE format to GAMMA format (.slc .slc.par .slc.TOPS_par)
+# echo " Running doReadSLCsTOPS step "
+# echo "   check doReadSLCsTOPS.log if something goes wrong "
+# logfile=01_doReadSLCsTOPS.log
+# rm -f $logfile
+
+# Identify which bursts in master are inside the polygon, before starting to merge
+rm -f SLC/${master}/*_zipfiles.txt SLC/${master}/*_zipfiles_short.txt
+burstsinframe2.sh ${polygon_file} ${burstid_file} SLC/${master} ${master} 
+nb_inframe=`wc -l < $burstid_file | awk '{print $1-1}'`
+nb_inimage=`cat SLC/${master}/${master}_zipfiles_short.txt | grep -o NA | wc -l`
+
+# Check if the number of bursts missing is larger than zero
+if [ "$nb_inimage" == "0" ]; then 
+  
+  # First uncompress, and merge all the available slices
+  echo "  Uncompressing $master "; uncompressSAFE $master 
+  echo "  Reformatting/Merging/Mosaicking: $master " 
+  readSAFE $master > /dev/null 2>&1
+  pad_SLCs $master $IW1 $IW3      # Only pad the image that we are working on [Richard addition to double check consistency of lines on subswaths]
+  mergeSLC $master $rlks $azlks
+  multilookSLC $master $rlks $azlks 1 SLC/${master}
+  rmTmpSLC SLC/${master} 
+  
+  # Then, crop the image to match the burstline and polygon_file
+  rm -f SLC/${master}/${master}_IW*.commonburst
+  for i in `seq ${IW1} ${IW3}`; do
+    # Here, we are sure that we do not crop again the master
+    if [ "$doCropGeo" == "1" ]; then
+      BurstListInPolyFile.py SLC/${master}/${master}_IW${i}.burstlist $polygon_file >> SLC/${master}/${master}_IW${i}.commonburst   
+    else
+      echo "No geographical cropping?. So leave it as is"
+    fi
+  done
+  # Crop the master according to the identified common bursts
+  # Check if some subswath has zero bursts and adjust IW1 and IW3
+  if [ ! -e minmaxIW ]; then 
+    check_EmptySubswath SLC/${master}/${master} > IWnew # Input is the location of the files .commonburst for master
+    IW1=`cat IWnew | awk '{print $1}'`; 
+    IW3=`cat IWnew | awk '{print $2}'`; 
+    echo $IW1 $IW3 > minmaxIW
+  fi
+  echo "    Cropping master image: $master"
+  echo "    mk_crop SLC/${master}/${master} ${IW1} ${IW3} "
+  mk_crop SLC/${master}/${master} ${IW1} ${IW3} # >> $logfile 
+  multilookSLC $master $rlks $azlks 1 SLC/${master}
+  rm -f IWnew
+   
+else
+  echo "Fill the missing bursts, for the master??; Perhaps throught an error here!" 
+  echo "Master image do not cover the desired regional selection. Choose another master date or reduce your selected area"
+  break
+fi
+
+
+# Update the orbits section!!
+echo "UpdateOrbits ${master} $ORBs_DIR"
+UpdateOrbits ${master} $ORBs_DIR
+  
+
+
+
+

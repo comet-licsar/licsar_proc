@@ -1,0 +1,175 @@
+#!/bin/bash
+######################################################################
+# 
+######################################################################
+
+# http://stackoverflow.com/questions/16483119/example-of-how-to-use-getopts-in-bash
+usage() { 
+  echo " " 1>&2; 
+  echo "Usage: $0 -i <zipfile> [-s <start>] [-e <end>] [-m <master_date>] [-r <rlks>] [-a <azlks>] [-o <outres>] [-d <0|1>] [-w <filtwinsize>] [-z <0|1>] [-g <0|1>] [-f polygon]" 1>&2; 
+  echo "  LiCSAR is a program that controls the flow of the LiCSAR Sentinel-1 InSAR processing system " 1>&2; 
+  echo " " 1>&2; 
+  exit 1; 
+}
+
+while getopts ":i:s:e:m:r:a:o:d:w:z:g:f:" inputopt; do # This sequence forces the program to have at least the zipfile input, otherwise dump error
+    case "${inputopt}" in
+        i)  zipfile_list=${OPTARG} ;;
+        s)  starting_step=${OPTARG} ;;
+        e)  ending_step=${OPTARG} ;;
+        m)  master_date=${OPTARG} ;;
+        r)  rlks=${OPTARG} ;;
+        a)  azlks=${OPTARG} ;;
+        o)  outres=${OPTARG} ;;
+        d)  specdiv=${OPTARG} ;;
+        w)  winsize=${OPTARG} ;;
+        z)  aps_correction=${OPTARG} ;;
+        g)  geocoding_proc=${OPTARG} ;;
+        f)  polygon_file=${OPTARG} ;;        
+        *)  usage ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ -z "${zipfile_list}" ] ; then usage ; fi 
+if [ -z "${starting_step}" ] ; then echo "-s does not exist; Assume all steps"; starting_step=1; fi
+if [ -z "${ending_step}" ] ; then echo "-s does not exist; Assume all steps"; ending_step=10; fi
+if [ -z "${rlks}" ] ; then rlks=20; fi
+if [ -z "${azlks}" ] ; then azlks=4; fi
+if [ -z "${outres}" ] ; then outres=0.001; fi
+if [ -z "${specdiv}" ] ; then specdiv=0; fi
+if [ -z "${winsize}" ] ; then winsize=64; fi
+if [ -z "${aps_correction}" ] ; then aps_correction=0; fi
+if [ -z "${geocoding_proc}" ] ; then geocoding_proc=0; fi
+if [ -z "${master_date}" ] ; then master_date=0; fi
+
+for stepID in `seq $starting_step $ending_step`; do
+  
+  slcs=slcs.list
+  
+  ######################################################################
+  # Create soft links to zip files
+  if [ "$stepID" == "1" ]; then
+    echo " Step LiCSAR_01_mk_links_zipfiles: Running create links step"    
+    LiCSAR_01_mk_link_zipfiles $zipfile_list $polygon_file $slcs
+    echo " Step LiCSAR_01_mk_crop_extDEM:    Cropping external DEM step [if not existing] "
+    LiCSAR_01_mk_crop_extDEM DEM/dem_crop 
+  fi
+
+  ######################################################################
+  # From zip files to merged and cropped master SLCs
+  if [ "$stepID" == "2" ]; then
+    echo " Step LiCSAR_02_mk_zip2SLC: Read, merge and crop and update orbits for master date"  
+    echo "LiCSAR_02_mk_zip2SLC $master_date $rlks $azlks with $polygon_file"
+    LiCSAR_02_mk_zip2croppedSLCmaster $master_date $rlks $azlks $polygon_file
+  fi
+
+  ######################################################################
+  # From zip files to merged and cropped SLCs [no crop if same bursts], update orbit information
+  # use the zip files to make only those SLC images [check for uniqueness on dates]
+  if [ "$stepID" == "3" ]; then
+    echo " Step LiCSAR_03_mk_zip2SLC (1): Read and merge for each slave SLC, then crop according to $polygon_file"  
+    #LiCSAR_03_mk_zip2SLC $master_date $zipfile_list $rlks $azlks $polygon_file
+    LiCSAR_03_mk_zip2SLC $master_date $slcs $rlks $azlks $polygon_file
+  fi
+
+  ######################################################################
+  # Create the simulate DEM, and geometric coregistration of RSLCs stack, and generate the list of interferograms (bperp_file)
+  if [ "$stepID" == "4" ]; then
+    echo " Step LiCSAR_04_mk_SLC2RSLC: Create DEM [if not existing] and geometrically resample SLCs to RSLCs"    
+    #LiCSAR_04_mk_SLC2RSLC $master_date $zipfile_list $rlks $azlks $outres $specdiv $polygon_file
+    LiCSAR_04_mk_SLC2RSLC $master_date $slcs $rlks $azlks $outres $specdiv $polygon_file
+  fi
+  
+  ######################################################################
+  # Generate the incidence, heading and squint angle files for the master geometry  
+  if [ "$stepID" == "5" ]; then
+    echo " Step LiCSAR_05_mk_angles_master: Create incidence, heading and squint angle files for master geometry [if not existing]"    
+    if [ -e geo/${master_date}.deg.inc ]; then 
+      echo "  Angles geometric files already exist. Skipping this step "
+    else
+      LiCSAR_05_mk_angles_master $master_date 
+    fi
+  fi
+  ######################################################################
+  # Generate the interferograms
+  if [ "$stepID" == "6" ]; then
+    echo " Step LiCSAR_06_mk_ifgs: Generate differential interferograms"  
+    #LiCSAR_06_mk_ifgs $master_date $zipfile_list $rlks $azlks # $polygon_file
+    LiCSAR_06_mk_ifgs $master_date $slcs $rlks $azlks # $polygon_file
+    cp bperp_file ifgs.list
+  fi
+
+  ######################################################################
+  # Generate APS for each epoch and interferogram, currently only ECMWF
+  if [ "$stepID" == "7" ]; then
+    if [ "$aps_correction" == "0" ]; then
+      echo " Step LiCSAR_07_APS*: No atmospheric correction to be applied"   
+    else
+      echo " Step LiCSAR_07_APS*: Generate and remove atmospheric signals with ECMWF model [only available for images older than 2 months]"  
+      echo "                       more information on ECMWF at http://www.ecmwf.int/en/research/climate-reanalysis/era-interim "
+      LiCSAR_07_mk_aps_S1_SLCs $master_date $zipfile_list 1 # Generate APS for each epoch in zipfile.list
+      if [ ! -e ifgs.list ]; then 
+        echo "  ERROR in step 7 (filtering interferograms): Interferogram list does not exist "
+      else
+        LiCSAR_07_rm_aps_S1_IFGs $master_date ifgs.list 1 # Substract atmospheric noise to the unfiltered interfergrams
+      fi
+    fi
+  fi
+
+  # Start of geocoding processing branching [filtering and unwrapping in geographical or radar coordinates]
+  if [ "$geocoding_proc" == "0" ]; then
+    if [ "$stepID" == "8" ]; then
+      echo " Step LiCSAR_08_mk_filtifgs: Spatially filter interferograms"     
+      if [ ! -e ifgs.list ]; then 
+        echo "  ERROR in step 8 (filtering interferograms): Interferogram list does not exist "
+      else
+        LiCSAR_08_mk_filtifgs $master_date ifgs.list $aps_correction $winsize 0.85 
+      fi
+    fi
+    if [ "$stepID" == "9" ]; then
+      echo " Step LiCSAR_09_mk_unwifgs: Spatially unwrap interferograms [2D approach - Minimun Cost Flow]"       
+      if [ ! -e ifgs.list ]; then 
+        echo "  ERROR in step 9 (Unwrapping interferograms): Interferogram list does not exist "
+      else
+        LiCSAR_09_mk_unwifgs $master_date ifgs.list
+      fi
+    fi
+    if [ "$stepID" == "10" ]; then
+      echo " Step LiCSAR_10_mk_geocode: Geocode coherence and un-,filtered and unwrapped interferograms. Generate displacement map [cm]"
+      if [ ! -e ifgs.list ]; then 
+        echo "  ERROR in step 10 (Geocoding products): Interferogram list does not exist "
+      else
+        LiCSAR_10_mk_geocode $master_date ifgs.list
+      fi 
+    fi
+  else
+    if [ "$stepID" == "8" ]; then
+      echo " Step geoLiCSAR_08_mk_geocode: Geocode coherence and unfiltered interferograms. Then spatially filter then."
+      if [ ! -e ifgs.list ]; then 
+        echo "  ERROR in step 10 (Geocoding products): Interferogram list does not exist "
+      else
+        geoLiCSAR_08_mk_geocode $master_date ifgs.list $aps_correction
+        geoLiCSAR_08_mk_filtifgs $master_date ifgs.list $aps_correction $winsize 0.85 
+      fi 
+    fi
+    if [ "$stepID" == "9" ]; then
+      echo " Step geoLiCSAR_09_mk_unwifgs: Spatially unwrap interferograms [2D approach - Minimun Cost Flow] Generate displacement map [cm]"       
+      if [ ! -e ifgs.list ]; then 
+        echo "  ERROR in step 9 (Unwrapping interferograms): Interferogram list does not exist "
+      else
+        geoLiCSAR_09_mk_unwifgs $master_date ifgs.list
+      fi
+    fi
+    if [ "$stepID" == "10" ]; then
+      echo " Step geoLiCSAR_10_mk_geocode: Generate displacement map [cm]"
+      if [ ! -e ifgs.list ]; then 
+        echo "  ERROR in step 10 (Geocoding products): Interferogram list does not exist "
+      else
+        geoLiCSAR_10_mk_geocode $master_date ifgs.list
+      fi 
+    fi
+
+  fi # End of geocoding processing branching  
+done
+

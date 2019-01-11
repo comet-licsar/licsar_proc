@@ -1,0 +1,87 @@
+#!/bin/bash
+
+output=$1
+# Input coordinate limits
+west=$2
+east=$3
+south=$4
+north=$5
+
+# Round coordinates appropiately
+west=`python -c "from math import ceil; print ceil($west-1.25)" | awk '{printf "%.0f\n", $1}'`
+east=`python -c "from math import floor; print floor($east+1.25)" | awk '{printf "%.0f\n", $1}'`
+south=`python -c "from math import ceil; print ceil($south-1.25)" | awk '{printf "%.0f\n", $1}'`
+north=`python -c "from math import floor; print floor($north+1.25)" | awk '{printf "%.0f\n", $1}'`
+
+AWK=awk
+# Location of the GDEM files
+DEMsDIR=${DEMs_DIR}/srtm/srtm_1arcsec_filled_voids
+
+# Cp srtm to working directory
+for ((long=$west; long <= $east; long++)); do
+  for ((lat=$south; lat <= $north; lat++)); do
+    long1=$long
+    lat1=$lat
+
+    if [ $long1 -lt 0 ] && [ $lat1 -lt 0 ]; then 
+      let "long1 = (( 0 - $long1 ))"
+      let "lat1 = (( 0 - $lat1 ))"
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=ASTGTM2_S${lat1}W${long1}
+    elif [ $long1 -lt 0 ] && [ $lat1 -ge 0 ]; then 
+      let "long1 = (( 0 - $long1 ))"
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=ASTGTM2_N${lat1}W${long1}
+    elif [ $long1 -ge 0 ] && [ $lat1 -lt 0 ]; then 
+      let "lat1 = (( 0 - $lat1 ))"
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=ASTGTM2_S${lat1}E${long1}
+    elif [ $long1 -ge 0 ] && [ $lat1 -ge 0 ]; then
+      long1=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
+      lat1=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
+      file=ASTGTM2_N${lat1}E${long1}
+    fi
+
+    echo "Copy file" $file "..."
+    if [ ! -e "$DEMsDIR/$file" ]; then
+      # copy tile
+      cp $DEMsDIR/${file}.zip .
+      if [ -e "${file}.zip" ]; then
+          echo "File found"
+          #unzip -o ${file}.zip
+          jar xf ${file}.zip
+          rm ${file}.zip
+          mv ${file}/* .
+      fi
+    else
+      echo "File does not existed."
+    fi
+
+  done
+done
+
+# Merge all files and convert into a large geotif file (depend of GDAL)
+# gdalwarp has poor performance adjusting the cache memory [e.g. 1Gb] performance increases
+# see https://trac.osgeo.org/gdal/wiki/UserDocs/GdalWarp
+gdalwarp -multi --config GDAL_CACHEMAX 1000 -wm 1000 -overwrite -of GTiff `ls *_dem.tif` ${output}.tif 
+
+# Check gamma version to add geoid heights
+gammaversion=`srtm2dem 1&> tmp1 ; awk '{if(NR==1) print substr($2,13,6)}' tmp1`
+if [ "$gammaversion" -lt "201507" ]; then
+  srtm2dem ${output}.tif ${output}.dem ${output}.dem_par
+else
+  # Obtain the geoid height to input into srtm2dem program
+  #center_coordinates=`gdalinfo ${output}_dem.tif | grep Center | awk '{print $3,$4}'`
+  # http://geographiclib.sourceforge.net/cgi-bin/GeoidEval?input=36+14&option=Submit
+  # http://geographiclib.sourceforge.net/1.28/geoid.html
+  # http://geographiclib.sourceforge.net/1.28/index.html
+  geoid_height=0
+  srtm2dem ${output}.tif ${output}.dem ${output}.dem_par $geoid_height
+fi
+
+rm -f ASTGTM*.tif
+rm -fr ASTGTM*/
+rm srtm_tmp.hdr srtm_tmp.aux.xml srtm2dem.log dem_par.in tmp1 ${output}.tif 

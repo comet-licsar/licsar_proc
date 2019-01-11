@@ -1,0 +1,81 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# In this script 
+#  1) Unzip files zip 2 SAFE/ folders
+#  2) Read SAFE format to GAMMA format
+#  3) Merge all slc from the same date
+#  4) Crop master against all slaves, and crop slaves to the master
+#  5) Generate quicklook images (reduce size)
+#  6) Update annotated orbit information with precise/restituted orbits
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2016/01/26
+#################################################################
+
+#LiCSAR_02_mk_zip2SLC $master_date zipfile.list $rlks $azlks $ORBs_DIR
+master=$1         # Master date
+slcs_list=$2      # List of images to be processed 
+rlks=$3           # Multilooking factor for range
+azlks=$4          # Multilooking factor for azimuth
+polygon_file=$5
+burstid_file=$(basename $polygon_file .xy)_burst_ids.txt
+
+if [ -e minmaxIW ]; then 
+  IW1=`awk '{print $1}' minmaxIW`
+  IW3=`awk '{print $2}' minmaxIW`
+else
+  IW1=1 
+  IW3=3
+fi
+
+#for slcdate in `cat $zipfile_list | sed 's/.*\///' | awk '{print substr($1,18,8)}' | uniq | sort` ; do
+for slcdate in `cat $slcs_list | awk '{print $1}'` ; do
+  # If the master image
+  if [ "${master}" == "${slcdate}" ]; then 
+    echo "  Master date slice products already concatenated/merged"
+  else 
+    missingbursts=`check_missing_bursts ${polygon_file} ${burstid_file} SLC/${slcdate} ${slcdate} $IW1 $IW3`
+    if [ "${missingbursts}" == "-1" ]; then
+      echo " Skipping ${slcdate} data product: "
+      echo "   There seem to be missing bursts, either due to a missing slice product(s) or bad formatted ESA product(s) "
+    else
+      echo " Bursts required to continue exist, proceed with processing $slcdate "
+      # First uncompress, and merge all the available slices
+      echo "  Uncompressing $slcdate "; uncompressSAFE $slcdate > /dev/null 2>&1
+      echo "  Reformatting/Merging/Mosaicking: $slcdate " 
+      readSAFE $slcdate #> /dev/null 2>&1
+      pad_SLCs $slcdate $IW1 $IW3 #> /dev/null 2>&1     # Only pad the image that we are working on [Richard addition to double check consistency of lines on subswaths]
+      mergeSLC $slcdate $rlks $azlks #> /dev/null 2>&1
+      multilookSLC $slcdate $rlks $azlks 1 SLC/${slcdate} #> /dev/null 2>&1
+      rmTmpSLC SLC/${slcdate} 
+      # Then, crop the image to match the burstline and polygon_file
+      rm -f SLC/${slcdate}/${slcdate}_IW*.commonburst
+      for i in `seq ${IW1} ${IW3}`; do
+        # Check against the polygon TOO UNSTABLE DEPENDS ON THE POSITION OF POLYGON AND BURST CENTERS
+        # BurstListInPolyFile.py SLC/${slcdate}/${slcdate}_IW${i}.burstlist $polygon_file >> SLC/${slcdate}/${slcdate}_IW${i}.commonburst   
+        # Check against the master
+        BurstList2CommonBursts.py SLC/${slcdate}/${slcdate}_IW${i}.burstlist SLC/${master}/${master}_IW${i}.burstlist > SLC/${slcdate}/${slcdate}_IW${i}.commonburst
+        ###############################
+        # This section added to handle case when geotagged information in zip file is incomplete!
+        ###############################
+        nburstZIP=`wc -l SLC/${slcdate}/${slcdate}_IW${i}.burstlist | awk '{print $1}'`
+        nburstInTOPS=`grep number_of_bursts:  SLC/${slcdate}/${slcdate}.IW${i}.slc.TOPS_par | awk '{print $2}'`
+        if [ "${nburstZIP}" != "$nburstInTOPS" ]; then
+          echo " Detected problems between zipfile information and burst information in TOPS_par. Trying to hack it! "
+          awk '{if($1>1) print $1+1, $2+1}' SLC/${slcdate}/${slcdate}_IW${i}.commonburst > tmp
+          mv tmp SLC/${slcdate}/${slcdate}_IW${i}.commonburst
+        fi
+        ###############################
+      done
+      echo "    mk_crop SLC/${slcdate}/${slcdate} ${IW1} ${IW3} "
+      mk_crop SLC/${slcdate}/${slcdate} ${IW1} ${IW3} > /dev/null 2>&1 # >> $logfile 
+      multilookSLC $slcdate $rlks $azlks 1 SLC/${slcdate} > /dev/null 2>&1
+      UpdateOrbits ${slcdate} $ORBs_DIR > /dev/null 2>&1
+    fi
+  fi
+done 
+
+

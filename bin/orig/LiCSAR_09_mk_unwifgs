@@ -1,0 +1,31 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+#################################################################
+
+master=$1         # Master date
+ifglist=$2        # List of interferograms to process
+
+#----------------------------------------------------------------------------------------#
+# Extract information about the master file (dimension, coordinates, etc.)
+width=`awk '$1 == "range_samples:" {print $2}' RSLC/$master/$master.rslc.mli.par`; #echo $width
+length=`awk '$1 == "azimuth_lines:" {print $2}' RSLC/$master/$master.rslc.mli.par`; #echo $length
+reducfac=`echo $width | awk '{if(int($1/1000) > 1) print int($1/1000); else print 1}'`
+
+#----------------------------------------------------------------------------------------#
+# 2D Unwrapping of the interferogram phase
+echo " Running doUnwrapping step "
+echo "   check doUnwrapping.log if something goes wrong "
+logfile=12_doUnwrapping.log
+rm -f $logfile
+while read line ; do 
+  mdate=`echo $line | awk '{print $2}'`; 
+  sdate=`echo $line | awk '{print $3}'`; 
+  echo "   Unwrapping filtered masked inteferogram: ${mdate}_${sdate} " ;   
+  mcf IFG/${mdate}_${sdate}/${mdate}_${sdate}.filt.diff IFG/${mdate}_${sdate}/${mdate}_${sdate}.filt.cc geo/mask.bmp IFG/${mdate}_${sdate}/${mdate}_${sdate}.unw $width 0 - - - - 1 1 >> $logfile
+  rasrmg IFG/${mdate}_${sdate}/${mdate}_${sdate}.unw RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac >> $logfile
+done < $ifglist

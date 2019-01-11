@@ -1,0 +1,61 @@
+#!/bin/bash
+#################################################################
+# Copy / soft linking the source zip files
+# And create the list of burstfiles
+#################################################################
+
+# Parsing arguments with some words to ease the quick use
+zipfiles_list=$1
+polygon_file=$2
+burstid_file=$(basename $polygon_file .xy)_burst_ids.txt
+outlist=$3
+if [ -e minmaxIW ]; then 
+  IW1=`awk '{print $1}' minmaxIW`
+  IW3=`awk '{print $2}' minmaxIW`
+else
+  IW1=1 
+  IW3=3
+fi
+
+if [ ! -d "SLC" ]; then mkdir SLC; fi 
+for imagesource in `cat $zipfiles_list` ; do
+  imagezipfilename=`basename ${imagesource}`
+  yyyymmdd=${imagezipfilename:17:8}
+  cd SLC
+    mkdir $yyyymmdd
+    cd $yyyymmdd
+      ln -s ${imagesource} ${imagezipfilename}
+      zipSAFE_2_BurstsList.py ${imagezipfilename}
+    cd ..
+  cd ..  
+done
+
+# Check the burst information is suffice to process that SLC date
+echo "Check for badly formatted SLCs, based on the $zipfiles_list file"
+if [ -e "$outlist" ]; then rm -f $outlist; fi
+for slcdate in `cat $zipfiles_list | sed 's/.*\///' | awk '{print substr($1,18,8)}' | sort | uniq` ; do
+  #echo "check_missing_bursts ${polygon_file} ${burstid_file} SLC/${slcdate} ${slcdate} $IW1 $IW3"
+  missingbursts=`check_missing_bursts ${polygon_file} ${burstid_file} SLC/${slcdate} ${slcdate} $IW1 $IW3`
+  if [ "${missingbursts}" == "-1" ]; then
+    echo " Data product ${slcdate} incomplete: There seem to be missing bursts, either due to a missing slice product(s) or bad formatted ESA product(s) "
+    echo $slcdate 0 ${missingbursts} >> $outlist
+  else
+    if [ "${missingbursts}" == "0" ]; then
+      echo " Data product ${slcdate} complete: continue processing "
+      echo $slcdate 1 ${missingbursts} >> $outlist
+    else
+      echo " Data product ${slcdate} incomplete: Not critically badly formatted... continue processing."
+      echo $slcdate 1 ${missingbursts} >> $outlist
+    fi
+  fi
+done
+
+# After we check problematic slice products, we remove them from the SLC directory and the zipfile_list
+echo "Remove bad formatted SLC from the SLC directory and the $zipfiles_list file"
+while read slcdate flag; do
+  if [ "${flag}" == "0" ]; then
+    rm -rf SLC/$slcdate
+    grep -v "${slcdate}" $zipfiles_list > tmp
+    mv tmp $zipfiles_list
+  fi
+done < $outlist

@@ -1,0 +1,95 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+#################################################################
+
+master=$1
+ifglist=$2
+
+width=`awk '$1 == "range_samples:" {print $2}' RSLC/$master/$master.rslc.mli.par`; #echo $width
+length=`awk '$1 == "azimuth_lines:" {print $2}' RSLC/$master/$master.rslc.mli.par`; #echo $length
+reducfac=`echo $width | awk '{if(int($1/2000) > 1) print int($1/2000); else print 1}'`
+
+if [ ! -d "GEOC" ]; then mkdir GEOC; fi 
+  
+lat=`awk '$1 == "corner_lat:" {print $2}' geo/EQA.dem_par`
+lon=`awk '$1 == "corner_lon:" {print $2}' geo/EQA.dem_par`
+latstep=`awk '$1 == "post_lat:" {print $2}' geo/EQA.dem_par`
+lonstep=`awk '$1 == "post_lon:" {print $2}' geo/EQA.dem_par`
+length_dem=`awk '$1 == "nlines:" {print $2}' geo/EQA.dem_par`
+width_dem=`awk '$1 == "width:" {print $2}' geo/EQA.dem_par`
+reducfac_dem=`echo $width_dem | awk '{if(int($1/2000) > 1) print int($1/2000); else print 1}'`
+lat1=`echo $lat $latstep $length_dem | awk '{printf "%7f", ($1+($2*($3-1)));}'` # Substract one because width starts at zero
+lon1=`echo $lon $lonstep $width_dem | awk '{printf "%7f", ($1+($2*($3-1)));}'`
+latstep=`awk '$1 == "post_lat:" {if($2<0) printf "%7f", -1*$2; else printf "%7f", $2}' geo/EQA.dem_par`
+lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f", $2}' geo/EQA.dem_par`
+# Because no wavelength is reported in master.rmli.par file, we calculated here according to the radar frequency (IN CENTIMETERS)
+# Frequency = (C / Wavelength), Where: Frequency: Frequency of the wave in hertz (hz). C: Speed of light (29,979,245,800 cm/sec (3 x 10^10 approx))
+lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' RSLC/$master/$master.rslc.mli.par`;
+
+echo " Running doGeocoding step "
+echo "   check doGeocoding.log if something goes wrong "
+logfile=13_doGeocoding.log
+rm -f $logfile
+
+
+while read line ; do 
+  mdate=`echo $line | awk '{print $2}'`; 
+  sdate=`echo $line | awk '{print $3}'`; 
+  ifgpar="${mdate}_${sdate}"
+  if [ ! -d "GEOC/${ifgpar}" ]; then mkdir GEOC/${ifgpar}; fi 
+  echo "   Geocoding results for inteferogram: ${ifgpar}" ; 
+  # Unfiltered interferogram
+  if [ -e IFG/${ifgpar}/${ifgpar}.diff ]; then
+    geocode_back IFG/${ifgpar}/${ifgpar}.diff $width geo/$master.lt_fine GEOC/${ifgpar}/${ifgpar}.geo.diff ${width_dem} ${length_dem} 1 1 >> $logfile
+    data2geotiff geo/EQA.dem_par GEOC/${ifgpar}/${ifgpar}.geo.diff 4 GEOC/${ifgpar}/${ifgpar}.geo.diff.tif 0.0
+    rasmph_pwr GEOC/${ifgpar}/${ifgpar}.geo.diff geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - GEOC/${ifgpar}/${ifgpar}.geo.diff.bmp >> $logfile
+  fi
+  # Unfiltered coherence 
+  if [ -e IFG/${ifgpar}/${ifgpar}.cc ]; then
+    geocode_back IFG/${ifgpar}/${ifgpar}.cc $width geo/$master.lt_fine GEOC/${ifgpar}/${ifgpar}.geo.cc ${width_dem} ${length_dem} 1 0 >> $logfile
+    data2geotiff geo/EQA.dem_par GEOC/${ifgpar}/${ifgpar}.geo.cc 2 GEOC/${ifgpar}/${ifgpar}.geo.cc.tif 0.0
+    rascc GEOC/${ifgpar}/${ifgpar}.geo.cc - ${width_dem} - - - $reducfac_dem $reducfac_dem 0 1 - - - GEOC/${ifgpar}/${ifgpar}.geo.cc.bmp >> $logfile
+  fi
+  # Filtered interferogram
+  if [ -e IFG/${ifgpar}/${ifgpar}.filt.diff ]; then
+    geocode_back IFG/${ifgpar}/${ifgpar}.filt.diff $width geo/$master.lt_fine GEOC/${ifgpar}/${ifgpar}.geo.filt.diff ${width_dem} ${length_dem} 1 1  >> $logfile
+    data2geotiff geo/EQA.dem_par GEOC/${ifgpar}/${ifgpar}.geo.filt.diff 4 GEOC/${ifgpar}/${ifgpar}.geo.filt.diff.tif 0.0
+    rasmph_pwr GEOC/${ifgpar}/${ifgpar}.geo.filt.diff geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - GEOC/${ifgpar}/${ifgpar}.geo.filt.diff.bmp >> $logfile
+  fi
+  # Filtered coherence
+  if [ -e IFG/${ifgpar}/${ifgpar}.filt.cc ]; then
+    geocode_back IFG/${ifgpar}/${ifgpar}.filt.cc $width geo/$master.lt_fine GEOC/${ifgpar}/${ifgpar}.geo.filt.cc ${width_dem} ${length_dem} 1 0 >> $logfile
+    data2geotiff geo/EQA.dem_par GEOC/${ifgpar}/${ifgpar}.geo.filt.cc 2 GEOC/${ifgpar}/${ifgpar}.geo.filt.cc.tif 0.0
+    rascc GEOC/${ifgpar}/${ifgpar}.geo.filt.cc geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem 0 1 - - - GEOC/${ifgpar}/${ifgpar}.geo.filt.cc.bmp >> $logfile
+  fi
+  # Unwrapped interferogram
+  if [ -e IFG/${ifgpar}/${ifgpar}.unw ]; then
+    geocode_back IFG/${ifgpar}/${ifgpar}.unw $width geo/$master.lt_fine GEOC/${ifgpar}/${ifgpar}.geo.unw ${width_dem} ${length_dem} 1 0  >> $logfile
+    rasrmg GEOC/${ifgpar}/${ifgpar}.geo.unw geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - - - GEOC/${ifgpar}/${ifgpar}.geo.unw.bmp  >> $logfile
+  fi
+done < $ifglist
+
+# Convert UNWRAPPED PHASE to GRD then to LoS DISPLACEMENTS [CM]
+while read line ; do 
+  mdate=`echo $line | awk '{print $2}'`; 
+  sdate=`echo $line | awk '{print $3}'`; 
+  ifgpar="${mdate}_${sdate}"
+  echo "   Converting geocoded results to Geotiff/GRD files for inteferogram: ${mdate}_${sdate}" ;  
+  # RAD2DISP
+  phase2disp.py GEOC/${ifgpar}/${ifgpar}.geo.unw $lambda GEOC/${ifgpar}/${ifgpar}.geo.cm.disp ${width_dem} ${length_dem}
+  # Convert data to geotiff
+  data2geotiff geo/EQA.dem_par GEOC/${ifgpar}/${ifgpar}.geo.cm.disp 2 GEOC/${ifgpar}/${ifgpar}.geo.cm.disp.tif 0.0
+  # Convert geotiff to GRD file
+  gdal_translate GEOC/${ifgpar}/${ifgpar}.geo.cm.disp.tif -of GMT -a_nodata 0.0 GEOC/${ifgpar}/${ifgpar}.geo.cm.grd
+  # Remove files
+  rm -f GEOC/${ifgpar}/${ifgpar}.geo.cm.disp #GEOC/${ifgpar}/${ifgpar}.geo.cm.disp.tif 
+  
+  # Plot displacement map
+  LiCSAR_plotifg ${mdate} ${sdate} GEOC/${ifgpar} geo.cm 1
+  
+done < $ifglist 

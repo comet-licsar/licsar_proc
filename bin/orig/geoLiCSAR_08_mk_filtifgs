@@ -1,0 +1,46 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+#################################################################
+
+master=$1         # Master date
+ifglist=$2
+apsflag=$3
+winsize=$4 # Win filtering size
+
+demdir=geo/
+
+export OMP_NUM_THREADS=8
+if [ -z "$5" ]; then alpha=0.85; else alpha=$5; fi
+
+#----------------------------------------------------------------------------------------#
+# Extract information about the master file (dimension, coordinates, etc.)
+length=`awk '$1 == "nlines:" {print $2}' ${demdir}EQA.dem_par`
+width=`awk '$1 == "width:" {print $2}' ${demdir}EQA.dem_par`
+reducfac=`echo $width | awk '{if(int($1/2000) > 1) print int($1/2000); else print 1}'`
+
+echo " Running doFilteringIfgs step "
+echo "   check doFilteringIfgs.log if something goes wrong "
+logfile=11_doFilteringIfgs.log
+rm -f $logfile
+
+while read line ; do 
+
+  mdate=`echo $line | awk '{print $2}'`; 
+  sdate=`echo $line | awk '{print $3}'`; 
+  echo "   Filtering inteferogram: ${mdate}_${sdate}" ; 
+  
+  if [ "$apsflag" == "1" ]; then
+    adf GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.diff.aps GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.diff GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.coh $width $alpha $winsize >> $logfile
+  else
+    adf GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.diff GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.diff GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.coh $width $alpha $winsize >> $logfile
+  fi
+  rasmph_pwr GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.diff geo/EQA.${master}.slc.mli $width 1 1 0 $reducfac $reducfac 0.8 0.35 GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.diff.bmp >> $logfile
+  rascc GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.coh geo/EQA.${master}.slc.mli $width 1 1 0 $reducfac $reducfac 0.0 1.0 0.8 0.35 GEOC/${mdate}_${sdate}/${mdate}_${sdate}.geo.filt.coh.bmp >> $logfile
+  
+done < $ifglist
+

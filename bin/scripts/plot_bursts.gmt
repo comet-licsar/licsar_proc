@@ -1,0 +1,47 @@
+#!/bin/bash
+
+gmtset HEADER_FONT_SIZE 10 HEADER_OFFSET 0.15 ANNOT_FONT_SIZE_SECONDARY 10 \
+       PLOT_DEGREE_FORMAT DF BASEMAP_TYPE plain CHAR_ENCODING Standard+ \
+       COLOR_MODEL RGB DOTS_PR_INCH 1200 INPUT_DATE_FORMAT yyyy/mm/dd PLOT_DATE_FORMAT o \
+       TIME_FORMAT_PRIMARY abbreviated ANNOT_FONT_SIZE_PRIMARY 7p LABEL_FONT_SIZE 7p \
+       TICK_LENGTH -0.1c ANNOT_FONT_SIZE_PRIMARY 7p ANNOT_OFFSET_PRIMARY 0.1c \
+       LABEL_FONT_SIZE 7p LABEL_OFFSET -0.05c 
+
+pathmaster=$1
+master=$2
+polygon_file=$3
+outfile=$4
+for i in `ls ${pathmaster}/*${master}*.zip`; do
+  zipSAFE_2_BurstsList.py $i #>> coordinates.$$
+done
+for i in `seq 1 3`; do
+  cat *T*_IW${i}.burstlist > ${master}_IW${i}.burstlist
+  BurstListCoordInPolyFile.py ${master}_IW${i}.burstlist $polygon_file > IW${i}.burstlist
+done
+echo "IW1 `wc -lc IW1.burstlist | awk '{print $1}'` IW2 `wc -lc IW2.burstlist | awk '{print $1}'` IW3 `wc -lc IW3.burstlist | awk '{print $1}'`" > $outfile
+awk '{print "burstID", $1, $2}' IW1.burstlist >> $outfile
+awk '{print "burstID", $1, $2}' IW2.burstlist >> $outfile
+awk '{print "burstID", $1, $2}' IW3.burstlist >> $outfile
+
+# Check which subswaths were empty 
+for i in `seq 1 3`; do
+  wc -lc IW${i}.burstlist | awk '{if($1!=0) print "'${i}'"}' >> temp
+done
+echo `sort -n temp | head -1` `sort -n temp | tail -1` > minmaxIW
+
+cat IW1.burstlist IW2.burstlist IW3.burstlist > temp
+lon1=`minmax -C temp | awk '{print $1-0.25}'`;
+lon2=`minmax -C temp | awk '{print $2+0.25}'`;
+lat1=`minmax -C temp | awk '{print $3-0.25}'`;
+lat2=`minmax -C temp | awk '{print $4+0.25}'`;
+range="-R${lon1}/${lon2}/${lat1}/${lat2}"
+size=10
+psfile=FigureBursts.ps
+
+pscoast $range -JM${size} -B1/1WesN:." ": -Df -Ggray -Swhite -Lx6.5/0.6/14/100k --ANNOT_OFFSET_PRIMARY=-0.1c -X1 -Y1 -P -K > $psfile
+psxy IW1.burstlist -R -J -Gblack -Sc0.1c -K -O >> $psfile
+psxy IW2.burstlist -R -J -Gblue -Sc0.1c -K -O >> $psfile
+psxy IW3.burstlist -R -J -Gred -Sc0.1c -K -O >> $psfile
+psxy $polygon_file -R -J -L -m -W2pt,red -O >> $psfile
+
+rm -f *IW*.burstlist temp

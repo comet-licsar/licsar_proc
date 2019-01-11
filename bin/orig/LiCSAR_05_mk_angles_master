@@ -1,0 +1,69 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+#################################################################
+
+# LiCSAR_04_mk_angles_master ${master_date}
+master=$1         # Master date
+H_threshold=0.01  # Threshold for masking elevations and overlay/shadow pixels
+
+width=`awk '$1 == "range_samples:" {print $2}' RSLC/${master}/${master}.rslc.mli.par`; #echo $width
+length=`awk '$1 == "azimuth_lines:" {print $2}' RSLC/${master}/${master}.rslc.mli.par`; #echo $length
+reducfac=`echo $width | awk '{if(int($1/1000) > 1) print int($1/1000); else print 1}'`
+
+# Create geometric files
+look_vector RSLC/${master}/${master}.rslc.par - geo/EQA.dem_par geo/EQA.dem geo/${master}.geo.rad.elev geo/${master}.geo.rad.orientation > /dev/null 2>&1
+
+# Create header file to simulate to be an ENVI file
+lat=`awk '$1 == "corner_lat:" {print $2}' geo/EQA.dem_par`
+lon=`awk '$1 == "corner_lon:" {print $2}' geo/EQA.dem_par`
+latstep=`awk '$1 == "post_lat:" {print $2}' geo/EQA.dem_par`
+lonstep=`awk '$1 == "post_lon:" {print $2}' geo/EQA.dem_par`
+length_dem=`awk '$1 == "nlines:" {print $2}' geo/EQA.dem_par`
+width_dem=`awk '$1 == "width:" {print $2}' geo/EQA.dem_par`
+latstep=`awk '$1 == "post_lat:" {if($2<0) printf "%7f", -1*$2; else printf "%7f", $2}' geo/EQA.dem_par`
+lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f", $2}' geo/EQA.dem_par`
+
+# Incidence angle at the pixel surface points
+ele2inc.py geo/${master}.geo.rad.elev geo/${master}.geo.deg.inc ${width_dem} ${length_dem}
+geocode geo/${master}.lt_fine geo/${master}.geo.deg.inc ${width_dem} geo/${master}.deg.inc ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback incidence to radar coordinates
+rasrmg geo/${master}.deg.inc RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
+data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.inc 2 geo/${master}.geo.deg.inc.tif > /dev/null 2>&1 # Convert data to geotiff
+gdal_translate geo/${master}.geo.deg.inc.tif -of GMT -a_nodata 0.0 geo/${master}.geo.deg.inc.grd > /dev/null 2>&1 # Convert geotiff to GRD file
+rm -f geo/${master}.geo.rad.elev geo/${master}.geo.deg.inc.tif geo/${master}.geo.deg.inc.grd.aux.xml  # Remove files
+
+# Heading angle at the pixel surface points
+orient2heading.py geo/${master}.geo.rad.orientation geo/${master}.geo.deg.heading ${width_dem} ${length_dem}
+geocode geo/${master}.lt_fine geo/${master}.geo.deg.heading ${width_dem} geo/${master}.deg.heading ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback heading to radar coordinates
+rasrmg geo/${master}.deg.heading RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
+data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.heading 2 geo/${master}.geo.deg.heading.tif > /dev/null 2>&1 # Convert data to geotiff
+gdal_translate geo/${master}.geo.deg.heading.tif -of GMT -a_nodata 0.0 geo/${master}.geo.deg.heading.grd > /dev/null 2>&1 # Convert geotiff to GRD file
+rm -f geo/${master}.geo.rad.orientation geo/${master}.geo.deg.heading.tif geo/${master}.geo.deg.heading.grd.aux.xml  # Remove files
+
+# # Squint angle at the pixel surface points [look at the lgbsfl.sh]
+# mk_squint_TOPSmosaic $master $outfile rlks azlks wid 
+
+# Create a mask in geographical and radarcoordinates 
+# we use a very conservative approach, and we mask only areas that are impossible to unwrap 
+# (layover/shadows and sea surface)
+geomask.py geo/EQA.dem geo/pix geo/hgtpix.geo.mask ${width_dem} ${length_dem} 
+rascc_mask geo/hgtpix.geo.mask - ${width_dem} - - - - - $H_threshold - 0 1 - - - geo/geo.mask.bmp > /dev/null 2>&1
+geocode geo/${master}.lt_fine geo/hgtpix.geo.mask ${width_dem} geo/mask ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback mask to radar coordinates
+rascc_mask geo/mask - ${width} - - - - - $H_threshold - 0 1 - - - geo/mask.bmp > /dev/null 2>&1
+
+#rm -f geo/${master}.geo.deg.hdr geo/${master}.geo.rad.elev.grd.aux.xml geo/${master}.geo.deg.heading2.aux.xml geo/${master}.geo.deg.inc2.aux.xml geo/${master}.geo.rad.orientation.grd.aux.xml
+
+#############################################################################
+# Mask DEM and then Convert DEM to GRD [M]
+mask_data geo/EQA.dem ${width_dem} geo/EQA.masked.dem geo/geo.mask.bmp > /dev/null 2>&1 # Apply the mask to the DEM in geographical coordinates
+data2geotiff geo/EQA.dem_par geo/EQA.masked.dem 2 geo/${master}.EQA.dem.tif > /dev/null 2>&1 # Convert masked DEM to geotiff
+gdal_translate geo/${master}.EQA.dem.tif -of GMT geo/${master}.EQA.dem.grd > /dev/null 2>&1 # Convert geotiff to GRD file
+rm -f geo/EQA.masked.dem geo/${master}.EQA.dem.tif
+
+
+
+

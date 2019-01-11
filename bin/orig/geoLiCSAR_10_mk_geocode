@@ -1,0 +1,55 @@
+#!/bin/bash
+#################################################################
+# Script to process TOPS S1 images using GAMMA software
+# Back to back from SLC to geocoded unwrapped interferograms
+#
+# Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
+# Date: 2015/10/26
+#################################################################
+
+master=$1
+ifglist=$2
+
+width=`awk '$1 == "range_samples:" {print $2}' RSLC/$master/$master.rslc.mli.par`; #echo $width
+length=`awk '$1 == "azimuth_lines:" {print $2}' RSLC/$master/$master.rslc.mli.par`; #echo $length
+reducfac=`echo $width | awk '{if(int($1/2000) > 1) print int($1/2000); else print 1}'`
+  
+lat=`awk '$1 == "corner_lat:" {print $2}' geo/EQA.dem_par`
+lon=`awk '$1 == "corner_lon:" {print $2}' geo/EQA.dem_par`
+latstep=`awk '$1 == "post_lat:" {print $2}' geo/EQA.dem_par`
+lonstep=`awk '$1 == "post_lon:" {print $2}' geo/EQA.dem_par`
+length_dem=`awk '$1 == "nlines:" {print $2}' geo/EQA.dem_par`
+width_dem=`awk '$1 == "width:" {print $2}' geo/EQA.dem_par`
+reducfac_dem=`echo $width_dem | awk '{if(int($1/2000) > 1) print int($1/2000); else print 1}'`
+lat1=`echo $lat $latstep $length_dem | awk '{printf "%7f", ($1+($2*($3-1)));}'` # Substract one because width starts at zero
+lon1=`echo $lon $lonstep $width_dem | awk '{printf "%7f", ($1+($2*($3-1)));}'`
+latstep=`awk '$1 == "post_lat:" {if($2<0) printf "%7f", -1*$2; else printf "%7f", $2}' geo/EQA.dem_par`
+lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f", $2}' geo/EQA.dem_par`
+# Because no wavelength is reported in master.rmli.par file, we calculated here according to the radar frequency (IN CENTIMETERS)
+# Frequency = (C / Wavelength), Where: Frequency: Frequency of the wave in hertz (hz). C: Speed of light (29,979,245,800 cm/sec (3 x 10^10 approx))
+lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' RSLC/$master/$master.rslc.mli.par`;
+
+echo " Running doGeocoding step "
+echo "   check doGeocoding.log if something goes wrong "
+logfile=13_doGeocoding.log
+rm -f $logfile
+
+while read line ; do 
+  mdate=`echo $line | awk '{print $2}'`; 
+  sdate=`echo $line | awk '{print $3}'`; 
+  ifgpar="${mdate}_${sdate}"
+  echo "   Converting geocoded results to GRD files for inteferogram: ${mdate}_${sdate}" ;  
+  # RAD2DISP
+  phase2disp.py GEOC/${ifgpar}/${ifgpar}.geo.unw $lambda GEOC/${ifgpar}/${ifgpar}.geo.cm.disp ${width_dem} ${length_dem}
+  # Convert data to geotiff
+  data2geotiff geo/EQA.dem_par GEOC/${ifgpar}/${ifgpar}.geo.cm.disp 2 GEOC/${ifgpar}/${ifgpar}.geo.cm.disp.tif
+  # Convert geotiff to GRD file
+  gdal_translate GEOC/${ifgpar}/${ifgpar}.geo.cm.disp.tif -of GMT -a_nodata 0.0 GEOC/${ifgpar}/${ifgpar}.geo.cm.grd
+  # Remove files
+  rm -f GEOC/${ifgpar}/${ifgpar}.geo.cm.disp.tif GEOC/${ifgpar}/${ifgpar}.geo.cm.disp GEOC/${ifgpar}/${ifgpar}.geo.cm.grd.aux.xml
+  
+  # Plot displacement map
+  LiCSAR_plotifg ${mdate} ${sdate} GEOC/${ifgpar} geo.cm 1
+  
+done < $ifglist 
+
