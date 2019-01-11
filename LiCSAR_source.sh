@@ -1,32 +1,12 @@
 #!/bin/bash
 ###########################################################
-# For CEMS configuration
-###########################################################
-# #!/bin/bash
- grouppath=/group_workspaces/cems2/nceo_geohazards
- LiCSARpath=${grouppath}/software/LiCSAR2.0
- # External information
- export DEMs_DIR=${grouppath}/DEMs   # For the moment only works for srtm_1arcsec with filled voids
- export ORBs_DIR=${grouppath}/orbits/s1a
- # Load the bash library
- source ${LiCSARpath}/lib/LiCSAR_bash_lib.sh     # Library of bash functions
- # Load GAMMA software
- export PATH="${grouppath}/software/GAMMA/20151209/2/default/bin.exec:${PATH}"
- # Update the PATH to contain main programs
- export PATH=${LiCSARpath}/bin/:$PATH      # Main scripts to command flow
- export PATH=${LiCSARpath}/scripts/:$PATH  # Secondary scripts
- export PATH=${LiCSARpath}/external/:$PATH # Third party programs (e.g, fastjar if jar is not available)
- export PATH=${LiCSARpath}/python/:$PATH   # python programs: burst-related, pyaps interface scripts,... etc.
- # Add pyAPS package to PYTHONPATH to use as a library [atmospheric corrections]
- export PYTHONPATH=${LiCSARpath}/python:${LiCSARpath}/lib:$PYTHONPATH
-###########################################################
-
 # [basic User Params]
 #export archpath = /nfs/a1/raw/sentinel/
 #export S1Aorbitpath = /nfs/a1/raw/orbits/S1A/
 
 # [sql server]
-host = foe-db.leeds.ac.uk
+#host = foe-db.leeds.ac.uk
+host = see-cipegdb.leeds.ac.uk
 dbname = sees1ice
 #dbname = sees1archive
 dbuser = s1user

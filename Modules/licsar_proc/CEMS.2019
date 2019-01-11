@@ -1,0 +1,59 @@
+#%Module -*- tcl -*-
+## LiCSAR core processing toolbox
+
+proc ModulesHelp { } {
+    puts stderr "licsar_proc"
+}
+
+module-whatis "licsar_proc"
+
+
+if { [module-info mode load] || [module-info mode switch2] } {
+    if { ![is-loaded gamma] } {
+        module load gamma/20181130
+    }
+    if { ![is-loaded snaphu] } {
+        module load snaphu
+    }
+#    if { ![is-loaded LiCSAR-pve] } {
+#        module load LiCSAR-pve
+#    }
+    if { ![is-loaded nla] } {
+        module load nla
+    }
+}
+prereq snaphu
+prereq gamma
+# prereq LiCSAR-pve
+prereq nla
+
+# Set internal variable for path exports
+set grouppath "/gws/nopw/j04/nceo_geohazards_vol1"
+set LiCSARpath "/gws/nopw/j04/nceo_geohazards_vol1/software/licsar_proc"
+
+
+#keep the below
+set configpath "$grouppath/config/LiCSAR/"
+set USER $::env(USER)
+
+#Setup LiCSAR enviroment variables
+setenv LiCSARpath "$LiCSARpath"
+setenv LiCSAR_temp "/work/scratch/$USER/LiCSAR_temp/"
+prepend-path DEMs_DIR "$grouppath/DEMs"
+prepend-path ORBs_DIR "$grouppath/orbits/"
+setenv LiCSARconfig "$configpath/liveConfig.cnf"
+
+#setup executable paths
+prepend-path PATH "$LiCSARpath/bin"
+prepend-path PATH "$LiCSARpath/bin/orig"
+prepend-path PATH "$LiCSARpath/bin/scripts"
+# prepend-path PATH "$LiCSARpath/external/"
+prepend-path PATH "$LiCSARpath/python"
+
+#Setup python path
+prepend-path PYTHONPATH "$LiCSARpath/python"
+prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_lib"
+prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_db"
+
+# Source LiCSAR bash Library
+puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
