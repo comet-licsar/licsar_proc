@@ -5,12 +5,18 @@
 #export S1Aorbitpath = /nfs/a1/raw/orbits/S1A/
 
 # [sql server]
-#host = foe-db.leeds.ac.uk
-host = see-cipegdb.leeds.ac.uk
-dbname = sees1ice
-#dbname = sees1archive
-dbuser = s1user
-dbpass = Aerahf7cee2j
+# this is for CIPEG db that is actually not used anymore:
+##host = foe-db.leeds.ac.uk
+#host = see-cipegdb.leeds.ac.uk
+#dbname = sees1ice
+##dbname = sees1archive
+#dbuser = s1user
+#dbpass = Aerahf7cee2j
+# functional db in CEMS for COMET LiCS db
+host = 130.246.129.18
+dbname = licsinfo_live
+dbuser = lics
+dbpass = T34mLiCS
 
 # [debug]
 # If there are issues, use this to provide extra output
