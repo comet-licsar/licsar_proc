@@ -5,7 +5,7 @@ import xml.etree.ElementTree as et
 import os.path
 
 def usage():
-  print """
+  print("""
 ### Read a zip file and return number of existing bursts per subswath
 
 zipSAFE_2_NBursts.py
@@ -17,7 +17,7 @@ zipSAFE_2_NBursts.py
  Author: Pablo J. Gonzalez, [p.j.gonzalez@leeds.ac.uk]
 Version: 1.0
    Date: 02-Nov-2015
-"""
+""")
 
 if len(sys.argv) < 2:
   usage()
@@ -55,11 +55,11 @@ for fnames in zfile.namelist():
         # Extract the edge coordinates of each burst
         for swathTiming in root.findall('swathTiming'):
 	  burst=swathTiming.find('burstList')
-          print burst.get('count')
+          print(burst.get('count'))
 
         # Catch exception if root not available
         if root.tag == "root":
-          print "I'm the root"
+          print("I'm the root")
         
       except et.ParseError:
         print(fnames)

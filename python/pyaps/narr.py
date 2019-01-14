@@ -52,7 +52,7 @@ def get_narr(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
 		'''
 
 	if verbose:
-		print 'PROGRESS: READING GRIB FILE'
+		print('PROGRESS: READING GRIB FILE')
 	lvls = np.array([100, 125, 150, 175, 200, 225, 250, 275, 300, 350, 400, 450, 500, 550, 600, 650, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000])
 	nlvls = len(lvls)
 
@@ -78,7 +78,7 @@ def get_narr(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
 	tmp = gph.copy()                  #Temperature
 	vpr = gph.copy()                  #Vapor pressure
 	if verbose:
-		print 'Number of stations:', nstn
+		print('Number of stations:', nstn)
 
 	lvls = 100.0*lvls              #Conversion to absolute pressure
 	for i in range(nlvls):
@@ -144,7 +144,7 @@ def intdel(hgt,latlin,lonlin,delcin,spacing=0.3):
         delc = np.zeros((nstno,nlvls))
 
 	# Loop on the pressure levels
-        for n in xrange(nlvls):
+        for n in range(nlvls):
                 delc[:,n] = si.griddata(Points,delcin[:,n],Xi,method='cubic')#,fill_value=10*np.float(n))
 
         return delc,latlist,lonlist

@@ -4,7 +4,7 @@ import sys,os.path
 import numpy as np
 
 def usage():
-  print """
+  print("""
 ### geomask2.py
   Program reads two big endian files with elevation and overlay/shadow pixels 
   to generate mask output a binary file in big endian
@@ -18,10 +18,10 @@ def usage():
 
 geomask2.py v1.0 22-Mar-2016 PJG
 Part of LiCSAR software package
-"""
+""")
 
 if len(sys.argv) < 5:
-  print """ ERROR: Wrong number of input arguments """
+  print(""" ERROR: Wrong number of input arguments """)
   usage()
   sys.exit(-1)
 

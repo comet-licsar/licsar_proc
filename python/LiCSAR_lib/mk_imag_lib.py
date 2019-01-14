@@ -14,7 +14,7 @@ import numpy as np
 # import datetime as dt
 import subprocess as subp
 from glob import glob
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import copy
 #LiCSAR global configuration
 import global_config as gc
@@ -34,30 +34,30 @@ def check_bursts( framename, startdate, enddate, licsQuery ):
     """
     burstlist = licsQuery.get_bursts_in_frame( framename )
     if not burstlist:
-        print >> sys.stderr, '\nI didn\'t find any bursts associated with '\
-                           'frame{0}. Exiting'.format(framename)
+        print('\nI didn\'t find any bursts associated with '\
+                           'frame{0}. Exiting'.format(framename), file=sys.stderr)
         return 1
     else:
-        print '\nI found {0} bursts associated with frame {1}, hooray!'.format(
-                len( burstlist ), framename )
+        print('\nI found {0} bursts associated with frame {1}, hooray!'.format(
+                len( burstlist ), framename ))
     filelist = licsQuery.get_frame_files_period( str(framename), str(startdate), str(enddate) )
     if not filelist:
-        print >> sys.stderr, '\nI didn\'t find any files associated with '\
+        print('\nI didn\'t find any files associated with '\
                             'frame{0}. Exiting'.format( framename, startdate,
-                                    enddate )
+                                    enddate ), file=sys.stderr)
         return 1
     else:
         dates = set([ f[1] for f in filelist ])
         if len(dates) == 1:
-            print >> sys.stderr, '\nI only found one acquisition date '\
+            print('\nI only found one acquisition date '\
                                 'associated with frame {0} between {1} and '\
                                 '{2}. Exiting'.format( framename, startdate,
-                                        enddate )
+                                        enddate ), file=sys.stderr)
             return 1
         else:
-            print '\nThere are {0} acquisition dates associated with frame '\
+            print('\nThere are {0} acquisition dates associated with frame '\
                   '{1} between {2} and {3}.'.format( len(dates), framename,
-                            startdate, enddate )
+                            startdate, enddate ))
     return burstlist, filelist, dates
 
 ################################################################################
@@ -75,36 +75,36 @@ def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery):
             missingbursts = [ b[0] for b in burstlist 
                     if not b in masterburstlist ]
             if len(missingbursts) < 1:
-                print '\nAll bursts for frame {0} seem to be have been '\
+                print('\nAll bursts for frame {0} seem to be have been '\
                       'acquired on the chosen master date {1}.'.format( 
-                              framename, masterdate )
+                              framename, masterdate ))
             else:
-                print >> sys.stderr, '\nWarning!\nOne or more bursts from '\
+                print('\nWarning!\nOne or more bursts from '\
                                     'frame{0} have not been acquired on {1}. '\
                                     'Missing bursts:\n{2}'.format( framename, 
                                             masterdate, '\n'.join([
-                                                m for m in missingbursts ]))
-                print >> sys.stderr, '\nPlease use the -m option to choose '\
+                                                m for m in missingbursts ])), file=sys.stderr)
+                print('\nPlease use the -m option to choose '\
                                     'another master from one of these choices:'\
                                     '\n{0}'.format( ', '.join([ 
                                         m.strftime('%Y%m%d') for m in 
                                         sorted( list( dates )) 
-                                        if m != masterdate ]))
+                                        if m != masterdate ])), file=sys.stderr)
 
                 return 1                    
         else:
-            print >> sys.stderr, '\nERROR:'
-            print >> sys.stderr, 'Database search returned an empty list when '\
+            print('\nERROR:', file=sys.stderr)
+            print('Database search returned an empty list when '\
                                 'looking for master date {0} in frame {1}. '\
                                 'This should not be happening?'.format( 
-                                        masterdate, framename )
-            print >> sys.stderr, 'Exiting.'
+                                        masterdate, framename ), file=sys.stderr)
+            print('Exiting.', file=sys.stderr)
             return 1
     else:
-        print >> sys.stderr, '\nERROR:'
-        print >> sys.stderr, 'Masterdate not in date list. Please select a '\
-                            'more appropriate master.'
-        print >> sys.stderr, 'Exiting.'
+        print('\nERROR:', file=sys.stderr)
+        print('Masterdate not in date list. Please select a '\
+                            'more appropriate master.', file=sys.stderr)
+        print('Exiting.', file=sys.stderr)
         return 1
     return 0
 
@@ -186,22 +186,22 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
         linkthis = os.path.join( imdirthis, f[1] + '.zip' )
         # Database says file exists, but does it?
         if not os.path.exists( f[2] ):
-            print '\nWarning, file {0} does not seem to exist? Please fix '\
-                  'database. Skipping date {1}.'.format( f[2], imdate )
+            print('\nWarning, file {0} does not seem to exist? Please fix '\
+                  'database. Skipping date {1}.'.format( f[2], imdate ))
             return False
         if not os.path.exists( linkthis ):
             try:
                 os.symlink( f[2], linkthis ) # create symbolic link
             except:
-                print 'Could not create symbolic link of file {0} in '\
+                print('Could not create symbolic link of file {0} in '\
                 'directory {1}. Skipping date {2}.'.format( f[2], imdirthis, 
-                        imdate )
+                        imdate ))
                 return False
 
 ############################################################ Unzip the files
     # Finished linking first to assure all files exist, quicker than finding
     # out after unpacking first file that second file does not exist.
-    print 'Unzipping files...'
+    print('Unzipping files...')
     with cd( imdirthis ):
         for f in filelist:
             # unzipcall = [ 'jar', '-xf', f[1] + '.zip' ]
@@ -210,13 +210,13 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
             try:
                 rc = subp.check_call( unzipcall )
             except subp.CalledProcessError:
-                print 'Could not unzip file {0}, skipping date {1}.'.format( 
-                        f[1] + '.zip', imdate )
+                print('Could not unzip file {0}, skipping date {1}.'.format( 
+                        f[1] + '.zip', imdate ))
                 return False
     # Again, ensured all files unzip before moving on
 
 ############################################################ Convert to Gamma format
-    print 'Converting files from SAFE to Gamma format...'
+    print('Converting files from SAFE to Gamma format...')
     for f in filelist:
         safedir = os.path.join( imdirthis, f[1] + '.SAFE' )
         logdir = os.path.join( procdir, 'log' )
@@ -252,13 +252,13 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
                             slcthis, logfile ):
                         return False
                 else:
-                    print 'No geotiff file found for subswath {0} in '\
+                    print('No geotiff file found for subswath {0} in '\
                     'directory{1}. Trying other subswaths.'.format( sw, 
-                            safedir )
+                            safedir ))
                     return False
             else:
-                print 'No geotiff file found for subswath {0} in '\
-                'directory{1}. Trying other subswaths.'.format( sw, safedir )
+                print('No geotiff file found for subswath {0} in '\
+                'directory{1}. Trying other subswaths.'.format( sw, safedir ))
                 return False
     
 ############################################################ Update file 2 jobs 
@@ -468,8 +468,8 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
 
         if len( filelist ) > 1:
             # bursts are in 2 or more file, copy necessary bursts and merge
-            print 'Bursts are distributed over more than 1 file, extracting '\
-                  'bursts from files and merging...'
+            print('Bursts are distributed over more than 1 file, extracting '\
+                  'bursts from files and merging...')
             burstnolist = licsQuery.get_burst_no( framename, date )
 
 ############################################################ Sweep through swathes
@@ -501,13 +501,13 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                 [sw] ) 
                                     #Input tab file -> specifies source SLC
                         if rc > 0:
-                            print >> sys.stderr, '\nProblem creating SLC '\
+                            print('\nProblem creating SLC '\
                                                  'tab{0} for date {1}. Error '\
                                                  'message:'\
                                                  '\n {2}'\
                                                  '\nContinuing with next '\
                                                  'date.'.format( filetab, 
-                                                         date, msg )
+                                                         date, msg ), file=sys.stderr)
                             return 2 
                         temptab = os.path.join( tabdir, '{0}_tmp_tab'.format(
                             filethis 
@@ -516,25 +516,25 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                 filename + '_crop.slc', [sw] )
                         #Output tab file -> where we put our stripped bursts
                         if rc > 0:
-                            print >>sys.stderr, '\nProblem creating temporary '\
+                            print('\nProblem creating temporary '\
                                                 'SLC tab {0} for date {1}. '\
                                                 'Error message:\n {2}'\
                                                 '\nContinuing with next '\
                                                 'date.'.format( temptab, date, 
-                                                        msg )
+                                                        msg ), file=sys.stderr)
                             return 2
                         bursttab = os.path.join( tabdir,
                                 '{0}_burst_tab'.format( filethis ) )
                         rc, msg = make_burst_tab( bursttab,
                                 burstnolistthis[0], burstnolistthis[-1] )
                         if rc > 0:
-                            print >> sys.stderr, '\nProblem creating burst '\
+                            print('\nProblem creating burst '\
                                                 'tab {0} for date {1}. Error '\
                                                 'message:'\
                                                 '\n {2}'\
                                                 '\nContinuing with next '\
                                                 'date.'.format( bursttab, 
-                                                        date, msg )
+                                                        date, msg ), file=sys.stderr)
                             return 2
                         copylogfile = os.path.join( procdir, 'log', 
                                 'SLC_copy_S1_TOPS_{0}.log'.format( 
@@ -544,9 +544,9 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                         if SLC_copy_S1_TOPS( filetab, temptab, bursttab, 
                                 imdir, procdir, copylogfile ):
                             
-                            print >> sys.stderr, '\nProblem copying bursts '\
+                            print('\nProblem copying bursts '\
                                                  'for swath {0}. Continuing '\
-                                                 'with next date.'.format( sw )
+                                                 'with next date.'.format( sw ), file=sys.stderr)
                             return 2
                         else:
                             rename_slc( temptab, filetab ) # if successful move
@@ -572,11 +572,11 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 slcname = os.path.join( imdir, fileset[0].split( 'T' )[0] )
                 rc,msg = make_SLC_tab( slctab, slcname+'.slc', [ sw ] ) 
                 if rc > 0:
-                    print >> sys.stderr, '\nProblem creating SLC tab {0} for '\
+                    print('\nProblem creating SLC tab {0} for '\
                                          'date {1}. Error message:'\
                                          '\n {2}'\
                                          '\nContinuing withnext date.'.format( 
-                                                 slctab, date, msg )
+                                                 slctab, date, msg ), file=sys.stderr)
                     return 2
                 rename_slc( filetab, slctab )#first slc is our start point
                 with cd( procdir ):
@@ -593,13 +593,13 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                         rc, msg = make_SLC_tab( temptab, tempfile + '.slc', 
                                [ sw ] )
                         if rc > 0:
-                            print >> sys.stderr, '\nProblem creating SLC '\
+                            print('\nProblem creating SLC '\
                                                  'tab{0} for date {1}. Error '\
                                                  'message:'\
                                                  '\n {2}'\
                                                  '\nContinuing with next '\
                                                  'date.'.format( temptab, date, 
-                                                        msg )
+                                                        msg ), file=sys.stderr)
                             return 2
                         logfile = os.path.join( procdir, 'log', 
                                 'SLC_cat_S1_TOPS_{0}_{1}.log'.format( sw, 
@@ -609,11 +609,11 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                         if not SLC_cat_S1_TOPS( slctab, filetab, temptab, 
                                 imdir, procdir, logfile ): # concat our swath slc file 
                                                   # with this slc file -> merged
-                            print >> sys.stderr, '\nProblem concatenating '\
+                            print('\nProblem concatenating '\
                                                  'bursts in subswath {0}. Log '\
                                                  'file {1}. Continuing with '\
                                                  'next acquisition '\
-                                                 'date.'.format( sw, logfile )
+                                                 'date.'.format( sw, logfile ), file=sys.stderr)
                             return 2
                         rename_slc( temptab, slctab ) # replace our swathe slc file
                                                    # with this new, longer slc file
@@ -625,12 +625,12 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                             )
                     rc, msg = make_SLC_tab( filetab, filename + '.slc', [ sw ] )
                     if rc > 0:
-                        print >> sys.stderr, '\nProblem creating SLC tab {0} '\
+                        print('\nProblem creating SLC tab {0} '\
                                              'for date {1}. Error message:'\
                                              '\n {2}'\
                                              '\nContinuing with next '\
                                              'date.'.format( filetab, date, 
-                                                     msg )
+                                                     msg ), file=sys.stderr)
                         return 2 
 #                    rename_slc(filetab,slctab) 
 
@@ -644,7 +644,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                  )
                              )
                          ]
-            print 'Mosaicing subswaths...'
+            print('Mosaicing subswaths...')
             tabname = os.path.join( procdir, 'tab', 
                     date.strftime( '%Y%m%d' ) + '_tab' )
             filename = os.path.join( imdir, date.strftime( '%Y%m%d' ) )
@@ -661,10 +661,10 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
 
             if not SLC_mosaic_S1_TOPS( tabname, filename + '.slc', gc.rglks, 
                     gc.azlks, logfilename ): # mosaic the SLC's
-                print >> sys.stderr, 'Something went wrong mosaicing '\
+                print('Something went wrong mosaicing '\
                                      'subswaths together. Log file {0}. '\
                                      'Continuing with next acquisition '\
-                                     'date.'.format( logfilename )
+                                     'date.'.format( logfilename ), file=sys.stderr)
                 return 3
             logfilename =  os.path.join( procdir, 'log',
                                         'multilookSLC_{0}.log'.format(
@@ -678,10 +678,10 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     logfilename )
             rc = os.system( multicall )
             if rc != 0:
-                print >> sys.stderr, 'Something went wrong multilooking the '\
+                print('Something went wrong multilooking the '\
                                      'merged image. Log file {0}. Continuing '\
                                      'with next acquisition '\
-                                     'date.'.format( logfilename )
+                                     'date.'.format( logfilename ), file=sys.stderr)
                 return 3
 
 ############################################################ Get orbit files
@@ -697,10 +697,10 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             logger.addHandler(fileHan)
             logger.setLevel(logging.DEBUG)
             
-            print 'Updating orbit files...'
+            print('Updating orbit files...')
             for zipFile in glob(imdir+'/*.zip'):
                 #Loop through zipfiles and get valis orbit file
-                print "Updating orbit for {0}".format(zipFile)
+                print("Updating orbit for {0}".format(zipFile))
                 mtch = re.search('.*(S1[AB]).*',zipFile)
                 sat = mtch.groups()[0]
                 localOrbDir = get_orb_dir(sat)
@@ -711,7 +711,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     os.symlink(orbit,slcOrbit)
             logger.removeHandler(fileHan)
             for parFile in glob(imdir+"/*.sl*.par"):
-               print "applying orbit correction to {0}".format(parFile)
+               print("applying orbit correction to {0}".format(parFile))
                S1_OPOD_vec(parFile,slcOrbit,logfilename)
 
         else:
@@ -732,11 +732,11 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     ):
                 rc, msg = make_SLC_tab( filetab, filename + '.slc', [ sw ] )
                 if rc > 0:
-                    print >> sys.stderr, '\nProblem creating SLC tab {0} for '\
+                    print('\nProblem creating SLC tab {0} for '\
                                          'date {1}. Error message:'\
                                          '\n {2}'\
                                          '\nContinuing with next '\
-                                         'date.'.format( filetab, date, msg )
+                                         'date.'.format( filetab, date, msg ), file=sys.stderr)
                     return 2
                 slctab = os.path.join( tabdir, 
                         '{0}_tab'.format( filethis.split( 'T' )[0] ) 
@@ -744,21 +744,21 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 slcname = os.path.join( imdir, filethis.split( 'T' )[0] )
                 rc, msg = make_SLC_tab( slctab, slcname + '.slc', [ sw ] )
                 if rc > 0:
-                    print >> sys.stderr, '\nProblem creating SLC tab {0} for '\
+                    print('\nProblem creating SLC tab {0} for '\
                                          'date {1}. Error message:'\
                                          '\n {2}'\
                                          '\nContinuing withnext '\
-                                         'date.'.format( slctab, date, msg )
+                                         'date.'.format( slctab, date, msg ), file=sys.stderr)
                     return 2
                 temptab = os.path.join( tabdir, '{0}_tmp_tab'.format(filethis) )
                 rc, msg = make_SLC_tab( temptab, filename + '_crop.slc', 
                         [ sw ] )
                 if rc > 0:
-                    print >> sys.stderr, '\nProblem creating SLC tab {0} for '\
+                    print('\nProblem creating SLC tab {0} for '\
                                          'date {1}. Error message:'\
                                          '\n {2}'\
                                          '\nContinuing withnext '\
-                                         'date.'.format( filetab, date, msg )
+                                         'date.'.format( filetab, date, msg ), file=sys.stderr)
                     return 2
                 burstnolistthis = [ e[2]+1 for e in burstnolist 
                         if filethis in e[1] and sw in e[0] 
@@ -769,11 +769,11 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 rc, msg = make_burst_tab( bursttab, burstnolistthis[0], 
                         burstnolistthis[-1] )
                 if rc > 0:
-                    print >> sys.stderr, '\nProblem creating burst tab {0} '\
+                    print('\nProblem creating burst tab {0} '\
                                          'for date {1}. Error message:'\
                                         '\n {2}'\
                                         '\nContinuing withnext '\
-                                        'date.'.format( bursttab, date, msg )
+                                        'date.'.format( bursttab, date, msg ), file=sys.stderr)
                     return 2
                 copylogfile = os.path.join( procdir, 'log',
                                            'SLC_copy_S1_TOPS_{0}.log'.format( 
@@ -787,9 +787,9 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                         procdir, copylogfile ):
                 # if SLC_copy_S1_TOPS(filetab,temptab,burstnolistthis[0],
                 #burstnolistthis[-1],imdir,procdir,copylogfile):
-                    print >> sys.stderr, '\nProblem copying bursts for '\
+                    print('\nProblem copying bursts for '\
                                          'swath{0}. Continuing with next '\
-                                         'date.'.format( sw )
+                                         'date.'.format( sw ), file=sys.stderr)
                     return 2
                 else:
                     rename_slc( temptab, slctab )
@@ -803,7 +803,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                  )
                              )
                          ]
-            print 'Mosaicing subswaths...'
+            print('Mosaicing subswaths...')
             tabname = os.path.join( procdir, 'tab', 
                     date.strftime( '%Y%m%d' ) + '_tab' )
             filename = os.path.join( imdir, date.strftime( '%Y%m%d' ) )
@@ -814,11 +814,11 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             # mosaic function
             if not SLC_mosaic_S1_TOPS( tabname, filename + '.slc', gc.rglks, 
                     gc.azlks, logfilename ):
-                print >> sys.stderr, 'Something went wrong mosaicing '\
+                print('Something went wrong mosaicing '\
                                      'subswaths '\
                                      'together. Log file {0}. Continuing with '\
                                      'next acquisition '\
-                                     'date.'.format( logfilename )
+                                     'date.'.format( logfilename ), file=sys.stderr)
                 return 3
             logfilename =  os.path.join( procdir, 'log', 
                     'multilookSLC_{0}.log'.format( date.strftime( '%Y%m%d' ) ) 
@@ -830,10 +830,10 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     logfilename )
             rc = os.system( multicall )
             if rc != 0:
-                print >> sys.stderr, 'Something went wrong multilooking the '\
+                print('Something went wrong multilooking the '\
                                      'merged image. Log file {0}. Continuing '\
                                      'with next acquisition '\
-                                     'date.'.format( logfilename )
+                                     'date.'.format( logfilename ), file=sys.stderr)
                 return 3
                 
 ########################################################### Update orbit files
@@ -845,10 +845,10 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             logger.addHandler(fileHan)
             logger.setLevel(logging.DEBUG)
             
-            print 'Updating orbit files...'
+            print('Updating orbit files...')
             for zipFile in glob(imdir+'/*.zip'):
                 # Loop through zip files and make sure we have a valid orbit file for each
-                print "Updating orbit for {0}".format(zipFile)
+                print("Updating orbit for {0}".format(zipFile))
                 mtch = re.search('.*(S1[AB]).*',zipFile)
                 sat = mtch.groups()[0]
                 localOrbDir = get_orb_dir(sat)
@@ -860,14 +860,14 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             logger.removeHandler(fileHan)
 
             for parFile in glob(imdir+"/*.sl*.par"):
-               print "applying orbit correction to {0}".format(parFile)
+               print("applying orbit correction to {0}".format(parFile))
                S1_OPOD_vec(parFile,slcOrbit,logfilename)
 
     else:
 ############################################################ Failed to process this date
         # One of the read files failed, continue with next date
-        print >> sys.stderr, 'Could not read all files correctly, continuing '\
-                             'with next acquisition date.'
+        print('Could not read all files correctly, continuing '\
+                             'with next acquisition date.', file=sys.stderr)
         shutil.rmtree( imdir )
         return 1
     return 0

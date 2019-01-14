@@ -11,9 +11,9 @@
 import os
 import sys
 import time
-import urllib
-import urllib2
-import httplib
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
+import http.client
 
 try:
     import json
@@ -24,7 +24,7 @@ try:
     import socket
     socket.ssl
 except:
-    print "Python socket module was not compiled with SSL support. Aborting..."
+    print("Python socket module was not compiled with SSL support. Aborting...")
     sys.exit(1)
 
 ###############################################################################
@@ -43,8 +43,8 @@ if os.path.exists(rc):
         URL   = config.get("url", "https://api.ecmwf.int/v1")
         KEY   = config.get("key")
         EMAIL = config.get("email")
-    except Exception, e:
-        print e
+    except Exception as e:
+        print(e)
         sys.exit(1)
 
 KEY=os.environ.get("ECMWF_API_KEY", KEY)
@@ -73,38 +73,38 @@ def robust(func):
         while True:
             try:
                 return func(*args,**kwargs)
-            except urllib2.HTTPError, e:
-                print "WARNING: httplib2.HTTPError received %s" % (e)
+            except urllib.error.HTTPError as e:
+                print("WARNING: httplib2.HTTPError received %s" % (e))
                 if e.code < 500: raise
                 tries += 1
                 if tries > 10: raise
                 time.sleep(60)
-            except httplib.BadStatusLine, e:
-                print "WARNING: httplib.BadStatusLine received %s" % (e)
+            except http.client.BadStatusLine as e:
+                print("WARNING: httplib.BadStatusLine received %s" % (e))
                 tries += 1
                 if tries > 10: raise
                 time.sleep(60)
-            except urllib2.URLError, e:
-                print "WARNING: httplib2.URLError received %s %s" % (e.errno, e)
+            except urllib.error.URLError as e:
+                print("WARNING: httplib2.URLError received %s %s" % (e.errno, e))
                 tries += 1
                 if tries > 10: raise
                 time.sleep(60)
             except APIException:
                 raise
-            except RetryError, e:
-                print "WARNING: HTTP received %s" % (e.code)
-                print e.text
+            except RetryError as e:
+                print("WARNING: HTTP received %s" % (e.code))
+                print(e.text)
                 tries += 1
                 if tries > 10: raise
                 time.sleep(60)
             except:
-                print "Unexpected error:", sys.exc_info()[0]
+                print("Unexpected error:", sys.exc_info()[0])
                 raise
 
     return wrapped
 
 SAY = True
-class Ignore303(urllib2.HTTPRedirectHandler):
+class Ignore303(urllib.request.HTTPRedirectHandler):
 
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -118,17 +118,17 @@ class Ignore303(urllib2.HTTPRedirectHandler):
                     while o != URL and len(o) and len(n) and o[-1] == n[-1]:
                         o = o[0:-1]
                         n = n[0:-1]
-                    print
-                    print "*** ECMWF API has moved"
-                    print "***   OLD: %s" % o
-                    print "***   NEW: %s" % n
-                    print "*** Please update your ~/.ecmwfapirc file"
-                    print
+                    print()
+                    print("*** ECMWF API has moved")
+                    print("***   OLD: %s" % o)
+                    print("***   NEW: %s" % n)
+                    print("*** Please update your ~/.ecmwfapirc file")
+                    print()
                     SAY = False
             data = None
             if req.has_data():
                 data = req.get_data()
-            return urllib2.Request(newurl, data=data, headers = req.headers, 
+            return urllib.request.Request(newurl, data=data, headers = req.headers, 
                                     origin_req_host=req.get_origin_req_host(), unverifiable=True)
         return None
 
@@ -156,11 +156,11 @@ class Connection(object):
     def _call(self, url, payload = None, method = "GET"):
 
         if self.verbose:
-            print method, url
+            print(method, url)
 
         headers = { "Accept" : "application/json", "From" : self.email, "X-ECMWF-KEY" : self.key }
 
-        opener = urllib2.build_opener(Ignore303)
+        opener = urllib.request.build_opener(Ignore303)
 
         data = None
         if payload is not None:
@@ -169,7 +169,7 @@ class Connection(object):
             headers["Content-Type"] = "application/json";
 
         url = "%s?offset=%d&limit=500" % (url, self.offset)
-        req = urllib2.Request(url=url, data=data, headers=headers)
+        req = urllib.request.Request(url=url, data=data, headers=headers)
         if method:
             req.get_method = lambda: method
 
@@ -177,14 +177,14 @@ class Connection(object):
         try:
             try:
                 res  = opener.open(req)
-            except urllib2.HTTPError,e:
+            except urllib.error.HTTPError as e:
                 # It seems that some version of urllib2 are buggy
                 if e.code <= 299:
                     res = e
                 else:
                     raise
-        except urllib2.HTTPError,e:
-            print e
+        except urllib.error.HTTPError as e:
+            print(e)
             error = True
             res   = e
             # 502: Proxy Error
@@ -198,8 +198,8 @@ class Connection(object):
             self.location = res.headers.get("Location",    self.location)
 
         if self.verbose:
-            print res.headers.get("Content-Type")
-            print res.headers.get("Content-Length")
+            print(res.headers.get("Content-Type"))
+            print(res.headers.get("Content-Length"))
 
         body = res.read()
         res.close()
@@ -211,19 +211,19 @@ class Connection(object):
         else:
             try:
                 self.last  =  json.loads(body)
-            except Exception, e:
+            except Exception as e:
                 self.last = { "error" : "%s: %s" % (e, body) }
                 error = True
 
         if self.verbose:
-            print json.dumps(self.last,indent=4)
+            print(json.dumps(self.last,indent=4))
 
         self.status = self.last.get("status", self.status)
 
         if "messages" in self.last:
             for n in self.last["messages"]:
                 if not self.quiet:
-                    print n
+                    print(n)
                 self.offset += 1
 
         if code in [303]:
@@ -245,7 +245,7 @@ class Connection(object):
 
     def wait(self):
         if self.verbose:
-            print "Sleeping %s second(s)" % (self.retry)
+            print("Sleeping %s second(s)" % (self.retry))
         time.sleep(self.retry)
         self._call(self.location, None, "GET")
 
@@ -302,7 +302,7 @@ class Request(object):
         self.log("Transfering %s into %s" % (self._bytename(size), path))
         self.log("From %s" % (url, ))
         start = time.time()
-        http = urllib2.urlopen(url)
+        http = urllib.request.urlopen(url)
         f = open(path,"wb")
         total = 0
         block = 1024*1024
@@ -322,7 +322,7 @@ class Request(object):
         if length is None:
             self.log("Warning: Content-Length missing from HTTP header")
         else:
-            assert total == long(length)
+            assert total == int(length)
 
         if end > start:
            self.log("Transfer rate %s/s" % self._bytename(total / ( end - start)), )
@@ -385,7 +385,7 @@ class ECMWFDataServer(object):
             self.log(m)
         else:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print "%s %s" % (t,m,)
+            print("%s %s" % (t,m,))
 
     def retrieve(self, req):
         target  = req.get("target")
@@ -411,7 +411,7 @@ class ECMWFService(object):
             self.log(m)
         else:
             t = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print "%s %s" % (t,m,)
+            print("%s %s" % (t,m,))
 
     def execute(self, req, target):
         c = Request(URL, "services/%s" % (self.service,), self.email, self.key, self.trace, verbose = self.verbose, quiet = self.quiet)

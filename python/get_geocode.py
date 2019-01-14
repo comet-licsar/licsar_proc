@@ -18,20 +18,20 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "hd:m:e:", ["help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-d':
                 datadir = a
             elif o == '-m':
                 masterdate = a
-    except Usage, err:
-        print >>sys.stderr, "\nWoops, something went wrong:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nWoops, something went wrong:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
 
     geocode_mli(datadir,masterdate)

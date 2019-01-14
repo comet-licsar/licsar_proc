@@ -4,7 +4,7 @@ import sys,os.path
 import numpy as np
 
 def usage():
-  print """
+  print("""
 ### phase2disp.py
   Program reads a big endian file with unwrapped phases in radians 
   to generate a displacement map output to a binary file in big endian
@@ -18,10 +18,10 @@ def usage():
 
 phase2disp.py v1.0 10-Feb-2016 PJG
 Part of LiCSAR software package
-"""
+""")
 
 if len(sys.argv) < 5:
-  print """ ERROR: Wrong number of input arguments """
+  print(""" ERROR: Wrong number of input arguments """)
   usage()
   sys.exit(-1)
 

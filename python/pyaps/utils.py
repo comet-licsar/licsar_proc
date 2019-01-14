@@ -20,7 +20,7 @@ def rd_rsc(inname,full=False,verbose=False):
 		Currently set up to work with SIM_nrlks.hgt from ROI-PAC.'''
 
 	if verbose:
-		print("PROGRESS: READING %s RSC FILE" %inname)
+		print(("PROGRESS: READING %s RSC FILE" %inname))
 
 	rpacdict = {}
 	infile = open(inname+'.rsc','r')
@@ -82,7 +82,7 @@ def geo_rsc(inname,full=False,verbose=False):
 			Currently set up to work with dem.rsc file from ROI-PAC.'''
 
 	if verbose:
-		print("PROGRESS: READING %s RSC FILE" %inname)
+		print(("PROGRESS: READING %s RSC FILE" %inname))
 
 	rpacdict = {}
 	infile = open(inname+'.rsc','r')
@@ -321,7 +321,7 @@ class ProgressBar:
     def close(self):
         """Prints a blank space at the end to ensure proper printing
         of future statements."""
-        print ' '
+        print(' ')
 
 ################################End of progress bar class####################################
 

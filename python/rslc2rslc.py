@@ -7,7 +7,7 @@ import LiCSAR_iofunc as LICSARio
 #import re 
 
 def usage():
-  print """
+  print("""
 ### rslc2rslc.py
   Program reads a complex big endian file and an offset value
   to generate an output complex binary file in big endian of 
@@ -20,10 +20,10 @@ def usage():
 
 rslc2rslc.py v1.0 14-Apr-2016 PJG
 Part of LiCSAR software package
-"""
+""")
 
 if len(sys.argv) < 3:
-  print """ ERROR: Wrong number of input arguments """
+  print(""" ERROR: Wrong number of input arguments """)
   usage()
   sys.exit(-1)
 
@@ -43,7 +43,7 @@ dtype2  = LICSARio.dtype_slc_gamma_par(RSLCslavefile)
 if (dtype2 == 'SCOMPLEX'):
   data = LICSARio.read_fast_slc_gamma_scomplex(RSLCslavefile)
 else:
-  print " rslc2rslc.py encountered during reading an unsupported data type: ", dtype2
+  print(" rslc2rslc.py encountered during reading an unsupported data type: ", dtype2)
   #print "Size Slave of complex file after reading: ", data.shape
   #print "Data type/Numpy type: ", type(data), data.dtype
 
@@ -55,4 +55,4 @@ outdata[0+azoffset:data.shape[0]+azoffset,:]=data
 if (dtype2 == 'SCOMPLEX'):
   LICSARio.write_fast_slc_gamma_scomplex(outdata,RSLCslavefile[:-4]+'full.rslc')
 else:
-  print " rslc2rslc.py encountered during writing an unsupported data type: ", dtype2
+  print(" rslc2rslc.py encountered during writing an unsupported data type: ", dtype2)

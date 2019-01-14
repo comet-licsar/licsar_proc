@@ -4,7 +4,7 @@ import numpy as np
 import os, re
 import argparse
 import datetime
-from HTMLParser import *
+from html.parser import *
 
 import requests
 # Add this line because insecure requests warning
@@ -71,7 +71,7 @@ def download_file(url, outdir='.', session=None):
         session = requests.session()
 
     path = os.path.join(outdir, os.path.basename(url))
-    print('Downloading URL: ', url)
+    print(('Downloading URL: ', url))
     request = session.get(url, stream=True, verify=False)
 
     try:
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     inps = cmdLineParse()
     sat = inps.input[:3]
     fileTS = FileToTimeStamp(inps.input)
-    print('Reference time: ', fileTS)
+    print(('Reference time: ', fileTS))
     match = None
     session = requests.Session()
     for spec in orbitMap:
@@ -116,7 +116,7 @@ if __name__ == '__main__':
             success = False
             match = None
             try:
-                print('Querying for {0} orbits'.format(oType))
+                print(('Querying for {0} orbits'.format(oType)))
                 r = session.get(query, verify=False)
                 r.raise_for_status()
                 res = r.text
@@ -124,7 +124,7 @@ if __name__ == '__main__':
                 parser.feed(r.text)
                 match = None
                 for result in parser.fileList:
-                    print result
+                    print(result)
                     fields = result.split('_')
                     taft = datetime.datetime.strptime(fields[-1][0:15], datefmt)
                     tbef = datetime.datetime.strptime(fields[-2][1:16], datefmt)
@@ -140,7 +140,7 @@ if __name__ == '__main__':
                 pass
 
         if match is None:
-            print('Failed to find {0} orbits for Time {1}'.format(oType, fileTS))
+            print(('Failed to find {0} orbits for Time {1}'.format(oType, fileTS)))
 
         if success:
             break
@@ -149,6 +149,6 @@ if __name__ == '__main__':
         res = download_file(match, inps.outdir, session=session)
 
         if res is False:
-            print('Failed to download URL: ', match)
+            print(('Failed to download URL: ', match))
 
     session.close()

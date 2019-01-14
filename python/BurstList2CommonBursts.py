@@ -43,7 +43,7 @@ def commonbursts(master,slave):
   return bn1, bn2
 
 def usage():
-  print """
+  print("""
 ### Read two burst coordinate lists and extract common bursts 
     reporting first and last common bursts  v0.1 19-Oct-2015 PJG'  
   
@@ -58,7 +58,7 @@ BurstList2CommonBursts.py
  Author: Pablo J. Gonzalez, [p.j.gonzalez@leeds.ac.uk]
 Version: 1.0
    Date: 03-Nov-2015
-"""
+""")
 
 
 if len(sys.argv) < 3:
@@ -76,5 +76,5 @@ with open(sys.argv[2]) as f:
 
 #commonbursts(master,slave)
 bn1,bn2 = commonbursts(master,slave)
-print bn1, bn2 
+print(bn1, bn2) 
 

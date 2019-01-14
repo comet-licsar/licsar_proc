@@ -8,8 +8,6 @@ echo "Processing dir: $procdir"
 echo "Master image: $master"
 echo "Interferogram: $ifg"
 
-source /group_workspaces/cems2/nceo_geohazards/software/LiCSAR2.0/LiCSAR_source.sh
-
 width=`awk '$1 == "range_samples:" {print $2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`; #echo $width
 length=`awk '$1 == "azimuth_lines:" {print $2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`; #echo $length
 reducfac=`echo $width | awk '{if(int($1/16000) > 1) print int($1/16000); else print 1}'`

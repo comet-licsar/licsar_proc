@@ -50,8 +50,8 @@ def read_slc_gamma_scomplex(file):
   wid1 = int(width_slc_gamma_par(file))
   len2 = int(length_slc_gamma_par(file))
   data = np.fromfile(file,np.int16,len2*2*wid1)
-  id1 = range(0,2*len2*wid1,2)
-  id2 = range(1,2*len2*wid1,2)
+  id1 = list(range(0,2*len2*wid1,2))
+  id2 = list(range(1,2*len2*wid1,2))
   real = data[id1].reshape(len2,wid1)
   imag = data[id2].reshape(len2,wid1)
   data_cpx = real + imag*1j
@@ -72,8 +72,8 @@ def write_slc_gamma_scomplex(data,outname):
    # write gamma scomplex data, i.e. .slc file.
    nlines = data.shape[0]
    WIDTH  = data.shape[1]
-   id1 = range(0,2*nlines*WIDTH,2)
-   id2 = range(1,2*nlines*WIDTH,2)
+   id1 = list(range(0,2*nlines*WIDTH,2))
+   id2 = list(range(1,2*nlines*WIDTH,2))
    F=np.zeros([2*nlines*WIDTH,1],np.int16)
    F[id1]=np.reshape(data.real,(nlines*WIDTH,1))
    F[id2]=np.reshape(data.imag,(nlines*WIDTH,1))

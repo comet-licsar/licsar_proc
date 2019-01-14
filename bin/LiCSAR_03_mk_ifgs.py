@@ -70,16 +70,16 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "vhi:f:d:j:y:p:z:c:T:", ["version", "help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-v' or o == '--version':
-                print ""
-                print "Current version: %s" % gc.config['VERSION']
-                print ""
+                print("")
+                print("Current version: %s" % gc.config['VERSION'])
+                print("")
                 return 0
             elif o == '-f':
                 framename = a
@@ -106,7 +106,7 @@ def main(argv=None):
         if not procdir:
             raise Usage('No output data directory given, -d is not optional!')
         if job_id == -1:
-            print "This processing is not outputting any products to the database."
+            print("This processing is not outputting any products to the database.")
         if gc.batchflag:
             if not(polygonfile) or not(ziplistfile):
                 raise Usage("Polygon file AND ziplist file are required in batch mode.")
@@ -116,34 +116,34 @@ def main(argv=None):
         else:
             import LiCSquery as lq
 
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
 
 ############################################################ Ensure connected to database
     if not lq.connection_established():
-        print >> sys.stderr, "\nERROR:"
-        print >> sys.stderr, "Could not establish a stable database connection. No processing can happen."
+        print("\nERROR:", file=sys.stderr)
+        print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
         return 1
 
 ############################################################ Make sure critical data is available in database
     if not lq.check_frame(framename):
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Frame {0} was not found in database.".format(framename)
+        print("\nERROR:", file=sys.stderr)
+        print("Frame {0} was not found in database.".format(framename), file=sys.stderr)
         return 1
 
     if not os.path.exists(procdir):
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Processing directory {0} does not seem to exist.".format(procdir)
+        print("\nERROR:", file=sys.stderr)
+        print("Processing directory {0} does not seem to exist.".format(procdir), file=sys.stderr)
         return 1
 
 ############################################################ Ensure previous processing products are available
     rslcdir = os.path.join(procdir,'RSLC')
     if not os.path.exists(rslcdir):
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Can't find RSLC directory in processing directory {0}.".format(procdir)
+        print("\nERROR:", file=sys.stderr)
+        print("Can't find RSLC directory in processing directory {0}.".format(procdir), file=sys.stderr)
         return 1
 
 ############################################################ Find the master date associated with the height file (prev processing step)
@@ -156,8 +156,8 @@ def main(argv=None):
     if masterdatestr:
         masterdate = dt.date(int(masterdatestr[:4]),int(masterdatestr[4:6]),int(masterdatestr[6:8]))
     else:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Could not find master date in geocoding directory {0}.".format(geodir)
+        print("\nERROR:", file=sys.stderr)
+        print("Could not find master date in geocoding directory {0}.".format(geodir), file=sys.stderr)
         return 1
     
 ############################################################ Parse multilook paramters
@@ -177,7 +177,7 @@ def main(argv=None):
                 date_pair = [dt.datetime.strptime(ds,'%Y%m%d') for ds in mtch.groups()]
                 date_pairs.append(date_pair)
 
-        print date_pairs
+        print(date_pairs)
         procslavelist = list(set(procslavelist))
 
     else:

@@ -18,12 +18,17 @@ if { [module-info mode load] || [module-info mode switch2] } {
 #    if { ![is-loaded LiCSAR-pve] } {
 #        module load LiCSAR-pve
 #    }
+    if { ![is-loaded anaconda] } {
+        module load anaconda
+    }
     if { ![is-loaded nla] } {
         module load nla
     }
 }
+
 prereq snaphu
 prereq gamma
+prereq anaconda
 # prereq LiCSAR-pve
 prereq nla
 

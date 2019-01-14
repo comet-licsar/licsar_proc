@@ -108,16 +108,16 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:", ["version", "help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for p, a in opts:
             if p == '-h' or p == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif p == '-v' or p == '--version':
-                print ""
-                print "Current version: %s" % gc.config['VERSION']
-                print ""
+                print("")
+                print("Current version: %s" % gc.config['VERSION'])
+                print("")
                 return 0
             elif p == '-f':
                 framename = a
@@ -141,18 +141,18 @@ def main(argv=None):
             raise Usage('No output data directory given, -d is not optional!')
 
         if job_id == -1:
-            print "This processing is not outputting any products to the database."
+            print("This processing is not outputting any products to the database.")
 
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
 
 ############################################################ Ensure connection to database
     if not lq.connection_established():
-        print >> sys.stderr, "\nERROR:"
-        print >> sys.stderr, "Could not establish a stable database connection. No processing can happen."
+        print("\nERROR:", file=sys.stderr)
+        print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
 
         return 1
 
@@ -164,8 +164,8 @@ def main(argv=None):
     if framename:
         testlist = lq.check_frame(framename)
         if not testlist:
-            print >>sys.stderr, "\nERROR:"
-            print >>sys.stderr, "Could not find frame {0} in database".format(framename)
+            print("\nERROR:", file=sys.stderr)
+            print("Could not find frame {0} in database".format(framename), file=sys.stderr)
             return 1
 
 
@@ -179,8 +179,8 @@ def main(argv=None):
         if rc != 0:
             return 1
     else:
-        burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,01),dt.date.today(),lq)
-        print >>sys.stderr, '\nNo master date given. Please use the -m option to define one of these choices for the master:\n{0}'.format(', '.join([m.strftime('%Y%m%d') for m in sorted(list(dates)) if m != masterdate]))
+        burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
+        print('\nNo master date given. Please use the -m option to define one of these choices for the master:\n{0}'.format(', '.join([m.strftime('%Y%m%d') for m in sorted(list(dates)) if m != masterdate])), file=sys.stderr)
         return 1
 
 ############################################################ Update job Start
@@ -188,7 +188,7 @@ def main(argv=None):
     master_job_started(job_id, masterdate)
 
 ############################################################ Get Frame image
-    print '\nUnzipping, converting and merging image files for master {0}...'.format(masterdate)
+    print('\nUnzipping, converting and merging image files for master {0}...'.format(masterdate))
     imburstlist = lq.get_frame_bursts_on_date(framename,masterdate)
     rc = make_frame_image(masterdate,framename,imburstlist,procdir, lq,job_id)
 
@@ -199,7 +199,7 @@ def main(argv=None):
     polyfile = os.path.join(procdir,'{0}-poly.txt'.format(framename))
     with open(polyfile, 'w') as f:
         frame_poly = lq.get_polygon(framename)[0]
-        frame_poly_zip = zip(frame_poly[::2], frame_poly[1::2])
+        frame_poly_zip = list(zip(frame_poly[::2], frame_poly[1::2]))
         for i in frame_poly_zip:
             f.write('{0} {1}\n'.format(i[0], i[1]))
 
@@ -235,7 +235,7 @@ def main(argv=None):
             return 1
 
 ############################################################ Crop the DEM
-    print '\n\n'
+    print('\n\n')
     with cd(procdir):
         demcall = 'LiCSAR_01_mk_crop_extDEM DEM/dem_crop'
         os.system(demcall)
@@ -250,7 +250,7 @@ def main(argv=None):
     rslcdir = os.path.join(procdir,'RSLC')
 
 ############################################################ Geocode the master
-    print '\n\n'
+    print('\n\n')
     rc = geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,gc.outres)
     with open(reportfile,'a') as f:
         if rc == 0:
@@ -259,9 +259,9 @@ def main(argv=None):
             try:
                 gt_code = subp.check_call(gtcall)
             except:
-                print 'Something went wrong during the geotiff creation - except call.'
+                print('Something went wrong during the geotiff creation - except call.')
             if gt_code != 0:
-                print 'Something went wrong during the geotiff creation - non zero return.'                
+                print('Something went wrong during the geotiff creation - non zero return.')                
         if rc == 1:
             f.write('\nMaster geocoding encountered a problem during the lookup table creation')
             master_job_finished_failed(job_id, masterdate)

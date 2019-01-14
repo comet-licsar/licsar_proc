@@ -28,10 +28,10 @@ def rasrmg(uwfile,mlifile,width,reducfac,logfilename):
         try:
             rc = subp.check_call(rmgcall,stdout=f)
         except:
-            print 'Something went wrong during the unwrapped phase preview generation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the unwrapped phase preview generation. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong during the unwrapped phase preview generation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the unwrapped phase preview generation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -45,11 +45,11 @@ def mcf(difffile,ccfile,mask,uwoutfile,width,logfilename):
         try:
             rc = subp.check_call(mcfcall,stdout=f)
         except:
-            print 'Something went wrong during the unwrapping. Log file {0}'.format(logfilename)
+            print('Something went wrong during the unwrapping. Log file {0}'.format(logfilename))
             return False
 
     if rc != 0:
-        print 'Something went wrong during the unwrapping. Log file {0}'.format(logfilename)
+        print('Something went wrong during the unwrapping. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -63,11 +63,11 @@ def adf(difffile,filtout,ccout,width,alpha,winsize,logfilename):
         try:
             rc = subp.check_call(adfcall,stdout=f)
         except:
-            print 'Something went wrong during the Goldstein filtering. Log file {0}'.format(logfilename)
+            print('Something went wrong during the Goldstein filtering. Log file {0}'.format(logfilename))
             return False
 
     if rc != 0:
-        print 'Something went wrong during the Goldstein filtering. Log file {0}'.format(logfilename)
+        print('Something went wrong during the Goldstein filtering. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -81,11 +81,11 @@ def rascc(cohfile,mastermli,width,reducfac,logfilename):
         try:
             rc = subp.check_call(rascall,stdout=f)
         except:
-            print 'Something went wrong during the coherence sunraster creation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the coherence sunraster creation. Log file {0}'.format(logfilename))
             return False
 
     if rc != 0:
-        print 'Something went wrong during the coherence sunraster creation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the coherence sunraster creation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -99,11 +99,11 @@ def cc_wave(difffile,mastermli,slavemli,cohfile,width,logfilename):
         try:
             rc = subp.check_call(cccall,stdout=f)
         except:
-            print 'Something went wrong during the coherence estimation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the coherence estimation. Log file {0}'.format(logfilename))
             return False
 
     if rc != 0:
-        print 'Something went wrong during the coherence estimation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the coherence estimation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -118,10 +118,10 @@ def SLC_diff_intf(masterslc,slaveslc,masterpar,slavepar,offfile,simfile,difffile
         try:
             rc = subp.check_call(intcall,stdout=f)
         except:
-            print 'Something went wrong during the interferogram formation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the interferogram formation. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong during the interferogram formation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the interferogram formation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -136,10 +136,10 @@ def phase_sim_orb(masterpar,slavepar,origmasterpar,offfile,hgtfile,simfile,logfi
         try:
             rc = subp.check_call(simcall,stdout=f)
         except:
-            print 'Something went wrong during the simulating the topographic phase. Log file {0}'.format(logfilename)
+            print('Something went wrong during the simulating the topographic phase. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong during the simulating the topographic phase. Log file {0}'.format(logfilename)
+        print('Something went wrong during the simulating the topographic phase. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -157,11 +157,11 @@ def S1_coreg_overlap(mastertab,slavetab,pair,offfile,offrefine,auxtab,logfilenam
         try:
             rc = subp.check_call(overlapcall,stdout=f)
         except:
-            print 'Something went wrong during the spectral diversity offset estimation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the spectral diversity offset estimation. Log file {0}'.format(logfilename))
             return False
 
     if rc != 0:
-        print 'Something went wrong during the spectral diversity offset estimation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the spectral diversity offset estimation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -175,10 +175,10 @@ def create_offset(masterpar,slavepar,offfile,rglks,azlks,logfilename):
         try:
             rc = subp.check_call(offsetcall,stdout=f)
         except:
-            print 'Something went wrong creating the offset file. Log file {0}'.format(logfilename)
+            print('Something went wrong creating the offset file. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong creating the offset file. Log file {0}'.format(logfilename)
+        print('Something went wrong creating the offset file. Log file {0}'.format(logfilename))
         return False
     return True
 
@@ -193,10 +193,10 @@ def SLC_interp_lt_S1_TOPS(slavetab,slavepar,mastertab,masterpar,lut,mastermlipar
         try:
             rc = subp.check_call(interpcall,stdout=f)
         except:
-            print 'Something went wrong resampling image. Log file {0}'.format(logfilename)
+            print('Something went wrong resampling image. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong resampling image. Log file {0}'.format(logfilename)
+        print('Something went wrong resampling image. Log file {0}'.format(logfilename))
         return False
     return True
 
@@ -208,10 +208,10 @@ def rdc_trans(mastermlipar,demhgt,slavemlipar,lut,logfilename):
         try:
             rc = subp.check_call(rdccall,stdout=f)
         except:
-            print 'Something went wrong deriving the lookup table from master to slave geometry. Log file {0}'.format(logfilename)
+            print('Something went wrong deriving the lookup table from master to slave geometry. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong deriving the lookup table from master to slave geometry. Log file {0}'.format(logfilename)
+        print('Something went wrong deriving the lookup table from master to slave geometry. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -224,10 +224,10 @@ def rasmph_pwr(difffile,mastermli,width,logfilename):
         try:
             rc = subp.check_call(rascall,stdout=f)
         except:
-            print 'Something went wrong creating sunraster file. Log file {0}'.format(logfilename)
+            print('Something went wrong creating sunraster file. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong creating sunraster file. Log file {0}'.format(logfilename)
+        print('Something went wrong creating sunraster file. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -241,10 +241,10 @@ def rashgt(hgt,pwr,width,starthgt,startpwr,nlines,pixavr,pixavaz,mcycle,logfilen
         try:
             rc = subp.check_call(rascall,stdout=f)
         except:
-            print 'Something went wrong creating sunraster file. Log file {0}'.format(logfilename)
+            print('Something went wrong creating sunraster file. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong creating sunraster file. Log file {0}'.format(logfilename)
+        print('Something went wrong creating sunraster file. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -258,10 +258,10 @@ def geocode(gcmap,datain,widthin,dataout,widthout,nlinesout,interpmode,dtype,log
         try:
             rc = subp.check_call(geocodecall,stdout=f)
         except:
-            print 'Something went wrong creating master height file. Log file {0}'.format(logfilename)
+            print('Something went wrong creating master height file. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong creating master height file. Log file {0}'.format(logfilename)
+        print('Something went wrong creating master height file. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -274,7 +274,7 @@ def S1_OPOD_vec(parFile,orbitFile,logfilename):
         try:
             rc = subp.check_call(OPOD_call,stdout=f)
         except:
-            print 'Something whent wrong corecting {0} with orbit {1}- see log {2}'.format(parFile,orbitFile,logfilename)
+            print('Something whent wrong corecting {0} with orbit {1}- see log {2}'.format(parFile,orbitFile,logfilename))
             return False
       # S1_OPOD_vec ${img} $orbit_file 
     return True 
@@ -288,10 +288,10 @@ def geocode_back(datain,widthin,gcmap,dataout,widthout,nlinesout,interpmode,dtyp
         try:
             rc = subp.check_call(backcall,stdout=f)
         except:
-            print 'Something went wrong creating the DEM mli. Log file {0}'.format(logfilename)
+            print('Something went wrong creating the DEM mli. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong creating the DEM mli. Log file {0}'.format(logfilename)
+        print('Something went wrong creating the DEM mli. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -304,10 +304,10 @@ def offset_fitm(offs,ccp,diffpar,coffs,coffsets,thres,npoly,logfilename):
         try:
             rc = subp.check_call(fitcall,stdout=f)
         except:
-            print 'Something went wrong during the offset function fitting. Log file {0}'.format(logfilename)
+            print('Something went wrong during the offset function fitting. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong during the offset function fitting. Log file {0}'.format(logfilename)
+        print('Something went wrong during the offset function fitting. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -320,10 +320,10 @@ def offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,rwin,azwin,offsets,n_ovr,nr,na
         try:
             rc = subp.check_call(pwrmcall,stdout=f)
         except:
-            print 'Something went wrong during the cross correlation offset estimation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the cross correlation offset estimation. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong during the cross correlation offset estimation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the cross correlation offset estimation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -336,10 +336,10 @@ def create_diff_par(par1,par2,diffpar,partype,iflag,logfilename):
         try:
             rc = subp.check_call(parcall,stdout=f)
         except:
-            print 'Something went wrong during the diff parameter file creation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the diff parameter file creation. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong during the diff parameter file creation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the diff parameter file creation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -353,10 +353,10 @@ def pixel_area(mlipar,dem,lut,lsmap,incmap,pixsigma,pixgamma,logfilename):
         try:
             rc = subp.check_call(pixelcall,stdout=f)
         except:
-            print 'Something went wrong during the DEM amplitude simulation. Log file {0}'.format(logfilename)
+            print('Something went wrong during the DEM amplitude simulation. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong during the DEM amplitude simulation. Log file {0}'.format(logfilename)
+        print('Something went wrong during the DEM amplitude simulation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -369,10 +369,10 @@ def gc_map_fine(gcin,width,diffpar,gcout,refflag,logfilename):
         try:
             rc = subp.check_call(mapcall,stdout=f)
         except:
-            print 'Something went refining the lookup table. Log file {0}'.format(logfilename)
+            print('Something went refining the lookup table. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went refining the lookup table. Log file {0}'.format(logfilename)
+        print('Something went refining the lookup table. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -386,10 +386,10 @@ def gc_map(mlipar,offpar,dem,demseg,lut,latovr,lonovr,simsar,u,v,inc,psi,pix,lsm
         try:
             rc = subp.check_call(mapcall,stdout=f)
         except:
-            print 'Something went wrong geocoding the master mli image. Log file {0}'.format(logfilename)
+            print('Something went wrong geocoding the master mli image. Log file {0}'.format(logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong geocoding the master mli image. Log file {0}'.format(logfilename)
+        print('Something went wrong geocoding the master mli image. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -409,10 +409,10 @@ def SLC_mosaic_S1_TOPS(tabname,outfilename,rglks,azlks,logfilename,mastertab='')
         try:
             rc = subp.check_call(mosaiccall,stdout=f)
         except:
-            print 'Something went wrong mosaicing file {0}. Log file {1}'.format(outfilename,logfilename)
+            print('Something went wrong mosaicing file {0}. Log file {1}'.format(outfilename,logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong mosaicing file {0}. Log file {1}'.format(outfilename, logfilename)
+        print('Something went wrong mosaicing file {0}. Log file {1}'.format(outfilename, logfilename))
         return False
     else:
         return True
@@ -432,7 +432,7 @@ def mosaic_TOPS(procdir,imdir,imdate,swathlist):
     # Check if more than 1 subswath in swathlist
     if len(swathlist) < 2 and 'IW' in swathlist[0]:
         return True
-    print 'Mosaicing subswaths...'
+    print('Mosaicing subswaths...')
     tabname = os.path.join(procdir,'tab',imdate.strftime('%Y%m%d')+'_tab')
     filename = os.path.join(imdir,imdate.strftime('%Y%m%d'))
     make_SLC_tab(tabname,filename,swathlist)
@@ -443,10 +443,10 @@ def mosaic_TOPS(procdir,imdir,imdate,swathlist):
         try:
             rc = subp.check_call(mosaiccall,stdout=f)
         except:
-            print 'Something went wrong mosaicing swaths {0}. Log file {1}'.format(' '.join([sw for sw in swathlist]),logfilename)
+            print('Something went wrong mosaicing swaths {0}. Log file {1}'.format(' '.join([sw for sw in swathlist]),logfilename))
             return False
     if rc != 0:
-        print 'Something went wrong mosaicing swaths {0}. Log file {1}'.format(' '.join([sw for sw in swathlist]),logfilename)
+        print('Something went wrong mosaicing swaths {0}. Log file {1}'.format(' '.join([sw for sw in swathlist]),logfilename))
         return False
 
 
@@ -456,7 +456,7 @@ def mosaic_TOPS(procdir,imdir,imdate,swathlist):
     if rc == 0:
         return True
     else:
-        print 'Something went wrong multilooking the SLC. Continuing with next image.'
+        print('Something went wrong multilooking the SLC. Continuing with next image.')
         return False
 
 def SLC_copy_S1_TOPS(SLColdtab,SLCnewtab,bursttab,imdir,procdir,logfile):
@@ -477,10 +477,10 @@ def SLC_copy_S1_TOPS(SLColdtab,SLCnewtab,bursttab,imdir,procdir,logfile):
         with open(logfile,'w') as lf:
             rc = subp.check_call(copycall,stdout=lf)
     except:
-        print 'Could not copy bursts from file in SLC tab file {0}. Log file {1}.'.format(SLCnewtab,logfile)
+        print('Could not copy bursts from file in SLC tab file {0}. Log file {1}.'.format(SLCnewtab,logfile))
         return 1
     if rc != 0:
-        print 'Could not copy bursts from file in SLC tab file {0}. Log file {1\}.'.format(SLCnewtab,logfile)
+        print('Could not copy bursts from file in SLC tab file {0}. Log file {1\}.'.format(SLCnewtab,logfile))
 
     return 0
 
@@ -493,10 +493,10 @@ def par_S1_SLC(tiff,annot,calib,noise,slc,logfile):
         with open(logfile,'w') as lf:
             rc = subp.check_call(parcall,stdout=lf,stderr=lf)
     except:
-        print 'There was a problem converting file {0} into gamma format. Log file {1}. Skipping date.'.format(tiff,logfile)
+        print('There was a problem converting file {0} into gamma format. Log file {1}. Skipping date.'.format(tiff,logfile))
         return False
     if rc != 0:
-        print 'There was a problem converting file {0} into gamma format. Log file {1}. Skipping date.'.format(tiff,logfile)
+        print('There was a problem converting file {0} into gamma format. Log file {1}. Skipping date.'.format(tiff,logfile))
         return False
     return True
 
@@ -584,10 +584,10 @@ def SLC_cat_S1_TOPS(tab1,tab2,tab3,imdir,procdir,logfile):
         try:
             rc = subp.check_call(catcall,stdout=lf)
         except:
-            print 'Could not concatenate files in tabs {0} and {1}. Log file {2}. Continuing with next acquisition date.'.format(tab1,tab2,logfile)
+            print('Could not concatenate files in tabs {0} and {1}. Log file {2}. Continuing with next acquisition date.'.format(tab1,tab2,logfile))
             return False
     if rc != 0:
-        print 'Could not concatenate files in tabs {0} and {1}. Log file {2}. Continuing with next acquisition date.'.format(tab1,tab2,logfile)
+        print('Could not concatenate files in tabs {0} and {1}. Log file {2}. Continuing with next acquisition date.'.format(tab1,tab2,logfile))
         return False
     return True
 
@@ -607,14 +607,14 @@ def base_calc(SLC_tab, SLC_par, bperp_file, itab, bperp_min, bperp_max, delta_T_
         try:
             rc = subp.check_call(catcall,stdout=lf)
         except:
-            print 'Could make baseline list from files in tab: {0} and slc.par: {1}. Log file {2}. '.format(SLC_tab,SLC_par,logfile)
-            print 'Tried command:'
-            print ' '.join(catcall)
+            print('Could make baseline list from files in tab: {0} and slc.par: {1}. Log file {2}. '.format(SLC_tab,SLC_par,logfile))
+            print('Tried command:')
+            print(' '.join(catcall))
             return False
     if rc != 0:
-        print 'Could make baseline list from files in tab: {0} and slc.par: {1}. Log file {2}. '.format(SLC_tab,SLC_par,logfile)
-        print 'Tried command:'
-        print ' '.join(catcall)
+        print('Could make baseline list from files in tab: {0} and slc.par: {1}. Log file {2}. '.format(SLC_tab,SLC_par,logfile))
+        print('Tried command:')
+        print(' '.join(catcall))
         return False
     return True
 

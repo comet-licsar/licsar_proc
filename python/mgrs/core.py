@@ -50,7 +50,7 @@ errors = {  0x0001: "Latitude Error",
 
 def get_errors(value):
     output = 'MGRS Errors: '
-    for key in errors.keys():
+    for key in list(errors.keys()):
         if key & value:
             output += errors[key] + " & "
     return output[:-2]

@@ -29,7 +29,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
 ############################################################ Create interferogram name
     pair = '{0}_{1}'.format(masterdate.strftime('%Y%m%d'),
                             slavedate.strftime('%Y%m%d'))
-    print 'Computing interferogram {0}'.format(pair)
+    print('Computing interferogram {0}'.format(pair))
     
 ############################################################ Create directory structure
     ifgdir = os.path.join(procdir,'IFG')
@@ -51,8 +51,8 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     logfilename = os.path.join(procdir,'log','create_offset_{0}.log'.format(pair))
     
     if not create_offset(masterpar,slavepar,offsetfile,gc.rglks,gc.azlks,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong with creating the offset file {0}.'.format(offsetfile)
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong with creating the offset file {0}.'.format(offsetfile), file=sys.stderr)
         shutil.rmtree(ifgthisdir)
         return 1
 ############################################################ Est. Topographic phase
@@ -62,34 +62,34 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     hgtfile = os.path.join(procdir,'geo',origmasterdate.strftime('%Y%m%d')+'.hgt')
     simfile = os.path.join(ifgthisdir,pair+'.sim_unw')
     logfilename = os.path.join(procdir,'log','phase_sim_orb_{0}.log'.format(pair))
-    print 'Estimating topographic phase...'
+    print('Estimating topographic phase...')
     if not phase_sim_orb(masterpar,slavepar,origmasterpar,offsetfile,hgtfile,simfile,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong with estimating the topographic phase estimation.'
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong with estimating the topographic phase estimation.', file=sys.stderr)
         shutil.rmtree(ifgthisdir)
         return 2
 
 ############################################################ Create interferogram
-    print 'Forming interferogram...'
+    print('Forming interferogram...')
     difffile = os.path.join(ifgthisdir,pair+'.diff')
     logfilename = os.path.join(procdir,'log','SLC_diff_intf_{0}.log'.format(pair))
     if not SLC_diff_intf(masterpar[:-4],slavepar[:-4],masterpar,slavepar,offsetfile,simfile,difffile,gc.rglks,gc.azlks,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong during the interferogram formation.'
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong during the interferogram formation.', file=sys.stderr)
         shutil.rmtree(ifgthisdir)
         return 3
     
     #create a ras file
     logfilename = os.path.join(procdir,'log','rasmph_pwr_{0}.log'.format(pair))
     if not rasmph_pwr(difffile,mastermli[:-4],width,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong during the interferogram formation.'
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong during the interferogram formation.', file=sys.stderr)
         shutil.rmtree(ifgthisdir)
         return 4
 
 ############################################################ Log IFG to Database
     if job_id != -1:
-        print 'About to insert new IFG product with job_id: %d' % job_id
+        print('About to insert new IFG product with job_id: %d' % job_id)
         lq.set_new_ifg_product(job_id, masterpar[:-4],slavepar[:-4], difffile)
 
 ############################################################ Estimate coherence
@@ -102,16 +102,16 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     cohfile = os.path.join(ifgdir,pair,pair+'.cc')
     logfilename  = os.path.join(procdir,'log','cc_wave_{0}.log'.format(pair))
     if not cc_wave(difffile,mastermli,slavemli,cohfile,width,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong during the coherence estimation.'
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong during the coherence estimation.', file=sys.stderr)
         shutil.rmtree(ifgthisdir)
         return 5
     
     #create a coherence ras file
     logfilename = os.path.join(procdir,'log','rascc_{0}.log'.format(pair))
     if not rascc(cohfile,mastermli,width,1,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong during the coherence sunraster creation.'
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong during the coherence sunraster creation.', file=sys.stderr)
         shutil.rmtree(ifgthisdir)
         return 1
 
@@ -129,7 +129,7 @@ def make_baselines(procdir, masterdate, ziplistfile, lq):
     """ Use the gamma base_calc to generate a baseline list for interferogram selection/generation
     """
     # Filepaths:
-    print 'Estimating baeslines...'
+    print('Estimating baeslines...')
     masterpar = os.path.join(procdir,'RSLC',
                              masterdate.strftime('%Y%m%d'),
                              masterdate.strftime('%Y%m%d')+'.rslc.par')
@@ -151,26 +151,26 @@ def make_baselines(procdir, masterdate, ziplistfile, lq):
                 if os.path.exists(rslcf) and os.path.exists(rslcf+'.par') and os.path.getsize(rslcf)>0 and os.path.getsize(rslcf+'.par') > 0:
                     f.write(rslcf+" "+rslcf+".par\n")
     except:
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nFailed to write SLC_tab: '+slctab
+        print('\nERROR:', file=sys.stderr)
+        print('\nFailed to write SLC_tab: '+slctab, file=sys.stderr)
         return 1
     
     if not base_calc(slctab,masterpar,bperpfile,itabfile,gc.Bp_min, gc.Bp_max, gc.Bt_min, gc.Bt_max, gc.nmax, logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong with estimating baselines.'
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong with estimating baselines.', file=sys.stderr)
         return 1
     else:
-        print >>sys.stderr, '\nBaseline estimation complete. Written to: '+bperpfile
+        print('\nBaseline estimation complete. Written to: '+bperpfile, file=sys.stderr)
 
 ################################################################################
 #make interferogram list
 ################################################################################
 def make_interferograms_list(procdir, origmasterdate, bperpfile):
-    print 'Building interferograms based on list: '+bperpfile
+    print('Building interferograms based on list: '+bperpfile)
     
     if not( os.path.exists(bperpfile) and os.path.getsize(bperpfile)>0 ):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nCannot find baseline file!'
+        print('\nERROR:', file=sys.stderr)
+        print('\nCannot find baseline file!', file=sys.stderr)
         return 1
     else:
         with open(bperpfile, 'r') as f:

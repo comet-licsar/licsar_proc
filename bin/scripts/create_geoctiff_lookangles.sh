@@ -3,8 +3,6 @@
 procdir=$1
 master=$2
 
-# Load all the software tools for LiCSAR to work
-source /group_workspaces/cems2/nceo_geohazards/software/LiCSAR2.0/LiCSAR_source.sh
 if [ ! -d "${procdir}/GEOC" ]; then mkdir ${procdir}/GEOC; fi
 if [ ! -d "${procdir}/GEOC/lookangles" ]; then mkdir ${procdir}/GEOC/lookangles; fi
 

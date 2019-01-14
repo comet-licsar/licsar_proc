@@ -74,7 +74,7 @@ from LiCSAR_lib.LiCSAR_misc import *
 def main(argv=None):
     if argv == None:
         argv = sys.argv
-    print argv
+    print(argv)
 
 ############################################################ Param init.
     framename=[]
@@ -99,16 +99,16 @@ def main(argv=None):
             opts, args = getopt.getopt(argv[1:], 
                     "vhnci:f:d:s:e:m:p:b:o:t:j:a:r:z:y:l:T:",
 			    ["version", "help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-v' or o == '--version':
-                print ""
-                print "Current version: %s" % gc.config['VERSION']
-                print ""
+                print("")
+                print("Current version: %s" % gc.config['VERSION'])
+                print("")
                 return 0
             elif o == '-f':
                 framename = a
@@ -156,12 +156,12 @@ def main(argv=None):
 
 ############################################################ Job & batch processing...
         if job_id == -1:
-            print "This processing is not outputting any products to the "\
-                    "database."
+            print("This processing is not outputting any products to the "\
+                    "database.")
         
         global lq 
         if gc.batchflag:
-            print "Batch processing mode in use --> no database interaction."
+            print("Batch processing mode in use --> no database interaction.")
             if (not polygonfile) :
                 raise Usage("Polygon file required for batch mode. Use -p "\
                         "option.")
@@ -176,18 +176,18 @@ def main(argv=None):
     
 ############################################################ Incorrect usage 
                                                            # err. handling
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
     
 ############################################################ D.B. Connection Check
     #Check if a DB connection can be established
     if not lq.connection_established():
-        print >> sys.stderr, "\nERROR:"
-        print >> sys.stderr, "Could not establish a stable database "\
-                "connection. No processing can happen."
+        print("\nERROR:", file=sys.stderr)
+        print("Could not establish a stable database "\
+                "connection. No processing can happen.", file=sys.stderr)
 
         return 1
 
@@ -208,36 +208,36 @@ def main(argv=None):
     if framename:
         testlist = lq.check_frame(framename)
         if not testlist:
-            print >>sys.stderr, "\nERROR:"
-            print >>sys.stderr, "Could not find frame {0} in "\
-                    "database".format(framename)
+            print("\nERROR:", file=sys.stderr)
+            print("Could not find frame {0} in "\
+                    "database".format(framename), file=sys.stderr)
             return 1
     if polygonfile:
         if not os.path.exists(polygonfile):
-            print >>sys.stderr, "\nERROR:"
-            print >>sys.stderr, "Could not find the given polygon file"\
-                    "{0}".format(polygonfile)
+            print("\nERROR:", file=sys.stderr)
+            print("Could not find the given polygon file"\
+                    "{0}".format(polygonfile), file=sys.stderr)
             return 1
         if (not trackno) and (not framename) and (not gc.batchflag):
-            print >>sys.stderr, "\nERROR:"
-            print >>sys.stderr, "No track number given with polygonfile, "\
-                    "use -t option to define".format(polygonfile)
+            print("\nERROR:", file=sys.stderr)
+            print("No track number given with polygonfile, "\
+                    "use -t option to define".format(polygonfile), file=sys.stderr)
             return 1
     if burstidfile:
         if not os.path.exists(burstidfile):
-            print >>sys.stderr, "\nERROR:"
-            print >>sys.stderr, "Could not find the given burst id file "\
-                    "{0}".format(burstidfile)
+            print("\nERROR:", file=sys.stderr)
+            print("Could not find the given burst id file "\
+                    "{0}".format(burstidfile), file=sys.stderr)
             return 1
         if (not trackno) and (not framename) and (not gc.batchflag):
-            print >>sys.stderr, "\nERROR:"
-            print >>sys.stderr, "No track number given with burst id file, "\
-                    "use -t option to define".format(polygonfile)
+            print("\nERROR:", file=sys.stderr)
+            print("No track number given with burst id file, "\
+                    "use -t option to define".format(polygonfile), file=sys.stderr)
             return 1
     if gc.batchflag:
             pass
-    print '\nInput parameters seem okay! Checking frame, bursts and "\
-            "files information...'
+    print('\nInput parameters seem okay! Checking frame, bursts and "\
+            "files information...')
     
 
 
@@ -253,9 +253,9 @@ def main(argv=None):
         with open(polygonfile) as pf:
             polygon = np.loadtxt(pf,dtype=np.float32)
             if len(polygon) <4 or len(polygon) > 5 and not(gc.batchflag):
-                print >>sys.stderr, "\nERROR:"
-                print >>sys.stderr, "Given polygon is not rectangular. "\
-                        "Please provide a rectangular polygon, either closed or open."
+                print("\nERROR:", file=sys.stderr)
+                print("Given polygon is not rectangular. "\
+                        "Please provide a rectangular polygon, either closed or open.", file=sys.stderr)
                 return 1
     elif burstidfile:
         pass
@@ -266,7 +266,7 @@ def main(argv=None):
         # - burstlist
         # - zipfilelist
         framename = ''.join(os.path.split(polygonfile)[-1].split('.')[0:-1])
-        print '\nDefined framename: {0}'.format(framename)
+        print('\nDefined framename: {0}'.format(framename))
         burstlist = lq.get_bursts_in_polygon()
         dates = lq.get_dates()
         
@@ -278,7 +278,7 @@ def main(argv=None):
                 usrDates.append(dt.datetime.strptime(line.strip(),'%Y%m%d').date())
         usrDates = set(usrDates)
         if usrDates-set(dates):
-            print "Warning following date were not in zipfile list {0}".format(usrDates-set(dates))
+            print("Warning following date were not in zipfile list {0}".format(usrDates-set(dates)))
         dates = list(usrDates&set(dates))
 
     #Dates to ignore....
@@ -298,13 +298,13 @@ def main(argv=None):
             if rc != 0:
                 return 1
         else:
-            print >>sys.stderr, '\nNo master date given. Please use the -m "\
+            print('\nNo master date given. Please use the -m "\
                     "option to define one of these choices for the master:\n{0}'.format(
                             ', '.join([m.strftime('%Y%m%d') for m in sorted(list(dates))
-                                if m != masterdate]))
+                                if m != masterdate])), file=sys.stderr)
             return 1
     else:
-        print "\nSkipping master burst check"
+        print("\nSkipping master burst check")
 
 
 ############################################################ Report File init.
@@ -328,9 +328,9 @@ def main(argv=None):
 ############################################################ Date Loop
     # Looping through files
     okcount = 0
-    print '\nUnzipping, converting and merging image files per date...'
+    print('\nUnzipping, converting and merging image files per date...')
     for date in dates:
-        print '\nProcessing acquisition date {0}:'.format(date)
+        print('\nProcessing acquisition date {0}:'.format(date))
         if framename:
             imburstlist = lq.get_frame_bursts_on_date(framename,date)
         elif polygonname:
@@ -345,39 +345,39 @@ def main(argv=None):
             missingbursts = [b for b in burstlist if not b in imburstlist]
             if len(missingbursts) < 1:
                 # All bursts there, no problem
-                print "All bursts for frame {0} seem to be have been acquired "\
-                        "on {1}...".format(framename,date)
+                print("All bursts for frame {0} seem to be have been acquired "\
+                        "on {1}...".format(framename,date))
                 rc = make_frame_image(date,framename,imburstlist,procdir, lq, job_id) # Key processing function
                 if removeSlcs and rc == 0 :
                     slc = os.path.join(procdir,'SLC',date.strftime('%Y%m%d'),
                                         date.strftime('%Y%m%d.slc'))
-                    print "Removing mosaiced image {0}".format(slc)
+                    print("Removing mosaiced image {0}".format(slc))
                     os.remove(slc)
                         
 
 ############################################################ Deal with missing bursts...
             else:
                 # Missing one or more bursts, checking if in problematic loc
-                print "One of more  bursts for frame {0} have not been acquired "\
+                print("One of more  bursts for frame {0} have not been acquired "\
                         "on the date {1}. Missing bursts: {2}".format(framename,
-                                date,''.join(['\n'+m[0] for m in missingbursts]))
-                print "Checking where missing bursts are."
+                                date,''.join(['\n'+m[0] for m in missingbursts])))
+                print("Checking where missing bursts are.")
                 if check_missing_bursts(burstlist,missingbursts):
                     # Missing bursts are at edges, not a problem
 ############################################################ OK -> Make Frames
-                    print "Missing bursts are not in critical location, continuing "\
-                            "processing image {0}.".format(date)
+                    print("Missing bursts are not in critical location, continuing "\
+                            "processing image {0}.".format(date))
                     rc = make_frame_image(date,framename,imburstlist,procdir, lq,job_id) # Key processing function
                     if removeSlcs and rc == 0:
                         slc = os.path.join(procdir,'SLC',date.strftime('%Y%m%d'),
                                             date.strftime('%Y%m%d.slc'))
-                        print "Removing mosaiced image {0}".format(slc)
+                        print("Removing mosaiced image {0}".format(slc))
                         os.remove(slc)
                 else:
                     # Missing bursts in the middle, we're stuffed for 
                     # this date, skip to next
-                    print "Missing bursts are in critical location, continuing "\
-                            "processing with next image..."
+                    print("Missing bursts are in critical location, continuing "\
+                            "processing with next image...")
                     rc = 4
         # datedir = os.path.join(procdir,'SLC',date.strftime('%Y%m%d')) # is this needed?
 

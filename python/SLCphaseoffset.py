@@ -5,7 +5,7 @@ import numpy as np
 import LiCSAR_iofunc as LICSARio
 
 def usage():
-  print """
+  print("""
 ### SLCphaseoffset.py
   Program reads a complex big endian file and add a phase offset value, X
   
@@ -24,10 +24,10 @@ def usage():
 
 SLCshiftphase.py v1.0 27-Apr-2016 PJG
 Part of LiCSAR software package
-"""
+""")
 
 if len(sys.argv) < 3:
-  print """ ERROR: Wrong number of input arguments """
+  print(""" ERROR: Wrong number of input arguments """)
   usage()
   sys.exit(-1)
 
@@ -36,7 +36,7 @@ SLCoutfile=sys.argv[2]
 phoffset=float(sys.argv[3])
 colIW1=int(sys.argv[4])
 
-print "Input: ",SLCinfile,"  Output: ",SLCoutfile,"  Phase Offset: ", phoffset, " ColumnIW1: ", colIW1
+print("Input: ",SLCinfile,"  Output: ",SLCoutfile,"  Phase Offset: ", phoffset, " ColumnIW1: ", colIW1)
 #if len(sys.argv) == 4:
 #  colIW1=int(sys.argv[4])
 #else:
@@ -54,7 +54,7 @@ if (dtype1 == 'SCOMPLEX'):
   cpxSLC = LICSARio.read_fast_slc_gamma_scomplex(SLCinfile)
   cpxSLC.byteswap(True) # To operate with those matrices we have to swapbytes!!
 else:
-  print " SLCshiftphase.py encountered during reading an unsupported data type: ", dtype1
+  print(" SLCshiftphase.py encountered during reading an unsupported data type: ", dtype1)
 
 # Shift phase of the SLC 
 cph = np.cos(phoffset)
@@ -72,7 +72,7 @@ if (dtype1 == 'SCOMPLEX'):
   cpxSLC.byteswap(True) 
   LICSARio.write_fast_slc_gamma_scomplex(cpxSLC,SLCoutfile)
 else:
-  print " SLCphaseoffset.py encountered during writing an unsupported data type: ", dtype1
+  print(" SLCphaseoffset.py encountered during writing an unsupported data type: ", dtype1)
 
 
 #cpxSLC[:,0:colIW1] = np.abs(cpxSLC[:,0:colIW1])*np.exp(1j*(np.angle(cpxSLC[:,0:colIW1])*phaseoffset))

@@ -65,14 +65,14 @@ def intP2H(lvls,hgt,gph,tmp,vpr,cdic,verbose=False):
 	maxAlt = cdic['maxAlt']     #Hardcoded parameter.
 
 	if verbose:
-		print 'PROGRESS: INTERPOLATING FROM PRESSURE TO HEIGHT LEVELS' 
+		print('PROGRESS: INTERPOLATING FROM PRESSURE TO HEIGHT LEVELS') 
 	nstn = gph.shape[1]           #Number of stations
 	nhgt = len(hgt)               #Number of height points
 	Presi = np.zeros((nstn,nhgt))
 	Tempi = np.zeros((nstn,nhgt))
 	Vpri  = np.zeros((nstn,nhgt))
 
-	for i in xrange(nstn):
+	for i in range(nstn):
 		temp = gph[:,i]       #Obtaining height values
 		hx = temp.copy()
 		sFlag = False
@@ -154,7 +154,7 @@ def PTV2del(Presi,Tempi,Vpri,hgt,cdict,verbose=False):
 		Computes refractive index at each altitude and integrates the delay using cumtrapz.'''
 
 	if verbose:
-		print 'PROGRESS: COMPUTING DELAY FUNCTIONS'
+		print('PROGRESS: COMPUTING DELAY FUNCTIONS')
 	nhgt = len(hgt)			#Number of height points
 	nstn = Presi.shape[0]		#Number of stations
 	WonT = Vpri/Tempi
@@ -185,7 +185,7 @@ def PTV2del(Presi,Tempi,Vpri,hgt,cdict,verbose=False):
 	S2 = np.concatenate((S2,val),axis=-1)
 	DWet2 = -1.0e-6*((k2-k1*Rd/Rv)*S1+k3*S2)
 	
-	for k in xrange(nstn): 
+	for k in range(nstn): 
         	DWet2[k,:]  = DWet2[k,:] - DWet2[k,-1]
 
 	return DDry2,DWet2
@@ -216,8 +216,8 @@ def make3dintp(Delfn,lonlist,latlist,hgt,hgtscale):
 	xyz = np.zeros((nstn*nhgt,3))
 	Delfn = np.reshape(Delfn,(nstn*nhgt,1))
 	count = 0
-	for m in xrange(nstn):
-		for n in xrange(nhgt):
+	for m in range(nstn):
+		for n in range(nhgt):
 	                xyz[count,0] = lonlist[m]
 	                xyz[count,1] = latlist[m]
          	        xyz[count,2] = hgt[n]/hgtscale     #For same grid spacing as lat/lon
@@ -228,7 +228,7 @@ def make3dintp(Delfn,lonlist,latlist,hgt,hgtscale):
 	del lonlist
 	del hgt
 	if verbose:
-		print 'PROGRESS: BUILDING INTERPOLATION FUNCTION'
+		print('PROGRESS: BUILDING INTERPOLATION FUNCTION')
 	fnc = intp.LinearNDInterpolator(xyz,Delfn)
 
 	return fnc

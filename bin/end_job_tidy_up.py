@@ -32,16 +32,16 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "vhf:d:j:e:", ["version", "help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-v' or o == '--version':
-                print ""
-                print "Current version: %s" % gc.config['VERSION']
-                print ""
+                print("")
+                print("Current version: %s" % gc.config['VERSION'])
+                print("")
                 return 0
             elif o == '-f':
                 framename = a
@@ -56,21 +56,21 @@ def main(argv=None):
         if not procdir:
             raise Usage('No output data directory given, -d is not optional!')
         if job_id == -1:
-            print "This processing is not outputting any products to the database."
+            print("This processing is not outputting any products to the database.")
         else:
             if error_count == -1:
                 raise Usage('Cannot have a job_id, and no error count (-e), please supply a valid -e int')
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
 
         return 2
 
     #Check if a DB connection can be established
     if not lq.connection_established():
-        print >> sys.stderr, "\nERROR:"
-        print >> sys.stderr, "Could not establish a stable database connection. No processing can happen."
+        print("\nERROR:", file=sys.stderr)
+        print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
 
         return 1
 

@@ -9,7 +9,7 @@ def hhmmss2secofday(HH,MM,SS):
   return secofday
 
 def usage():
-  print """
+  print("""
   ### Read a zip file or .SAFE dir and extract info for existing bursts v3.0 3-Dec-2105 RJW
   ###                                                      v2.0 30-Nov-2015 PJG
   ###                                                      v1.0 13-Oct-2015 PJG
@@ -21,7 +21,7 @@ def usage():
   Usage: extract_bursts_loc.py [file.zip/file.SAFE]
     zipfile   (input) name of the compressed Sentinel-1 SAFE/ file with .zip extension or a .SAFE dir
         
-"""
+""")
 
 if len(sys.argv) < 2:
   usage()
@@ -101,7 +101,7 @@ for fnames in namelist:
         
         # Catch exception if root not available
         if root.tag == "root":
-          print "I'm the root"
+          print("I'm the root")
 
         # Close files
         file0.close()  

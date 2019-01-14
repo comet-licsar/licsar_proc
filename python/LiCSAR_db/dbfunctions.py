@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import pymysql
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import global_config as gc
 
 
@@ -26,11 +26,11 @@ def Conn_db():
         cur.execute('SELECT VERSION();')
         res = cur.fetchone()
         if not res:
-            print "Error in database communication"
+            print("Error in database communication")
             return 'MYSQL ERROR'
 
     except pymysql.err.OperationalError as E:
-        print 'MySQL ERROR:\n%s\n' % E
+        print('MySQL ERROR:\n%s\n' % E)
         conn = 'MYSQL ERROR'
 
     return conn

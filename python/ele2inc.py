@@ -4,7 +4,7 @@ import sys,os.path
 import numpy as np
 
 def usage():
-  print """
+  print("""
 ### Convert from elevation angles in radians to incidence angles in degrees v1.0 28-Jan-2016 PJG'  
   
 ele2inc.py
@@ -16,7 +16,7 @@ ele2inc.py
     width       (input)  width of the binary matrix
     length      (input)  length of the binary matrix
     
-"""
+""")
 
 if len(sys.argv) < 4:
   usage()

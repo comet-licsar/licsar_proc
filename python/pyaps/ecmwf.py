@@ -1,5 +1,5 @@
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import time
 import datetime
 
@@ -18,9 +18,9 @@ class ECMWFDataServer:
                   '_version' : self.version}
         params.update(args)
             
-        data = urllib.urlencode(params)
-        req = urllib2.Request(self.portal, data)
-        response = urllib2.urlopen(req)
+        data = urllib.parse.urlencode(params)
+        req = urllib.request.Request(self.portal, data)
+        response = urllib.request.urlopen(req)
 
         json = response.read();
 
@@ -36,10 +36,10 @@ class ECMWFDataServer:
         return json
 
     def put(self,*args):
-        print datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), end=' ')
         for a in args:
-            print a,
-        print
+            print(a, end=' ')
+        print()
 
         
     def retrieve(self,args):
@@ -74,7 +74,7 @@ class ECMWFDataServer:
                 self.put(m)
 
         if 'result' in r:
-            size = long(r['size'])
+            size = int(r['size'])
             self.put("Downloading",self._bytename(size))
             done = self._transfer(r['result'],args['target'])
             self.put("Done")
@@ -87,8 +87,8 @@ class ECMWFDataServer:
             raise RuntimeError("Request aborted")
         
     def _transfer(self,url,path):
-        result =  urllib.urlretrieve(url,path)
-        return long(result[1]['content-length'])
+        result =  urllib.request.urlretrieve(url,path)
+        return int(result[1]['content-length'])
         
     def _bytename(self,size):   
         next = {'':'K','K':'M','M':'G','G':'T','T':'P'}

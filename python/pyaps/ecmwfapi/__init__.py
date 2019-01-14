@@ -9,7 +9,7 @@
 # does it submit to any jurisdiction.
 #
 
-import api
+from . import api
 
 
 __all__ = [

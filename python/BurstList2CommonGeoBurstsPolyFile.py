@@ -75,7 +75,7 @@ def commonbursts(master,slave,polygon):
     return bn1, bn2
 
 def usage():
-  print """
+  print("""
 ### Read two burst coordinate lists and extract common bursts (filtered by burst 
 centre coordinates within a given polygon), reporting first and last common bursts. 
 v0.1 3-Dec-2015 PJG'  
@@ -94,7 +94,7 @@ BurstList2CommonGeoBurstsPolyFile.py
  Author: Pablo J. Gonzalez, [p.j.gonzalez@leeds.ac.uk]
 Version: 1.0
    Date: 3-Dec-2015
-"""
+""")
 
 
 if len(sys.argv) < 4:
@@ -116,5 +116,5 @@ with open(sys.argv[3]) as f:
     polygon.append([float(n) for n in line.strip().split(' ')])
 
 bn1,bn2 = commonbursts(master,slave,polygon)
-print bn1, bn2 
+print(bn1, bn2) 
 

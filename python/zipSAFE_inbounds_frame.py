@@ -80,7 +80,7 @@ def pyC_zip2slc(zipfilepath):
   return lonmin, lonmax, latmin, latmax
 
 def usage():
-  print """
+  print("""
 ### Read a zip file and extract lonmin/lonmax/latmin/latmax coordinates v1.0 21-Oct-2015 PJG'  
   
 zipSAFE_2_SLCbb.py
@@ -89,7 +89,7 @@ zipSAFE_2_SLCbb.py
   Usage: zipSAFE_2_SLCbb.py SAFE_file_zip
     zipfile   (input) name of the compressed Sentinel-1 SAFE/ file
         
-"""
+""")
 
 
 if len(sys.argv) < 2:
@@ -116,8 +116,8 @@ for index in range(0,len(zipedgepts),1):
         numpts_within_polygon=numpts_within_polygon+1
 
 if numpts_within_polygon > 0:
-    print "1"
+    print("1")
 else:
-    print "0"
+    print("0")
 
 

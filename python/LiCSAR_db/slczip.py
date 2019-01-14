@@ -52,15 +52,15 @@ class SLCzip(object):
         try:
             zf = zipfile.ZipFile(self.slcfile)
         except zipfile.BadZipfile as e:
-            print 'ERROR: Corrupt zipfile: {0}'.format(namebase)
+            print('ERROR: Corrupt zipfile: {0}'.format(namebase))
             raise
         try:
             data = zf.read(manifest)
             #print data
             return data
         except KeyError as e:
-            print 'ERROR: Did not find %s in zipfile' % namebase
-            print '    {}'.format(e.message)
+            print('ERROR: Did not find %s in zipfile' % namebase)
+            print('    {}'.format(e.message))
             raise 
         finally:
             zf.close()
@@ -72,7 +72,7 @@ class SLCzip(object):
         try:
             zf = zipfile.ZipFile(self.slcfile)
         except zipfile.BadZipfile as e:
-            print 'ERROR: Corrupt zipfile: {0}'.format(namebase)
+            print('ERROR: Corrupt zipfile: {0}'.format(namebase))
             raise 
         content = zf.namelist()
         zf.close()
@@ -97,7 +97,7 @@ class SLCzip(object):
         try:
             zf = zipfile.ZipFile(self.slcfile)
         except zipfile.BadZipfile as e:
-            print 'ERROR: Corrupt zipfile: {0}'.format(namebase)
+            print('ERROR: Corrupt zipfile: {0}'.format(namebase))
             raise
         data_list = []
         for ann in ann_list:
@@ -105,8 +105,8 @@ class SLCzip(object):
                 data = zf.read(ann)
                 data_list.append(data)
             except KeyError as e:
-                print 'ERROR: Did not find %s in zipfile' % namebase
-                print '    {}'.format(e.message)
+                print('ERROR: Did not find %s in zipfile' % namebase)
+                print('    {}'.format(e.message))
         zf.close()
         return data_list
 
@@ -326,7 +326,7 @@ class SLCzip(object):
         mgrs_ann_list = []
         for burstcentres_list in centres_list:
             #print burstcentres_list
-            print
+            print()
             mgrs_burst_list = []
             for centre in burstcentres_list:
                 m = mgrs.MGRS()

@@ -4,7 +4,7 @@ import scipy as sp
 import os
 import sys
 import getopt
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 
 import global_config as gc
 import LiCSquery as lq
@@ -28,16 +28,16 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "vhf:d:", ["version", "help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-v' or o == '--version':
-                print ""
-                print "Current version: %s" % gc.config['VERSION']
-                print ""
+                print("")
+                print("Current version: %s" % gc.config['VERSION'])
+                print("")
                 return 0
             elif o == '-f':
                 framename = a
@@ -47,10 +47,10 @@ def main(argv=None):
         if not procdir:
             raise Usage('No data directory given, -d is not optional!')
 
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
 
     #Check if a DB connection can be established
@@ -106,7 +106,7 @@ def main(argv=None):
 
     for ix in range(phvec.shape[1]):
         if ii%1000 == 0:
-            print ix
+            print(ix)
             phvecthis= np.float32(phvec[:,ii])
         ix = np.where(np.isnan(phvecthis))[0]
         ix2 = np.where(~np.isnan(phvecthis))[0]

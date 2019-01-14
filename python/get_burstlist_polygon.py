@@ -10,7 +10,7 @@ import sys
 import numpy as np
 import datetime as dt
 import matplotlib.path as path
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 
 import LiCSquery as lq 
 
@@ -28,11 +28,11 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "hp:", ["help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-p':
                 polygonfile = a
@@ -41,10 +41,10 @@ def main(argv=None):
         if not os.path.exists(polygonfile):
             raise Usage('Polygon file {0} does not seem to exist'.format(polygonfile))
 
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
     burstidfilename = polygonfile.split('.')[0]+'_burst_ids.txt'
     filesfilename = polygonfile.split('.')[0]+'_zipfiles.list'
@@ -66,10 +66,10 @@ def main(argv=None):
         burstslon = [b for b,i in zip(burstslon,ix) if i]
         burstslat = [b for b,i in zip(burstslat,ix) if i]
         burstssw = [b for b,i in zip(burstssw,ix) if i]
-    print 'Available tracks:\n {0}'.format(''.join([str(t)+' ' for t in set(tracks)]))
+    print('Available tracks:\n {0}'.format(''.join([str(t)+' ' for t in set(tracks)])))
 
 
-    trackchoice = np.int(raw_input('Please chose a track...\n'))
+    trackchoice = np.int(input('Please chose a track...\n'))
     if trackchoice in tracks:
         lonchoice = [b for b,t in zip(burstslon,tracks) if trackchoice == t]
         latchoice = [b for b,t in zip(burstslat,tracks) if trackchoice == t]
@@ -93,7 +93,7 @@ def main(argv=None):
                 f.write('{0}\n'.format(fl))
         pdb.set_trace()
     else:
-        print 'Selected track {0} not a valid option...'.format(trackchoice)
+        print('Selected track {0} not a valid option...'.format(trackchoice))
 
 if __name__ == "__main__":
     sys.exit(main())

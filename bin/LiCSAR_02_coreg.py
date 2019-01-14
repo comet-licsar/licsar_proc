@@ -82,16 +82,16 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "vhkiCcRl:f:d:m:j:y:z:p:T:", ["version", "help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-v' or o == '--version':
-                print ""
-                print "Current version: %s" % gc.config['VERSION']
-                print ""
+                print("")
+                print("Current version: %s" % gc.config['VERSION'])
+                print("")
                 return 0
             elif o == '-f':
                 framename = a
@@ -128,7 +128,7 @@ def main(argv=None):
         if not procdir:
             raise Usage('No output data directory given, -d is not optional!')
         if job_id == -1:
-            print "This processing is not outputting any products to the database."
+            print("This processing is not outputting any products to the database.")
 ############################################################ Setup processing database
         if gc.batchflag:
             if not(polygonfile) or not(ziplistfile):
@@ -140,45 +140,45 @@ def main(argv=None):
             import LiCSquery as lq
             
 
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
 
 ############################################################ Ensure we have a connection to the database
     #Check if a DB connection can be established
     if not lq.connection_established():
-        print >> sys.stderr, "\nERROR:"
-        print >> sys.stderr, "Could not establish a stable database connection. No processing can happen."
+        print("\nERROR:", file=sys.stderr)
+        print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
 
         return 1
 
 ############################################################ Check that parameters are in database
     if not lq.check_frame(framename):
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Frame {0} was not found in database.".format(framename)
+        print("\nERROR:", file=sys.stderr)
+        print("Frame {0} was not found in database.".format(framename), file=sys.stderr)
 
     if not os.path.exists(procdir):
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Processing directory {0} does not seem to exist.".format(procdir)
+        print("\nERROR:", file=sys.stderr)
+        print("Processing directory {0} does not seem to exist.".format(procdir), file=sys.stderr)
         return 1
     slcdir = os.path.join(procdir,'SLC')
     if not os.path.exists:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "SLC directory {0} does not seem to exist.".format(slcdir)
+        print("\nERROR:", file=sys.stderr)
+        print("SLC directory {0} does not seem to exist.".format(slcdir), file=sys.stderr)
         return 1
 
 ############################################################ Check that existing directories are present
     masterslcdir = os.path.join(slcdir,masterdate.strftime('%Y%m%d'))
     if not os.path.exists:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Master SLC directory {0} does not seem to exist.".format(masterslcdir)
+        print("\nERROR:", file=sys.stderr)
+        print("Master SLC directory {0} does not seem to exist.".format(masterslcdir), file=sys.stderr)
         return 1
     demdir = os.path.join(procdir,'DEM')
     if not os.path.exists:
-        print >>sys.stderr, "\ERROR:"
-        print >>sys.stderr, "DEM directory {0} does not seem to exist.".format(masterslcdir)
+        print("\ERROR:", file=sys.stderr)
+        print("DEM directory {0} does not seem to exist.".format(masterslcdir), file=sys.stderr)
         return 1
 
 
@@ -269,7 +269,7 @@ def main(argv=None):
                     f.write('\nAcquisition {0} has been coregistered correctly.'.format(sd))
                     createdRslcs.append(sd)
                     if not keepSLCs:
-                        print 'Removing SLC directory...'
+                        print('Removing SLC directory...')
                         imdir = os.path.join(slcdir,sd.strftime('%Y%m%d'))
                         shutil.rmtree(imdir)
                     if removeMosaic:
@@ -293,7 +293,7 @@ def main(argv=None):
                     f.write('\nAcquisition {0} has been coregistered correctly.'.format(sd))
                     createdRslcs.append(sd)
                     if not keepSLCs:
-                        print 'Removing SLC directory...'
+                        print('Removing SLC directory...')
                         imdir = os.path.join(slcdir,sd.strftime('%Y%m%d'))
                         shutil.rmtree(imdir)
                     if removeMosaic:

@@ -8,20 +8,20 @@ import os
 import sys
 import itertools
 import pymysql
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import datetime as dt
 import pdb
 
 # Local imports
 import global_config as gc
-from dbfunctions import Conn_db
+from .dbfunctions import Conn_db
 
 def do_query(query, commit=False):
     # execute MySQL query and return result
     try:
         conn = Conn_db()
         if conn == 'MYSQL ERROR':
-            print 'No database connection could be established to perform the following query: \n%s' % query
+            print('No database connection could be established to perform the following query: \n%s' % query)
             return 'MYSQL ERROR'
 
         with conn.cursor() as c:
@@ -33,7 +33,7 @@ def do_query(query, commit=False):
                 res_list = c.rowcount
 
     except pymysql.err.Error as e:
-        print "\nUnexpected MySQL error {0}: {1}".format(e[0], e[1])
+        print("\nUnexpected MySQL error {0}: {1}".format(e[0], e[1]))
         return []
     return res_list
 
@@ -42,7 +42,7 @@ def connection_established():
     sql_q = "SELECT VERSION();"
     res = do_query(sql_q)
     if res == 'MYSQL ERROR':
-        print 'Could not establish database connection'
+        print('Could not establish database connection')
         return False
     return True
 
@@ -59,7 +59,7 @@ def get_bursts_in_frame(frame):
     # centre_lat of all bursts in frame
     frametest = check_frame(frame)
     if not frametest:
-        print '\nWarning!\nFrame {0} not found in database'.format(frame)
+        print('\nWarning!\nFrame {0} not found in database'.format(frame))
         return []
     else:
         sql_q = "select distinct bursts.bid_tanx, bursts.centre_lon, "\
@@ -119,7 +119,7 @@ def get_frame_bursts_on_date(frame,date):
     # for all all bursts within the frame that were acquired on that date
     frametest = check_frame(frame)
     if not frametest:
-        print 'Frame {0} not found in database'.format(frame)
+        print('Frame {0} not found in database'.format(frame))
         return []
     else:
         sql_q = "select distinct bursts.bid_tanx, bursts.centre_lon, "\
@@ -312,9 +312,9 @@ def set_files2jobs(job_id, file_list):
         if type(file_list[0]) is str:
             ziplist = ','.join('"{0}"'.format (f) for f in file_list)
         else:
-            print "ERROR: Expected list of strings, but got list of %s" % type(file_list[0])
+            print("ERROR: Expected list of strings, but got list of %s" % type(file_list[0]))
     else:
-        print "ERROR: Expected list of string, but got %s" % type(file_list)
+        print("ERROR: Expected list of string, but got %s" % type(file_list))
 
 
     sql_q = "INSERT INTO files2jobs "\

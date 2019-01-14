@@ -68,7 +68,7 @@ def get_era(fname,minlat,maxlat,minlon,maxlon,cdic, humidity='Q',verbose=False):
 	
 	assert humidity in ('Q','R'), 'Undefined humidity field in get_era.'
 	if verbose:
-		print 'PROGRESS: READING GRIB FILE'
+		print('PROGRESS: READING GRIB FILE')
 	lvls = np.array([1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000])
 	nlvls = len(lvls)
 
@@ -93,7 +93,7 @@ def get_era(fname,minlat,maxlat,minlon,maxlon,cdic, humidity='Q',verbose=False):
 	tmp = gph.copy()                  #Temperature
 	vpr = gph.copy()                  #Vapor pressure
 	if verbose:
-		print 'Number of stations:', nstn
+		print('Number of stations:', nstn)
 
 	lvls = 100.0*lvls              #Conversion to absolute pressure
 	for i in range(nlvls):
@@ -155,7 +155,7 @@ def get_ecmwf(fname,minlat,maxlat,minlon,maxlon,cdic, humidity='Q',verbose=False
 	
 	assert humidity in ('Q','R'), 'Undefined humidity field in get_era.'
 	if verbose:
-		print 'PROGRESS: READING GRIB FILE'
+		print('PROGRESS: READING GRIB FILE')
 	lvls = np.array([1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000])
 	nlvls = len(lvls)
 
@@ -180,10 +180,10 @@ def get_ecmwf(fname,minlat,maxlat,minlon,maxlon,cdic, humidity='Q',verbose=False
 	tmp = gph.copy()                  #Temperature
 	vpr = gph.copy()                  #Vapor pressure
 	if verbose:
-		print 'Number of stations:', nstn
+		print('Number of stations:', nstn)
 
 	lvls = 100.0*lvls              #Conversion to absolute pressure
-	for i in xrange(nlvls):
+	for i in range(nlvls):
 		grbs.seek(gphind[i])   #Reading potential height.
 		grb = grbs.read(3)
 	        val = grb[0].values

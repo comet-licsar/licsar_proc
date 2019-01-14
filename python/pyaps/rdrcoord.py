@@ -1,24 +1,24 @@
 import os.path
 import numpy as np
-import utils
-import processor 
+from . import utils
+from . import processor 
 import scipy.integrate as intg
 
 GRIBflag = True
 MERRAflag = True
 
 try:
-    import era
+    from . import era
 except:
     GRIBflag = False
 
 try:
-    import narr
+    from . import narr
 except:
     GRIBflag = False
 
 try:
-    import merra
+    from . import merra
 except:
     MERRAflag = False
 
@@ -28,13 +28,13 @@ import sys
 
 def sanity_check(model):
     if model in ('ECMWF','ERA','NARR') and GRIBflag==False:
-        print 'No module name pygrib found.'
-        print 'To use ECMWF and NARR, please install pygrib.'
+        print('No module name pygrib found.')
+        print('To use ECMWF and NARR, please install pygrib.')
 
     if model=='MERRA' and MERRAflag==False:
-        print 'No module name pyhdf found'
-        print 'To use MERRA, please install pyhdf'
-        print 'Visit: http://pysclint.sourceforge.net/pyhdf'
+        print('No module name pyhdf found')
+        print('To use MERRA, please install pyhdf')
+        print('Visit: http://pysclint.sourceforge.net/pyhdf')
 
 
 ##############Creating a class object for PyAPS use.
@@ -79,12 +79,12 @@ class PyAPS_rdr:
 				self.rdrscale = 70000./dpix
 				self.bufspc = 1.2
 			else:
-				print '================================'
-                                print '********************************'
-                                print '  pyGrib needs to be installed  '
-                                print '    No ECMWF or NARR possible   '
-                                print '********************************'
-				print '================================'
+				print('================================')
+                                print('********************************')
+                                print('  pyGrib needs to be installed  ')
+                                print('    No ECMWF or NARR possible   ')
+                                print('********************************')
+				print('================================')
 				sys.exit(1)
 		elif grib in ('NARR'):
 			if GRIBflag:
@@ -92,12 +92,12 @@ class PyAPS_rdr:
                                 self.rdrscale = 70000./dpix
                                 self.bufspc = 1.2
                         else:
-                                print '================================'
-                                print '********************************'
-                                print '  pyGrib needs to be installed  '
-                                print '    No ECMWF or NARR possible   '
-                                print '********************************'
-                                print '================================'
+                                print('================================')
+                                print('********************************')
+                                print('  pyGrib needs to be installed  ')
+                                print('    No ECMWF or NARR possible   ')
+                                print('********************************')
+                                print('================================')
                                 sys.exit(1)
 			self.hgtscale = ((self.dict['maxAlt']-self.dict['minAlt'])/self.dict['nhgt'])/0.3
 			self.rdrscale = 32000./dpix
@@ -108,12 +108,12 @@ class PyAPS_rdr:
 				self.rdrscale = 32000./dpix
 				self.bufspc = 1.0 
 			else:
-				print '================================'
-				print '********************************'
-				print '  pyHdf needs to be installed   '
-				print '        No MERRA possible       '
-				print '********************************'
-				print '================================'
+				print('================================')
+				print('********************************')
+				print('  pyHdf needs to be installed   ')
+				print('        No MERRA possible       ')
+				print('********************************')
+				print('================================')
 				sys.exit(1)
 			
 		######Problems near the international dateline
@@ -159,7 +159,7 @@ class PyAPS_rdr:
                 elif Del in ('wet','Wet'):
                     Delfn = DWet
                 else:
-                    print 'Unrecognized delay type'
+                    print('Unrecognized delay type')
                     sys.exit(1)
 
 		if self.grib in ('NARR'):
@@ -338,7 +338,7 @@ class PyAPS_rdr:
 		
                 # Reading in the DEM
 		if self.verb:
-			print 'PROGRESS: READING DEM'
+			print('PROGRESS: READING DEM')
                 fin = open(self.hfile,'rb');
                 if self.fmt in ('HGT'):
                     dem = np.fromfile(file=fin,dtype=self.demtype,count=self.nx*self.ny).reshape(self.ny,self.nx)
@@ -362,7 +362,7 @@ class PyAPS_rdr:
 
 		# Create the 1d interpolator
 		if self.verb:
-			print 'PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS'
+			print('PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS')
                 intp_1d = si.interp1d(self.hgt,self.Delfn,kind='cubic',axis=1)
 
 		# Interpolate the delay function every meter
@@ -387,14 +387,14 @@ class PyAPS_rdr:
 
 		# Create the cube interpolator for the bilinear method
 		if self.verb:
-			print 'PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION'
+			print('PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION')
 		bilicube = processor.Bilinear2DInterpolator(Lonu,Latu,Delfn_1m,cube=True)
 
 		# Loop on the lines
 		if self.verb:
 			toto = utils.ProgressBar(maxValue=self.ny)
-			print 'PROGRESS: MAPPING THE DELAY'
-		for m in xrange(self.ny):
+			print('PROGRESS: MAPPING THE DELAY')
+		for m in range(self.ny):
 			if self.verb:
 				toto.update(m,every=5)
 
@@ -453,7 +453,7 @@ class PyAPS_rdr:
 
                 # Reading in the DEM
 		if self.verb:
-	                print 'PROGRESS: READING DEM'
+	                print('PROGRESS: READING DEM')
                 fin = open(self.hfile,'rb');
                 if self.fmt in ('HGT'):
                     dem = np.fromfile(file=fin,dtype=self.demtype,count=self.nx*self.ny).reshape(self.ny,self.nx)
@@ -474,7 +474,7 @@ class PyAPS_rdr:
 
 		# Create the 1d interpolator
 		if self.verb:
-        	        print 'PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS'
+        	        print('PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS')
                 intp_1d = si.interp1d(self.hgt,self.Delfn,kind='cubic',axis=1)
 
                 # Interpolate the delay function every meter
@@ -499,14 +499,14 @@ class PyAPS_rdr:
 
                 # Create the cube interpolator for the bilinear method
 		if self.verb:
-	                print 'PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION'
+	                print('PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION')
                 bilicube = processor.Bilinear2DInterpolator(Lonu,Latu,Delfn_1m,cube=True)
 
 		# Loop on the lines
 		if self.verb:
 	                toto = utils.ProgressBar(maxValue=self.ny)
-       		        print 'PROGRESS: MAPPING THE DELAY'
-                for m in xrange(self.ny):
+       		        print('PROGRESS: MAPPING THE DELAY')
+                for m in range(self.ny):
 			if self.verb:
 	                        toto.update(m,every=5)
 		
@@ -598,7 +598,7 @@ class PyAPS_rdr:
 	
                 # Reading in the DEM
                 if self.verb:
-                        print 'PROGRESS: READING DEM'
+                        print('PROGRESS: READING DEM')
                 fin = open(self.hfile,'rb');
                 if self.fmt in ('HGT'):
                     dem = np.fromfile(file=fin,dtype=self.demtype,count=self.nx*self.ny).reshape(self.ny,self.nx)
@@ -619,7 +619,7 @@ class PyAPS_rdr:
 
 		# Create the 1d interpolator
                 if self.verb:
-                        print 'PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS'
+                        print('PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS')
                 intp_1d = si.interp1d(self.hgt,Tm,kind='cubic',axis=1)
 
 		# Interpolate the Tm variable every meter
@@ -643,7 +643,7 @@ class PyAPS_rdr:
 
 		# Create the cube interpolator for the bilinear method
                 if self.verb:   
-                        print 'PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION'
+                        print('PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION')
                 bilicube = processor.Bilinear2DInterpolator(Lonu,Latu,Tm_1m,cube=True)
 
 		# Get the values from the dictionnary
@@ -660,8 +660,8 @@ class PyAPS_rdr:
                 # Loop on the lines
                 if self.verb:
                         toto = utils.ProgressBar(maxValue=self.ny)
-                        print 'PROGRESS: MAPPING THE DELAY'
-                for m in xrange(self.ny):
+                        print('PROGRESS: MAPPING THE DELAY')
+                for m in range(self.ny):
                         if self.verb:
                                 toto.update(m,every=5)
 			# Get Latitude and Longitude arrays
@@ -741,7 +741,7 @@ class PyAPS_rdr:
 	
                 # Reading in the DEM                                                                                                 
                 if self.verb:                                                                                                        
-                        print 'PROGRESS: READING DEM'                                                                                
+                        print('PROGRESS: READING DEM')                                                                                
                 fin = open(self.hfile,'rb');                                                                                         
                 if self.fmt in ('HGT'):
                     dem = np.fromfile(file=fin,dtype=self.demtype,count=self.nx*self.ny).reshape(self.ny,self.nx)                    
@@ -762,7 +762,7 @@ class PyAPS_rdr:
 
                 # Create the 1d interpolator
                 if self.verb:
-                        print 'PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS'
+                        print('PROGRESS: FINE INTERPOLATION OF HEIGHT LEVELS')
                 intp_1d = si.interp1d(self.hgt,Tm,kind='cubic',axis=1)
 
                 # Interpolate the Tm variable every meter
@@ -786,7 +786,7 @@ class PyAPS_rdr:
 
 		# Create the cube interpolator for the bilinear method
                 if self.verb:
-                        print 'PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION'
+                        print('PROGRESS: CREATE THE BILINEAR INTERPOLATION FUNCTION')
                 bilicube = processor.Bilinear2DInterpolator(Lonu,Latu,Tm_1m,cube=True)
 
 		# Get the values from the dictionnary
@@ -803,8 +803,8 @@ class PyAPS_rdr:
                 # Loop on the lines
                 if self.verb:
                         toto = utils.ProgressBar(maxValue=self.ny)
-                        print 'PROGRESS: MAPPING THE DELAY'
-                for m in xrange(self.ny):
+                        print('PROGRESS: MAPPING THE DELAY')
+                for m in range(self.ny):
                         if self.verb:
                                 toto.update(m,every=5)
 

@@ -24,7 +24,7 @@ def do_unwrapping(origmasterdate,framename,ifg,ifgdir,procdir,lq,job_id):
     #read width and length
     [width, length] = get_mli_size(mastermli+'.par')
 
-    print '\nUnwrapping combination {0}'.format(ifg)
+    print('\nUnwrapping combination {0}'.format(ifg))
 
 ############################################################ Filter using an adaptive filter algorithm 
     ifgdirthis = os.path.join(ifgdir,ifg)
@@ -32,34 +32,34 @@ def do_unwrapping(origmasterdate,framename,ifg,ifgdir,procdir,lq,job_id):
     filtfile = os.path.join(ifgdirthis,ifg+'.filt.diff')
     ccfile = os.path.join(ifgdirthis,ifg+'.filt.cc')
     logfilename = os.path.join(procdir,'log','adf_{0}.log'.format(ifg))
-    print 'Filtering...'
+    print('Filtering...')
     if not adf(difffile,filtfile,ccfile,width,'1','32',logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong filtering interferogram{0}.'.format(ifg)
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong filtering interferogram{0}.'.format(ifg), file=sys.stderr)
         return 1
 
     #Create a preview ras file
     logfilename = os.path.join(procdir,'log','rasmph_pwr_filt_{0}.log'.format(ifg))
     if not rasmph_pwr(filtfile,mastermli,width,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong creating the preview raster file of the filtered interferogram {0}.'.format(ifg)
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong creating the preview raster file of the filtered interferogram {0}.'.format(ifg), file=sys.stderr)
         return 1
 
 ############################################################ Unwrap the interferogram
     # ccfile = os.path.join(ifgdirthis,filtfile[:-5]+'.cc')
     coh = np.fromfile(ccfile,dtype=np.float32).byteswap().reshape((int(length),int(width)))
     ifg_w = np.fromfile(filtfile,dtype=np.complex64).byteswap().reshape((int(length),int(width)))
-    print 'Unwrapping...'
+    print('Unwrapping...')
     if not unwrap_ifg(ifg_w, ifg, ifgdir, coh,width,procdir):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong unwrapping interferogram {0}.'.format(ifg)
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong unwrapping interferogram {0}.'.format(ifg), file=sys.stderr)
         return 2
     
     #Create a ras file for the unwrapped interferogram
     logfilename = os.path.join(procdir,'log','rasrmg_{0}.log'.format(ifg))
     if not rasrmg(os.path.join(ifgdir,ifg,ifg+'.unw'),mastermli,width,1,logfilename):
-        print >>sys.stderr, '\nERROR:'
-        print >>sys.stderr, '\nSomething went wrong creating the preview raster file of the unwrapped interferogram {0}.'.format(ifg)
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong creating the preview raster file of the unwrapped interferogram {0}.'.format(ifg), file=sys.stderr)
         return 1
 
     # Log the update of the IFG to indicate it is now unwrapped in the DB
@@ -127,7 +127,7 @@ def get_costs(edges, n_edge, rowix, colix, zeroix):
     nshortcycle = 100
     i,j = np.where(~zeroix)
     grid_edges = np.vstack((rowix.compressed()[:,None],colix.compressed()[:,None]))
-    n_edges = np.histogram(abs(grid_edges),range(0,n_edge+1))[0]
+    n_edges = np.histogram(abs(grid_edges),list(range(0,n_edge+1)))[0]
     edge_length = np.sqrt(np.diff(i[edges[:,1:]],axis=1)**2+
                           np.diff(j[edges[:,1:]],axis=1)**2)
     sigsq_noise = np.zeros(edge_length.shape,dtype=np.float32)
@@ -211,13 +211,13 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
     try:
         uw = np.fromfile(os.path.join(tmpdir,'snaphu.out'),dtype=np.float32).reshape(ifg.shape)
     except:
-        print 'Something went wrong unwrapping the interferogram. Log file {0}'.format(logfilename)
+        print('Something went wrong unwrapping the interferogram. Log file {0}'.format(logfilename))
         return False
     uw[coh < 0.5] = np.nan
     try:
         uw.byteswap().tofile(os.path.join(ifgdir,date,date+'.unw'))
     except:
-        print 'Something went wrong writing the unwrapped interferogram to file {0}.'.format(os.path.join(ifgdir,date+'.unw'))
+        print('Something went wrong writing the unwrapped interferogram to file {0}.'.format(os.path.join(ifgdir,date+'.unw')))
         return False
 
 

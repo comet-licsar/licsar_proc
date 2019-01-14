@@ -94,14 +94,14 @@ def main(argv=None):
             curReq = postReqs-priorReqs
             curReq = curReq.pop()
             if curReq:
-                print "Created request {0} with label {1}".format( curReq, label)
+                print("Created request {0} with label {1}".format( curReq, label))
                 if notify:
                     nla.update_request(curReq,notify_first=userEmail,notify_last=userEmail)
-                    print "Added notify to requests {0} with email {1}".format(curReq,userEmail)
+                    print("Added notify to requests {0} with email {1}".format(curReq,userEmail))
             else:
-                print "Request was not created... Please check manually for label {0}".format(
+                print("Request was not created... Please check manually for label {0}".format(
                         label
-                        )
+                        ))
             return curReq
         else:
             return None
@@ -124,7 +124,7 @@ def main(argv=None):
 
     for o,a in opts:
         if o == '-h':
-            print __doc__
+            print(__doc__)
             return 0
         elif o == '-f':
             frameName = a
@@ -146,8 +146,8 @@ def main(argv=None):
             notify = True
             userEmail = a
         else:
-            print "unexpected argument"
-            print __doc__
+            print("unexpected argument")
+            print(__doc__)
             return 1
 
 ############################## Check Frame definition
@@ -157,13 +157,13 @@ def main(argv=None):
     if not lq.check_frame(frameName):
         raise undefinedFrameError(frameName)
 
-    print "Found frame definition in LiCS database - reading file list"
+    print("Found frame definition in LiCS database - reading file list")
 
 ############################## Get file list
 
     frameFilesTable = lq.get_frame_files_period(frameName,startDate.strftime('%Y-%m-%d'),endDate.strftime('%Y-%m-%d'))
 
-    print "Stripping file list down to unique zipfiles"
+    print("Stripping file list down to unique zipfiles")
 
     acq_dates = [f[1] for f in frameFilesTable]
     files = [f[3] for f in frameFilesTable]
@@ -174,13 +174,13 @@ def main(argv=None):
 ############################## Write out file list
 
     if zipListFile:
-        print "Writing zip file list to {0}".format(zipListFile)
+        print("Writing zip file list to {0}".format(zipListFile))
         with open(zipListFile,'w') as f:
             # for zipFile in zipFiles:
-            for date,zipFile in filesDF['files'].iteritems():
+            for date,zipFile in filesDF['files'].items():
                 f.write(zipFile+"\n")
     else:
-        print "No zip file list filename provided - not writing file list"
+        print("No zip file list filename provided - not writing file list")
 
 ############################## Work out which files are on tape and which are not
 
@@ -188,7 +188,7 @@ def main(argv=None):
 
 ############################## Make batches of NLA request
     if makeNLAReq:
-        print "Making NLA file requests"
+        print("Making NLA file requests")
         groupedFiles = filesDF.loc[filesDF['onTape'],'files'].resample(batchMode)
         requestList = groupedFiles.aggregate(make_nla_request,userEmail=userEmail)
 

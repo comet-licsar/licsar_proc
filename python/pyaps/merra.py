@@ -31,11 +31,11 @@ def get_merra(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     # Read the hdf file
     file = SD(fname)
     if verbose:
-	    print 'PROGRESS: READING HDF FILE'
+	    print('PROGRESS: READING HDF FILE')
     lvl = file.select('levels')
     rlvls = lvl.get() 						# Pressure levels are from lowest to highest
     lvls = []
-    for i in xrange(len(rlvls)):				# Reverse the pressure levels to be consistent with other GAMs
+    for i in range(len(rlvls)):				# Reverse the pressure levels to be consistent with other GAMs
         index = len(rlvls) - i - 1
         lvls.append(rlvls[index])
     nlvls = len(lvls)
@@ -55,11 +55,11 @@ def get_merra(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     del mask1
     del mask2
     iimemo = []
-    for m in xrange(len(ii)):
-        for i in xrange(len(jj)):
+    for m in range(len(ii)):
+        for i in range(len(jj)):
             iimemo.append(ii[m])
     jjmemo = []
-    for i in xrange(len(ii)):
+    for i in range(len(ii)):
         jjmemo.append(jj)
     jjmemo = np.array(jjmemo)
     jjmemo = jjmemo.flatten()
@@ -75,7 +75,7 @@ def get_merra(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     tmp = gph.copy()                  #Temperature
     vpr = gph.copy()                  #Vapor pressure
     if verbose:
-	    print 'Number of stations:', nstn
+	    print('Number of stations:', nstn)
     
     # Get data from files
     h = file.select('h')
@@ -91,20 +91,20 @@ def get_merra(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     lvls = 100.0*lvls
 
     # Reverse altitude
-    for i in xrange(nlvls):
+    for i in range(nlvls):
         index = nlvls - i - 1
         gph[i,:] = height[index][ii,jj]
     
     idx = np.zeros(nstn) 
-    for i in xrange(nstn):
-        for m in xrange(nlvls):
+    for i in range(nstn):
+        for m in range(nlvls):
             if spressure[ii[i]][jj[i]] > lvls[m]:
                 idx[i] = m
     
     # extrapolation of temperature and humidity data at pressure levels under surface at each grid point
     tk = np.zeros(nstn)
     tb = np.zeros(nstn)
-    for i in xrange(nstn):
+    for i in range(nstn):
         t = temp[:,ii[i],jj[i]]
         x = [lvls[idx[i]],lvls[idx[i] -1 ]]
         y = [t[nlvls - idx[i] - 1],t[nlvls - idx[i] ]]
@@ -114,7 +114,7 @@ def get_merra(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     
     hk = np.zeros(nstn)
     hb = np.zeros(nstn)
-    for i in xrange(nstn):
+    for i in range(nstn):
         hum = humidity[:,ii[i],jj[i]]
         x = [lvls[idx[i]],lvls[idx[i] -1 ]]
         y = [hum[nlvls - idx[i] - 1],hum[nlvls - idx[i]]]
@@ -124,24 +124,24 @@ def get_merra(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     
     
     #fill out the tmp and vpr array
-    for i in xrange(nstn):
+    for i in range(nstn):
         id = np.int(idx[i]+1)
-        for n in xrange(id):
+        for n in range(id):
             tmp[n,i] = temp[nlvls - 1 - n,ii[i],jj[i]]
         exl = nlvls - id
-        for m in xrange(exl):
+        for m in range(exl):
             tmp[id+m,i] =  tk[i]*lvls[id+m] + tb[i]
 
-    for i in xrange(nstn):
+    for i in range(nstn):
         id = np.int(idx[i]+1)
-        for n in xrange(id):
+        for n in range(id):
             vpr[n,i] = humidity[nlvls - 1- n,ii[i],jj[i]]
         exl = nlvls - id
-        for m in xrange(exl):
+        for m in range(exl):
             vpr[id+m,i] =  hk[i]*lvls[id+m] + hb[i]
     memo = list(vpr)
     memo = np.array(memo)
-    for i in xrange(nlvls):
+    for i in range(nlvls):
         vpr[i,:] = memo[i,:]*lvls[i]*alpha/(1+(alpha - 1)*memo[i,:])
 
     # Close the netcdf file

@@ -4,7 +4,7 @@ import sys,os.path
 import numpy as np
 
 def usage():
-  print """
+  print("""
 ### orient2heading.py
   Convert from orientation angles in radians to heading angles in degrees
   Program reads a big endian file with output a binary file in big endian
@@ -17,7 +17,7 @@ def usage():
 
 orient2heading.py v1.0 28-Jan-2016 PJG
 Part of LiCSAR software package
-"""
+""")
 
 if len(sys.argv) < 4:
   usage()

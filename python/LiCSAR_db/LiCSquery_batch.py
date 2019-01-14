@@ -21,7 +21,7 @@ import datetime as dt
 import global_config as gc
 from LiCSAR_lib.LiCSAR_misc import Usage
 #from dbfunctions import Conn_db			##
-import slczip
+from . import slczip
 
 def loadziplist(ziplistfile):
     # Load full paths to the zip files into a list
@@ -78,10 +78,10 @@ def get_burst_centers(ziplist):
         #print anxid_list
         _,coords_list = slc.get_burstGeo_coords()  ### conventioon here is (lat,long)
         
-        for swath in xrange(len(swaths)): # loop over the subswaths (3 for IW)
+        for swath in range(len(swaths)): # loop over the subswaths (3 for IW)
             sws = "_"+swaths[swath]
             #print sws
-            for i in xrange(len(anxid_list[swath])): # loop over the bursts within the subswath
+            for i in range(len(anxid_list[swath])): # loop over the bursts within the subswath
                 anxid = anxid_list[swath][i]
                 if ( str(anxid)+sws in anxids ) or ( str(anxid+1)+sws in anxids ) or ( str(anxid-1)+sws in anxids ):
                     pass
@@ -103,7 +103,7 @@ def get_burst_centers(ziplist):
 
 def np2tuplearray(data):
     result=[]
-    for i in xrange(data.shape[0]):
+    for i in range(data.shape[0]):
         result.append(tuple((data[i,0],data[i,1])))
     return result
 
@@ -174,7 +174,7 @@ class dbquery:
         anxids = [ s.split('_')[0] for s in anxids_iw ]
         result = []
         # Reassign burst ids to nearby ones stored in self.allburstanxids
-        for i in xrange(len(anxids)):
+        for i in range(len(anxids)):
             anxid = int(anxids[i])
             sws = '_'+anxids_iw[i].split('_')[1]
             if str(anxid)+sws in self.anxids:
@@ -428,9 +428,9 @@ class dbquery:
             if type(file_list[0]) is str:
                 ziplist = ','.join('"{0}"'.format (f) for f in file_list)
             else:
-                print "ERROR: Expected list of strings, but got list of %s" % type(file_list[0])
+                print("ERROR: Expected list of strings, but got list of %s" % type(file_list[0]))
         else:
-            print "ERROR: Expected list of string, but got %s" % type(file_list)
+            print("ERROR: Expected list of string, but got %s" % type(file_list))
 
 
         sql_q = "INSERT INTO files2jobs "\

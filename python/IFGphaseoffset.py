@@ -5,7 +5,7 @@ import numpy as np
 import LiCSAR_iofunc as LICSARio
 
 def usage():
-  print """
+  print("""
 ### IFGphaseoffset.py
   Program reads a complex big endian file and add a phase offset value, X
   
@@ -26,10 +26,10 @@ def usage():
 
 IFGphaseoffset.py v1.0 28-Apr-2016 PJG
 Part of LiCSAR software package
-"""
+""")
 
 if (len(sys.argv) < 6) or (len(sys.argv) > 7) :
-  print """ ERROR: Wrong number of input arguments """
+  print(""" ERROR: Wrong number of input arguments """)
   usage()
   sys.exit(-1)
 

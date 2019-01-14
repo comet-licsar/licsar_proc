@@ -79,16 +79,16 @@ def main(argv=None):
     try:
         try:
             opts, args = getopt.getopt(argv[1:], "vhf:d:s:j:r:a:", ["version", "help"])
-        except getopt.error, msg:
+        except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
-                print __doc__
+                print(__doc__)
                 return 0
             elif o == '-v' or o == '--version':
-                print ""
-                print "Current version: %s" % gc.config['VERSION']
-                print ""
+                print("")
+                print("Current version: %s" % gc.config['VERSION'])
+                print("")
                 return 0
             elif o == '-f':
                 framename = a
@@ -109,13 +109,13 @@ def main(argv=None):
         if not slavedate:
             raise Usage('No image date given, -s is not optional!')
         if job_id == -1:
-            print "This processing is not outputting any products to the database."
+            print("This processing is not outputting any products to the database.")
 
 
-    except Usage, err:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "  "+str(err.msg)
-        print >>sys.stderr, "\nFor help, use -h or --help.\n"
+    except Usage as err:
+        print("\nERROR:", file=sys.stderr)
+        print("  "+str(err.msg), file=sys.stderr)
+        print("\nFor help, use -h or --help.\n", file=sys.stderr)
 
         # Log failed processing
         standard_job_finished_failed(job_id, slavedate)
@@ -124,15 +124,15 @@ def main(argv=None):
 
 ############################################################ Ensure databade connection
     if not lq.connection_established():
-        print >> sys.stderr, "\nERROR:"
-        print >> sys.stderr, "Could not establish a stable database connection. No processing can happen."
+        print("\nERROR:", file=sys.stderr)
+        print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
 
         return 1
 
 ############################################################ Check processed files exist
     if not os.path.exists(procdir):
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Processing directory {0} does not seem to exist.".format(procdir)
+        print("\nERROR:", file=sys.stderr)
+        print("Processing directory {0} does not seem to exist.".format(procdir), file=sys.stderr)
 
         # Log failed processing
         standard_job_finished_failed(job_id, slavedate)
@@ -141,8 +141,8 @@ def main(argv=None):
     #geocoded directory
     geodir = os.path.join(procdir,'geo')
     if not os.path.exists(geodir):
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Geocoding directory {0} does not seem to exist.".format(geodir)
+        print("\nERROR:", file=sys.stderr)
+        print("Geocoding directory {0} does not seem to exist.".format(geodir), file=sys.stderr)
 
         # Log failed processing
         standard_job_finished_failed(job_id, slavedate)
@@ -158,8 +158,8 @@ def main(argv=None):
     if masterdatestr:
         masterdate = dt.date(int(masterdatestr[:4]),int(masterdatestr[4:6]),int(masterdatestr[6:8]))
     else:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Could not find master date in geocoding directory {0}.".format(geodir)
+        print("\nERROR:", file=sys.stderr)
+        print("Could not find master date in geocoding directory {0}.".format(geodir), file=sys.stderr)
 
         # Log failed processing
         standard_job_finished_failed(job_id, slavedate)
@@ -180,8 +180,8 @@ def main(argv=None):
     if framename:
         testlist = lq.check_frame(framename)
         if not testlist:
-            print >>sys.stderr, "\nERROR:"
-            print >>sys.stderr, "Could not find frame {0} in database".format(framename)
+            print("\nERROR:", file=sys.stderr)
+            print("Could not find frame {0} in database".format(framename), file=sys.stderr)
 
             # Log failed processing
             standard_job_finished_failed(job_id, slavedate)
@@ -193,8 +193,8 @@ def main(argv=None):
 ############################################################ Get slave date data
     res = lq.get_frame_files_date(framename,slavedate)
     if not res:
-        print >>sys.stderr, "\nERROR:"
-        print >>sys.stderr, "Could not find image date {0} in frame {1}".format(slavedate,framename)
+        print("\nERROR:", file=sys.stderr)
+        print("Could not find image date {0} in frame {1}".format(slavedate,framename), file=sys.stderr)
 
         # Log failed processing
         standard_job_finished_failed(job_id, slavedate)
@@ -209,20 +209,20 @@ def main(argv=None):
     missingbursts = [b for b in burstlist if not b in imburstlist]
     if len(missingbursts) < 1:
         # All bursts there, no problem
-        print "All bursts for frame {0} seem to be have been acquired on {1}...".format(framename,slavedate)
+        print("All bursts for frame {0} seem to be have been acquired on {1}...".format(framename,slavedate))
         rc = make_frame_image(slavedate,framename,imburstlist,procdir, lq,job_id)
     else:
         # Missing one or more bursts, checking if in problematic loc
-        print "One of more  bursts for frame {0} have not been acquired on the date {1}. Missing bursts: {2}".format(framename,slavedate,''.join(['\n'+m[0] for m in missingbursts]))
-        print "Checking where missing bursts are."
+        print("One of more  bursts for frame {0} have not been acquired on the date {1}. Missing bursts: {2}".format(framename,slavedate,''.join(['\n'+m[0] for m in missingbursts])))
+        print("Checking where missing bursts are.")
         if check_missing_bursts(burstlist,missingbursts):
             # Missing bursts are at edges, not a problem
-            print "Missing bursts are not in critical location, continuing processing image {0}.".format(slavedate)
+            print("Missing bursts are not in critical location, continuing processing image {0}.".format(slavedate))
             rc = make_frame_image(slavedate,framename,imburstlist,procdir, lq,job_id)
         else:
             # Missing bursts in the middle, we're stuffed for 
             # this date, skip to next
-            print "Missing bursts are in critical location, continuing processing with next image..."
+            print("Missing bursts are in critical location, continuing processing with next image...")
 
             # Log failed processing
             standard_job_finished_failed(job_id, slavedate)
@@ -264,7 +264,7 @@ def main(argv=None):
     rslcdir = os.path.join(procdir,'RSLC')
     rc = coreg_slave(dt.datetime.combine(slavedate,dt.time()),slcdir,rslcdir,masterdate,framename,procdir, lq,job_id)
     if rc == 0:
-        print 'Removing SLC directory...'
+        print('Removing SLC directory...')
         imdir = os.path.join(slcdir,slavedate.strftime('%Y%m%d'))
         shutil.rmtree(imdir)
     if rc == 1:
@@ -317,31 +317,31 @@ def main(argv=None):
             #Make the interferogram
             rc = make_interferogram(masterdate,masterthis,slavedate,procdir,lq, job_id)
             if rc == 1:
-                print '\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 2:
-                print '\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 3:
-                print '\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 4:
-                print '\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 5:
-                print '\nAcquisition {0} had a problem dhttp://www.leeds.ac.uk/uring the coherence estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem dhttp://www.leeds.ac.uk/uring the coherence estimation.'.format(slavedate))
                 ifg_fail += 1
 
             if rc == 0:
                 ifg = '{0}_{1}'.format(masterthis.strftime('%Y%m%d'), slavedate.strftime('%Y%m%d'))
                 gtcall = ['create_geoctiff_single.sh', procdir, masterdatestr, ifg]
-                print gtcall
+                print(gtcall)
                 try:
                     gt_code = subp.check_call(gtcall)
                     if gt_code != 0:
-                        print 'Something went wrong during the geotiff creation - non zero return'
+                        print('Something went wrong during the geotiff creation - non zero return')
                 except:
-                    print 'Something went wrong during the geotiff creation - except call.'
+                    print('Something went wrong during the geotiff creation - except call.')
 
 
                 # Interferogram successfully formed, start unwrapping
@@ -349,19 +349,19 @@ def main(argv=None):
                 rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
-                    print '\Interferogram {0} had a problem during the filtering.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the filtering.'.format(ifg))
                 elif rc == 2:
                     # Unwrapping
-                    print '\Interferogram {0} had a problem during the unwrapping.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the unwrapping.'.format(ifg))
                 if rc == 0 :
                     gtcall = ['create_geoctiff_unw.sh', procdir, masterdatestr, ifg]
-                    print gtcall
+                    print(gtcall)
                     try:
                         gt_code = subp.check_call(gtcall)
                     except:
-                        print 'Something went wrong during the unw geotiff creation - except call.'
+                        print('Something went wrong during the unw geotiff creation - except call.')
                         if gt_code != 0:
-                            print 'Something went wrong during the unw geotiff creation - non zero return.'
+                            print('Something went wrong during the unw geotiff creation - non zero return.')
                             
             ################################################
             # Deleting earliest slave                      #
@@ -393,49 +393,49 @@ def main(argv=None):
             # New image (slavedate) is now master!
             rc = make_interferogram(masterdate,slavedate,slavethis,procdir,lq,job_id)
             if rc == 1:
-                print '\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 2:
-                print '\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 3:
-                print '\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 4:
-                print '\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 5:
-                print '\nAcquisition {0} had a problem during the coherence estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the coherence estimation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 0:
                 ifg = '{0}_{1}'.format(masterthis.strftime('%Y%m%d'), slavedate.strftime('%Y%m%d'))
                 gtcall = ['create_geoctiff_single.sh', procdir, masterdatestr, ifg]
-                print gtcall
+                print(gtcall)
                 try:
                     gt_code = subp.check_call(gtcall)
                     if gt_code != 0:
-                        print 'Something went wrong during the geotiff creation - nonzero return'
+                        print('Something went wrong during the geotiff creation - nonzero return')
                 except:
-                    print 'Something went wrong during the geotiff creation - except call.'
+                    print('Something went wrong during the geotiff creation - except call.')
 
                 # Interferogram successfully formed, start unwrapping
                 ifgdir = os.path.join(procdir,'IFG')
                 rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
-                    print '\Interferogram {0} had a problem during the filtering.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the filtering.'.format(ifg))
                 elif rc == 2:
                     # Unwrapping
-                    print '\Interferogram {0} had a problem during the unwrapping.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the unwrapping.'.format(ifg))
                 if rc == 0 :
                     gtcall = ['create_geoctiff_unw.sh', procdir, masterdatestr, ifg]
-                    print gtcall
+                    print(gtcall)
                     try:
                         gt_code = subp.check_call(gtcall)
                     except:
-                        print 'Something went wrong during the unw geotiff creation - except call.'
+                        print('Something went wrong during the unw geotiff creation - except call.')
                         if gt_code != 0:
-                            print 'Something went wrong during the unw geotiff creation - non zero return.'
+                            print('Something went wrong during the unw geotiff creation - non zero return.')
                     
                     
             c+=1
@@ -462,30 +462,30 @@ def main(argv=None):
             #make interferogram
             rc = make_interferogram(masterdate,masterthis,slavedate,procdir,lq,job_id)
             if rc == 1:
-                print '\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 2:
-                print '\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 3:
-                print '\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 4:
-                print '\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 5:
-                print '\nAcquisition {0} had a problem during the coherence estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the coherence estimation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 0:
                 ifg = '{0}_{1}'.format(masterthis.strftime('%Y%m%d'), slavedate.strftime('%Y%m%d'))
                 gtcall = ['create_geoctiff_single.sh', procdir, masterdatestr, ifg]
-                print gtcall
+                print(gtcall)
                 try:
                     gt_code = subp.check_call(gtcall)
                     if gt_code != 0:
-                        print 'Something went wrong during the geotiff creation - nonzero return.'
+                        print('Something went wrong during the geotiff creation - nonzero return.')
                 except:
-                    print 'Something went wrong during the geotiff creation - except call.'
+                    print('Something went wrong during the geotiff creation - except call.')
 
 
                 # Interferogram successfully formed, start unwrapping
@@ -493,19 +493,19 @@ def main(argv=None):
                 rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
-                    print '\Interferogram {0} had a problem during the filtering.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the filtering.'.format(ifg))
                 elif rc == 2:
                         # Unwrapping
-                    print '\Interferogram {0} had a problem during the unwrapping.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the unwrapping.'.format(ifg))
                 if rc == 0 :
                     gtcall = ['create_geoctiff_unw.sh', procdir, masterdatestr, ifg]
-                    print gtcall
+                    print(gtcall)
                     try:
                         gt_code = subp.check_call(gtcall)
                     except:
-                        print 'Something went wrong during the unw geotiff creation - except call.'
+                        print('Something went wrong during the unw geotiff creation - except call.')
                         if gt_code != 0:
-                            print 'Something went wrong during the unw geotiff creation - non zero return.'
+                            print('Something went wrong during the unw geotiff creation - non zero return.')
             c+=1
         # Now images acquired after current image
         ixbefore = timediff > dt.timedelta(0)
@@ -520,49 +520,49 @@ def main(argv=None):
             # New image (slavedate) is now master!
             rc = make_interferogram(masterdate,slavedate,slavethis,procdir,job_id)
             if rc == 1:
-                print '\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the offset file creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 2:
-                print '\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the topographic phase estimation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 3:
-                print '\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the interferogram formation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 4:
-                print '\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the sunraster preview creation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 5:
-                print '\nAcquisition {0} had a problem during the coherence estimation.'.format(slavedate)
+                print('\nAcquisition {0} had a problem during the coherence estimation.'.format(slavedate))
                 ifg_fail += 1
             if rc == 0:
                 ifg = '{0}_{1}'.format(masterthis.strftime('%Y%m%d'), slavedate.strftime('%Y%m%d'))
                 gtcall = ['create_geoctiff_single.sh', procdir, masterdatestr, ifg]
-                print gtcall
+                print(gtcall)
                 try:
                     gt_code = subp.check_call(gtcall)
                     if gt_code != 0:
-                        print 'Something went wrong during the geotiff creation - nonzero return'
+                        print('Something went wrong during the geotiff creation - nonzero return')
                 except:
-                    print 'Something went wrong during the geotiff creation - except call.'
+                    print('Something went wrong during the geotiff creation - except call.')
                     
                 # Interferogram successfully formed, start unwrapping
                 ifgdir = os.path.join(procdir,'IFG')
                 rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
-                    print '\Interferogram {0} had a problem during the filtering.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the filtering.'.format(ifg))
                 elif rc == 2:
                     # Unwrapping
-                    print '\Interferogram {0} had a problem during the unwrapping.'.format(ifg)
+                    print('\Interferogram {0} had a problem during the unwrapping.'.format(ifg))
                 if rc == 0 :
                     gtcall = ['create_geoctiff_unw.sh', procdir, masterdatestr, ifg]
-                    print gtcall
+                    print(gtcall)
                     try:
                         gt_code = subp.check_call(gtcall)
                     except:
-                        print 'Something went wrong during the unw geotiff creation - except call.'
+                        print('Something went wrong during the unw geotiff creation - except call.')
                         if gt_code != 0:
-                            print 'Something went wrong during the unw geotiff creation - non zero return.'
+                            print('Something went wrong during the unw geotiff creation - non zero return.')
             c += 1
         #####################
         # TODO Remove RSLCs #
@@ -576,15 +576,15 @@ def main(argv=None):
         try:
             gt_code = subp.check_call(gtcall)
             if gt_code != 0:
-                print 'Something went wrong during the look angle geotiff creation - non zero return.'                
+                print('Something went wrong during the look angle geotiff creation - non zero return.')                
         except:
-            print 'Something went wrong during the look angle geotiff creation - except call.'
+            print('Something went wrong during the look angle geotiff creation - except call.')
     # Also make sure we have a polygon file
     polyfile = os.path.join(procdir,'{0}-poly.txt'.format(framename))
     if not polyfile:
         with open(polyfile, 'w') as f:
             frame_poly = lq.get_polygon(framename)[0]
-            frame_poly_zip = zip(frame_poly[::2], frame_poly[1::2])
+            frame_poly_zip = list(zip(frame_poly[::2], frame_poly[1::2]))
             for i in frame_poly_zip:
                 f.write('{0} {1}\n'.format(i[0], i[1]))
 
@@ -604,9 +604,9 @@ def main(argv=None):
         standard_job_finished_failed(job_id, slavedate, status_code)
     else:
         # Log system failed, as this should be impossible
-        print "\n\n###############################" \
+        print("\n\n###############################" \
               "\n\nERROR: LiCSAR_add_images.py has reached what should be an impossible condition " \
-              "\n\nPlease contact the dev team to resolve.\n\n###############################\n\n"
+              "\n\nPlease contact the dev team to resolve.\n\n###############################\n\n")
 
     if ifg_fail != 0:
         return 1

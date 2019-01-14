@@ -29,10 +29,10 @@ def commonbursts(master,polygon):
   # Loop over bursts in master
   for m_burstID in range(0,len(master),1):
     if ( point_in_poly(master[m_burstID][0],master[m_burstID][1],polygon) ): # if ( point_in_poly(master[m_burstID][0],master[m_burstID][1],polygon) ):
-      print master[m_burstID][0] , master[m_burstID][1]
+      print(master[m_burstID][0] , master[m_burstID][1])
   
 def usage():
-  print """
+  print("""
 ### Read one burst coordinate lists and filter by burst centre coordinates within a given polygon, 
     reporting bursts list coordinates. 
   
@@ -46,7 +46,7 @@ def usage():
  Author: Pablo J. Gonzalez, [p.j.gonzalez@leeds.ac.uk]
 Version: 1.0
    Date: 3-Dec-2015
-"""
+""")
 
 
 if len(sys.argv) < 3:

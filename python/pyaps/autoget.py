@@ -1,12 +1,12 @@
-import ConfigParser
+import configparser
 import sys
 import os.path
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 
 ######Set up variables in model.cfg before using
 dpath = os.path.dirname(__file__)
-config = ConfigParser.RawConfigParser()
+config = configparser.RawConfigParser()
 config.read('%s/model.cfg'%(dpath))
 
 
@@ -26,10 +26,10 @@ def ECMWFdload(bdate,hr,filedir,humidity='Q'):
                 humidparam = 157
         flist = []
 
-        for k in xrange(len(bdate)):
+        for k in range(len(bdate)):
                 day = bdate[k]
                 fname = '%s/ERA-Int_%s_%s.grb'%(filedir,day,hr)
-                print 'Downloading %d of %d: %s '%(k+1,len(bdate),fname)
+                print('Downloading %d of %d: %s '%(k+1,len(bdate),fname))
 
                 flist.append(fname)    
                 indict = {'dataset'  : "interim",
@@ -43,7 +43,7 @@ def ECMWFdload(bdate,hr,filedir,humidity='Q'):
                           'param'    : "129/130/%3d"%(humidparam),
                           'target'   : "%s"%(fname)}
 
-                print indict
+                print(indict)
 
                 if not os.path.exists(fname):
                         server.retrieve(indict)
@@ -57,8 +57,8 @@ def ECMWFdload(bdate,hr,filedir,humidity='Q'):
 
 def ECMWF_olddload(bdate,hr,filedir,humidity='Q'):
 
-        from ecmwf import ECMWFDataServer
-        print 'ECMWF server has been updated. Use new server settings.'
+        from .ecmwf import ECMWFDataServer
+        print('ECMWF server has been updated. Use new server settings.')
 
         emid = config.get('ECMWF_old','email')
         key = config.get('ECMWF_old','key')
@@ -74,10 +74,10 @@ def ECMWF_olddload(bdate,hr,filedir,humidity='Q'):
                 humidparam = 157
         flist = []
 
-        for k in xrange(len(bdate)):
+        for k in range(len(bdate)):
                 day = bdate[k]
                 fname = '%s/ERA-Int_%s_%s.grb'%(filedir,day,hr)
-                print 'Downloading %d of %d: %s '%(k+1,len(bdate),fname)
+                print('Downloading %d of %d: %s '%(k+1,len(bdate),fname))
 
                 flist.append(fname)     
                 if not os.path.exists(fname):
@@ -100,34 +100,34 @@ def ECMWF_olddload(bdate,hr,filedir,humidity='Q'):
 def NARRdload(bdate,hr,filedir):
 
         flist = []      
-        for k in xrange(len(bdate)):
+        for k in range(len(bdate)):
                 day = bdate[k]
                 webdir = day[0:6]
                 fname = 'narr-a_221_%s_%s00_000.grb'%(day,hr)
                 flist.append('%s/%s'%(filedir,fname))
                 weburl='http://nomads.ncdc.noaa.gov/data/narr/%s/%s/%s'%(webdir,day,fname)
                 dname = '%s/%s'%(filedir,fname)
-                print 'Downloading %d of %d: %s'%(k+1,len(bdate),fname)
+                print('Downloading %d of %d: %s'%(k+1,len(bdate),fname))
                 if not os.path.exists(dname):
-                        urllib.urlretrieve(weburl,dname) #,reporthook)
+                        urllib.request.urlretrieve(weburl,dname) #,reporthook)
 
         return flist
 
 def ERAdload(bdate,hr,filedir):
-        import cookielib
-        import urllib2
+        import http.cookiejar
+        import urllib.request, urllib.error, urllib.parse
 
         emid = config.get('ERA','email')
         pwd = config.get('ERA','key')
 
-        cj = cookielib.CookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-        login_data = urllib.urlencode({'action': 'login', 'passwd': pwd, 'email' : emid})
+        cj = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+        login_data = urllib.parse.urlencode({'action': 'login', 'passwd': pwd, 'email' : emid})
         opener.open('https://rda.ucar.edu/cgi-bin/login',login_data)
 
         flist = []
         rlist = []
-        for k in xrange(len(bdate)):
+        for k in range(len(bdate)):
                 day = bdate[k]
                 webdir = day[0:6]
                 fname = 'ei.oper.an.pl/%s/ei.oper.an.pl.regn128sc.%s%s'%(webdir,day,hr)
@@ -136,7 +136,7 @@ def ERAdload(bdate,hr,filedir):
                 resp = opener.open(url)
                 fout = '%s/ERA_%s_%s.grb'%(filedir,day,hr)
                 rlist.append(fout)
-                print 'Downloading %d of %d'%(k+1,len(bdate))
+                print('Downloading %d of %d'%(k+1,len(bdate)))
                 if not os.path.exists(fout):
                         resp = opener.open(url)
                         fid = open(fout,'w')
@@ -147,11 +147,11 @@ def ERAdload(bdate,hr,filedir):
                                 
 def MERRAdload(bdate,hr,filedir, hdf=True):
     flist = []
-    for i in xrange(len(bdate)):
+    for i in range(len(bdate)):
         date = bdate[i]
         filename = '%s/merra-%s-%s.hdf' %(filedir,date,hr)
         flist.append(filename)
-        print 'Downloading %d of %d: %s'%((i+1),len(bdate),filename)
+        print('Downloading %d of %d: %s'%((i+1),len(bdate),filename))
         yr = date[0:4]
         mon = date[4:6]
         hr = hr
@@ -184,7 +184,7 @@ def MERRAdload(bdate,hr,filedir, hdf=True):
             weburl = '%s%s%s%s%s%s%s%s%s%s%s%s%s' %(url1,yr,url2,mon,url3n,date,url4,hr,url5,hr,url6n,date,url7)
         dir = '%s' %(filename)
         if not os.path.exists(dir):
-            urllib.urlretrieve(weburl,dir)
+            urllib.request.urlretrieve(weburl,dir)
 
     return flist
 
