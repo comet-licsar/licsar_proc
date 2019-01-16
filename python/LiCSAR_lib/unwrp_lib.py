@@ -166,7 +166,8 @@ def get_costs(edges, n_edge, rowix, colix, zeroix):
 ################################################################################
 def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
 ############################################################ Create a temp dir
-    tmpdir = os.path.join(procdir,'unwrap_tmp')
+    #tmpdir = os.path.join(procdir,'unwrap_tmp')
+    tmpdir = os.path.join(ifgdir, date, 'unwrap_tmp')
     if os.path.exists(tmpdir) and os.path.isfile(tmpdir):
         os.remove(tmpdir)
     
@@ -222,10 +223,14 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
 
 
     return True
+    #cleaning the tmpdir
+    if os.path.exists(tmpdir) and os.path.isfile(tmpdir):
+        os.remove(tmpdir)
+
                              
 
 ################################################################################
-# Get snaphu cong
+# Get snaphu conf
 ################################################################################
 def get_snaphu_conf(tmpdir):
     return ('INFILE  {0}/snaphu.in\n'.format(tmpdir),
