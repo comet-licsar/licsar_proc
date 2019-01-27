@@ -24,11 +24,15 @@ if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded nla] } {
         module load nla
     }
+    if { ![is-loaded licsar_db] } {
+        module load licsar_db
+    }
 }
 
 prereq snaphu
 prereq gamma
 prereq anaconda
+prereq licsar_db
 # prereq LiCSAR-pve
 prereq nla
 
