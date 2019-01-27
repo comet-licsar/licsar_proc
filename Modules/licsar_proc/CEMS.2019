@@ -51,6 +51,7 @@ setenv LiCSAR_temp "/work/scratch/$USER/LiCSAR_temp/"
 prepend-path DEMs_DIR "$grouppath/DEMs"
 prepend-path ORBs_DIR "$grouppath/orbits/"
 setenv LiCSARconfig "$configpath/liveConfig.cnf"
+setenv LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
 
 #setup executable paths
 prepend-path PATH "$LiCSARpath/bin"
