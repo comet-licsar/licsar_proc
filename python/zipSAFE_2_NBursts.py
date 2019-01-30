@@ -54,7 +54,7 @@ for fnames in zfile.namelist():
         lo = [ ];  la = [ ]; ind = [ ]
         # Extract the edge coordinates of each burst
         for swathTiming in root.findall('swathTiming'):
-	  burst=swathTiming.find('burstList')
+      burst=swathTiming.find('burstList')
           print(burst.get('count'))
 
         # Catch exception if root not available

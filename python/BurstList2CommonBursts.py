@@ -3,13 +3,13 @@
 import sys, math
 
 def rad2deg(radians):
-	pi = math.pi
-	degrees = 180 * radians / pi
-	return degrees
+    pi = math.pi
+    degrees = 180 * radians / pi
+    return degrees
 def deg2rad(degrees):
-	pi = math.pi
-	radians = pi * degrees / 180
-	return radians
+    pi = math.pi
+    radians = pi * degrees / 180
+    return radians
 
 def commonbursts(master,slave):
   # Compute distance between central coordinates for each burst to figure out if the burst are the same

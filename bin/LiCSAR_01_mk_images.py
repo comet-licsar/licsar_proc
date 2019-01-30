@@ -98,7 +98,7 @@ def main(argv=None):
         try:
             opts, args = getopt.getopt(argv[1:], 
                     "vhnci:f:d:s:e:m:p:b:o:t:j:a:r:z:y:l:T:",
-			    ["version", "help"])
+    		    ["version", "help"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:

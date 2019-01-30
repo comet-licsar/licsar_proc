@@ -465,7 +465,7 @@ def SLC_copy_S1_TOPS(SLColdtab,SLCnewtab,bursttab,imdir,procdir,logfile):
     In:
         SLColdtab    SLC tab of original file containing bursts
         SLCnewtab    SLC tab of destination file
-	bursttab     burst tab
+    bursttab     burst tab
         imdir        path to SLC imdate directory *** CAN BE REMOVED?? ***
         procdir      path to main processing directory
         logfile      path and filename of logfile where output is written to
@@ -527,18 +527,18 @@ def make_burst_tab(tabname,startbursts,endbursts):
 
     In:
         tabname     Name of burst_tab file
-	startbursts  Start burst for each swath to extract, can be scalar or list
-	endbursts    end burst for each swath to extract, can be scalar or list
+    startbursts  Start burst for each swath to extract, can be scalar or list
+    endbursts    end burst for each swath to extract, can be scalar or list
     Out:
         0 if successful, 1 and error string if not
     """
     try:
         with open(tabname,'w') as f:
-		if isinstance(startbursts,list):
-			for sb,eb in map(None,startbursts,endbursts):
-				f.write('{0} {1}\n'.format(sb,eb))
-		else:
-			f.write('{0} {1}\n'.format(startbursts,endbursts))
+    	if isinstance(startbursts,list):
+    		for sb,eb in map(None,startbursts,endbursts):
+    			f.write('{0} {1}\n'.format(sb,eb))
+    	else:
+    		f.write('{0} {1}\n'.format(startbursts,endbursts))
     except:
         e = sys.exc_info()[0]
         return 1,e

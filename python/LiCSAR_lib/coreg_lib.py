@@ -84,7 +84,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres):
                 demresN = float(line.split()[1])
             if 'post_lon' in line:
                 demresE = float(line.split()[1])
-	#calculate oversampling factors for lon/lat
+    #calculate oversampling factors for lon/lat
     ovrfactN = str(-1.0*(demresN/outres))
     ovrfactE = str((demresE/outres))
     #create a dem segment file path? map segment?
@@ -130,7 +130,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres):
 
 ############################################################ Create a Diff param file
 #    masterstr = masterdate.strftime('%Y%m%d')
-	#the pixsigma file from the previous step
+    #the pixsigma file from the previous step
     mli1 = os.path.join(geodir,'pix_sigma0')
     mli2 = mlipar[:-4] #The original master mli
     #Diff param file path
@@ -453,21 +453,21 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     #if no missing bursts....
     if not missingbursts:
         print('All bursts available, no recropping of master necessary...')
-	#master mli param file path
+    #master mli param file path
         mastermlipar = os.path.join(masterslcdir,
                                  masterdate.strftime('%Y%m%d')+'.slc.mli.par')
-	#master param file path
+    #master param file path
         masterpar = os.path.join(masterslcdir,
                                  masterdate.strftime('%Y%m%d')+'.slc.par')
-	#slave mli param file path
+    #slave mli param file path
         slavemlipar = os.path.join(slaveslcdir,
                                 slavedate.strftime('%Y%m%d')+'.slc.mli.par')
-	#master param file path
+    #master param file path
         slavepar = os.path.join(slaveslcdir,
                                 slavedate.strftime('%Y%m%d')+'.slc.par')
-	#DEM height file
+    #DEM height file
         demhgt = os.path.join(procdir,'geo',masterdate.strftime('%Y%m%d')+'.hgt')
-	#lookup table path
+    #lookup table path
         lut = os.path.join(slaverslcdir,
                            masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
@@ -475,7 +475,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
 
-	#create lookup table from master and slave mli par and master height file
+    #create lookup table from master and slave mli par and master height file
         print('Performing the geometric coregistration...')
         if not rdc_trans(mastermlipar,demhgt,slavemlipar,lut,logfile):
             print("\nError:", file=sys.stderr)
@@ -484,7 +484,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         logfile = os.path.join(procdir,'log','SLC_interp_lt_S1_TOPS_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
-	#interpolate slave image to master using lookup table
+    #interpolate slave image to master using lookup table
         print('Resampling image...')
         if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
                                      masterpar,lut,mastermlipar,slavemlipar,
@@ -494,15 +494,15 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("Something went wrong resampling the slave SLC", file=sys.stderr)
             return 3
 
-	#combined master-slave name
+    #combined master-slave name
         pair = os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d'))
-	#offset parameter file path
+    #offset parameter file path
         offfile = pair+'.off'
         logfile = os.path.join(procdir,'log','create_offset_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
-	#create offset parameter file
+    #create offset parameter file
         if not create_offset(masterpar,slaverfilename+'.par',offfile,str(gc.rglks),
                              str(gc.azlks),logfile):
             print("\nError:", file=sys.stderr)
@@ -513,7 +513,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'-1.log')
-	#refine azimuth using spectral diversity
+    #refine azimuth using spectral diversity
         print('Getting offsets using spectral diversity...')
         if not S1_coreg_overlap(masterslctab,slaverslctab,pair,offfile,
                                             refine1file,slave3tab,logfile):
@@ -524,7 +524,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         logfile = os.path.join(procdir,'log','SLC_interp_lt_S1_TOPS_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'_refine1.log')
-	#interpolate slave again
+    #interpolate slave again
         print('Resampling image...')
         if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
                                      masterpar,lut,mastermlipar,slavemlipar,
@@ -533,12 +533,12 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("\nError:", file=sys.stderr)
             print("Something went wrong resampling the slave SLC", file=sys.stderr)
             return 3
-	##second refinement file
+    ##second refinement file
         refine2file = offfile+'.refine2'
         logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'-2.log')
-	##second refinement pass
+    ##second refinement pass
         print('Getting offsets using spectral diversity...')
         if not S1_coreg_overlap(masterslctab,slaverslctab,pair,refine1file,
                                                 refine2file,slave3tab,logfile):
@@ -549,7 +549,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         logfile = os.path.join(procdir,'log','SLC_interp_lt_S1_TOPS_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'_refine2.log')
-	##interpolate slave
+    ##interpolate slave
         print('Resampling image (again)...')
         if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
                                      masterpar,lut,mastermlipar,slavemlipar,
@@ -574,16 +574,16 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
 ############################################################ Crop master to fit with smaller slave
         print('Missing bursts at either or both ends of the scene, recropping '\
                 'master, and auxiliary slave if necessary...')
-	#loop through swaths
+    #loop through swaths
         for iw in ['IW1','IW2','IW3']:
-	    #get master and slave bursts
+        #get master and slave bursts
             iwthisburst_m = sorted([b[0] for b in masterbursts if iw in b[0]])
             iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
-	    #find indices which match slave bursts
+        #find indices which match slave bursts
             iwstart = iwthisburst_m.index(iwthisburst_s[0])+1
             iwstop = iwthisburst_m.index(iwthisburst_s[-1])+1
 
-	    #Create master slc tab file
+        #Create master slc tab file
             masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')
                                                                             +'_tab')
             masterslcfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')
@@ -592,7 +592,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             if rc > 0:
                 print('Something went wrong creating the master tab file...')
                 return 1
-	    #create a corresponding cropped master slc tab file
+        #create a corresponding cropped master slc tab file
             croptab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+
                                                                         'crop_tab')
             cropfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')
@@ -616,22 +616,22 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             logfilename = os.path.join(procdir,'log','SLC_copy_S1_TOPS_'+
                                        masterdate.strftime('%Y%m%d')+
                                        '_crop.log')
-	    #copy out bursts which are relevant to the cropped master
+        #copy out bursts which are relevant to the cropped master
             if SLC_copy_S1_TOPS(masterslctab,croptab,bursttab,'',procdir,
                                                                     logfilename):
                 print("\nError:", file=sys.stderr)
                 print("Something went wrong recropping the master SLC", file=sys.stderr)
                 return 5
-	    
-	    #if auxiliary slave is present, crop master to it as well
+        
+        #if auxiliary slave is present, crop master to it as well
             slave3_croptab = ''
             if slave3date:
                 iwthisburst_s3 = sorted([b[0] for b in slave3bursts if iw in b[0]])
                 iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
-		#find burst indices which correspond to slave limits
+    	#find burst indices which correspond to slave limits
                 iwstart = iwthisburst_s3.index(iwthisburst_s[0])+1
                 iwstop = iwthisburst_s3.index(iwthisburst_s[-1])+1
-		#create aux slave tab file
+    	#create aux slave tab file
                 slave3slctab = os.path.join(procdir,'tab',slave3date.strftime('%Y%m%d')
                                                                                 +'_tab')
                 slave3slcfilename = os.path.join(slave3rslcdir,
@@ -640,7 +640,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 if rc > 0:
                     print('Something went wrong creating the auxiliary slave tab file...')
                     return 1
-	        #create a corresponding crop tab file for aux slave
+            #create a corresponding crop tab file for aux slave
                 slave3_croptab = os.path.join(procdir,'tab',
                                 slave3date.strftime('%Y%m%d')+'crop_tab')
                 slave3_cropfilename = os.path.join(slave3rslcdir,
@@ -664,7 +664,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                         'date.'.format( bursttab, 
                                                 date, msg ), file=sys.stderr)
                     return 2
-		#copy out relevent bursts in master to aux slavetab??? is it correct (Nick)??
+    	#copy out relevent bursts in master to aux slavetab??? is it correct (Nick)??
                 if SLC_copy_S1_TOPS(masterslctab,slave3_croptab,
                                    bursttab,'',procdir,logfilename):
                     print("\nError:", file=sys.stderr)
@@ -683,14 +683,14 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             return 3
 
         if slave3date:
-	        rc, msg = make_SLC_tab(slave3_croptab,slave3_cropfilename,swathlist)
-	        if not SLC_mosaic_S1_TOPS(slave3_croptab,slave3_cropfilename,gc.rglks,gc.azlks,logfilename):
-		        print('Something went wrong mosaicing subswaths '\
-	                    'together. Log file {0}. Continuing with next acquisition '\
-	                    'date.'.format(logfilename), file=sys.stderr)
-	        	return 3
-	
-		#multilook (average) cropped data
+            rc, msg = make_SLC_tab(slave3_croptab,slave3_cropfilename,swathlist)
+            if not SLC_mosaic_S1_TOPS(slave3_croptab,slave3_cropfilename,gc.rglks,gc.azlks,logfilename):
+    	        print('Something went wrong mosaicing subswaths '\
+                        'together. Log file {0}. Continuing with next acquisition '\
+                        'date.'.format(logfilename), file=sys.stderr)
+            	return 3
+    
+    	#multilook (average) cropped data
         logfilename =  os.path.join(procdir,'log',
                             'multilookRSLC_{0}_crop.log'.format(
                                 masterdate.strftime('%Y%m%d')))
@@ -703,7 +703,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print('Something went wrong multilooking the '\
                     'merged image. Log file {0}. Continuing with next '\
                     'acquisition date.'.format(logfilename), file=sys.stderr)
-	#create file paths
+    #create file paths
         geocropdir = os.path.join(slaverslcdir,'geo')
         os.mkdir(geocropdir)
         demdir = os.path.join(procdir,'DEM')
@@ -766,9 +766,9 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         print('Getting offsets using spectral diversity...')
 #        if not S1_coreg_overlap(slave3tab,slaverslctab,pair,
 #        print 'S1_coreg_overlap(' + croptab + ',' + slaverslctab + ',' + pair + ',' + offfile + ',' + refine1file + ',' + slave3tab + ',' + logfile + ')'
-	#This is to correct possibility of having cropped master for coregistration and no aux slave
+    #This is to correct possibility of having cropped master for coregistration and no aux slave
     #    slave3tab_crop = ''
-	#if slave3tab:
+    #if slave3tab:
     #        slave3tab_crop = croptab
         if not S1_coreg_overlap(croptab,slaverslctab,pair,
                         offfile,refine1file,slave3_croptab,logfile):
@@ -797,7 +797,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                slavedate.strftime('%Y%m%d')+'-2.log')
         print('Getting offsets using spectral diversity...')
 #        if not S1_coreg_overlap(slave3tab,slaverslctab,pair,refine1file,
-	if not S1_coreg_overlap(croptab,slaverslctab,pair,refine1file,
+    if not S1_coreg_overlap(croptab,slaverslctab,pair,refine1file,
                 refine2file,slave3_croptab,logfile):
 #                refine2file,slave3tab,logfile):
             print("\nError:", file=sys.stderr)
@@ -822,7 +822,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                             'multilookRSLC_{0}.log'.format(
                                                 slavedate.strftime('%Y%m%d')))
         
-	
+    
 ############################################################ Pad cropped data
         azoffsetcall = ['master2mastercrop_offset.sh',
                         os.path.join(masterrslcdir,
@@ -849,7 +849,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                             'multilookRSLC_{0}_crop.log'.format(
                                                 slavedate.strftime('%Y%m%d')))
 
-	#multilook cropped padded data
+    #multilook cropped padded data
         multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
                 slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
         rc = os.system(multicall)
@@ -948,21 +948,21 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
     #if no missing bursts....
     if not missingbursts:
         print('All bursts available, no recropping of master necessary...')
-	#master mli param file path
+    #master mli param file path
         mastermlipar = os.path.join(masterslcdir,
                                  masterdate.strftime('%Y%m%d')+'.slc.mli.par')
-	#master param file path
+    #master param file path
         masterpar = os.path.join(masterslcdir,
                                  masterdate.strftime('%Y%m%d')+'.slc.par')
-	#slave mli param file path
+    #slave mli param file path
         slavemlipar = os.path.join(slaveslcdir,
                                 slavedate.strftime('%Y%m%d')+'.slc.mli.par')
-	#master param file path
+    #master param file path
         slavepar = os.path.join(slaveslcdir,
                                 slavedate.strftime('%Y%m%d')+'.slc.par')
-	#DEM height file
+    #DEM height file
         demhgt = os.path.join(procdir,'geo',masterdate.strftime('%Y%m%d')+'.hgt')
-	#lookup table path
+    #lookup table path
         lut = os.path.join(slaverslcdir,
                            masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
@@ -996,16 +996,16 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
 ############################################################ Crop master to fit with smaller slave
         print('Missing bursts at either or both ends of the scene, recropping '\
                 'master, and auxiliary slave if necessary...')
-	#loop through swaths
+    #loop through swaths
         for iw in ['IW1','IW2','IW3']:
-	    #get master and slave bursts
+        #get master and slave bursts
             iwthisburst_m = sorted([b[0] for b in masterbursts if iw in b[0]])
             iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
-	    #find indices which match slave bursts
+        #find indices which match slave bursts
             iwstart = iwthisburst_m.index(iwthisburst_s[0])+1
             iwstop = iwthisburst_m.index(iwthisburst_s[-1])+1
 
-	    #Create master slc tab file
+        #Create master slc tab file
             masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')
                                                                             +'_tab')
             masterslcfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')
@@ -1014,7 +1014,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
             if rc > 0:
                 print('Something went wrong creating the master tab file...')
                 return 1
-	    #create a corresponding cropped master slc tab file
+        #create a corresponding cropped master slc tab file
             croptab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+
                                                                         'crop_tab')
             cropfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')
@@ -1038,7 +1038,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
             logfilename = os.path.join(procdir,'log','SLC_copy_S1_TOPS_'+
                                        masterdate.strftime('%Y%m%d')+
                                        '_crop.log')
-	    #copy out bursts which are relevant to the cropped master
+        #copy out bursts which are relevant to the cropped master
             if SLC_copy_S1_TOPS(masterslctab,croptab,bursttab,'',procdir,
                                                                     logfilename):
                 print("\nError:", file=sys.stderr)
@@ -1049,7 +1049,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                                    masterdate.strftime('%Y%m%d')+
                                    '_{0}_crop.log'.format(iw))
 
-	#mosiac cropped file (does this mean if aux slave is present we only use that cropped file?)
+    #mosiac cropped file (does this mean if aux slave is present we only use that cropped file?)
         rc, msg = make_SLC_tab(croptab,cropfilename,swathlist)
         if not SLC_mosaic_S1_TOPS(croptab,cropfilename,gc.rglks,gc.azlks,logfilename):
             print('Something went wrong mosaicing subswaths '\
@@ -1059,7 +1059,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
         logfilename =  os.path.join(procdir,'log',
                             'multilookRSLC_{0}_crop.log'.format(
                                 masterdate.strftime('%Y%m%d')))
-	#multilook (average) cropped data
+    #multilook (average) cropped data
         multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
                 masterdate.strftime('%Y%m%d')+'_crop',gc.rglks,gc.azlks,
                 masterrslcdir,logfilename)
@@ -1068,7 +1068,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
             print('Something went wrong multilooking the '\
                     'merged image. Log file {0}. Continuing with next '\
                     'acquisition date.'.format(logfilename), file=sys.stderr)
-	#create file paths
+    #create file paths
         geocropdir = os.path.join(slaverslcdir,'geo')
         os.mkdir(geocropdir)
         demdir = os.path.join(procdir,'DEM')
@@ -1111,7 +1111,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                                             'multilookRSLC_{0}.log'.format(
                                                 slavedate.strftime('%Y%m%d')))
         
-	
+    
 ############################################################ Pad cropped data
         azoffsetcall = ['master2mastercrop_offset.sh',
                         os.path.join(masterrslcdir,
@@ -1138,7 +1138,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                                             'multilookRSLC_{0}_crop.log'.format(
                                                 slavedate.strftime('%Y%m%d')))
 
-	#multilook cropped padded data
+    #multilook cropped padded data
         multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
                 slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
         rc = os.system(multicall)

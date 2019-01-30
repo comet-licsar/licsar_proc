@@ -11,29 +11,29 @@ from ecmwf import ECMWFDataServer
 
 def getfiles(bdate,hr,filedir,humidity='Q')
 
-	server = ECMWFDataServer('http://data-portal.ecmwf.int/data/d/dataserver/',
-		'YOURPASSWORDATECMWF',
-		'YOURLOGIN@ECMWF.INT')
+    server = ECMWFDataServer('http://data-portal.ecmwf.int/data/d/dataserver/',
+    	'YOURPASSWORDATECMWF',
+    	'YOURLOGIN@ECMWF.INT')
 
-	assert humidity in ('Q','R'), 'Unknown humidity field for ECMWF'
-	if humidity in 'Q':
-		humidparam = 133
-	elif humidity in 'R':
-		humidparam = 157
+    assert humidity in ('Q','R'), 'Unknown humidity field for ECMWF'
+    if humidity in 'Q':
+    	humidparam = 133
+    elif humidity in 'R':
+    	humidparam = 157
 
-	for day in bdate:
-		server.retrieve({
-		  'dataset'  : "interim_full_daily",
-		  'date'     : "%s"%(bdate),
-		  'time'     : "%s"%(hr),
-		  'step'     : "0",
-		  'levtype'  : "pl",
-		  'levelist' : "all",
-		  'type'     : "an",
-		  'grid'     : "128",
-		  'param'    : "129/130/%d"%(humidparam),
-		  'target'   : "%s/ERA-Int_%s_%s.grb"%(fileloc,bdate,hr),
-		})
+    for day in bdate:
+    	server.retrieve({
+    	  'dataset'  : "interim_full_daily",
+    	  'date'     : "%s"%(bdate),
+    	  'time'     : "%s"%(hr),
+    	  'step'     : "0",
+    	  'levtype'  : "pl",
+    	  'levelist' : "all",
+    	  'type'     : "an",
+    	  'grid'     : "128",
+    	  'param'    : "129/130/%d"%(humidparam),
+    	  'target'   : "%s/ERA-Int_%s_%s.grb"%(fileloc,bdate,hr),
+    	})
 
 
 ############################################################

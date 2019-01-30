@@ -79,7 +79,7 @@ else:
 #cpxSLC[:,0:colIW1] = np.multiply(np.abs(cpxSLC[:,0:colIW1]),np.exp(1j*(np.angle(cpxSLC[:,0:colIW1])+phoffset)))
 
 #c1 = cos(ph);
-##s1 = -sin(ph);	/* conjugate phase to subtract from int-1 */
+##s1 = -sin(ph);    /* conjugate phase to subtract from int-1 */
 #s1 = sin(ph);
 #diff[2*i] =   int1[2*i] * c1 - int1[2*i+1] * s1;
 #diff[2*i+1] = int1[2*i] * s1 + int1[2*i+1] * c1;
