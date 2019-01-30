@@ -41,8 +41,8 @@ def main(argv=None):
         print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
 
-    currentdir = '/group_workspaces/cems2/nceo_geohazards/projects/LiCS/proc/current'
-    pubdir = '/group_workspaces/cems2/nceo_geohazards/public/LiCSAR_products/'
+    currentdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current'
+    pubdir = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/'
     trackdir = os.path.join(currentdir,track)
     framedir = os.path.join(trackdir,frame)
     framepubdir= os.path.join(pubdir,track,frame,'products')

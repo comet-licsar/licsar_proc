@@ -14,7 +14,7 @@ import pdb
 
 # Local imports
 import global_config as gc
-from .dbfunctions import Conn_db
+from dbfunctions import Conn_db
 
 def do_query(query, commit=False):
     # execute MySQL query and return result
