@@ -1,4 +1,5 @@
 #!/bin/bash
+#echo "LiCSAR Bash Libraries 2016 are loaded"
 #########################################################
 # LICSAR Bash Shell Function Library
 #########################################################

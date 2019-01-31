@@ -534,11 +534,11 @@ def make_burst_tab(tabname,startbursts,endbursts):
     """
     try:
         with open(tabname,'w') as f:
-    	if isinstance(startbursts,list):
-    		for sb,eb in map(None,startbursts,endbursts):
-    			f.write('{0} {1}\n'.format(sb,eb))
-    	else:
-    		f.write('{0} {1}\n'.format(startbursts,endbursts))
+            if isinstance(startbursts,list):
+        	    for sb,eb in map(None,startbursts,endbursts):
+        		    f.write('{0} {1}\n'.format(sb,eb))
+            else:
+        	    f.write('{0} {1}\n'.format(startbursts,endbursts))
     except:
         e = sys.exc_info()[0]
         return 1,e

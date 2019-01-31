@@ -9,13 +9,13 @@ import getopt
 import numpy as np
 
 
-LiCSARpath = '/home/users/karzzeh/Software/LiCSAR'
+#LiCSARpath = '/home/users/karzzeh/Software/LiCSAR'
 sys.path.append(os.getcwd())
-sys.path.append(LiCSARpath)
-sys.path.append(LiCSARpath+'/bin')
-sys.path.append(LiCSARpath+'/lib')
-sys.path.append(LiCSARpath+'/LiCSdb')
-sys.path.append(LiCSARpath+'/python')
+#sys.path.append(LiCSARpath)
+#sys.path.append(LiCSARpath+'/bin')
+#sys.path.append(LiCSARpath+'/lib')
+#sys.path.append(LiCSARpath+'/LiCSdb')
+#sys.path.append(LiCSARpath+'/python')
 
 from LiCSAR_02_coreg import get_mli_size, get_dem_size
 from gamma_functions_karzzeh import look_vector, geocode

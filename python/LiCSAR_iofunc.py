@@ -8,20 +8,17 @@ import subprocess
 # Read metadata from gamma parameter files
 ######################################################################## 
 def width_slc_gamma_par(file):
-  calling=['grep range_samples: '+file+'.par | awk \'{print $2}\' ']
-  child=subprocess.Popen(calling,stdout=subprocess.PIPE,shell=True)
-  width=child.communicate()[0]
-  return width[:-1]
+  res = grep1('range_samples:',file+'.par')
+  res = res.split(':')[1].strip()
+  return res
 def length_slc_gamma_par(file):
-  calling=['grep azimuth_lines: '+file+'.par | awk \'{print $2}\' ']
-  child=subprocess.Popen(calling,stdout=subprocess.PIPE,shell=True)
-  length=child.communicate()[0]
-  return length[:-1]
+  res = grep1('azimuth_lines: ',file+'.par')
+  res = res.split(':')[1].strip()
+  return res
 def dtype_slc_gamma_par(file):
-  calling=['grep image_format: '+file+'.par | awk \'{print $2}\' ']
-  child=subprocess.Popen(calling,stdout=subprocess.PIPE,shell=True)
-  dtype=child.communicate()[0]
-  return dtype[:-1]  
+  res = grep1('image_format: ',file+'.par')
+  res = res.split(':')[1].strip()
+  return res
 ########################################################################
 ########################################################################
 

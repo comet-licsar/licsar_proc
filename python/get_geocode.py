@@ -6,12 +6,15 @@ import sys
 import os
 import subprocess
 import numpy as np
+from LiCSAR_lib.LiCSAR_misc import *
 
 class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
 
 def main(argv=None):
+    datadir = ''
+    masterdate = ''
     if argv == None:
         argv = sys.argv
     
@@ -41,22 +44,22 @@ def geocode_mli(datadir,masterdate):
     geodir = os.path.join(datadir,'geo')
     
     dempar = os.path.join(geodir,'EQA.dem_par')
-    res = grep('corner_lat',dempar)
+    res = grep1('corner_lat',dempar)
     demlat = np.float32(res.split(':')[1].strip().split(' ')[0])
-    res = grep('corner_lon',dempar)
+    res = grep1('corner_lon',dempar)
     demlon = np.float32(res.split(':')[1].strip().split(' ')[0])
-    res = grep('post_lat',dempar) 
+    res = grep1('post_lat',dempar) 
     latstep = np.float32(res.split(':')[1].strip().split(' ')[0])
-    res = grep('post_lon',dempar) 
+    res = grep1('post_lon',dempar) 
     lonstep = np.float32(res.split(':')[1].strip().split(' ')[0])
-    res = grep('width',dempar)
+    res = grep1('width',dempar)
     dem_width = np.int32(res.split(':')[1].strip())
-    res = grep('nlines',dempar) 
+    res = grep1('nlines',dempar) 
     dem_length = np.int32(res.split(':')[1].strip())
     mlipar = os.path.join(datadir,'SLC',masterdate,masterdate+'.slc.mli.par')
-    res = grep('range_samples',mlipar)
+    res = grep1('range_samples',mlipar)
     mliwidth = np.int32(res.split(':')[1].strip())
-    res = grep('azimuth_lines',mlipar)
+    res = grep1('azimuth_lines',mlipar)
     mlilength = np.int32(res.split(':')[1].strip())    
     
     lat = np.arange(demlat,demlat+dem_length*latstep,latstep)
@@ -83,9 +86,9 @@ def geocode_mli(datadir,masterdate):
     os.system(exe_str)
     return mliwidth, mlilength
 
-def grep(arg,file):
-    res = subprocess.check_output(['grep',arg,file])
-    return res
+#def grep(arg,file):
+#    res = subprocess.check_output(['grep',arg,file])
+#    return res
 
 if __name__ == "__main__":
     sys.exit(main())

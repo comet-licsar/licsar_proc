@@ -21,6 +21,8 @@ class Usage(Exception):
         self.msg = msg
 
 def main(argv=None):
+    track=''
+    frame=''
     if argv == None:
         argv = sys.argv
 

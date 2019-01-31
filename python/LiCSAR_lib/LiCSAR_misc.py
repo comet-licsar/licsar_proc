@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess as subp
+import re
 ################################################################################
 #CD class
 ################################################################################
@@ -30,4 +31,16 @@ class Usage(Exception):
 ################################################################################
 def grep(arg,file):
     res = subp.check_output(['grep',arg,file])
+    return res
+
+################################################################################
+# Grep for only first occurrence (better for text files in python3+)
+################################################################################
+def grep1(arg,filename):
+    file = open(filename, "r")
+    for line in file:
+        if re.search(arg, line):
+            res=line
+            break
+    file.close()
     return res

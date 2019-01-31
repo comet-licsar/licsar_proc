@@ -7,20 +7,20 @@ def rd_rsc(inname,full=False,verbose=False):
     '''Reading a ROI-PAC style RSC file.
 
     Args:
-    	* inname (str): Path to the RSC file.
+        * inname (str): Path to the RSC file.
 
     Returns:
-    	* lat (np.array) : Array of lat of the 4 corners.
-    	* lon (np.array) : Array of lon of the 4 corners.
-    	* nx  (np.int)   : Number of range bins.
-    	* ny  (np.int)   : Number of azimuth lines.
-    	* dpix (np.float): Average pixel spacing.
+        * lat (np.array) : Array of lat of the 4 corners.
+        * lon (np.array) : Array of lon of the 4 corners.
+        * nx  (np.int)   : Number of range bins.
+        * ny  (np.int)   : Number of azimuth lines.
+        * dpix (np.float): Average pixel spacing.
 
     .. note:: 
-    	Currently set up to work with SIM_nrlks.hgt from ROI-PAC.'''
+        Currently set up to work with SIM_nrlks.hgt from ROI-PAC.'''
 
     if verbose:
-    	print(("PROGRESS: READING %s RSC FILE" %inname))
+        print(("PROGRESS: READING %s RSC FILE" %inname))
 
     rpacdict = {}
     infile = open(inname+'.rsc','r')
@@ -58,9 +58,9 @@ def rd_rsc(inname,full=False,verbose=False):
         azpix = 90.0
     dpix = np.sqrt(6.25*rgpix*rgpix+azpix*azpix)
     if full:
-    	return lon,lat,nx,ny,dpix,rpacdict
+        return lon,lat,nx,ny,dpix,rpacdict
     else:
-    	return lon,lat,nx,ny,dpix
+        return lon,lat,nx,ny,dpix
 
 
 #######################Finished rd_rsc###########################
@@ -70,19 +70,19 @@ def geo_rsc(inname,full=False,verbose=False):
     '''Reading a ROI-PAC style geocoded rsc file.
 
     Args:
-    	* inname (str): Path to the RSC file.
+        * inname (str): Path to the RSC file.
 
     Returns:
-    	* lon (np.array) : Array of min and max lon values.
-    	* lat (np.array) : Array of min and max lat values.
-    	* nx  (np.int)   : Number of lon bins.
-    	* ny  (np.int)   : Number of lat bins.
+        * lon (np.array) : Array of min and max lon values.
+        * lat (np.array) : Array of min and max lat values.
+        * nx  (np.int)   : Number of lon bins.
+        * ny  (np.int)   : Number of lat bins.
 
-    	.. note:: 
-    		Currently set up to work with dem.rsc file from ROI-PAC.'''
+        .. note:: 
+            Currently set up to work with dem.rsc file from ROI-PAC.'''
 
     if verbose:
-    	print(("PROGRESS: READING %s RSC FILE" %inname))
+        print(("PROGRESS: READING %s RSC FILE" %inname))
 
     rpacdict = {}
     infile = open(inname+'.rsc','r')
@@ -101,7 +101,7 @@ def geo_rsc(inname,full=False,verbose=False):
     lat[1] = np.float(rpacdict['Y_FIRST'])
     lon[0] = np.float(rpacdict['X_FIRST'])
     if(lon[0] < 0):
-    	lon[0] = lon[0] + 360.0
+        lon[0] = lon[0] + 360.0
 
     dx = np.float(rpacdict['X_STEP'])
     dy = np.float(rpacdict['Y_STEP'])
@@ -110,9 +110,9 @@ def geo_rsc(inname,full=False,verbose=False):
     lon[1] = lon[0] + dx*nx
     
     if full:
-    	return lon,lat,nx,ny,rpacdict
+        return lon,lat,nx,ny,rpacdict
     else:
-    	return lon,lat,nx,ny
+        return lon,lat,nx,ny
 
 #######################Finished geo_rsc###########################
 
@@ -122,28 +122,28 @@ def glob2rdr(nx,ny,lat,lon,latl,lonl,plotflag='n'):
     '''Transfert these latlon coordinates into radar geometry (xi,yi) with a simple linear transformation given the first pixel and the pixel spacing of the simulation.
 
     Args:
-    	* nx   (np.int)   : Number of range bins.
-    	* ny   (np.int)   : Number of azimuth lines.
-    	* lat  (np.array) : Array of latitudes of the corners
-    	* lon  (np.array) : Array of longitudes of the corners
-    	* latl (np.array) : Latitudes of the stations.
-    	* lonl (np.array) : Longitudes of the stations.
+        * nx   (np.int)   : Number of range bins.
+        * ny   (np.int)   : Number of azimuth lines.
+        * lat  (np.array) : Array of latitudes of the corners
+        * lon  (np.array) : Array of longitudes of the corners
+        * latl (np.array) : Latitudes of the stations.
+        * lonl (np.array) : Longitudes of the stations.
 
     Kwargs:
-    	* plotflag (bool) : Plot the stations distribution.
+        * plotflag (bool) : Plot the stations distribution.
 
     Returns:
-    	* xi (np.array)   : Position of stations in range.
-    	* yi (np.array)   : Position of stations in azimuth.
+        * xi (np.array)   : Position of stations in range.
+        * yi (np.array)   : Position of stations in azimuth.
 
     .. note::
-    	Mapping function is :
-    	* range = a1*lat+b1*lon+c1
-    	* azimu = a2*lat+b2*lon+c2
-    	* First  point is (1,1)   i.e. Near Range, First Lane <==> Lat[1],Lon[1]
-    	* Second point is (nx,1)  i.e. Far Range, First Lane <==> Lat[2],Lon[2]
-    	* Third  point is (1,ny)  i.e. Near Range, Last Lane <==> Lat[3],Lon[3]
-    	* Fourth point is (nx,ny) i.e. Far Range, Last Lane <==> Lat[4],Lon[4] '''
+        Mapping function is :
+        * range = a1*lat+b1*lon+c1
+        * azimu = a2*lat+b2*lon+c2
+        * First  point is (1,1)   i.e. Near Range, First Lane <==> Lat[1],Lon[1]
+        * Second point is (nx,1)  i.e. Far Range, First Lane <==> Lat[2],Lon[2]
+        * Third  point is (1,ny)  i.e. Near Range, Last Lane <==> Lat[3],Lon[3]
+        * Fourth point is (nx,ny) i.e. Far Range, Last Lane <==> Lat[4],Lon[4] '''
 
 #    A=array([(lat[0], lon[0], 1.),(lat[1], lon[1], 1.),(lat[2], lon[2], 1.),(lat[3], lon[3], 1.)])
     A=np.hstack([lat,lon,np.ones((4,1))])
@@ -157,25 +157,25 @@ def glob2rdr(nx,ny,lat,lon,latl,lonl,plotflag='n'):
     yi=np.dot(A,mfcn[:,1])
 
     if plotflag in ('y','Y'):
-    	plt.figure(1)
-    	plt.subplot(211)
-    	plt.scatter(lonl,latl,s=8,c='k');
+        plt.figure(1)
+        plt.subplot(211)
+        plt.scatter(lonl,latl,s=8,c='k');
             xline=[lon[0],lon[1],lon[3],lon[2],lon[0]]
-    	yline=[lat[0],lat[1],lat[3],lat[2],lat[0]]
-    	plot(xline,yline,'-r')
-    	plt.title('Area of interest and %d stations used'%(nstn))
-    	plt.xlabel('Longitude')
-    	plt.ylabel('Latitude')
+        yline=[lat[0],lat[1],lat[3],lat[2],lat[0]]
+        plot(xline,yline,'-r')
+        plt.title('Area of interest and %d stations used'%(nstn))
+        plt.xlabel('Longitude')
+        plt.ylabel('Latitude')
 
-    	plt.subplot(212)
-    	plt.scatter(xi,yi,s=8,c='k')
-    	import matplotlib.patches as ptch
-    	p = ptch.Rectangle((1,1),nx,ny,edgecolor="Red",fill=False)
-    	plt.gca().add_patch(p)
-    	plt.title('Area of interest in Radar Geometry')
-    	plt.xlabel('Range')
-    	plt.ylabel('Azimuth')
-    	plt.show()
+        plt.subplot(212)
+        plt.scatter(xi,yi,s=8,c='k')
+        import matplotlib.patches as ptch
+        p = ptch.Rectangle((1,1),nx,ny,edgecolor="Red",fill=False)
+        plt.gca().add_patch(p)
+        plt.title('Area of interest in Radar Geometry')
+        plt.xlabel('Range')
+        plt.ylabel('Azimuth')
+        plt.show()
 
     return xi,yi
 #################Completed transforming geo 2 radar##################
@@ -193,7 +193,7 @@ def rdr2glob(wid,lgt,lat,lon,x,y,plotflag='n'):   #nx,ny,lat,lon,latl,lonl,plotf
                 * azim (np.array) : Azimuth of the points to transfert
 
         Kwargs:
-    	* plotflag (bool) : Plot the stations distribution.
+        * plotflag (bool) : Plot the stations distribution.
 
         Returns:
                 * loni (np.array)   : Longitude of the points.
@@ -201,8 +201,8 @@ def rdr2glob(wid,lgt,lat,lon,x,y,plotflag='n'):   #nx,ny,lat,lon,latl,lonl,plotf
 
         .. note::
                 Mapping function is :
-    	* lat = a1*rang + b1*azim + c1
-    	* lon = a2*rang + b2*azim + c2
+        * lat = a1*rang + b1*azim + c1
+        * lon = a2*rang + b2*azim + c2
                 * First  point is (1,1)   i.e. Near Range, First Lane <==> Lat[1],Lon[1]
                 * Second point is (nx,1)  i.e. Far Range, First Lane <==> Lat[2],Lon[2]
                 * Third  point is (1,ny)  i.e. Near Range, Last Lane <==> Lat[3],Lon[3]
@@ -225,7 +225,7 @@ def rdr2glob(wid,lgt,lat,lon,x,y,plotflag='n'):   #nx,ny,lat,lon,latl,lonl,plotf
                 plt.scatter(lon,lat,s=8,c='k');
                 xline=[lon[0],lon[1],lon[3],lon[2],lon[0]]
                 yline=[lat[0],lat[1],lat[3],lat[2],lat[0]]
-    	plt.scatter(loni,lati,s=8,c='r')
+        plt.scatter(loni,lati,s=8,c='r')
                 plt.plot(xline,yline,'-r')
                 plt.title('Area of interest in geographic coordinates')
                 plt.xlabel('Longitude')
@@ -233,7 +233,7 @@ def rdr2glob(wid,lgt,lat,lon,x,y,plotflag='n'):   #nx,ny,lat,lon,latl,lonl,plotf
 
                 plt.subplot(212)
                 plt.scatter(x,y,s=8,c='k')
-    	import matplotlib.patches as ptch
+        import matplotlib.patches as ptch
                 p = ptch.Rectangle((1,1),wid,lgt,edgecolor="Red",fill=False)
                 plt.gca().add_patch(p)
                 plt.title('Area of interest in Radar Geometry')

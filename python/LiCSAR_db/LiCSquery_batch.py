@@ -12,7 +12,7 @@ import sys
 import itertools
 import matplotlib.path as mpltPath
 import numpy as np
-#import pymysql    					##
+#import pymysql            			##
 #from ConfigParser impodbquerrt SafeConfigParser
 import datetime as dt
 #import pdb
@@ -20,8 +20,8 @@ import datetime as dt
 # Local imports
 import global_config as gc
 from LiCSAR_lib.LiCSAR_misc import Usage
-#from dbfunctions import Conn_db    		##
-from . import slczip
+#from dbfunctions import Conn_db            ##
+import slczip
 
 def loadziplist(ziplistfile):
     # Load full paths to the zip files into a list

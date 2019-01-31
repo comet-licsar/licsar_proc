@@ -7,6 +7,8 @@ proc ModulesHelp { } {
 
 module-whatis "licsar_proc"
 
+set LiCSARpath "/gws/nopw/j04/nceo_geohazards_vol1/software/licsar_proc"
+puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 
 if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded gamma] } {
@@ -27,6 +29,7 @@ if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded licsar_db] } {
         module load licsar_db
     }
+#    puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 }
 
 prereq snaphu
@@ -38,7 +41,7 @@ prereq nla
 
 # Set internal variable for path exports
 set grouppath "/gws/nopw/j04/nceo_geohazards_vol1"
-set LiCSARpath "/gws/nopw/j04/nceo_geohazards_vol1/software/licsar_proc"
+#set LiCSARpath "/gws/nopw/j04/nceo_geohazards_vol1/software/licsar_proc"
 set LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
 
 #keep the below
@@ -66,4 +69,8 @@ prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_lib"
 prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_db"
 
 # Source LiCSAR bash Library
-puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
+# strange... it doesn't work when it is here
+# but it works when this line is in the beginning of the module..
+# but the PYTHONPATH (above) is loaded fully
+# strange..... so strange..
+# puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"

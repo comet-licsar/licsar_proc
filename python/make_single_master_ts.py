@@ -66,7 +66,10 @@ def main(argv=None):
     masterdate = dt.datetime(int(str(masterdate)[:4]),int(str(masterdate)[4:6]),int(str(masterdate)[6:]))
     
     mastermlipar = os.path.join(datadir,'SLC',masterdate.strftime('%Y%m%d'),'{md}.slc.mli.par'.format(md=masterdate.strftime('%Y%m%d')))
-    mliwidth = np.int(subp.check_output(['grep','range_samples:',mastermlipar]).split(':')[1].strip())
+    from LiCSAR_lib.LiCSAR_misc import *
+    mliwidth = np.int(grep1('range_samples:',mastermlipar).split(':')[1].strip())
+    #would not work in py3+
+    #mliwidth = np.int(subp.check_output(['grep','range_samples:',mastermlipar]).split(':')[1].strip())
     masterpar = os.path.join(datadir,'RSLC',masterdate.strftime('%Y%m%d'),'{md}.rslc.par'.format(md=masterdate.strftime('%Y%m%d')))
     ifgdir = os.path.join(datadir,'IFG')
     for s in slavelist:

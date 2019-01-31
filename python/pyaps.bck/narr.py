@@ -9,7 +9,7 @@ def cc_narr(tmp,cdic):
 
         Args:
             * tmp  (np.array): Temperature.
-           	* cdic (dict)    : Dictionnary of constants.
+               * cdic (dict)    : Dictionnary of constants.
 
         Returns:
             * esat (np.array): Saturation water vapor partial pressure.'''
@@ -29,30 +29,30 @@ def get_narr(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     '''Read data from NARR grib file. Note that the Lon values should be between [0-360]. GRB file with weather model data can be downloaded from http://nomads.ncdc.noaa.gov/data/narr .
 
     Args:
-    	* fname       (str):  Path to the grib file
-    	* minlat (np.float):  Minimum latitude
-    	* maxlat (np.float):  Maximum latitude
-    	* minlon (np.float):  Minimum longitude
-    	* maxlon (np.float):  Maximum longitude
-    	* cdic   (np.float):  Dictionary of constants
+        * fname       (str):  Path to the grib file
+        * minlat (np.float):  Minimum latitude
+        * maxlat (np.float):  Maximum latitude
+        * minlon (np.float):  Minimum longitude
+        * maxlon (np.float):  Maximum longitude
+        * cdic   (np.float):  Dictionary of constants
     
     Kwargs:
-    	* humidity    (str): Specific ('Q') or relative humidity ('R').
+        * humidity    (str): Specific ('Q') or relative humidity ('R').
 
     Returns:
-    	* lvls   (np.array): Pressure levels
-    	* latlist(np.array): Latitudes of the stations
-    	* lonlist(np.array): Longitudes of the stations
-    	* gph    (np.array): Geopotential height
-    	* tmp    (np.array): Temperature
-    	* vpr    (np.array): Vapor pressure
+        * lvls   (np.array): Pressure levels
+        * latlist(np.array): Latitudes of the stations
+        * lonlist(np.array): Longitudes of the stations
+        * gph    (np.array): Geopotential height
+        * tmp    (np.array): Temperature
+        * vpr    (np.array): Vapor pressure
 
     .. note::
-    	Uses cc_narr by default.
-    	'''
+        Uses cc_narr by default.
+        '''
 
     if verbose:
-    	print('PROGRESS: READING GRIB FILE')
+        print('PROGRESS: READING GRIB FILE')
     lvls = np.array([100, 125, 150, 175, 200, 225, 250, 275, 300, 350, 400, 450, 500, 550, 600, 650, 700, 725, 750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000])
     nlvls = len(lvls)
 
@@ -64,7 +64,7 @@ def get_narr(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     grb=grbs.read(1)[0]
     lats,lons = grb.latlons()
     lons[lons<0] += 360.
-    g = cdic['g']	
+    g = cdic['g']    
     mask = (lats > minlat) & (lats < maxlat) \
     & (lons > minlon) & (lons < maxlon)
     [ii,jj] = np.where(mask == True)
@@ -78,24 +78,24 @@ def get_narr(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     tmp = gph.copy()                  #Temperature
     vpr = gph.copy()                  #Vapor pressure
     if verbose:
-    	print('Number of stations:', nstn)
+        print('Number of stations:', nstn)
 
     lvls = 100.0*lvls              #Conversion to absolute pressure
     for i in range(nlvls):
-    	grbs.seek(gphind[i])   #Reading potential height.
+        grbs.seek(gphind[i])   #Reading potential height.
             grb = grbs.read(3)
             val = grb[0].values
-    	gph[i,:] = val[ii,jj]
+        gph[i,:] = val[ii,jj]
 
             val = grb[1].values   #Reading temperature
-    	temp = val[ii,jj]
-    	tmp[i,:] = temp
+        temp = val[ii,jj]
+        tmp[i,:] = temp
 
                 
-    	val = grb[2].values  #Specific humidity
-    	temp = val[ii,jj]
-    	vpr[i,:] = temp*lvls[i]*alpha/(1+(alpha - 1)*temp)
-    	
+        val = grb[2].values  #Specific humidity
+        temp = val[ii,jj]
+        vpr[i,:] = temp*lvls[i]*alpha/(1+(alpha - 1)*temp)
+        
     return lvls,latlist,lonlist,gph,tmp,vpr
 ###############Completed GET_ERA########################################
 ########Interpolates the NARR delay to a regular grid####################
@@ -106,12 +106,12 @@ def intdel(hgt,latlin,lonlin,delcin,spacing=0.3):
                 * hgt     (np.array): Altitude levels
                 * latlin  (np.array): Latitudes of the stations
                 * lonlin  (np.array): Longitudes of the stations
-    	* delcin  (np.array): Delay cube len(latlist)xlen(hgt)
+        * delcin  (np.array): Delay cube len(latlist)xlen(hgt)
         
         Returns:
                 * latlist (np.array): Latitudes of the stations
                 * lonlist (np.array): Longitudes of the stations
-    	* delc    (np.array): Delay cube len(latlist)xlen(hgt)
+        * delc    (np.array): Delay cube len(latlist)xlen(hgt)
 
         .. note::
                 '''

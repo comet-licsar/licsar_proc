@@ -33,9 +33,9 @@ def get_merra(fname,minlat,maxlat,minlon,maxlon,cdic,verbose=False):
     if verbose:
         print('PROGRESS: READING HDF FILE')
     lvl = file.select('levels')
-    rlvls = lvl.get()     					# Pressure levels are from lowest to highest
+    rlvls = lvl.get()             			# Pressure levels are from lowest to highest
     lvls = []
-    for i in range(len(rlvls)):    			# Reverse the pressure levels to be consistent with other GAMs
+    for i in range(len(rlvls)):            	# Reverse the pressure levels to be consistent with other GAMs
         index = len(rlvls) - i - 1
         lvls.append(rlvls[index])
     nlvls = len(lvls)
