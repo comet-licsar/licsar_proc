@@ -1,6 +1,6 @@
 #!/bin/bash
 if [ -z $2 ]; then echo "inputs are: procdir ifg"; exit; fi
-
+module load doris
 #module load LiCSAR/dev
 
 procdir=$1
@@ -58,24 +58,27 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
    else
      rm ${procdir}/IFG/${ifg}/${ifg}.unw0 
    fi
-  echo "Converting unwrapped phase to displacements"
-   dispmap ${procdir}/IFG/${ifg}/${ifg}.unw ${procdir}/geo/$master.hgt ${procdir}/SLC/$master/$master.slc.par ${procdir}/IFG/${ifg}/${ifg}.off ${procdir}/IFG/${ifg}/${ifg}.disp 0 0 >> $logfile
    #mv ${procdir}/IFG/${ifg}/${ifg}.disp ${procdir}/IFG/${ifg}/${ifg}.unw
-  echo "Geocoding"
+   echo "Geocoding"
    geocode_back ${procdir}/IFG/${ifg}/${ifg}.unw $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.unw ${width_dem} ${length_dem} 0 0 >> $logfile
-   geocode_back ${procdir}/IFG/${ifg}/${ifg}.disp $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${width_dem} ${length_dem} 0 0 >> $logfile
+  fi
+  if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ]; then
+   echo "Converting unwrapped phase to displacements"
+   dispmap ${procdir}/IFG/${ifg}/${ifg}.unw ${procdir}/geo/$master.hgt ${procdir}/SLC/$master/$master.slc.par ${procdir}/IFG/${ifg}/${ifg}.off ${procdir}/IFG/${ifg}/${ifg}.disp 0 0 >> $logfile
+   geocode_back ${procdir}/IFG/${ifg}/${ifg}.disp $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${width_dem} ${length_dem} 0 0 >> $logfile   
   fi
   # Convert to geotiff
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif ]; then 
    echo "Converting to GeoTIFF"
-   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.unw 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif 0.0  >> $logfile
-   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile
+   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.unw 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif 0.0  >> $logfile 2>/dev/null
+   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
   fi
   # Create bmps
   #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.unw ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp >> $logfile
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ]; then
    echo "Converting to raster previews"
    rasrmg ${procdir}/GEOC/${ifg}/${ifg}.geo.unw ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp >> $logfile
+  fi 
    #rasrmg ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile
    #get min and max for disp image
    gdalinfo -stats ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif > ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats
@@ -85,13 +88,13 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
    max=`echo $max-$std | bc`
    min=`echo $min+$std | bc`
    #generate displacement image
-   visdt_pwr.py ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} $min $max -b -p ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png >> $logfile
-   #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile
-  fi
+   visdt_pwr.py ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} $min $max -b -p ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png >> $logfile 2>/dev/null
+   convert ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp
+   #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile   
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp ]; then
    convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp
-   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.bmp
   fi
+  convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
 
 #Filtered interferograms... also is in this public LiCSAR website...
@@ -105,8 +108,8 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} ${length_dem} 1 0 >> $logfile
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_pha $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${width_dem} ${length_dem} 0 0 >> $logfile
  # Convert to geotiff
- data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.tif 0.0  >> $logfile
- data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif 0.0  >> $logfile
+ data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.tif 0.0  >> $logfile 2>/dev/null
+ data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif 0.0  >> $logfile 2>/dev/null
  # Create bmps
  rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp >> $logfile
  convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.diff.bmp
@@ -120,15 +123,21 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg
  rm ${procdir}/IFG/${ifg}/${ifg}.diff_mag ${procdir}/IFG/${ifg}/${ifg}.diff_pha
 fi
 
-# Filtered coherence
-if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.cc ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp ]; then
-  echo "Creating filtered coherence tiffs"
+# Unfiltered coherence
+if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp ]; then
+  echo "Creating unfiltered coherence tiffs"
   # Geocode
-  geocode_back ${procdir}/IFG/${ifg}/${ifg}.filt.cc $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.cc ${width_dem} ${length_dem} 1 0 >> $logfile
+  geocode_back ${procdir}/IFG/${ifg}/${ifg}.cc $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.cc ${width_dem} ${length_dem} 1 0 >> $logfile
   # Convert to geotiff
-  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.cc 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.tif 0.0  >> $logfile
+  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.cc 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.tif 0.0  >> $logfile 2>/dev/null
   # create bmps
-  rascc ${procdir}/GEOC/${ifg}/${ifg}.geo.cc - ${width_dem} - - - $reducfac_dem $reducfac_dem 0 1 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp >> $logfile
+  #new version of gamma shows coherence in colour... using old-school cpxfiddle as workaround
+  #rascc ${procdir}/GEOC/${ifg}/${ifg}.geo.cc - ${width_dem} - - - $reducfac_dem $reducfac_dem 0 1 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp >> $logfile
+ # module load doris
+  byteswap -o ${ifg}.geo.cc.tmp 4 ${procdir}/GEOC/${ifg}/${ifg}.geo.cc >/dev/null
+  cpxfiddle -q normal -w ${width_dem} -f r4 -o sunraster -c gray -M $reducfac_dem/$reducfac_dem -r 0/0.9 ${ifg}.geo.cc.tmp > ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.ras 2>/dev/null
+  convert ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.ras ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp
+  rm -f ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp
   # Need to remove the black border, but the command below is no good as it removes the black parts of the coherence!
   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
   convert -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
