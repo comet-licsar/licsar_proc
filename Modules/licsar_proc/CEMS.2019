@@ -12,7 +12,9 @@ puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 
 if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded gamma] } {
-        module load gamma/20181130
+#        module load gamma/20181130
+#temporary solution - we need to use the older version now before i will manage a proper (deep) update
+         module load gamma/20171201
     }
     if { ![is-loaded snaphu] } {
         module load snaphu
