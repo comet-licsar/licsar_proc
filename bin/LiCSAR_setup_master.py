@@ -10,6 +10,7 @@ Overview
 =========
 Changelog
 =========
+February 2019: Added option to automatically choose master (automaster) (Milan Lazecky, Uni of Leeds)
 October 2017: Added option to include output resolution in decimal degrees (Emma Hatton, Uni of Leeds)
 May 2017: Added step to geocode and tiff the inc and psi outputs (Emma Hatton, Uni of Leeds)
 February 2017: Original implementation (Karsten Spaans, Uni of Leeds)
@@ -25,8 +26,9 @@ Display this message
 LiCSAR_setup_master.py -v
 Display the version
 
-LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id>]
-
+LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -A]
+  (parameter -A or --automaster : will attempt to get a master date automatically)
+  
 """
 ################################################################################
 # Imports
@@ -103,11 +105,12 @@ def main(argv=None):
     enddate=[]
     masterdate=[]
     job_id = -1
+    automaster = 0
 
 ############################################################ Parse argument list
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:A:", ["version", "help","automaster"])
         except getopt.error as msg:
             raise Usage(msg)
         for p, a in opts:
@@ -127,6 +130,8 @@ def main(argv=None):
                 job_id = int(a)
             elif p == '-m':
                 masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
+            elif p == '-A' or p == '--automaster':
+                automaster = 1
             elif p == '-a':
                 gc.azlks = int(a)
             elif p == '-r':
@@ -180,8 +185,27 @@ def main(argv=None):
             return 1
     else:
         burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
-        print('\nNo master date given. Please use the -m option to define one of these choices for the master:\n{0}'.format(', '.join([m.strftime('%Y%m%d') for m in sorted(list(dates)) if m != masterdate])), file=sys.stderr)
-        return 1
+        if automaster:
+            from datetime import datetime, timedelta
+            #rc will be changed to 0 if a proper master is found and checked
+            rc = 1
+            for m in sorted(list(dates)):
+                #master should be from files with POD (<3 weeks) and available (>90 days)
+                if m > (dt.date.today() - timedelta(days=90)) and m < (dt.date.today() - timedelta(days=22)) and rc == 1:
+                    a = m.strftime('%Y%m%d')
+                    masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
+                    print('Checking {0} date as master'.format(masterdate))
+                    filelist = lq.get_frame_files_period(framename,masterdate,masterdate)
+                    burstlist = lq.get_bursts_in_frame(framename)
+                    rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq)
+            if rc == 0:
+                print('\nContinuing with the selected date {0} as master'.format(masterdate))
+            else:
+                print('\nAutomatic selection of master failed')
+                return 1
+        else:
+            print('\nNo master date given. Please use the -m option to define one of these choices for the master:\n{0}'.format(', '.join([m.strftime('%Y%m%d') for m in sorted(list(dates)) if m != masterdate])), file=sys.stderr)
+            return 1
 
 ############################################################ Update job Start
     # Log to DB that the processing has started

@@ -8,14 +8,14 @@ south=$4
 north=$5
 
 # Round coordinates appropiately
-west=`python -c "from math import ceil; print ceil($west-1.25)" | awk '{printf "%.0f\n", $1}'`
-east=`python -c "from math import floor; print floor($east+1.25)" | awk '{printf "%.0f\n", $1}'`
-south=`python -c "from math import ceil; print ceil($south-1.25)" | awk '{printf "%.0f\n", $1}'`
-north=`python -c "from math import floor; print floor($north+1.25)" | awk '{printf "%.0f\n", $1}'`
+west=`python -c "from math import ceil; print(ceil($west-1.25))" | awk '{printf "%.0f\n", $1}'`
+east=`python -c "from math import floor; print(floor($east+1.25))" | awk '{printf "%.0f\n", $1}'`
+south=`python -c "from math import ceil; print(ceil($south-1.25))" | awk '{printf "%.0f\n", $1}'`
+north=`python -c "from math import floor; print(floor($north+1.25))" | awk '{printf "%.0f\n", $1}'`
 
 AWK=awk
 # Location of the GDEM files
-DEMsDIR=${DEMs_DIR}/srtm/srtm_1arcsec_filled_voids
+DEMsDIR=${dems_dir}/srtm/srtm_1arcsec_filled_voids
 
 # Cp srtm to working directory
 for ((long=$west; long <= $east; long++)); do

@@ -5,7 +5,7 @@ proc ModulesHelp { } {
     puts stderr "licsar_proc"
 }
 
-module-whatis "licsar_proc"
+#module-whatis "licsar_proc"
 
 set LiCSARpath "/gws/nopw/j04/nceo_geohazards_vol1/software/licsar_proc"
 puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
@@ -19,9 +19,6 @@ if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded snaphu] } {
         module load snaphu
     }
-#    if { ![is-loaded LiCSAR-pve] } {
-#        module load LiCSAR-pve
-#    }
     if { ![is-loaded anaconda] } {
         module load anaconda
     }
@@ -53,8 +50,17 @@ set USER $::env(USER)
 #Setup LiCSAR enviroment variables
 setenv LiCSARpath "$LiCSARpath"
 setenv LiCSAR_temp "/work/scratch/$USER/LiCSAR_temp/"
-prepend-path DEMs_DIR "$grouppath/DEMs"
-prepend-path ORBs_DIR "$grouppath/orbits/"
+
+#Modules are weird.. ORBs_DIR is working but DEMs_DIR is not visible
+#modules do not like the name DEMs_DIR... why
+#puts stderr "loading some paths"
+setenv ORB_DIR "$grouppath/orbits/"
+setenv dems_dir "$grouppath/DEMs/"
+#setenv DEMs_DIR "$grouppath/DEMs/" ### in capital letters it doesn't work
+
+#prepend-path DEMs_DIR "$grouppath/DEMs"
+#prepend-path ORBs_DIR "$grouppath/orbits/"
+
 setenv LiCSARconfig "$configpath/liveConfig.cnf"
 setenv LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
 

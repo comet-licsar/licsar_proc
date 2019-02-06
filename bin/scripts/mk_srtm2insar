@@ -1,7 +1,7 @@
 #!/bin/bash
 ####################################################
 #
-# Dependencies: python 2.7, 
+# Dependencies: python3
 ####################################################
 
 output=$1
@@ -12,15 +12,15 @@ south=$4
 north=$5
 
 # Round coordinates appropiately
-west=`python -c "from math import ceil; print ceil($west-1.25)" | awk '{printf "%.0f\n", $1}'`
-east=`python -c "from math import floor; print floor($east+1.25)" | awk '{printf "%.0f\n", $1}'`
-south=`python -c "from math import ceil; print ceil($south-1.25)" | awk '{printf "%.0f\n", $1}'`
-north=`python -c "from math import floor; print floor($north+1.25)" | awk '{printf "%.0f\n", $1}'`
+west=`python -c "from math import ceil; print(ceil($west-1.25))" | awk '{printf "%.0f\n", $1}'`
+east=`python -c "from math import floor; print(floor($east+1.25))" | awk '{printf "%.0f\n", $1}'`
+south=`python -c "from math import ceil; print(ceil($south-1.25))" | awk '{printf "%.0f\n", $1}'`
+north=`python -c "from math import floor; print(floor($north+1.25))" | awk '{printf "%.0f\n", $1}'`
 
 AWK=awk
 
 # Location of the SRTM files
-DEMsDIR=${DEMs_DIR}/srtm/srtm_1arcsec_filled_voids
+DEMsDIR=${dems_dir}/srtm/srtm_1arcsec_filled_voids
 
 # Cp srtm to working directory
 for ((long=$west; long <= $east; long++)); do
@@ -79,15 +79,20 @@ gdalwarp -multi --config GDAL_CACHEMAX 1000 -wm 1000 -overwrite -of GTiff `ls *.
 mv ${LiCSAR_temp}/${tmpnm}.tif ${output}.tif
 # 
 
+#geoid_height=0
+#resampled_geoid_map='tmp.map'
+#now GAMMA 20181130
+echo srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
+srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
+
 # Check gamma version to add geoid heights
 # This is a version that work with GAMMA 20151209
-export DISP_HOME=$(which srtm2dem | sed 's/bin\/srtm2dem//') #required to get srtm2dem working, possible gamma bug?
-geoid_height=0
-resampled_geoid_map='tmp.map'
+#export DISP_HOME=$(which srtm2dem | sed 's/bin\/srtm2dem//') #required to get srtm2dem working, possible gamma bug?
 #srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 $geoid_height #Gamma20151209 vers.
-srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 $geoid_height $resampled_geoid_map #Gamme20171201 vers.
+#srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 $geoid_height $resampled_geoid_map #Gamme20171201 vers.
 #srtm2dem ${output}.tif ${output}.dem ${output}.dem_par $geoid_height # GAMMA 201507 version
 
-rm -f *.hgt
-rm srtm_tmp.hdr srtm2dem.log ${output}.tif 
+#Cleaning
+#rm -f *.hgt
+#rm srtm_tmp.hdr srtm2dem.log ${output}.tif 2>/dev/null
 
