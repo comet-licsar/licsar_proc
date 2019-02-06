@@ -82,7 +82,7 @@ mv ${LiCSAR_temp}/${tmpnm}.tif ${output}.tif
 #geoid_height=0
 #resampled_geoid_map='tmp.map'
 #now GAMMA 20181130
-echo srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
+#echo srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
 srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
 
 # Check gamma version to add geoid heights
@@ -93,6 +93,6 @@ srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
 #srtm2dem ${output}.tif ${output}.dem ${output}.dem_par $geoid_height # GAMMA 201507 version
 
 #Cleaning
-#rm -f *.hgt
-#rm srtm_tmp.hdr srtm2dem.log ${output}.tif 2>/dev/null
+rm -f *.hgt
+rm srtm_tmp.hdr srtm2dem.log ${output}.tif 2>/dev/null
 

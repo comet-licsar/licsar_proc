@@ -1,3 +1,7 @@
 #ignore pyc files
 *.pyc
 
+
+python/LiCSAR_lib/coreg_lib\.py\.save
+
+python/LiCSAR_lib/coreg_lib\.py\.save\.1
