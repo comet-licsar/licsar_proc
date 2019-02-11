@@ -5,11 +5,24 @@
 #
 # Author: Pablo J. Gonzalez (p.j.gonzalez@leeds.ac.uk)
 # Date: 2015/10/26
+# Date 2019/02/10 - reduced to keep raster files, not GRDs
 #################################################################
 
 # LiCSAR_04_mk_angles_master ${master_date}
-master=$1         # Master date
+# identification of master (if $1 is not set)
+if [ ! -d RSLC ]; then
+ echo "You should run this code from frame folder"
+ echo "Error from LiCSAR_05_mk_angles_master"
+ exit
+fi
+if [ -z $1 ]; then
+ master=`ls geo/*.hgt | cut -c 5-12`
+else
+ master=$1         # Master date
+fi
 H_threshold=0.01  # Threshold for masking elevations and overlay/shadow pixels
+
+echo "creating additional geometric files - heading, inc. angle etc. "
 
 width=`awk '$1 == "range_samples:" {print $2}' RSLC/${master}/${master}.rslc.mli.par`; #echo $width
 length=`awk '$1 == "azimuth_lines:" {print $2}' RSLC/${master}/${master}.rslc.mli.par`; #echo $length
@@ -32,17 +45,21 @@ lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 ele2inc.py geo/${master}.geo.rad.elev geo/${master}.geo.deg.inc ${width_dem} ${length_dem}
 geocode geo/${master}.lt_fine geo/${master}.geo.deg.inc ${width_dem} geo/${master}.deg.inc ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback incidence to radar coordinates
 rasrmg geo/${master}.deg.inc RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
-data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.inc 2 geo/${master}.geo.deg.inc.tif > /dev/null 2>&1 # Convert data to geotiff
-gdal_translate geo/${master}.geo.deg.inc.tif -of GMT -a_nodata 0.0 geo/${master}.geo.deg.inc.grd > /dev/null 2>&1 # Convert geotiff to GRD file
-rm -f geo/${master}.geo.rad.elev geo/${master}.geo.deg.inc.tif geo/${master}.geo.deg.inc.grd.aux.xml  # Remove files
+
+#three lines below -- use only if you need GRD files
+#data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.inc 2 geo/${master}.geo.deg.inc.tif > /dev/null 2>&1 # Convert data to geotiff
+#gdal_translate geo/${master}.geo.deg.inc.tif -of GMT -a_nodata 0.0 geo/${master}.geo.deg.inc.grd > /dev/null 2>&1 # Convert geotiff to GRD file
+rm -f geo/${master}.geo.rad.elev #geo/${master}.geo.deg.inc.tif geo/${master}.geo.deg.inc.grd.aux.xml  # Remove files
 
 # Heading angle at the pixel surface points
 orient2heading.py geo/${master}.geo.rad.orientation geo/${master}.geo.deg.heading ${width_dem} ${length_dem}
 geocode geo/${master}.lt_fine geo/${master}.geo.deg.heading ${width_dem} geo/${master}.deg.heading ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback heading to radar coordinates
 rasrmg geo/${master}.deg.heading RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
-data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.heading 2 geo/${master}.geo.deg.heading.tif > /dev/null 2>&1 # Convert data to geotiff
-gdal_translate geo/${master}.geo.deg.heading.tif -of GMT -a_nodata 0.0 geo/${master}.geo.deg.heading.grd > /dev/null 2>&1 # Convert geotiff to GRD file
-rm -f geo/${master}.geo.rad.orientation geo/${master}.geo.deg.heading.tif geo/${master}.geo.deg.heading.grd.aux.xml  # Remove files
+
+#three lines below -- use only if you need GRD files
+#data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.heading 2 geo/${master}.geo.deg.heading.tif > /dev/null 2>&1 # Convert data to geotiff
+#gdal_translate geo/${master}.geo.deg.heading.tif -of GMT -a_nodata 0.0 geo/${master}.geo.deg.heading.grd > /dev/null 2>&1 # Convert geotiff to GRD file
+rm -f geo/${master}.geo.rad.orientation #geo/${master}.geo.deg.heading.tif geo/${master}.geo.deg.heading.grd.aux.xml  # Remove files
 
 # # Squint angle at the pixel surface points [look at the lgbsfl.sh]
 # mk_squint_TOPSmosaic $master $outfile rlks azlks wid 
@@ -59,10 +76,11 @@ rascc_mask geo/mask - ${width} - - - - - $H_threshold - 0 1 - - - geo/mask.bmp >
 
 #############################################################################
 # Mask DEM and then Convert DEM to GRD [M]
-mask_data geo/EQA.dem ${width_dem} geo/EQA.masked.dem geo/geo.mask.bmp > /dev/null 2>&1 # Apply the mask to the DEM in geographical coordinates
-data2geotiff geo/EQA.dem_par geo/EQA.masked.dem 2 geo/${master}.EQA.dem.tif > /dev/null 2>&1 # Convert masked DEM to geotiff
-gdal_translate geo/${master}.EQA.dem.tif -of GMT geo/${master}.EQA.dem.grd > /dev/null 2>&1 # Convert geotiff to GRD file
-rm -f geo/EQA.masked.dem geo/${master}.EQA.dem.tif
+# not used now.. 2019... or is it?
+#mask_data geo/EQA.dem ${width_dem} geo/EQA.masked.dem geo/geo.mask.bmp > /dev/null 2>&1 # Apply the mask to the DEM in geographical coordinates
+#data2geotiff geo/EQA.dem_par geo/EQA.masked.dem 2 geo/${master}.EQA.dem.tif > /dev/null 2>&1 # Convert masked DEM to geotiff
+#gdal_translate geo/${master}.EQA.dem.tif -of GMT geo/${master}.EQA.dem.grd > /dev/null 2>&1 # Convert geotiff to GRD file
+#rm -f geo/EQA.masked.dem geo/${master}.EQA.dem.tif
 
 
 

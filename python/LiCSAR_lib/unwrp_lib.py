@@ -204,7 +204,7 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
             f.write(l)
 
 ############################################################ Unwrap IFG
-    logfilename = os.path.join(ifgdir,'snaphu.log')
+    logfilename = os.path.join(tmpdir,'snaphu.log')
     with open(logfilename,'w') as f:
         cmdstr = 'snaphu -v -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
         job = subp.Popen(cmdstr,shell=True,stdout=f,stderr=f,stdin=None)
