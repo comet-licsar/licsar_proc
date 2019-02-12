@@ -186,7 +186,7 @@ def create_offset(masterpar,slavepar,offfile,rglks,azlks,logfilename):
 def SLC_interp_lt_S1_TOPS(slavetab,slavepar,mastertab,masterpar,lut,mastermlipar,slavemlipar,offpar,slaveRtab,slaveRslc,slaveRpar,logfilename):
     """ Resampling of SLC based on lookup table and offset file
     """
-    interpcall = ['SLC_interp_lt_S1_TOPS',slavetab,slavepar,mastertab,
+    interpcall = ['SLC_interp_lt_ScanSAR',slavetab,slavepar,mastertab,
                   masterpar,lut,mastermlipar,slavemlipar,offpar,
                   slaveRtab,slaveRslc,slaveRpar]
     with open(logfilename,'w') as f:

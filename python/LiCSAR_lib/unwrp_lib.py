@@ -2,6 +2,7 @@
 #Imports
 ################################################################################
 import os
+import shutil
 import sys
 import numpy as np
 import subprocess as subp
@@ -224,8 +225,10 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
 
     return True
     #cleaning the tmpdir
-    if os.path.exists(tmpdir) and os.path.isfile(tmpdir):
-        os.remove(tmpdir)
+    #if os.path.exists(tmpdir) and os.path.isfile(tmpdir):
+    #    os.remove(tmpdir)
+    if os.path.exists(tmpdir) and os.path.isdir(tmpdir):
+        shutil.rmtree(tmpdir)
 
                              
 

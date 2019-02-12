@@ -44,10 +44,11 @@ set grouppath "/gws/nopw/j04/nceo_geohazards_vol1"
 set LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
 
 #keep the below
-set configpath "$grouppath/config/LiCSAR/"
+set configpath "$grouppath/config/licsar_proc"
 set USER $::env(USER)
 
 #Setup LiCSAR enviroment variables
+setenv LiCSAR_configpath "$configpath"
 setenv LiCSARpath "$LiCSARpath"
 setenv LiCSAR_temp "/work/scratch/$USER/LiCSAR_temp/"
 

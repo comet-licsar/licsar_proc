@@ -73,6 +73,11 @@ def get_frame_files_period(frame,t1,t2):
     # takes frame and two datetime.date objects and returns list returns
     # polygon name, aquisition date, file name and file path for all files 
     # in frame in the given time period
+    #
+    # the ordering is important here due to new versions of files
+    # simply put, ESA recomputes some slcs times to times and the newer
+    # (better) version is again ingested to NLA and licsinfo. We should
+    # use only the newer version files.
     sql_q = "select distinct polygs.polyid_name, date(files.acq_date), " \
         "files.name, files.abs_path from files " \
         "inner join files2bursts on files.fid=files2bursts.fid " \
@@ -80,8 +85,8 @@ def get_frame_files_period(frame,t1,t2):
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
         "and date(files.acq_date) between '{1}' and '{2}' "\
-        "and files.pol='VV'"\
-        "order by files.acq_date;".format(frame,t1,t2)
+        "and files.pol='VV' and files.abs_path not like '%metadata_only%' "\
+        "order by files.acq_date asc, files.name asc, files.proc_date desc;".format(frame,t1,t2)
     return do_query(sql_q)
 
 def get_frame_files_date(frame,date):

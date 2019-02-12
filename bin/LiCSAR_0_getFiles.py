@@ -170,6 +170,16 @@ def main(argv=None):
     zipFiles = [re.sub('.metadata_only','',fI) for fI in files]
     filesDF = pd.DataFrame({'files':zipFiles,'onTape':False},index=pd.to_datetime(acq_dates))
     filesDF = filesDF.drop_duplicates()
+    
+    # this is to correct for duplicate images, see explanation at lq.get_frame_files_period
+    pom=''
+    pomDF=filesDF
+    for index in pomDF.index.unique():
+        for file in pomDF.loc[index]['files']:
+            #if the previous field had the same base-name, drop this one
+            if pom==file[:-9]:
+                filesDF=filesDF[filesDF.files != file]
+            else: pom=file[:-9]
 
 ############################## Write out file list
 
