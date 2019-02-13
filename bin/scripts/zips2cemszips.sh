@@ -24,7 +24,7 @@ ziplist=$2
 cemsroot1a=/neodc/sentinel1a/data/IW/L1_SLC/IPF_v2
 cemsroot1b=/neodc/sentinel1b/data/IW/L1_SLC/IPF_v2
 
-rm $ziplist; touch $ziplist;
+rm $ziplist 2>/dev/null; touch $ziplist;
 
 echo "reading: $full_list"
 while read listline; do
