@@ -29,6 +29,8 @@ else
   file=$1
 fi
 
+module load gmt
+
 minLon=`gmtinfo $file | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$5-.01}'`
 maxLon=`gmtinfo $file | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$6+.01}'`
 minLat=`gmtinfo $file | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$7-.01}'`

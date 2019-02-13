@@ -1,7 +1,5 @@
 #!/bin/bash
 #this script will download a given file (zip file) from alaska facility
-#asfuser=licsar_user1
-#asfpasswd=DoNut.001
 URL=https://datapool.asf.alaska.edu/SLC
 export WGETRC=$LiCSAR_configpath/alaska_credentials_wget
 
@@ -16,5 +14,4 @@ elif [ $satellite == "S1B" ]; then
     satstr='SB'
 fi
 
-#wget -c --http-user=$asfuser --http-password=$asfpasswd $URL/$satstr/$line
 wget -c $URL/$satstr/$line
