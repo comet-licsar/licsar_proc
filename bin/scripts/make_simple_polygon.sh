@@ -31,10 +31,11 @@ fi
 
 module load gmt
 
-minLon=`gmtinfo $file | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$5-.01}'`
-maxLon=`gmtinfo $file | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$6+.01}'`
-minLat=`gmtinfo $file | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$7-.01}'`
-maxLat=`gmtinfo $file | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$8+.01}'`
+extent=`gmtinfo $file`
+minLon=`echo $extent | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$5-.00}'`
+maxLon=`echo $extent | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$6+.00}'`
+minLat=`echo $extent | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$7-.00}'`
+maxLat=`echo $extent | sed 's/<//g' | sed 's/>//g' | sed 's/\// /g' | awk '{printf "%5.2f\n",$8+.00}'`
 
 outfile=`echo $file | sed 's/-poly.txt/.xy/g'`
 

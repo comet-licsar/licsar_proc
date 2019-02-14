@@ -78,6 +78,8 @@ def get_frame_files_period(frame,t1,t2):
     # simply put, ESA recomputes some slcs times to times and the newer
     # (better) version is again ingested to NLA and licsinfo. We should
     # use only the newer version files.
+    #
+    # this cannot be: and files.abs_path not like '%metadata_only%' "\
     sql_q = "select distinct polygs.polyid_name, date(files.acq_date), " \
         "files.name, files.abs_path from files " \
         "inner join files2bursts on files.fid=files2bursts.fid " \
@@ -85,7 +87,7 @@ def get_frame_files_period(frame,t1,t2):
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
         "and date(files.acq_date) between '{1}' and '{2}' "\
-        "and files.pol='VV' and files.abs_path not like '%metadata_only%' "\
+        "and files.pol='VV' "\
         "order by files.acq_date asc, files.name asc, files.proc_date desc;".format(frame,t1,t2)
     return do_query(sql_q)
 
