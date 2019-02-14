@@ -5,11 +5,12 @@
 Changelog
 =========
 Sept 2016: Original implementation (KS)
-
+Feb 2019: Update to use gamma/20181130 version (ML)
 ============
 Contributors
 ============
 Karsten Spaans, University of Leeds
+Milan Lazecky, University of Leeds
 """
 
 import os
@@ -312,6 +313,33 @@ def offset_fitm(offs,ccp,diffpar,coffs,coffsets,thres,npoly,logfilename):
     else:
         return True
 
+def offset_fit(p,doffset,logfilename):
+    """
+    """
+    fitcall = ['offset_fit',p+'.offs',p+'.snr',doffset,'-','-',0.2,1,0]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(fitcall,stdout=f)
+        except:
+            print('Something went wrong during the offset function fitting. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the offset function fitting. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
+def set_value(parin,parout,keyw,newval):
+    """
+    """
+    setcall = ['set_value',parin,parout,keyw,newval]
+    rc = subp.check_call(setcall)
+    if rc != 0:
+        print('Something went wrong during setting value.')
+        return False
+    else:
+        return True
+
 def offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,rwin,azwin,offsets,n_ovr,nr,naz,thres,logfilename):
     """
     """
@@ -324,6 +352,22 @@ def offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,rwin,azwin,offsets,n_ovr,nr,na
             return False
     if rc != 0:
         print('Something went wrong during the cross correlation offset estimation. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
+def offset_pwr_tracking(slc1,rslc,slc1_par,rslc_par,dofffile,p,rstep,azstep,logfilename):
+    """
+    """
+    pwrcall = ['offset_pwr_tracking',slc1,rslc,slc1_par,rslc_par,dofffile,p+'.offs',p+'.snr',128,64,'-',1,0.2,rstep,azstep]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(pwrcall,stdout=f)
+        except:
+            print('Something went wrong during the cross correlation offset tracking. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the cross correlation offset tracking. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -444,12 +488,13 @@ def mosaic_TOPS(procdir,imdir,imdate,swathlist):
             rc = subp.check_call(mosaiccall,stdout=f)
         except:
             print('Something went wrong mosaicing swaths {0}. Log file {1}'.format(' '.join([sw for sw in swathlist]),logfilename))
-            return False
+            #return False
+    #Perhaps something extra in stdout after gamma update? it seems working but rc is not 0
     if rc != 0:
         print('Something went wrong mosaicing swaths {0}. Log file {1}'.format(' '.join([sw for sw in swathlist]),logfilename))
-        return False
+        #return False
 
-
+    # just trying to continue - seems that mosaics exist even though an error is reported
     logfilename = os.path.join(procdir,'log','multilookSLC_{0}.log'.format(imdate.strftime('%Y%m%d')))
     multicall = 'multilookSLC {0} {1} {2} 1 {3} &> {4}'.format(imdate.strftime('%Y%m%d'),rglks,azlks,imdir,logfilename)
     rc = os.system(multicall)
@@ -472,7 +517,7 @@ def SLC_copy_S1_TOPS(SLColdtab,SLCnewtab,bursttab,imdir,procdir,logfile):
     Out:
         0 if programme finished successfully, 1 if not
     """
-    copycall = ['SLC_copy_S1_TOPS',SLColdtab,SLCnewtab,bursttab]
+    copycall = ['SLC_copy_ScanSAR',SLColdtab,SLCnewtab,bursttab]
     try:
         with open(logfile,'w') as lf:
             rc = subp.check_call(copycall,stdout=lf)
@@ -579,7 +624,7 @@ def SLC_cat_S1_TOPS(tab1,tab2,tab3,imdir,procdir,logfile):
         Boolean True if successful, False if not
     """
 
-    catcall = ['SLC_cat_S1_TOPS',tab1,tab2,tab3]
+    catcall = ['SLC_cat_ScanSAR',tab1,tab2,tab3]
     with open(logfile,'w') as lf:
         try:
             rc = subp.check_call(catcall,stdout=lf)
