@@ -88,7 +88,7 @@ def get_frame_files_period(frame,t1,t2):
         "where polygs.polyid_name='{0}' " \
         "and date(files.acq_date) between '{1}' and '{2}' "\
         "and files.pol='VV' "\
-        "order by files.acq_date asc, files.name asc, files.proc_date desc;".format(frame,t1,t2)
+        "order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
     return do_query(sql_q)
 
 def get_frame_files_date(frame,date):

@@ -38,6 +38,7 @@ def grep(arg,file):
 ################################################################################
 def grep1(arg,filename):
     file = open(filename, "r")
+    res=''
     for line in file:
         if re.search(arg, line):
             res=line

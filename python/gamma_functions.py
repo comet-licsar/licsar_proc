@@ -283,8 +283,8 @@ def S1_OPOD_vec(parFile,orbitFile,logfilename):
 def geocode_back(datain,widthin,gcmap,dataout,widthout,nlinesout,interpmode,dtype,logfilename):
     """
     """
-    backcall = ['geocode_back',datain,widthin,gcmap,dataout,widthout,
-                nlinesout,interpmode,dtype]
+    backcall = ['geocode_back',datain,str(widthin),gcmap,dataout,str(widthout),
+                str(nlinesout),str(interpmode),dtype]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(backcall,stdout=f)
@@ -300,7 +300,7 @@ def geocode_back(datain,widthin,gcmap,dataout,widthout,nlinesout,interpmode,dtyp
 def offset_fitm(offs,ccp,diffpar,coffs,coffsets,thres,npoly,logfilename):
     """
     """
-    fitcall = ['offset_fitm',offs,ccp,diffpar,coffs,coffsets,thres,npoly]
+    fitcall = ['offset_fitm',offs,ccp,diffpar,coffs,coffsets,str(thres),str(npoly)]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(fitcall,stdout=f)
@@ -316,7 +316,7 @@ def offset_fitm(offs,ccp,diffpar,coffs,coffsets,thres,npoly,logfilename):
 def offset_fit(p,doffset,logfilename):
     """
     """
-    fitcall = ['offset_fit',p+'.offs',p+'.snr',doffset,'-','-',0.2,1,0]
+    fitcall = ['offset_fit',p+'.offs',p+'.snr',doffset,'-','-','0.2','1','0']
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(fitcall,stdout=f)
@@ -332,7 +332,7 @@ def offset_fit(p,doffset,logfilename):
 def set_value(parin,parout,keyw,newval):
     """
     """
-    setcall = ['set_value',parin,parout,keyw,newval]
+    setcall = ['set_value',parin,parout,keyw,str(newval)]
     rc = subp.check_call(setcall)
     if rc != 0:
         print('Something went wrong during setting value.')
@@ -343,7 +343,7 @@ def set_value(parin,parout,keyw,newval):
 def offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,rwin,azwin,offsets,n_ovr,nr,naz,thres,logfilename):
     """
     """
-    pwrmcall = ['offset_pwrm',mli1,mli2,diffpar,offfile,ccpfile,rwin,azwin,offsets,n_ovr,nr,naz,thres]
+    pwrmcall = ['offset_pwrm',mli1,mli2,diffpar,offfile,ccpfile,str(rwin),str(azwin),offsets,str(n_ovr),str(nr),str(naz),str(thres)]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(pwrmcall,stdout=f)
@@ -359,7 +359,7 @@ def offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,rwin,azwin,offsets,n_ovr,nr,na
 def offset_pwr_tracking(slc1,rslc,slc1_par,rslc_par,dofffile,p,rstep,azstep,logfilename):
     """
     """
-    pwrcall = ['offset_pwr_tracking',slc1,rslc,slc1_par,rslc_par,dofffile,p+'.offs',p+'.snr',128,64,'-',1,0.2,rstep,azstep]
+    pwrcall = ['offset_pwr_tracking',slc1,rslc,slc1_par,rslc_par,dofffile,p+'.offs',p+'.snr','128','64','-','1','0.2',str(rstep),str(azstep)]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(pwrcall,stdout=f)
@@ -405,10 +405,77 @@ def pixel_area(mlipar,dem,lut,lsmap,incmap,pixsigma,pixgamma,logfilename):
     else:
         return True
 
+def poly_math(mastermli,mastermliaz,mastermliwidth,masterazpolyout,logfilename):
+    """
+    """
+    polycall = ['poly_math',mastermli,str(mastermliaz),str(mastermliwidth),masterazpolyout,'-','1','0.0','1.0']
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(polycall,stdout=f)
+        except:
+            print('Something went wrong during the poly_math. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the poly_math. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
+
+
+def mask_class(mazovr,lut,lutazovr,logfilename):
+    """
+    """
+    mask_call=['mask_class',mazovr,lut,lutazovr,'1','1','1','1','0','0.0','0.0']
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(mask_call,stdout=f)
+        except:
+            print('Something went wrong during the mask_class. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the mask_class. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
+
+def raspwr(image,wid,pixavr,pixavaz,rasout,logfilename):
+    """
+    """
+    rascall = ['raspwr',image,str(wid),'1','0',str(pixavr),str(pixavaz),'1.0','0.35','1',rasout]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(rascall,stdout=f)
+        except:
+            print('Something went wrong during the raspwr. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the raspwr. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
+def S1_poly_overlap(mastertab,rlk,azlk,polyout,overlap_type,logfilename):
+    """
+    """
+    polycall = ['S1_poly_overlap',mastertab,str(rlk),str(azlk),polyout,str(overlap_type)]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(polycall,stdout=f)
+        except:
+            print('Something went wrong during the S1_poly_overlap. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the S1_poly_overlap. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
 def gc_map_fine(gcin,width,diffpar,gcout,refflag,logfilename):
     """
     """
-    mapcall = ['gc_map_fine',gcin,width,diffpar,gcout,'1']
+    mapcall = ['gc_map_fine',gcin,str(width),diffpar,gcout,'1']
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(mapcall,stdout=f)
@@ -425,7 +492,7 @@ def gc_map(mlipar,offpar,dem,demseg,lut,latovr,lonovr,simsar,u,v,inc,psi,pix,lsm
     """
     """
     mapcall = ['gc_map',mlipar,offpar,dem+'_par',dem,demseg+'_par',demseg,lut,
-               latovr,lonovr,simsar,u,v,inc,psi,pix,lsmap,frame,lsmode,r_ovr]
+               latovr,lonovr,simsar,u,v,inc,psi,pix,lsmap,frame,lsmode,str(r_ovr)]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(mapcall,stdout=f)
