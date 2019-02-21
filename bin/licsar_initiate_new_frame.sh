@@ -5,10 +5,18 @@ curdir=$LiCSAR_procdir
 
 if [ -z $1 ];
 then
- echo "Usage: licsar_initiate_new_frame.sh $FRAME"
- echo "where frame can be e.g. 010D_11058_131313"
+ echo "Usage: licsar_initiate_new_frame.sh FRAME [MASTER_YYMMDD]"
+ echo "where frame can be e.g. 010D_11058_131313 20180722"
+ echo "(if master date is not given, it will choose automatically, from last 3 months data)"
+ echo "(to include custom downloaded master files, don't forget to arch2DB.py them first)"
  exit
-else
+fi
+if [ ! -z $2 ]; then
+ getmaster="-m "$2
+ else
+ getmaster="-A"
+fi
+
  frame=$1
  tr=`echo $frame | cut -d '_' -f1 | sed 's/^0//' | sed 's/^0//' | rev | cut -c 2- | rev`
  if [ -d $curdir/$tr/$frame ]; then
@@ -20,14 +28,16 @@ else
   echo "Wrong frame name. Stopping"
   exit
  fi
-fi
 
 echo "Setting the master image and DEM for frame "$frame
-LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame -A -r 20 -a 4
-cd $curdir/$tr/$frame
-LiCSAR_05_mk_angles_master
+LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r 20 -a 4
+if [ ! -d $curdir/$tr/$frame/SLC ]; then
+ echo "Something got wrong with the initiation"
+else
+ cd $curdir/$tr/$frame
+ LiCSAR_05_mk_angles_master
 
-echo "cleaning"
-rm -f $curdir/tr/$frame/SLC/*/2*T*.I*sl* 2>/dev/null
-
-echo "done"
+ echo "cleaning"
+ rm -f $curdir/$tr/$frame/SLC/*/2*T*.I*sl* 2>/dev/null
+ echo "done"
+fi
