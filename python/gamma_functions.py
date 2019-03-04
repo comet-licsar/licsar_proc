@@ -220,7 +220,7 @@ def rdc_trans(mastermlipar,demhgt,slavemlipar,lut,logfilename):
 def rasmph_pwr(difffile,mastermli,width,logfilename):
     """
     """
-    rascall = ['rasmph_pwr',difffile,mastermli,width,'-','-','-','1','1','0.8','0.35']
+    rascall = ['rasmph_pwr',difffile,mastermli,str(width),'-','-','-','1','1','0.8','0.35']
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(rascall,stdout=f)

@@ -22,7 +22,9 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
                              origmasterdate.strftime('%Y%m%d'),
                              origmasterdate.strftime('%Y%m%d')+
                              '.slc.mli.par')
-                             
+    mastertab = os.path.join(procdir,'tab',
+                             origmasterdate.strftime('%Y%m%d')
+                             +'_tab')
     #read width and length
     [width, length] = get_mli_size(mastermli)
 
@@ -39,15 +41,23 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     if os.path.exists(ifgthisdir):
         shutil.rmtree(ifgthisdir)
     os.mkdir(ifgthisdir)
-    
+############################################################ remosaicking RSLCs (may not exist)
+    for pomdate in [masterdate.strftime('%Y%m%d'),slavedate.strftime('%Y%m%d')]:
+        if not os.path.isfile(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')):
+            print('Regenerating mosaic for '+pomdate)
+            slaverslctab=os.path.join(procdir,'tab',
+                             pomdate+'_tab')
+            slavefilename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
+            logfile = os.path.join(procdir,'log',"mosaic_rslc_{0}.log".format(pomdate))
+            SLC_mosaic_S1_TOPS(slaverslctab,slavefilename,gc.rglks,gc.azlks,logfile,mastertab)
 ############################################################ Create offsets
     offsetfile = os.path.join(ifgthisdir,pair+'.off')
     masterpar = os.path.join(procdir,'RSLC',
-                             masterdate.strftime('%Y%m%d'),
-                             masterdate.strftime('%Y%m%d')+'.rslc.par')
+                         masterdate.strftime('%Y%m%d'),
+                         masterdate.strftime('%Y%m%d')+'.rslc.par')
     slavepar = os.path.join(procdir,'RSLC',
-                            slavedate.strftime('%Y%m%d'),
-                            slavedate.strftime('%Y%m%d')+'.rslc.par')
+                        slavedate.strftime('%Y%m%d'),
+                        slavedate.strftime('%Y%m%d')+'.rslc.par')
     logfilename = os.path.join(procdir,'log','create_offset_{0}.log'.format(pair))
     
     if not create_offset(masterpar,slavepar,offsetfile,gc.rglks,gc.azlks,logfilename):
@@ -76,14 +86,16 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     if not SLC_diff_intf(masterpar[:-4],slavepar[:-4],masterpar,slavepar,offsetfile,simfile,difffile,gc.rglks,gc.azlks,logfilename):
         print('\nERROR:', file=sys.stderr)
         print('\nSomething went wrong during the interferogram formation.', file=sys.stderr)
+        print('try yourself by: SLC_diff_intf '+masterpar[:-4]+' '+slavepar[:-4]+' '+masterpar+' '+slavepar+' '+offsetfile+' '+simfile+' '+difffile+' '+str(gc.rglks)+' '+str(gc.azlks))
         shutil.rmtree(ifgthisdir)
         return 3
-    
-    #create a ras file
+
+#create a ras file
     logfilename = os.path.join(procdir,'log','rasmph_pwr_{0}.log'.format(pair))
-    if not rasmph_pwr(difffile,mastermli[:-4],width,logfilename):
+    if not rasmph_pwr(difffile,mastermli[:-4],str(width),logfilename):
         print('\nERROR:', file=sys.stderr)
-        print('\nSomething went wrong during the interferogram formation.', file=sys.stderr)
+        print('\nSomething went wrong during the rasmph step.', file=sys.stderr)
+        print('\nTry yourself: rasmph_pwr '+difffile+' '+mastermli[:-4]+' '+str(width))
         shutil.rmtree(ifgthisdir)
         return 4
 
@@ -109,7 +121,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     
     #create a coherence ras file
     logfilename = os.path.join(procdir,'log','rascc_{0}.log'.format(pair))
-    if not rascc(cohfile,mastermli,width,1,logfilename):
+    if not rascc(cohfile,mastermli[:-4],str(width),1,logfilename):
         print('\nERROR:', file=sys.stderr)
         print('\nSomething went wrong during the coherence sunraster creation.', file=sys.stderr)
         shutil.rmtree(ifgthisdir)
