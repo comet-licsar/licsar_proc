@@ -237,7 +237,7 @@ def rasmph_pwr(difffile,mastermli,width,logfilename):
 def rashgt(hgt,pwr,width,starthgt,startpwr,nlines,pixavr,pixavaz,mcycle,logfilename):
     """
     """
-    rascall = ['rashgt',hgt,pwr,width,starthgt,startpwr,nlines,pixavr,pixavaz,mcycle]
+    rascall = ['rashgt',hgt,pwr,str(width),starthgt,startpwr,str(nlines),pixavr,pixavaz,mcycle]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(rascall,stdout=f)
@@ -253,8 +253,8 @@ def rashgt(hgt,pwr,width,starthgt,startpwr,nlines,pixavr,pixavaz,mcycle,logfilen
 def geocode(gcmap,datain,widthin,dataout,widthout,nlinesout,interpmode,dtype,logfilename):
     """
     """
-    geocodecall = ['geocode',gcmap,datain,widthin,dataout,widthout,
-                   nlinesout,interpmode,dtype]
+    geocodecall = ['geocode',gcmap,datain,str(widthin),dataout,str(widthout),
+                   str(nlinesout),interpmode,dtype]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(geocodecall,stdout=f)

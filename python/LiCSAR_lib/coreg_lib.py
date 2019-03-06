@@ -208,7 +208,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres):
     else:
         reducfac = '1'
 
-    if not rashgt(demseg,demsegmli,demwidth,'-','-','-',reducfac,reducfac,'500',logfile):
+    if not rashgt(demseg,demsegmli,str(demwidth),'-','-','-',reducfac,reducfac,'500',logfile):
         print("\nError:", file=sys.stderr)
         print("Something went wrong creating the DEM mli sunraster file", file=sys.stderr)
         return 5
@@ -218,7 +218,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres):
     hgtfile = os.path.join(geodir,masterstr+'.hgt')
     logfile = os.path.join(procdir,'log',
                            'geocode_{0}.log'.format(masterstr))
-    if not geocode(lutfine,demseg,demwidth,hgtfile,width,length,'2','0',logfile):
+    if not geocode(lutfine,demseg,str(demwidth),hgtfile,str(width),str(length),'2','0',logfile):
         print("\nError:", file=sys.stderr)
         print("Something went wrong creating the master heightfile", file=sys.stderr)
         return 6
@@ -226,7 +226,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres):
 ############################################################ Create a height and 
                                                             #intensisty ras of the
                                                             #mli2 data based on DEM
-    if not rashgt(hgtfile,mli2,width,'-','-','-',reducfac,reducfac,'500',logfile):
+    if not rashgt(hgtfile,mli2,str(width),'-','-','-',reducfac,reducfac,'500',logfile):
         print("\nError:", file=sys.stderr)
         print("Something went wrong creating the DEM mli sunraster file", file=sys.stderr)
         return 6

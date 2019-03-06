@@ -10,7 +10,7 @@
 
 # LiCSAR_04_mk_angles_master ${master_date}
 # identification of master (if $1 is not set)
-if [ ! -d RSLC ]; then
+if [ ! -d SLC ]; then
  echo "You should run this code from frame folder"
  echo "Error from LiCSAR_05_mk_angles_master"
  exit
@@ -24,12 +24,12 @@ H_threshold=0.01  # Threshold for masking elevations and overlay/shadow pixels
 
 echo "creating additional geometric files - heading, inc. angle etc. "
 
-width=`awk '$1 == "range_samples:" {print $2}' RSLC/${master}/${master}.rslc.mli.par`; #echo $width
-length=`awk '$1 == "azimuth_lines:" {print $2}' RSLC/${master}/${master}.rslc.mli.par`; #echo $length
+width=`awk '$1 == "range_samples:" {print $2}' SLC/${master}/${master}.slc.mli.par`; #echo $width
+length=`awk '$1 == "azimuth_lines:" {print $2}' SLC/${master}/${master}.slc.mli.par`; #echo $length
 reducfac=`echo $width | awk '{if(int($1/1000) > 1) print int($1/1000); else print 1}'`
 
 # Create geometric files
-look_vector RSLC/${master}/${master}.rslc.par - geo/EQA.dem_par geo/EQA.dem geo/${master}.geo.rad.elev geo/${master}.geo.rad.orientation > /dev/null 2>&1
+look_vector SLC/${master}/${master}.slc.par - geo/EQA.dem_par geo/EQA.dem geo/${master}.geo.rad.elev geo/${master}.geo.rad.orientation > /dev/null 2>&1
 
 # Create header file to simulate to be an ENVI file
 lat=`awk '$1 == "corner_lat:" {print $2}' geo/EQA.dem_par`
@@ -44,7 +44,7 @@ lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 # Incidence angle at the pixel surface points
 ele2inc.py geo/${master}.geo.rad.elev geo/${master}.geo.deg.inc ${width_dem} ${length_dem}
 geocode geo/${master}.lt_fine geo/${master}.geo.deg.inc ${width_dem} geo/${master}.deg.inc ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback incidence to radar coordinates
-rasrmg geo/${master}.deg.inc RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
+rasrmg geo/${master}.deg.inc SLC/${master}/${master}.slc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
 
 #three lines below -- use only if you need GRD files
 #data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.inc 2 geo/${master}.geo.deg.inc.tif > /dev/null 2>&1 # Convert data to geotiff
@@ -54,7 +54,7 @@ rm -f geo/${master}.geo.rad.elev #geo/${master}.geo.deg.inc.tif geo/${master}.ge
 # Heading angle at the pixel surface points
 orient2heading.py geo/${master}.geo.rad.orientation geo/${master}.geo.deg.heading ${width_dem} ${length_dem}
 geocode geo/${master}.lt_fine geo/${master}.geo.deg.heading ${width_dem} geo/${master}.deg.heading ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback heading to radar coordinates
-rasrmg geo/${master}.deg.heading RSLC/${master}/${master}.rslc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
+rasrmg geo/${master}.deg.heading SLC/${master}/${master}.slc.mli $width - - - $reducfac $reducfac 1 > /dev/null 2>&1
 
 #three lines below -- use only if you need GRD files
 #data2geotiff geo/EQA.dem_par geo/${master}.geo.deg.heading 2 geo/${master}.geo.deg.heading.tif > /dev/null 2>&1 # Convert data to geotiff
