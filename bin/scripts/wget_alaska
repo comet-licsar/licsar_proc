@@ -1,7 +1,12 @@
 #!/bin/bash
 #this script will download a given file (zip file) from alaska facility
 URL=https://datapool.asf.alaska.edu/SLC
-export WGETRC=$LiCSAR_configpath/alaska_credentials_wget
+
+if [ -f ~/.asf_credentials ]; then
+ export WGETRC=~/.asf_credentials
+else
+ export WGETRC=$LiCSAR_configpath/alaska_credentials_wget
+fi
 
 if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
 if [ `echo $1 | grep -c zip` -eq 0 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
