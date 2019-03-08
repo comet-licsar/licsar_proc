@@ -163,8 +163,8 @@ def main(argv=None):
 ############################################################ Parse multilook paramters
     masterslcdir = os.path.join(procdir,'SLC',masterdatestr)
 
-    gc.rglks = int(grep('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
-    gc.azlks = int(grep('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    gc.rglks = int(grep1('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    gc.azlks = int(grep1('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
 
 ############################################################ Get a list of co registered slaves and dates
     date_pairs = []

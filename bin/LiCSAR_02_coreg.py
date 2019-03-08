@@ -183,8 +183,8 @@ def main(argv=None):
 
 
 ############################################################ Parse multi look parameters from parameter files
-    gc.rglks = int(grep('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
-    gc.azlks = int(grep('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    gc.rglks = int(grep1('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    gc.azlks = int(grep1('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
     # Set the output DEM resolution based on the number of looks of the existing data
     # Else force the old default value of the oversampling factor to be 2 as it was previously hardcoded.
     if gc.rglks == 20 and gc.azlks == 4:

@@ -1,0 +1,33 @@
+#!/bin/bash
+#this script will download a given file (zip file) from scihub
+HOST="https://scihub.copernicus.eu/dhus"
+
+if [ -f ~/.scihub_credentials ]; then
+ export WGETRC=~/.scihub_credentials
+else
+ echo "Scihub credentials not set, cancelling"
+ echo "(please put them to ~/.scihub_credentials)"
+ exit
+fi
+
+if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
+if [ `echo $1 | grep -c zip` -eq 0 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
+if [ -z $2 ]; then outdir=.; else outdir=$2; fi
+
+filename=$1
+BN=`basename $filename .zip`
+
+#get file ID
+wget ${HOST}/odata/v1/Products?%24format=text/csv\&%24select=Id\&%24filter=Name%20eq%20%27$BN%27 -O tmp_wget.txt 2>/dev/null
+#for some reason this file is in DOS format....causing problems in linux
+dos2unix tmp_wget.txt 2>/dev/null
+ID=`grep "-" tmp_wget.txt`; rm tmp_wget.txt
+if [ "$ID" == 'Id' -o "$ID" == "" ]; then
+    >&2 echo Product with name \"$BN\" not found
+exit 1
+fi
+
+URL="${HOST}/odata/v1/Products('$ID')/\$value"
+wget -c $URL -O $outdir/$filename
+
+
