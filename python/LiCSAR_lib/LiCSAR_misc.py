@@ -45,3 +45,9 @@ def grep1(arg,filename):
             break
     file.close()
     return res
+
+################################################################################
+# Get information if the file exists or is non-zero
+################################################################################
+def is_non_zero_file(fpath): 
+    return os.path.isfile(fpath) and os.path.getsize(fpath) > 0

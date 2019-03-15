@@ -45,7 +45,7 @@ import re
 
 from LiCSAR_lib.LiCSAR_misc import *
 from LiCSAR_lib.ifg_lib import *
-from LiCSAR_lib.coreg_lib import rebuild_rslc
+#from LiCSAR_lib.coreg_lib import rebuild_rslc
 # from LiCSAR_02_coreg import grep
 #Import gamma wrapper and global config
 from gamma_functions import *
@@ -203,17 +203,17 @@ def main(argv=None):
         f.write('\nMaster date: {0}\n'.format(masterdate))
     
 ############################################################ 
-        for date in procslavelist:
-            slaveDate = dt.datetime.strptime(date,'%Y%m%d')
-            rc = rebuild_rslc(procdir,slaveDate,masterdate,gc.rglks,gc.azlks)
-            if rc == 0:
-                f.write('Slave rslc {0} was sucessfully rebuilt\n'.format(slaveDate))
-            elif rc == 1:
-                f.write('Slave rslc {0} could not be rebuilt\n'.format(slaveDate))
-            elif rc == 2:
-                f.write('Slave rslc {0} does not have valid IW*.rslc files to mosaic\n'.format(slaveDate))
-            elif rc == 3:
-                f.write('Slave rslc {0} already exists\n'.format(slaveDate))
+        #for date in procslavelist:
+        #    slaveDate = dt.datetime.strptime(date,'%Y%m%d')
+        #    rc = rebuild_rslc(procdir,slaveDate,masterdate,gc.rglks,gc.azlks)
+        #    if rc == 0:
+        #        f.write('Slave rslc {0} was sucessfully rebuilt\n'.format(slaveDate))
+        #    elif rc == 1:
+        #        f.write('Slave rslc {0} could not be rebuilt\n'.format(slaveDate))
+        #    elif rc == 2:
+        #        f.write('Slave rslc {0} does not have valid IW*.rslc files to mosaic\n'.format(slaveDate))
+        #    elif rc == 3:
+        #        f.write('Slave rslc {0} already exists\n'.format(slaveDate))
 
 ############################################################ Loop through and create interferograms 
         procDates = []

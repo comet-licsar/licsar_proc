@@ -6,6 +6,7 @@ import shutil
 import sys
 import datetime as dt
 
+from LiCSAR_misc import is_non_zero_file
 from LiCSAR_lib.coreg_lib import get_mli_size
 from gamma_functions import *
 import global_config as gc
@@ -43,7 +44,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     os.mkdir(ifgthisdir)
 ############################################################ remosaicking RSLCs (may not exist)
     for pomdate in [masterdate.strftime('%Y%m%d'),slavedate.strftime('%Y%m%d')]:
-        if not os.path.isfile(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')):
+        if not is_non_zero_file(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc.par')):
             print('Regenerating mosaic for '+pomdate)
             slaverslctab=os.path.join(procdir,'tab',
                              pomdate+'_tab')

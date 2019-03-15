@@ -35,6 +35,11 @@ if [ ! -d $curdir/$tr/$frame/SLC ]; then
  echo "Something got wrong with the initiation"
 else
  cd $curdir/$tr/$frame
+ m=`ls SLC`
+ if [ ! -d RSLC/$m ]; then 
+  mkdir RSLC/$m
+  for slcfile in `ls $curdir/$tr/$frame/SLC/$m/*`; do ln -s $slcfile `echo $slcfile | sed 's/SLC/RSLC/' | sed 's/slc/rslc/'`; done
+ fi
  LiCSAR_05_mk_angles_master
 
  echo "cleaning"
