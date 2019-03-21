@@ -44,7 +44,8 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     os.mkdir(ifgthisdir)
 ############################################################ remosaicking RSLCs (may not exist)
     for pomdate in [masterdate.strftime('%Y%m%d'),slavedate.strftime('%Y%m%d')]:
-        if not is_non_zero_file(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc.par')):
+        if (not is_non_zero_file(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc.par'))) \
+            or (not os.path.exists(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc'))):
             print('Regenerating mosaic for '+pomdate)
             slaverslctab=os.path.join(procdir,'tab',
                              pomdate+'_tab')

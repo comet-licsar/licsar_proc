@@ -92,7 +92,8 @@ def main(argv=None):
             reqInfo = nla.list_requests()
             postReqs = set([req['id'] for req in reqInfo['requests']])
             curReq = postReqs-priorReqs
-            curReq = curReq.pop()
+            if len(curReq) != 0:
+                curReq = curReq.pop()
             if curReq:
                 print("Created request {0} with label {1}".format( curReq, label))
                 if notify:
