@@ -54,6 +54,7 @@ ziplist=${stub}_zipfile_names.list
 linklist=${stub}_urls.list
 
 echo "Track number: $track"
+if [ $track -eq 0 ]; then track=175; echo "(this equals track 175)"; fi
 echo "Orbit direction: $ascdsc"
 echo "Polygon: $polyfile"
 echo "Start epoch: $startdate"
@@ -104,7 +105,7 @@ fi
 
 querytags2="AND ingestiondate:[${startyyyy}-${startmm}-${startdd}T00:00:00.000Z TO ${endyyyy}-${endmm}-${enddd}T00:00:00.000Z] "
 
-rm tmp1.txt tmp2.txt tmp3.txt
+rm tmp1.txt tmp2.txt tmp3.txt 2>/dev/null
 touch tmp1.txt tmp2.txt tmp3.txt
 i=1
 flag=1

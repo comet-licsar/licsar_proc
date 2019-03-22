@@ -87,14 +87,15 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
    std=`grep STDDEV ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats | cut -d '=' -f2`
    max=`echo $max-$std | bc`
    min=`echo $min+$std | bc`
+   
    #generate displacement image
-   visdt_pwr.py ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} $min $max -b -p ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png >> $logfile 2>/dev/null
+   visdt_pwr.py ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} $min $max -b -p ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png 2>/dev/null
    convert ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp
    #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile   
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp ]; then
    convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp
   fi
-  convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
+  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
 
 #Filtered interferograms... also is in this public LiCSAR website...
