@@ -42,6 +42,8 @@ else
  fi
  LiCSAR_05_mk_angles_master
 
+#sometimes .xy is not generated..
+if [ ! -f $curdir/$tr/$frame/frame.xy ]; then cp $curdir/$tr/$frame/$frame'-poly.txt' $curdir/$tr/$frame/frame.xy; fi
  echo "cleaning"
  rm -f $curdir/$tr/$frame/SLC/*/2*T*.I*sl* 2>/dev/null
  echo "done"

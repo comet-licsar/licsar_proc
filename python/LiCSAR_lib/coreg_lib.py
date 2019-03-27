@@ -695,6 +695,15 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("Something went wrong resampling the slave SLC", file=sys.stderr)
             return 3
 #########################################################################
+        #Do the RSLC mosaic
+        logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
+                                   slavedate.strftime('%Y%m%d')+
+                                   '.log')
+        if not SLC_mosaic_S1_TOPS(slaverslctab,slaverfilename,gc.rglks,gc.azlks,logfilename,mastertab=masterslctab):
+            print('Something went wrong mosaicing subswaths '\
+                    'together. Log file {0}. Continuing with next acquisition '\
+                    'date.'.format(logfilename), file=sys.stderr)
+            return 3
         #Multilook (average) resampled slc
         logfilename =  os.path.join(procdir,'log',
                                             'multilookRSLC_{0}_crop.log'.format(

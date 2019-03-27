@@ -79,8 +79,8 @@ def get_edges(ph,zeroix):
     ix = np.ones(ph.shape,dtype=bool)
     iq,jq = np.where(ix)
     dq = np.array((iq,jq)).T
-    nntree = spat.cKDTree(datapoints,leafsize=10)
-    distq, gridix = nntree.query(dq)
+    nntree = spat.cKDTree(datapoints,leafsize=10,compact_nodes=False,balanced_tree=False)
+    distq, gridix = nntree.query(dq,n_jobs=-1)
     rowedges = np.array((gridix[:-width],
                          gridix[width:])).T
     gridixT = np.reshape(gridix,(length,width)).T.flatten()
@@ -128,7 +128,7 @@ def get_costs(edges, n_edge, rowix, colix, zeroix):
     nshortcycle = 100
     i,j = np.where(~zeroix)
     grid_edges = np.vstack((rowix.compressed()[:,None],colix.compressed()[:,None]))
-    n_edges = np.histogram(abs(grid_edges),list(range(0,n_edge+1)))[0]
+    n_edges =  np.histogram(abs(grid_edges),n_edge,(0,n_edge))[0]
     edge_length = np.sqrt(np.diff(i[edges[:,1:]],axis=1)**2+
                           np.diff(j[edges[:,1:]],axis=1)**2)
     sigsq_noise = np.zeros(edge_length.shape,dtype=np.float32)
@@ -221,16 +221,12 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
     except:
         print('Something went wrong writing the unwrapped interferogram to file {0}.'.format(os.path.join(ifgdir,date+'.unw')))
         return False
-
-
-    return True
     #cleaning the tmpdir
     #if os.path.exists(tmpdir) and os.path.isfile(tmpdir):
     #    os.remove(tmpdir)
     if os.path.exists(tmpdir) and os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
-
-                             
+    return True
 
 ################################################################################
 # Get snaphu conf
@@ -242,4 +238,10 @@ def get_snaphu_conf(tmpdir):
             'STATCOSTMODE  DEFO\n',
             'INFILEFORMAT  COMPLEX_DATA\n',
             'OUTFILEFORMAT FLOAT_DATA\n',
-            'NSHORTCYCLE 100\n')
+            'NSHORTCYCLE 100\n',
+            'NTILEROW 4\n',
+            'NTILECOL 4\n',
+            'ROWOVRLP 20\n',
+            'COLOVRLP 20\n',
+            'NPROC 16\n',
+            'RMTMPTILE TRUE\n')
