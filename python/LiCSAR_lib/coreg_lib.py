@@ -520,7 +520,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                               masterdate.strftime('%Y%m%d')+'_'+
                               slavedate.strftime('%Y%m%d')+'.log')
         with open(qualityfile, "a") as myfile:
-                myfile.write("Iterative improvement of refinement offset using matching:")
+                myfile.write("Iterative improvement of refinement offset using matching:\n")
         daz10000=10000
         it=0
         itmax=5
@@ -598,8 +598,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 print("Something went wrong refining the lookup table.", file=sys.stderr)
                 return 4
             with open(qualityfile, "a") as myfile:
-                myfile.write("matching_iteration_"+str(it)+": "+str(daz)+" "+str(dr)+" "+str(daz_mli)+" "+str(dr_mli)+" (daz dr  daz_mli dr_mli)")
-                myfile.write("matching_iteration_"+str(it)+": "+str(azimuth_stdev)+" "+str(range_stdev) +"  (azi/rg std dev) ")
+                myfile.write("matching_iteration_"+str(it)+": "+str(daz)+" "+str(dr)+" "+str(daz_mli)+" "+str(dr_mli)+" (daz dr  daz_mli dr_mli) \n")
+                myfile.write("matching_iteration_"+str(it)+": "+str(azimuth_stdev)+" "+str(range_stdev) +"  (azi/rg std dev) \n")
         #
         # Iterative improvement of azimuth refinement using spectral diversity method
         #
@@ -650,7 +650,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         it=0
         itmax=5
         with open(qualityfile, "a") as myfile:
-                myfile.write("Iterative improvement of refinement offset azimuth overlap regions:")
+                myfile.write("Iterative improvement of refinement offset azimuth overlap regions:\n")
         # iterate while azimuth correction >= 0.0005 SLC pixel
         while (daz10000 > 5 or daz10000 < -5) and (it < itmax):
             it += 1
@@ -677,7 +677,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 print("Something went wrong during the first offset refinement using spectral diversity.", file=sys.stderr)
                 return 4
             with open(qualityfile, "a") as myfile:
-                myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)")
+                myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)\n")
             daztmp = grep1('azimuth_pixel_offset',offazovrout)
             daz = float(daztmp.split()[1])      
             daz10000 = int(daz*10000)

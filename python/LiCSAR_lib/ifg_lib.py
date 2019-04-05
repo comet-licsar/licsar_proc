@@ -48,7 +48,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
             or (not os.path.exists(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc'))):
             print('Regenerating mosaic for '+pomdate)
             slaverslctab=os.path.join(procdir,'tab',
-                             pomdate+'_tab')
+                             pomdate+'R_tab')
             slavefilename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
             logfile = os.path.join(procdir,'log',"mosaic_rslc_{0}.log".format(pomdate))
             SLC_mosaic_S1_TOPS(slaverslctab,slavefilename,gc.rglks,gc.azlks,logfile,mastertab)

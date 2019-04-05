@@ -10,15 +10,15 @@ import numpy as np
 
 
 #LiCSARpath = '/home/users/karzzeh/Software/LiCSAR'
-sys.path.append(os.getcwd())
+#sys.path.append(os.getcwd())
 #sys.path.append(LiCSARpath)
 #sys.path.append(LiCSARpath+'/bin')
 #sys.path.append(LiCSARpath+'/lib')
 #sys.path.append(LiCSARpath+'/LiCSdb')
 #sys.path.append(LiCSARpath+'/python')
 
-from LiCSAR_02_coreg import get_mli_size, get_dem_size
-from gamma_functions_karzzeh import look_vector, geocode
+from LiCSAR_lib.coreg_lib import get_mli_size, get_dem_size
+from gamma_functions import look_vector, geocode
 
 class Usage(Exception):
     """Usage context manager"""
@@ -46,8 +46,10 @@ def main(argv=None):
         print("\nFor help, use -h or --help.\n", file=sys.stderr)
         return 2
 
-    currentdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current'
-    pubdir = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/'
+    #currentdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current'
+    #pubdir = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/'
+    currentdir = os.environ['LiCSAR_procdir']
+    pubdir = os.environ['LiCSAR_public']
     trackdir = os.path.join(currentdir,track)
     framedir = os.path.join(trackdir,frame)
     pubframedir = os.path.join(pubdir,track,frame,'metadata')
@@ -95,11 +97,13 @@ def main(argv=None):
         os.remove(phi)
         os.remove(phi+'.rc')
         #os.system('create_geoctiff_lookangles.sh {0} {1}'.format(framedir,origmasterdate))
-        os.system(os.getcwd()+'/create_geoctiff_lookangles.sh {0} {1}'.format(framedir,origmasterdate))
+        os.system('create_geoctiff_lookangles.sh {0} {1}'.format(framedir,origmasterdate))
         for tif in glob.glob(os.path.join(pubframedir,'*.tif')):
             os.remove(tif)
+        if not os.path.exists(pubframedir):
+            os.system('mkdir -p {0}'.format(pubframedir))
         for tif in glob.glob(os.path.join(framedir,'GEOC','lookangles','*.tif')):
-            copy(tif,pubframedir)
+            copy(tif,os.path.join(pubframedir,frame+'.geo.'+tif.split('.')[2]+'.tif'))
 
 if __name__ == "__main__":
     sys.exit(main())

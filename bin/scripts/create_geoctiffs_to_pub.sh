@@ -62,16 +62,16 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
    echo "Geocoding"
    geocode_back ${procdir}/IFG/${ifg}/${ifg}.unw $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.unw ${width_dem} ${length_dem} 0 0 >> $logfile
   fi
-  if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ]; then
-   echo "Converting unwrapped phase to displacements"
-   dispmap ${procdir}/IFG/${ifg}/${ifg}.unw ${procdir}/geo/$master.hgt ${procdir}/SLC/$master/$master.slc.par ${procdir}/IFG/${ifg}/${ifg}.off ${procdir}/IFG/${ifg}/${ifg}.disp 0 0 >> $logfile
-   geocode_back ${procdir}/IFG/${ifg}/${ifg}.disp $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${width_dem} ${length_dem} 0 0 >> $logfile   
-  fi
+#  if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ]; then
+#   echo "Converting unwrapped phase to displacements"
+#   dispmap ${procdir}/IFG/${ifg}/${ifg}.unw ${procdir}/geo/$master.hgt ${procdir}/SLC/$master/$master.slc.par ${procdir}/IFG/${ifg}/${ifg}.off ${procdir}/IFG/${ifg}/${ifg}.disp 0 0 >> $logfile
+#   geocode_back ${procdir}/IFG/${ifg}/${ifg}.disp $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${width_dem} ${length_dem} 0 0 >> $logfile   
+#  fi
   # Convert to geotiff
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif ]; then 
    echo "Converting to GeoTIFF"
    data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.unw 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif 0.0  >> $logfile 2>/dev/null
-   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
+#   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
   fi
   # Create bmps
   #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.unw ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp >> $logfile
@@ -81,21 +81,21 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   fi 
    #rasrmg ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile
    #get min and max for disp image
-   gdalinfo -stats ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif > ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats
-   min=`grep MINIMUM ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats | cut -d '=' -f2`
-   max=`grep MAXIMUM ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats | cut -d '=' -f2`
-   std=`grep STDDEV ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats | cut -d '=' -f2`
-   max=`echo $max-$std | bc`
-   min=`echo $min+$std | bc`
+#   gdalinfo -stats ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif > ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats
+#   min=`grep MINIMUM ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats | cut -d '=' -f2`
+#   max=`grep MAXIMUM ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats | cut -d '=' -f2`
+#   std=`grep STDDEV ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats | cut -d '=' -f2`
+#   max=`echo $max-$std | bc`
+#   min=`echo $min+$std | bc`
    
    #generate displacement image
-   visdt_pwr.py ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} $min $max -b -p ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png 2>/dev/null
-   convert ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp
+#   visdt_pwr.py ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} $min $max -b -p ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png 2>/dev/null
+#   convert ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp
    #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile   
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp ]; then
    convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp
   fi
-  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
+#  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
 
 #Filtered interferograms... also is in this public LiCSAR website...

@@ -41,9 +41,11 @@ else
   for slcfile in `ls $curdir/$tr/$frame/SLC/$m/*`; do ln -s $slcfile `echo $slcfile | sed 's/SLC/RSLC/' | sed 's/slc/rslc/'`; done
  fi
  LiCSAR_05_mk_angles_master
-
-#sometimes .xy is not generated..
-if [ ! -f $curdir/$tr/$frame/frame.xy ]; then cp $curdir/$tr/$frame/$frame'-poly.txt' $curdir/$tr/$frame/frame.xy; fi
+ echo "Generating E-N-U files"
+ submit_lookangles.py -f $frame -t $tr
+ #sometimes .xy is not generated..
+ if [ ! -f $curdir/$tr/$frame/frame.xy ]; then cp $curdir/$tr/$frame/$frame'-poly.txt' $curdir/$tr/$frame/frame.xy; fi
+ cp $curdir/$tr/$frame/$frame'-poly.txt' $LiCSAR_public/$tr/$frame/metadata/.
  echo "cleaning"
  rm -f $curdir/$tr/$frame/SLC/*/2*T*.I*sl* 2>/dev/null
  echo "done"

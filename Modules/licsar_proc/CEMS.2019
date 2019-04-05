@@ -66,6 +66,7 @@ setenv LiCSARconfig "$configpath/liveConfig.cnf"
 setenv LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
 setenv LiCSAR_public "/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products"
 setenv LiCSAR_SLC "/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC"
+#setenv LiCSAR_SLC "/work/scratch-nompiio/licsar/SLC"
 
 #setup executable paths
 prepend-path PATH "$LiCSARpath/bin"

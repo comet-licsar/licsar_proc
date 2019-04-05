@@ -4,6 +4,7 @@
 import os
 import shutil
 import sys
+import re
 import numpy as np
 import subprocess as subp
 import scipy.spatial as spat
@@ -199,10 +200,14 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
     ifg_float[:,1::2] = ifg.imag
     with open(os.path.join(tmpdir,'snaphu.in'),'w') as f:
         ifg_float.tofile(f)
-
-    with open(os.path.join(tmpdir,'snaphu.conf'),'w') as f:
-        for l in get_snaphu_conf(tmpdir):
-            f.write(l)
+    #copy customized snaphu.conf if exists for the given frame
+    if os.path.exists(os.path.join(procdir,'log','snaphu.conf')):
+        copyfile(os.path.join(procdir,'log','snaphu.conf'), tmpdir)
+        subp.call(["sed", "-i", 's/TMPDIR/{}/'.format(re.sub('/','\/',tmpdir)), os.path.join(tmpdir,'snaphu.conf')])
+    else:
+        with open(os.path.join(tmpdir,'snaphu.conf'),'w') as f:
+            for l in get_snaphu_conf(tmpdir):
+                f.write(l)
 
 ############################################################ Unwrap IFG
     logfilename = os.path.join(tmpdir,'snaphu.log')
@@ -241,7 +246,7 @@ def get_snaphu_conf(tmpdir):
             'NSHORTCYCLE 100\n',
             'NTILEROW 4\n',
             'NTILECOL 4\n',
-            'ROWOVRLP 20\n',
-            'COLOVRLP 20\n',
+            'ROWOVRLP 200\n',
+            'COLOVRLP 200\n',
             'NPROC 16\n',
             'RMTMPTILE TRUE\n')

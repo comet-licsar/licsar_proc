@@ -55,6 +55,21 @@ def mcf(difffile,ccfile,mask,uwoutfile,width,logfilename):
     else:
         return True
 
+def look_vector(slcpar,offpar,dempar,dem,theta,phi,logfilename):
+    """
+    """
+    lookcall = ['look_vector',slcpar,offpar,dempar,dem,theta,phi]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(lookcall,stdout=f)
+        except:
+            print('Something went wrong during the look vector calculation. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the look vector calculation. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
 
 def adf(difffile,filtout,ccout,width,alpha,winsize,logfilename):
     """
