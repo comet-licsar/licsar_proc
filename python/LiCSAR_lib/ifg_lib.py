@@ -33,6 +33,13 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     pair = '{0}_{1}'.format(masterdate.strftime('%Y%m%d'),
                             slavedate.strftime('%Y%m%d'))
     print('Computing interferogram {0}'.format(pair))
+
+############################################################ Create a log with basic ifg info
+    qualityfile=os.path.join(procdir,'log','ifg_quality_'+
+                              masterdate.strftime('%Y%m%d')+'_'+
+                              slavedate.strftime('%Y%m%d')+'.log')
+    with open(qualityfile, "a") as myfile:
+            myfile.write("Basic interferogram information: \n")
     
 ############################################################ Create directory structure
     ifgdir = os.path.join(procdir,'IFG')
@@ -113,6 +120,14 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     slavemli = os.path.join(procdir,'RSLC',
                              slavedate.strftime('%Y%m%d'),
                              slavedate.strftime('%Y%m%d')+'.rslc.mli')
+    #get baselines information to the qualityfile
+    templog = procdir+'/log/tmp_base.log'
+    pom = os.system('base_orbit '+mastermli+' '+slavemli+' - > '+templog)
+    with open(qualityfile, "a") as myfile:
+            myfile.write(grep1('perpendicular', templog))
+            myfile.write(grep1('parallel', templog))
+    os.remove(procdir+'/log/tmp_base.log')
+    
     cohfile = os.path.join(ifgdir,pair,pair+'.cc')
     logfilename  = os.path.join(procdir,'log','cc_wave_{0}.log'.format(pair))
     if not cc_wave(difffile,mastermli,slavemli,cohfile,width,logfilename):

@@ -1049,3 +1049,21 @@ function mk_coreg_TOPS_specdiv_crop(){
 #     rm -f RSLC/${slave}/${master}_${slave}.IW*.*.diff* RSLC/${slave}/${master}_${slave}.IW*.*.int* RSLC/${slave}/${master}_${slave}.IW*.*.off* 
 #   fi
 }; export -f mk_coreg_TOPS_specdiv_crop
+
+
+
+function datediff {
+# very useful function to find the difference (in days) between two dates
+A=$1
+B=$2
+#B=`date +%Y-%m-%d`
+#A=${1:0:4}-${1:4:2}-${1:6:2}
+#B=${2:0:4}-${2:4:2}-${2:6:2}
+sec=86400
+dte1=$(date --utc --date "$A" +%s)
+dte2=$(date --utc --date "$B" +%s)
+diffSec=$((dte2-dte1))
+if ((diffSec < 0)); then abs=-1; else abs=1; fi
+ROZDIL=$((diffSec/sec*abs))
+echo $ROZDIL
+}; export -f datediff

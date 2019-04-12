@@ -36,7 +36,7 @@ lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`;
 
 echo " Running doGeocoding step for unwrapped"
-logfile=${procdir}/13_doGeocoding.log
+logfile=${procdir}/13_doGeocoding_$ifg.log
 echo "   check "$logfile" if something goes wrong "
 #rm -f $logfile
 

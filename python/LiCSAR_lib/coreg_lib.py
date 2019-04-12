@@ -452,6 +452,12 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         slave3tab = ''
 
 ############################################################ Geomatric coregistration
+    qualityfile=os.path.join(procdir,'log','coreg_quality_'+
+                              masterdate.strftime('%Y%m%d')+'_'+
+                              slavedate.strftime('%Y%m%d')+'.log')
+    if slave3date:
+        with open(qualityfile, "a") as myfile:
+            myfile.write("Spectral diversity estimation will be performed through near RSLC: "+slave3date.strftime('%Y%m%d')+"\n")
     #if no missing bursts....
     if not missingbursts:
         print('All bursts available, no recropping of master necessary...')
@@ -516,90 +522,91 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("\nError:", file=sys.stderr)
             print("Something went wrong creating the offset file.", file=sys.stderr)
             return 4
-        qualityfile=os.path.join(procdir,'log','coreg_quality_'+
-                              masterdate.strftime('%Y%m%d')+'_'+
-                              slavedate.strftime('%Y%m%d')+'.log')
         with open(qualityfile, "a") as myfile:
-                myfile.write("Iterative improvement of refinement offset using matching:\n")
-        daz10000=10000
-        it=0
-        itmax=5
-        while (daz10000 > 100 or daz10000 < -100) and (it < itmax):
-            it += 1
-            print("Offset refinement - iteration "+str(it))
-            shutil.copyfile(offfile,offfile+'.start')
-            print('Resampling image...')
-            if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
+                myfile.write("Improvement of coregistration offset using intensity cross-correlation:\n")
+        #daz10000=10000
+        #it=0
+        #itmax=5
+        #while (daz10000 > 100 or daz10000 < -100) and (it < itmax):
+        #    it += 1
+        #
+        #Will process it only once - testing showed that more iterations cause only an extra iteration in ESD
+        print("Offset refinement using intensity cross-correlation")
+        #    print("Offset refinement - iteration "+str(it))
+        shutil.copyfile(offfile,offfile+'.start')
+        print('Resampling image...')
+        if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
                                          masterpar,lut,mastermlipar,slavemlipar,
                                          offfile+'.start',slaverslctab,slaverfilename,
                                          slaverfilename+'.par',logfile):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong resampling the slave SLC", file=sys.stderr)
-                return 3
-            #we are using some temporary dofffile here, not sure why but was in gamma..
-            if os.path.exists(dofffile): os.remove(dofffile)
-            if not create_offset(masterpar,slaverfilename+'.par',dofffile,str(gc.rglks),
-                             str(gc.azlks),logfile_offset):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong creating the offset file.", file=sys.stderr)
-                return 4
-            #we do offset tracking between SLC images using intensity cross-correlation
-            logfile = os.path.join(procdir,'log','offset_pwr_tracking_'+
-                               masterdate.strftime('%Y%m%d')+'_'+
-                               slavedate.strftime('%Y%m%d')+'.log')
-            if not offset_pwr_tracking(masterfilename,slaverfilename,masterpar,slaverfilename+'.par',
-                             dofffile,pair,rstep,azstep,logfile):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong with offset tracking.", file=sys.stderr)
-                return 4
-            #then we do offset fitting (gamma recommends offset_fit and not offset_fitm)
-            if not offset_fit(pair,dofffile,pair+'.off.out.'+str(it)):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong with offset fitting.", file=sys.stderr)
-                return 4
-            fittmp = grep1('final model fit std. dev.',pair+'.off.out.'+str(it))
-            range_stdev = float(fittmp.split(':')[1].split()[0])
-            azimuth_stdev = float(fittmp.split(':')[2])
-            daztmp = grep1('azimuth_offset_polynomial:',dofffile)
-            drtmp = grep1('range_offset_polynomial:',dofffile)
-            daz10000 = int(float(daztmp.split()[1])*10000)
-            daz = float(daztmp.split()[1])
-            daz_mli = daz/gc.azlks
-            dr = float(drtmp.split()[1])
-            dr_mli = dr/gc.rglks
-            with open(pair+'.refinement.iteration.'+str(it), "w") as myfile:
-                myfile.write("dr_mli: "+str(dr_mli)+"    daz_mli: "+str(daz_mli))
-            if os.path.exists(pair+'.diff_par'): os.remove(pair+'.diff_par')
-            logfile = os.path.join(procdir,'log',
-                           'create_diff_par_'+
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong resampling the slave SLC", file=sys.stderr)
+            return 3
+        #we are using some temporary dofffile here, not sure why but was in gamma..
+        if os.path.exists(dofffile): os.remove(dofffile)
+        if not create_offset(masterpar,slaverfilename+'.par',dofffile,str(gc.rglks),
+                         str(gc.azlks),logfile_offset):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong creating the offset file.", file=sys.stderr)
+            return 4
+        #we do offset tracking between SLC images using intensity cross-correlation
+        logfile = os.path.join(procdir,'log','offset_pwr_tracking_'+
                            masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.log')
-            if not create_diff_par(mastermlipar,mastermlipar,pair+'.diff_par','1','0',logfile):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong during the DIFF parameter file creation", file=sys.stderr)
-                return 3
-            shutil.copyfile(pair+'.diff_par',pair+'.diff_par.'+str(it))
-            if not set_value(pair+'.diff_par',pair+'.diff_par',"range_offset_polynomial",
-                           str(dr_mli)+"   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00"):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong during the range value setting", file=sys.stderr)
-                return 3
-            if not set_value(pair+'.diff_par',pair+'.diff_par',"azimuth_offset_polynomial",
-                           str(daz_mli)+"   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00"):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong during the azimuth value setting", file=sys.stderr)
-                return 3
-            shutil.move(lut,lut+'.tmp.'+str(it))
-            logfile = os.path.join(procdir,'log',
-                           'gc_map_fine_{0}.log'.format(masterdate.strftime('%Y%m%d')))
-            if not gc_map_fine(lut+'.tmp.'+str(it),str(mliwidth),pair+'.diff_par',lut,'1',logfile):
-                # Error in lookup table refining
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong refining the lookup table.", file=sys.stderr)
-                return 4
-            with open(qualityfile, "a") as myfile:
-                myfile.write("matching_iteration_"+str(it)+": "+str(daz)+" "+str(dr)+" "+str(daz_mli)+" "+str(dr_mli)+" (daz dr  daz_mli dr_mli) \n")
-                myfile.write("matching_iteration_"+str(it)+": "+str(azimuth_stdev)+" "+str(range_stdev) +"  (azi/rg std dev) \n")
+        if not offset_pwr_tracking(masterfilename,slaverfilename,masterpar,slaverfilename+'.par',
+                         dofffile,pair,rstep,azstep,logfile):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong with offset tracking.", file=sys.stderr)
+            return 4
+        #then we do offset fitting (gamma recommends offset_fit and not offset_fitm)
+        if not offset_fit(pair,dofffile,pair+'.off.out'):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong with offset fitting.", file=sys.stderr)
+            return 4
+        fittmp = grep1('final model fit std. dev.',pair+'.off.out')
+        range_stdev = float(fittmp.split(':')[1].split()[0])
+        azimuth_stdev = float(fittmp.split(':')[2])
+        daztmp = grep1('azimuth_offset_polynomial:',dofffile)
+        drtmp = grep1('range_offset_polynomial:',dofffile)
+        #daz10000 = int(float(daztmp.split()[1])*10000)
+        daz = float(daztmp.split()[1])
+        daz_mli = daz/gc.azlks
+        dr = float(drtmp.split()[1])
+        dr_mli = dr/gc.rglks
+        #    with open(pair+'.refinement.iteration.'+str(it), "w") as myfile:
+        #        myfile.write("dr_mli: "+str(dr_mli)+"    daz_mli: "+str(daz_mli))
+        if os.path.exists(pair+'.diff_par'): os.remove(pair+'.diff_par')
+        logfile = os.path.join(procdir,'log',
+                       'create_diff_par_'+
+                       masterdate.strftime('%Y%m%d')+'_'+
+                       slavedate.strftime('%Y%m%d')+'.log')
+        #this indeed looks weird, but probably is only a gamma 'trick' to create a zero-filled template
+        if not create_diff_par(mastermlipar,mastermlipar,pair+'.diff_par','1','0',logfile):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong during the DIFF parameter file creation", file=sys.stderr)
+            return 3
+        #shutil.copyfile(pair+'.diff_par',pair+'.diff_par.'+str(it))
+        if not set_value(pair+'.diff_par',pair+'.diff_par',"range_offset_polynomial",
+                       str(dr_mli)+"   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00"):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong during the range value setting", file=sys.stderr)
+            return 3
+        if not set_value(pair+'.diff_par',pair+'.diff_par',"azimuth_offset_polynomial",
+                       str(daz_mli)+"   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00"):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong during the azimuth value setting", file=sys.stderr)
+            return 3
+        shutil.move(lut,lut+'.orbitonly')
+        logfile = os.path.join(procdir,'log',
+                       'gc_map_fine_{0}.log'.format(masterdate.strftime('%Y%m%d')))
+        if not gc_map_fine(lut+'.orbitonly',str(mliwidth),pair+'.diff_par',lut,'1',logfile):
+            # Error in lookup table refining
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong refining the lookup table.", file=sys.stderr)
+            return 4
+        with open(qualityfile, "a") as myfile:
+            myfile.write("intensity_matching: "+str(daz)+" "+str(dr)+" "+str(daz_mli)+" "+str(dr_mli)+" (daz dr  daz_mli dr_mli) \n")
+            myfile.write("intensity_matching: "+str(azimuth_stdev)+" "+str(range_stdev) +"  (azi/rg std dev) \n")
         #
         # Iterative improvement of azimuth refinement using spectral diversity method
         #
@@ -624,7 +631,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         if not poly_math(mastermli,mazovr,str(mliwidth),mazpoly,logfile):
             # Error in lookup table refining
             print("\nError:", file=sys.stderr)
-            print("Something went wrong using S1_poly_overlap", file=sys.stderr)
+            print("Something went wrong using poly_math", file=sys.stderr)
             return 4
         # maybe should be here?
         logfile = os.path.join(procdir,'log',
@@ -652,8 +659,14 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         with open(qualityfile, "a") as myfile:
                 myfile.write("Iterative improvement of refinement offset azimuth overlap regions:\n")
         # iterate while azimuth correction >= 0.0005 SLC pixel
+        daz_total=0
         while (daz10000 > 5 or daz10000 < -5) and (it < itmax):
             it += 1
+            #first write the previous iteration (or pwr_tracking) to the qualityfile
+            with open(qualityfile, "a") as myfile:
+                myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)\n")
+            #get the total daz value (w.r.t. image resampled after orbit-based coreg = rdc_trans)
+            daz_total = daz_total + daz
             print('offset refinement using spectral diversity in azimuth overlap region iteration '+str(it))
             shutil.copyfile(offfile,offfile+'.start')
             logfile_interp_lt2 = os.path.join(procdir,'log',
@@ -676,13 +689,12 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 print("\nError:", file=sys.stderr)
                 print("Something went wrong during the first offset refinement using spectral diversity.", file=sys.stderr)
                 return 4
-            with open(qualityfile, "a") as myfile:
-                myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)\n")
             daztmp = grep1('azimuth_pixel_offset',offazovrout)
             daz = float(daztmp.split()[1])      
             daz10000 = int(daz*10000)
             shutil.copyfile(offfile,offfile+'.az_ovr.'+str(it))
-        #
+        with open(qualityfile, "a") as myfile:
+                myfile.write("Total azimuth offset (w.r.t. image resampled after rdc_trans): "+str(daz_total)+" (daz in SLC pixel)\n")
         #resample full data set
         print('Resampling the full data set')
         logfile_interp_lt3 = os.path.join(procdir,'log',
@@ -721,6 +733,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         # this solution was working also with the 20181130 gamma codes. Keeping as it is..
         print('Missing bursts at either or both ends of the scene, recropping '\
                 'master, and auxiliary slave if necessary...')
+        with open(qualityfile, "a") as myfile:
+            myfile.write("There were missing bursts. Related coreg routine was used \n")
     #loop through swaths
         for iw in ['IW1','IW2','IW3']:
         #get master and slave bursts
@@ -860,7 +874,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
 ####
 #####
         
-############################################################ Coregester slave to master. See no missing bursts code
+############################################################ Coregister slave to master. See no missing bursts code
         mastermlipar = os.path.join(masterrslcdir,
                                  masterdate.strftime('%Y%m%d')+'_crop.rslc.mli.par')
         masterpar = os.path.join(masterrslcdir,
@@ -923,8 +937,12 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("\nError:", file=sys.stderr)
             print("Something went wrong during the first "\
                     "offset refinement using spectral diversity.", file=sys.stderr)
-            return 4      
-
+            return 4
+        #extract the azi offset values into the quality file
+        azivalue=grep1('azimuth_offset_polynomial',refine1file).split(':')[1].split()[0]
+        with open(qualityfile, "a") as myfile:
+            myfile.write("Iterative improvement of refinement offset azimuth overlap regions: \n")
+            myfile.write("az_ovr_iteration_1: "+azivalue+" (daz in SLC pixel) \n")
         logfile = os.path.join(procdir,'log','SLC_interp_lt_S1_TOPS_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'_refine1.log')
@@ -951,7 +969,10 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("Something went wrong during the first "\
                     "offset refinement using spectral diversity.", file=sys.stderr)
             return 4      
-
+        azivalue=grep1('azimuth_offset_polynomial',refine2file).split(':')[1].split()[0]
+        with open(qualityfile, "a") as myfile:
+            myfile.write("Iterative improvement of refinement offset azimuth overlap regions: \n")
+            myfile.write("az_ovr_iteration_2: "+azivalue+" (daz in SLC pixel) \n")
         logfile = os.path.join(procdir,'log','SLC_interp_lt_S1_TOPS_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'_refine2.log')
