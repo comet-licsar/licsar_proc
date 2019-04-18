@@ -1,5 +1,7 @@
 #!/bin/bash
 if [ -z $2 ]; then echo "inputs are: procdir ifg"; exit; fi
+#what is needed here (can be changed probably) is *.rslc.mli.par !!!
+
 module load doris
 #module load LiCSAR/dev
 

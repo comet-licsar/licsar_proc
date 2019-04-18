@@ -6,7 +6,7 @@ import shutil
 import sys
 import datetime as dt
 
-from LiCSAR_misc import is_non_zero_file
+from LiCSAR_misc import is_non_zero_file, grep1
 from LiCSAR_lib.coreg_lib import get_mli_size
 from gamma_functions import *
 import global_config as gc
@@ -122,7 +122,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
                              slavedate.strftime('%Y%m%d')+'.rslc.mli')
     #get baselines information to the qualityfile
     templog = procdir+'/log/tmp_base.log'
-    pom = os.system('base_orbit '+mastermli+' '+slavemli+' - > '+templog)
+    pom = os.system('base_orbit '+mastermli+'.par '+slavemli+'.par - > '+templog)
     with open(qualityfile, "a") as myfile:
             myfile.write(grep1('perpendicular', templog))
             myfile.write(grep1('parallel', templog))
