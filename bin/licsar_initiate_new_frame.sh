@@ -1,6 +1,6 @@
 #!/bin/bash
 #a script that will generate master, DEM  and all other necessary files to initiate a new frame
-#module load licsar_proc
+#module load licsar_proc #or _testing
 curdir=$LiCSAR_procdir
 
 if [ -z $1 ];
