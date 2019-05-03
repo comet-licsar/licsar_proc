@@ -7,17 +7,18 @@ proc ModulesHelp { } {
 
 #module-whatis "licsar_proc"
 
-set LiCSARpath "/gws/nopw/j04/nceo_geohazards_vol1/software/licsar_proc"
+set LiCSARpath "/home/users/earmla/software/licsar_proc"
 puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 
 if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded gamma] } {
         module load gamma/20181130
-#temporary solution - we need to use the older version now before i will manage a proper (deep) update
-#         module load gamma/20171201
     }
     if { ![is-loaded snaphu] } {
         module load snaphu
+    }
+    if { ![is-loaded doris] } {
+        module load doris
     }
     if { ![is-loaded anaconda] } {
         module load anaconda
@@ -28,20 +29,19 @@ if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded licsar_db] } {
         module load licsar_db
     }
-#    puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 }
 
 prereq snaphu
+prereq doris
 prereq gamma
 prereq anaconda
 prereq licsar_db
-# prereq LiCSAR-pve
 prereq nla
 
 # Set internal variable for path exports
 set grouppath "/gws/nopw/j04/nceo_geohazards_vol1"
-#set LiCSARpath "/gws/nopw/j04/nceo_geohazards_vol1/software/licsar_proc"
 set LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
+set softwarepath "/home/users/earmla/software"
 
 #keep the below
 set configpath "$grouppath/config/licsar_proc"
@@ -52,27 +52,18 @@ setenv LiCSAR_configpath "$configpath"
 setenv LiCSARpath "$LiCSARpath"
 setenv LiCSAR_temp "/work/scratch/$USER/LiCSAR_temp/"
 
-#Modules are weird.. ORBs_DIR is working but DEMs_DIR is not visible
-#modules do not like the name DEMs_DIR... why
-#puts stderr "loading some paths"
 setenv ORB_DIR "$grouppath/orbits/"
 setenv dems_dir "$grouppath/DEMs/"
-#setenv DEMs_DIR "$grouppath/DEMs/" ### in capital letters it doesn't work
-
-#prepend-path DEMs_DIR "$grouppath/DEMs"
-#prepend-path ORBs_DIR "$grouppath/orbits/"
 
 setenv LiCSARconfig "$configpath/liveConfig.cnf"
-setenv LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
+setenv LiCSAR_procdir "$LiCSAR_procdir"
 setenv LiCSAR_public "/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products"
 setenv LiCSAR_SLC "/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC"
-#setenv LiCSAR_SLC "/work/scratch-nompiio/licsar/SLC"
 
 #setup executable paths
 prepend-path PATH "$LiCSARpath/bin"
 prepend-path PATH "$LiCSARpath/bin/orig"
 prepend-path PATH "$LiCSARpath/bin/scripts"
-# prepend-path PATH "$LiCSARpath/external/"
 prepend-path PATH "$LiCSARpath/python"
 
 #Setup python path
@@ -80,9 +71,3 @@ prepend-path PYTHONPATH "$LiCSARpath/python"
 prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_lib"
 prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_db"
 
-# Source LiCSAR bash Library
-# strange... it doesn't work when it is here
-# but it works when this line is in the beginning of the module..
-# but the PYTHONPATH (above) is loaded fully
-# strange..... so strange..
-# puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
