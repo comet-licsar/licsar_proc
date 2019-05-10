@@ -21,6 +21,7 @@ Version 0.3    26 Apr 2016    ELH    Added function to get IPF version
 Version 0.4    21 Jun 2016    ELH    Catches errors due to corrupt files
 Version 0.5    07 Oct 2016    ELH    Fix for incorrect scene centres over dateline
 Version 0.6    08 Nov 2016    ELH    Fix for S1B relative orbit number
+Version 0.7    09 May 2019    ML     Fix for TORB correction before TANX (resulted in wrong burst definitions before)
 """
 
 class SLCzip(object):
@@ -59,7 +60,7 @@ class SLCzip(object):
             #print data
             return data
         except KeyError as e:
-            print('ERROR: Did not find %s in zipfile' % namebase)
+            print('ERROR: Did not find {} in zipfile'.format(namebase))
             print('    {}'.format(e.message))
             raise 
         finally:
@@ -105,8 +106,8 @@ class SLCzip(object):
                 data = zf.read(ann)
                 data_list.append(data)
             except KeyError as e:
-                print('ERROR: Did not find %s in zipfile' % namebase)
-                print('    {}'.format(e.message))
+                print('ERROR: Did not find {} in zipfile'.format(namebase))
+                print( '    {}'.format(e.message))
         zf.close()
         return data_list
 
@@ -311,10 +312,14 @@ class SLCzip(object):
         # returns a list of the ANX ID of each burst for each ann file
         burstlist_list = self.get_burstlist()
         annANX_list = []
+        #correction for orbital period
+        #i.e. orbit every 12 days / 175 orbit_per_cycle
+        aziOrbitTime = 12*24*60*60/175
         for burstlist in burstlist_list:
             burstANX_list = []
             for burstno, burstinfo in enumerate(burstlist):
                 aziAnxTime = np.float32(burstinfo.find('azimuthAnxTime').text)
+                aziAnxTime = np.mod(aziAnxTime,aziOrbitTime)
                 burstid = np.int32(np.round(aziAnxTime*10))
                 burstANX_list.append(burstid)
             annANX_list.append(burstANX_list)
@@ -326,7 +331,7 @@ class SLCzip(object):
         mgrs_ann_list = []
         for burstcentres_list in centres_list:
             #print burstcentres_list
-            print()
+            #print
             mgrs_burst_list = []
             for centre in burstcentres_list:
                 m = mgrs.MGRS()

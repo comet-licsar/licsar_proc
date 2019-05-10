@@ -67,7 +67,6 @@ def master_job_finished_clean(job_id, acq_date):
         acq_date = acq_date.strftime('%Y%m%d')
         # Don't update the finished time and status of the job table, in case multiple dates being
         # processed, this will be done later by a separate python script called at the end of a batch
-
         # Update the job requests table to state the master finished cleanly
         lq.set_job_request_finished_clean(job_id, acq_date)
 
