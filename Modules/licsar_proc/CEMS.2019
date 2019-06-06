@@ -7,7 +7,7 @@ proc ModulesHelp { } {
 
 #module-whatis "licsar_proc"
 
-set LiCSARpath "/home/users/earmla/software/licsar_proc"
+set LiCSARpath "/gws/smf/j04/nceo_geohazards/software/licsar_proc"
 puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 
 if { [module-info mode load] || [module-info mode switch2] } {
@@ -41,7 +41,7 @@ prereq nla
 # Set internal variable for path exports
 set grouppath "/gws/nopw/j04/nceo_geohazards_vol1"
 set LiCSAR_procdir "/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
-set softwarepath "/home/users/earmla/software"
+set softwarepath "/gws/smf/j04/nceo_geohazards/software"
 
 #keep the below
 set configpath "$grouppath/config/licsar_proc"

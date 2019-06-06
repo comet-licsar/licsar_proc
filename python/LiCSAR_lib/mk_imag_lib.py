@@ -106,6 +106,7 @@ def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery):
                             'more appropriate master.', file=sys.stderr)
         print('Exiting.', file=sys.stderr)
         return 1
+    print('master bursts checked ok!')
     return 0
 
 ################################################################################

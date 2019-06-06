@@ -202,7 +202,7 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
         ifg_float.tofile(f)
     #copy customized snaphu.conf if exists for the given frame
     if os.path.exists(os.path.join(procdir,'log','snaphu.conf')):
-        copyfile(os.path.join(procdir,'log','snaphu.conf'), tmpdir)
+        shutil.copyfile(os.path.join(procdir,'log','snaphu.conf'), os.path.join(tmpdir,'snaphu.conf'))
         subp.call(["sed", "-i", 's/TMPDIR/{}/'.format(re.sub('/','\/',tmpdir)), os.path.join(tmpdir,'snaphu.conf')])
     else:
         with open(os.path.join(tmpdir,'snaphu.conf'),'w') as f:

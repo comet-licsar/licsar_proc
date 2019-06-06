@@ -28,6 +28,7 @@ Display the version
 
 LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -A]
   (parameter -A or --automaster : will attempt to get a master date automatically)
+  (parameter -e would mean allowing also latest images to become master - useful for earthquake responder)
   
 """
 ################################################################################
@@ -105,11 +106,13 @@ def main(argv=None):
     masterdate=[]
     job_id = -1
     automaster = 0
+    days_limit = 22
+    nocheck = False
 
 ############################################################ Parse argument list
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:A:", ["version", "help","automaster"])
+            opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:A:e:", ["version", "help","automaster"])
         except getopt.error as msg:
             raise Usage(msg)
         for p, a in opts:
@@ -137,6 +140,9 @@ def main(argv=None):
                 gc.rglks = int(a)
             elif p == '-o':
                 gc.outres = int(a)
+            elif p == '-e':
+                days_limit = 0
+                nocheck = True
 
         if not (framename or polygonfile or burstidfile):
             raise Usage('No frame given, please define the -f option!')
@@ -181,7 +187,10 @@ def main(argv=None):
         burstlist = lq.get_bursts_in_frame(framename)
         rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq)
         if rc != 0:
-            return 1
+            if not nocheck:
+                return 1
+            else:
+                print('Bursts are missing in master! But will continue, lets see..')
     else:
         burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
         if automaster:
@@ -190,7 +199,8 @@ def main(argv=None):
             rc = 1
             for m in sorted(list(dates)):
                 #master should be from files with POD (<3 weeks) and available (>90 days)
-                if m > (dt.date.today() - timedelta(days=90)) and m < (dt.date.today() - timedelta(days=22)) and rc == 1:
+                #but if we focus on earthquake response, we may use the latest ones also for master - so lets try
+                if m > (dt.date.today() - timedelta(days=90)) and m < (dt.date.today() - timedelta(days=days_limit)) and rc == 1:
                     a = m.strftime('%Y%m%d')
                     masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
                     print('Checking {0} date as master'.format(masterdate))
@@ -222,6 +232,11 @@ def main(argv=None):
     polyfile = os.path.join(procdir,'{0}-poly.txt'.format(framename))
     with open(polyfile, 'w') as f:
         frame_poly = lq.get_polygon(framename)[0]
+        frame_poly_cor = []
+        for framepoly in frame_poly:
+            if framepoly != None:
+                frame_poly_cor.append(framepoly)
+        frame_poly = frame_poly_cor
         frame_poly_zip = list(zip(frame_poly[::2], frame_poly[1::2]))
         for i in frame_poly_zip:
             f.write('{0} {1}\n'.format(i[0], i[1]))
