@@ -212,7 +212,8 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
 ############################################################ Unwrap IFG
     logfilename = os.path.join(tmpdir,'snaphu.log')
     with open(logfilename,'w') as f:
-        cmdstr = 'snaphu -v -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
+        #new snaphu: parameter -S for optimization within tiling
+        cmdstr = 'snaphu -v -S -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
         job = subp.Popen(cmdstr,shell=True,stdout=f,stderr=f,stdin=None)
     job.wait()
     try:

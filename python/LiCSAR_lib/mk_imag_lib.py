@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import sys
+import datetime as dt
 import numpy as np
 # import datetime as dt
 import subprocess as subp
@@ -75,7 +76,7 @@ def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery):
             missingbursts = [ b[0] for b in burstlist 
                     if not b in masterburstlist ]
             if len(missingbursts) < 1:
-                print('\nAll bursts for frame {0} seem to be have been '\
+                print('\nAll bursts for frame {0} seem to have been '\
                       'acquired on the chosen master date {1}.'.format( 
                               framename, masterdate ))
             else:
@@ -313,105 +314,6 @@ def check_missing_bursts( burstlist, missingbursts ):
         if len(missingix) > 0:
             result = False
     return result
-    
-# ################################################################################
-# #check all images
-# ################################################################################
-# def check_all_images():
-# #currently this code is duplicated in main, redendent code?
-    # # Parameter initialisation and checking
-    # polygonfile = gc.polygonfile
-    # ziplistfile = gc.ziplistfile
-    # masterdate=dt.date(int(gc.master[:4]),int(gc.master[4:6]),int(gc.master[6:8]))
-    # job_id = -1
-    
-    # try:
-        # if gc.batchflag:
-            # print "Batch processing mode in use --> no database interaction."
-            # if (not polygonfile) :
-                # raise Usage("Polygon file required for batch mode. Use -p option.")
-            # if (not ziplistfile):
-                # raise Usage("Ziplist file required for batch mode. Use -z option.")
-            # import LiCSquery_batch
-            # global licsQuery 
-            # licsQuery = LiCSquery_batch.dbquery(ziplistfile, polygonfile)
-        # else:
-            # import LiCSquery as licsQuery
-    
-    # except Usage, err:
-        # print >>sys.stderr, "\nERROR:"
-        # print >>sys.stderr, "  "+str(err.msg)
-        # print >>sys.stderr, "\nFor help, use -h or --help.\n"
-        # return 2
-    
-    # print '\nInput parameters seem okay! Checking frame, bursts and files '\
-            # 'information...'
-    # if gc.batchflag:
-        # # Needs to define:
-        # # - framename (for labelling etc)
-        # # - burstlist
-        # # - zipfilelist
-        # framename = ''.join(os.path.split(polygonfile)[-1].split('.')[0:-1])
-        # burstlist = licsQuery.get_bursts_in_polygon()
-        # dates = licsQuery.get_dates()
-        
-    
-    # # Check if master is in date list, and has all bursts. Missing bursts ok
-    # # for slaves, but not for master.
-    # if masterdate:
-        # print '\nChecking master files for missing bursts...'
-        # rc = check_master_bursts(framename,burstlist,masterdate,dates)
-        # if rc != 0:
-            # return 1
-    # else:
-        # print >>sys.stderr, '\nNo master date given. Please use the -m option'\
-                # 'to define one of these choices for the master:\n{0}'.format(
-                        # ', '.join([m.strftime('%Y%m%d') for m in sorted(
-                            # list(dates)) if m != masterdate]))
-        # return 1
-
-    # # Looping through files
-    # okcount = 0
-    # print '\nChecking image files per date for missing bursts...'
-    # for date in dates:
-        # print '\nProcessing acquisition date {0}:'.format(date)
-        # if framename:
-            # imburstlist = licsQuery.get_frame_bursts_on_date(framename,date)
-        # elif polygonname:
-            # imburstlist = licsQuery.get_bursts_in_polygon(polygon[:,0].min(),
-                                                   # polygon[:,0].max(),
-                                                   # polygon[:,1].min(),
-                                                   # polygon[:,1].max())
-            
-        # if imburstlist:
-            # # Check if all bursts of frame are in current image
-            # missingbursts = [b[0] for b in burstlist if not b in imburstlist]
-            # if len(missingbursts) < 1:
-                # # All bursts there, no problem
-                # print "All bursts for frame {0} seem to be have been acquired'\
-                        # ' on {1}...".format(framename,date)
-                # rc = 0 #make_frame_image(date,framename,imburstlist,procdir, job_id)
-            # else:
-                # # Missing one or more bursts, checking if in problematic loc
-                # print "One of more  bursts for frame {0} have not been'\
-                        # 'acquired on the date {1}. Missing bursts: {2}".format(
-                                # framename,date,''.join(
-                                    # ['\n'+m[0] for m in missingbursts]))
-                # print "Checking where missing bursts are."
-                # if check_missing_bursts(burstlist,missingbursts):
-                    # # Missing bursts are at edges, not a problem
-                    # print "Missing bursts are not in critical location, '\
-                            # 'continuing processing image {0}.".format(date)
-                    # rc = 0 #make_frame_image(date,framename,imburstlist,procdir, job_id)
-                # else:
-                    # # Missing bursts in the middle, we're stuffed for 
-                    # # this date, skip to next
-                    # print "Missing bursts are in critical location, continuing'\
-                            # 'processing with next image..."
-                    # rc = rc + 4
-    # if rc > 0 and gc.allowmissingburst==0:
-        # raise Usage('At least one scene had missing bursts! Either set '\
-                # 'allowmissingburst==1 or find the missing bursts.')
 
 ################################################################################
 #Make frame image function
@@ -608,7 +510,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                 )
                     
                         if not SLC_cat_S1_TOPS( slctab, filetab, temptab, 
-                                imdir, procdir, logfile ): # concat our swath slc file 
+                                logfile ): # concat our swath slc file 
                                                   # with this slc file -> merged
                             print('\nProblem concatenating '\
                                                  'bursts in subswath {0}. Log '\
@@ -616,6 +518,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                                  'next acquisition '\
                                                  'date.'.format( sw, logfile ), file=sys.stderr)
                             return 2
+                        
                         rename_slc( temptab, slctab ) # replace our swathe slc file
                                                    # with this new, longer slc file
                 else: # only one file in this swathe -> code below redundant?
@@ -645,6 +548,24 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                  )
                              )
                          ]
+            
+            ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
+            if date < dt.datetime.strptime('20150315','%Y%m%d'):
+                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))):
+                    print('Correcting for IPF version (data before 2015-03-15)')
+                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
+                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
+                    shutil.move(SLC_ok, SLC_tmp)
+                    shutil.move(SLC_ok + '.par', SLC_tmp + '.par')
+                    logfilename = os.path.join( procdir, 'log', 
+                        'phase_shift_{0}.log'.format( date.strftime( '%Y%m%d' ) )
+                        )
+                    if not SLC_phase_shift(SLC_tmp, SLC_tmp + '.par', SLC_ok, SLC_ok + '.par', -1.25, logfilename):
+                        print('Something went wrong correcting for old IPF version data. Log file {0}'.format(logfilename), file=sys.stderr)
+                        return 3
+                    os.remove(SLC_tmp)
+                    os.remove(SLC_tmp + '.par')
+            
             print('Mosaicing subswaths...')
             tabname = os.path.join( procdir, 'tab', 
                     date.strftime( '%Y%m%d' ) + '_tab' )
@@ -804,6 +725,23 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                  )
                              )
                          ]
+            ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
+            if date < dt.datetime.strptime('20150315','%Y%m%d'):
+                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))):
+                    print('Correcting for IPF version (data before 2015-03-15)')
+                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
+                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
+                    shutil.move(SLC_ok, SLC_tmp)
+                    shutil.move(SLC_ok + '.par', SLC_tmp + '.par')
+                    logfilename = os.path.join( procdir, 'log', 
+                        'phase_shift_{0}.log'.format( date.strftime( '%Y%m%d' ) )
+                        )
+                    if not SLC_phase_shift(SLC_tmp, SLC_tmp + '.par', SLC_ok, SLC_ok + '.par', -1.25, logfilename):
+                        print('Something went wrong correcting for old IPF version data. Log file {0}'.format(logfilename), file=sys.stderr)
+                        return 3
+                    os.remove(SLC_tmp)
+                    os.remove(SLC_tmp + '.par')
+            
             print('Mosaicing subswaths...')
             tabname = os.path.join( procdir, 'tab', 
                     date.strftime( '%Y%m%d' ) + '_tab' )

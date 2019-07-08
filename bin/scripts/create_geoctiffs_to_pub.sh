@@ -38,7 +38,12 @@ lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`;
 
 echo " Running doGeocoding step for unwrapped"
-logfile=${procdir}/13_doGeocoding_$ifg.log
+#this is for the case if we start the geotiff generation within or outside of licsar_make_frame:
+if [ -d ${procdir}/LOGS ]; then
+ logfile=${procdir}/LOGS/13_doGeocoding_$ifg.log
+else
+ logfile=${procdir}/13_doGeocoding_$ifg.log
+fi
 echo "   check "$logfile" if something goes wrong "
 #rm -f $logfile
 

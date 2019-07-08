@@ -73,6 +73,7 @@ while read line ; do
   phase_sim_orb RSLC/${m_slc}/${m_slc}.rslc.par RSLC/${s_slc}/${s_slc}.rslc.par IFG/${ifgpar}/${ifgpar}.off geo/${master}.masked.hgt IFG/${ifgpar}/${ifgpar}.sim_unw RSLC/${master}/${master}.rslc.par - - 1 1 >> $logfile
   
   # Check if the interferometric pair is across the 15 of March 2015; master older than 20150315, and slave younger than 20150315; then add 1.25 rad to the IW1 of master
+  # ML 2019: this should be removed since GAMMA 20181130 has this correction already implemented
   if [[ "${m_slc}" -lt "20150315" && "${s_slc}" -gt "20150315" && "${IW1}" == "1" ]]; then
     echo "   IFG across the ESA IPF phase anomaly (2015/03/15),... RSLC ${m_slc} needs reformatting prior IFG formation"
     # Modified master RSLC by adding the phase shift to the IW1

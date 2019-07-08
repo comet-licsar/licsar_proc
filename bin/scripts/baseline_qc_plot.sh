@@ -45,10 +45,10 @@ fi
 title=${frame}
 psfile=$title.ps
 
-min_t=`gmtinfo -C $infile | awk '{print $11-50}'`
-max_t=`gmtinfo -C $infile | awk '{print $12+100}'`
-min_p=`gmtinfo -C $infile | awk '{print $15-150}'`
-max_p=`gmtinfo -C $infile | awk '{print $16+50}'`
+min_t=`gmt gmtinfo -C $infile | awk '{print $11-50}'`
+max_t=`gmt gmtinfo -C $infile | awk '{print $12+100}'`
+min_p=`gmt gmtinfo -C $infile | awk '{print $15-150}'`
+max_p=`gmt gmtinfo -C $infile | awk '{print $16+50}'`
 proj="-JX25/10"
 reg="-R2014-09-01T/2019-02-01T/$min_p/$max_p"
 
@@ -57,9 +57,9 @@ reg="-R2014-09-01T/2019-02-01T/$min_p/$max_p"
 scripts_dir=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/insar_proc/priority_areas/scripts
 cp ${scripts_dir}/gmt.conf `pwd`
 
-gmtset PS_MEDIA a4
-gmtset MAP_TICK_LENGTH_SECONDARY 6p/3p
-gmtset MAP_LABEL_OFFSET 0.1c
+gmt gmtset PS_MEDIA a4
+gmt gmtset MAP_TICK_LENGTH_SECONDARY 6p/3p
+gmt gmtset MAP_LABEL_OFFSET 0.1c
 
 psbasemap $proj $reg -Bpxa3Of1oneg30d -Bsxa1YS -Bpy50+l"Perpendicular Baseline (m)" -BWSen+t"$title" -K -Y5 > $psfile
 
@@ -95,6 +95,6 @@ awk '{print $1,'$min_p'+20}' ${frame}_db.list | psxy $proj $reg -O -K -Sc0.15 -G
 awk '{print $2,'$min_p'+30}' $infile | uniq | psxy $proj $reg -O -K -Sc0.15 -Gblack >> $psfile
 awk '{print $3,'$min_p'+30}' $infile | uniq | psxy $proj $reg -O -K -Sc0.15 -Gblack >> $psfile
 #awk '{print 13,'$min_p'+30}' ${location}_${frame}_rslc.list | psxy $proj $reg -O -K -Sc0.15 -Gblack >> $psfile
-gmtset MAP_LABEL_OFFSET 0.2c
+gmt gmtset MAP_LABEL_OFFSET 0.2c
 psscale -Cunw_pix.cpt -D21/2.5/5/0.2h -Ba20f10:"Unwrapped Pixels (%)": -F+gwhite -O >> $psfile
 psconvert $psfile -A -P -Tg

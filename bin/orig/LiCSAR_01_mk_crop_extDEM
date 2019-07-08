@@ -44,8 +44,27 @@ function mk_dem(){
   # Add geoid heights
   # a) Output bounding box coordinates for all files with same master date
   for i in `ls SLC/20??????/*.zip`; do
-    echo "zipSAFE_2_bounding_box.py $i >> coordinates.$$" 
-    zipSAFE_2_SLCbb.py $i >> coordinates.$$
+    #ML 2019: Older files are not physically existing in NLA, but manifest files do..
+    manifestfile=`ls $i -l | rev | gawk {'print $1'} | rev | sed 's/.zip/.manifest/'`
+    if [ -f $manifestfile ]; then
+     coordline=`grep coordinates $manifestfile | cut -d '>' -f2 | cut -d '<' -f1`
+     minlat=90000000000
+     minlon=180000000000
+     maxlat=-900000000000
+     maxlon=-180000000000
+     for coords in $coordline; do
+      lat=`echo $coords | cut -d ',' -f1 | cut -c -8`
+      lon=`echo $coords | cut -d ',' -f2 | cut -c -8`
+      if [ `echo $lat | sed 's/\.//'` -lt `echo $minlat | sed 's/\.//'` ]; then minlat=$lat; fi
+      if [ `echo $lon | sed 's/\.//'` -lt `echo $minlon | sed 's/\.//'` ]; then minlon=$lon; fi
+      if [ `echo $lat | sed 's/\.//'` -gt `echo $maxlat | sed 's/\.//'` ]; then maxlat=$lat; fi
+      if [ `echo $lon | sed 's/\.//'` -gt `echo $maxlon | sed 's/\.//'` ]; then maxlon=$lon; fi
+     done
+     echo $minlon $maxlon $minlat $maxlat >> coordinates.$$
+    else
+     echo "zipSAFE_2_bounding_box.py $i >> coordinates.$$" 
+     zipSAFE_2_SLCbb.py $i >> coordinates.$$
+    fi
   done
   SLCbb_minmax.py coordinates.$$ > coordinates
   local lonmin=`awk '{print $1}' coordinates`; 

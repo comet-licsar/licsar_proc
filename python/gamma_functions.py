@@ -693,15 +693,13 @@ def make_mosaic_tab(tabname,filenames,swathlist):
     else:
         return 0,''
 
-def SLC_cat_S1_TOPS(tab1,tab2,tab3,imdir,procdir,logfile):
+def SLC_cat_S1_TOPS(tab1,tab2,tab3,logfile):
     """Concatenates two SLC files together
 
     In:
         tab1       SLC tab of first file to be concatenated
         tab2       SLC tab of second file to be concatenated
         tab3       SLC tab of destination file
-        imdir      path to the SLC image directory
-        procdir    path to main processing directory
     Out:
         Boolean True if successful, False if not
     """
@@ -718,6 +716,31 @@ def SLC_cat_S1_TOPS(tab1,tab2,tab3,imdir,procdir,logfile):
         return False
     return True
 
+def SLC_phase_shift(SLC, SLC_par, SLC2, SLC2_par, ph_shift, logfile):
+    """Correct phase shift
+    
+    Params:
+        SLC       SLC data file to shift
+        SLC_par   SLC parameter file
+        SLC2      output SLC
+        SLC2_par  output SLC parameter file
+        ph_shift  phase shift to add to SLC phase (radians)
+
+    NOTE: Used to apply a constant phase shift of -1.25 radians to Sentinel-1 TOPS SLC data
+        from swath IW1 acquired up to 10-Mar-2015.
+    """
+    shiftcall = ['SLC_phase_shift',SLC,SLC_par,SLC2,SLC2_par,str(ph_shift)]
+    with open(logfile,'w') as lf:
+        try:
+            rc = subp.check_call(shiftcall,stdout=lf)
+        except:
+            print('Could not shift phase of SLC file {0}. Log file {1}.'.format(SLC,logfile))
+            return False
+    if rc != 0:
+        print('Could not shift phase of SLC file {0}. Log file {1}.'.format(SLC,logfile))
+        return False
+    return True
+    
 def base_calc(SLC_tab, SLC_par, bperp_file, itab, bperp_min, bperp_max, delta_T_min, delta_T_max, delta_n_max, logfile):
     """Creates baseline list for the RSLCs in SLC_tab
     In:
