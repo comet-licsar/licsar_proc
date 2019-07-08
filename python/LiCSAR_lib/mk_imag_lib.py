@@ -324,7 +324,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     Process the files for the given date
 
     In:
-        date        datetime.date object with acquisition date
+        date        Timestamp object with acquisition date
         framename   name of the processing frame
         burstlist   list of burst ids
         procdir     path to processing directory
@@ -550,7 +550,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                          ]
             
             ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
-            if date < dt.datetime.strptime('20150315','%Y%m%d'):
+            if date.date() < dt.datetime.strptime('20150315','%Y%m%d').date():
                 if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))):
                     print('Correcting for IPF version (data before 2015-03-15)')
                     SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
@@ -726,7 +726,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                              )
                          ]
             ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
-            if date < dt.datetime.strptime('20150315','%Y%m%d'):
+            if date.date() < dt.datetime.strptime('20150315','%Y%m%d').date():
                 if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))):
                     print('Correcting for IPF version (data before 2015-03-15)')
                     SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
