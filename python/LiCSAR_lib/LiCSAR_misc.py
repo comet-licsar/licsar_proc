@@ -2,6 +2,23 @@ import os
 import sys
 import subprocess as subp
 import re
+
+import sys, traceback
+
+class nostdout(object):
+    def __enter__(self):
+        self.stdout = sys.stdout
+        sys.stdout = self
+    def __exit__(self, type, value, traceback):
+        sys.stdout = self.stdout
+        #if type is not None:
+        #    # Do normal exception handling
+    def write(self, x): pass
+#usage:
+#with nostdout():
+#    DoMyFunction(*args,**kwargs)
+
+
 ################################################################################
 #CD class
 ################################################################################

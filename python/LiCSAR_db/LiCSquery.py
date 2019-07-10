@@ -174,7 +174,31 @@ def get_polygon(polyid_nm):
         "corner11_lon, corner11_lat, corner12_lon, corner12_lat " \
         "FROM polygs where polyid_name = '%s';" % (polyid_nm)
     return do_query(sql_q)
-    
+
+def get_wkt_boundaries(frameName):
+    polygon = get_polygon(frameName)[0]
+    frame_poly_cor = []
+    for framepoly in polygon:
+        if framepoly != None:
+            frame_poly_cor.append(framepoly)
+        frame_poly = frame_poly_cor
+        frame_poly_zip = list(zip(frame_poly[::2], frame_poly[1::2]))
+    #first is lon, second is lat
+    minlon = minlat = 200
+    maxlon = maxlat = -200
+    for lon, lat in frame_poly_zip:
+        if lon < minlon: minlon = round(lon,3)
+        if lon > maxlon: maxlon = round(lon,3)
+        if lat < minlat: minlat = round(lat,3)
+        if lat > maxlat: maxlat = round(lat,3)
+    polyText = str(minlon)+' '+str(minlat)+','+ \
+               str(minlon)+' '+str(maxlat)+','+ \
+               str(maxlon)+' '+str(maxlat)+','+ \
+               str(maxlon)+' '+str(minlat)+','+ \
+               str(minlon)+' '+str(minlat)
+    wkt = 'POLYGON(({0}))'.format(polyText)
+    return wkt
+
 def set_job_started(job_id):
     sql_q = "UPDATE jobs "\
         "SET licsar_version = '%s' , " \

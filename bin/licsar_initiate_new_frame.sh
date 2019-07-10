@@ -19,6 +19,7 @@ fi
 
  frame=$1
  tr=`echo $frame | cut -d '_' -f1 | sed 's/^0//' | sed 's/^0//' | rev | cut -c 2- | rev`
+ rmdir $curdir/$tr/$frame 2>/dev/null
  if [ -d $curdir/$tr/$frame ]; then
   echo "This frame already exists! Stopping here"
   echo "Check and remove(?) "$curdir/$tr/$frame

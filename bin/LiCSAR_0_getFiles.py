@@ -32,6 +32,7 @@ import os.path as path
 import nla_client_lib as nla
 from getopt import getopt
 import pandas as pd
+from LiCSAR_lib import s1data
 
 ################################################################################
 #Exceptions
@@ -159,6 +160,11 @@ def main(argv=None):
         raise undefinedFrameError(frameName)
 
     print("Found frame definition in LiCS database - reading file list")
+
+############################## Check files using scihub -> NLA
+
+    print('checking for S1 data not ingested to licsinfo db')
+    s1data.check_and_import_to_licsinfo(frameName, startDate.date(), endDate.date())
 
 ############################## Get file list
 

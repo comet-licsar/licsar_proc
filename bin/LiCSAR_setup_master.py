@@ -39,6 +39,7 @@ import os
 import shutil
 import sys
 import datetime as dt
+from datetime import datetime, timedelta
 import subprocess as subp
 #Import global configuration, LiCSquery and gamma functions
 import global_config as gc
@@ -48,6 +49,7 @@ from gamma_functions import *
 from LiCSAR_lib.mk_imag_lib import check_master_bursts, check_bursts, make_frame_image
 from LiCSAR_lib.coreg_lib import link_master_rslc, geocode_dem
 from LiCSAR_lib.LiCSAR_misc import Usage,cd
+from LiCSAR_lib import s1data
 
 ################################################################################
 # Master job started function
@@ -80,7 +82,6 @@ def master_job_finished_failed(job_id, acq_date, status=-1):
         acq_date = acq_date.strftime('%Y%m%d')
         # Don't update the finished time and status of the job table, in case multiple dates being
         # processed, this will be done later by a separate python script called at the end of a batch
-
         if status == -1:
             # Update the job requests table to state the master finished cleanly
             lq.set_job_request_finished_master_fail(job_id, acq_date)
@@ -107,7 +108,6 @@ def main(argv=None):
     job_id = -1
     automaster = 0
     days_limit = 22
-    nocheck = False
 
 ############################################################ Parse argument list
     try:
@@ -142,7 +142,6 @@ def main(argv=None):
                 gc.outres = int(a)
             elif p == '-e':
                 days_limit = 0
-                nocheck = True
 
         if not (framename or polygonfile or burstidfile):
             raise Usage('No frame given, please define the -f option!')
@@ -187,14 +186,13 @@ def main(argv=None):
         burstlist = lq.get_bursts_in_frame(framename)
         rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq)
         if rc != 0:
-            if not nocheck:
-                return 1
-            else:
-                print('Bursts are missing in master! But will continue, lets see..')
+            return 1
     else:
+        print('checking for S1 data not ingested to licsinfo db')
+        s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=90)))
         burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
         if automaster:
-            from datetime import datetime, timedelta
+            print('doing automatic selection of master')
             #rc will be changed to 0 if a proper master is found and checked
             rc = 1
             for m in sorted(list(dates)):
