@@ -340,9 +340,12 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     """
     
 ############################################################ Pepare file/folders
-    #make sure that the date is of type datetime.date
+    #will make date_date as type datetime.date and date as datetime (sadly mess..)
     if type(date) is not type(dt.datetime.now().date()):
-        date = date.date()
+        date_date = date.date()
+    else:
+        date_date = date
+        date = dt.datetime.fromordinal(date.toordinal())
     slcdir = os.path.join( procdir, 'SLC' )
     imdir = os.path.join( slcdir, date.strftime( '%Y%m%d' ) )
     # Get all files containing frame bursts on current date
@@ -553,15 +556,15 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                          ]
             
             ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
-            if date < dt.datetime.strptime('20150315','%Y%m%d').date():
-                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))):
+            if date_date < dt.datetime.strptime('20150315','%Y%m%d').date():
+                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))):
                     print('Correcting for IPF version (data before 2015-03-15)')
-                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
-                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
+                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
+                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
                     shutil.move(SLC_ok, SLC_tmp)
                     shutil.move(SLC_ok + '.par', SLC_tmp + '.par')
                     logfilename = os.path.join( procdir, 'log', 
-                        'phase_shift_{0}.log'.format( date.strftime( '%Y%m%d' ) )
+                        'phase_shift_{0}.log'.format( date_date.strftime( '%Y%m%d' ) )
                         )
                     if not SLC_phase_shift(SLC_tmp, SLC_tmp + '.par', SLC_ok, SLC_ok + '.par', -1.25, logfilename):
                         print('Something went wrong correcting for old IPF version data. Log file {0}'.format(logfilename), file=sys.stderr)
@@ -730,14 +733,14 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                          ]
             ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
             if date < dt.datetime.strptime('20150315','%Y%m%d').date():
-                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))):
+                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))):
                     print('Correcting for IPF version (data before 2015-03-15)')
-                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
-                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date.strftime('%Y%m%d'), 'IW1'))
+                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
+                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
                     shutil.move(SLC_ok, SLC_tmp)
                     shutil.move(SLC_ok + '.par', SLC_tmp + '.par')
                     logfilename = os.path.join( procdir, 'log', 
-                        'phase_shift_{0}.log'.format( date.strftime( '%Y%m%d' ) )
+                        'phase_shift_{0}.log'.format( date_date.strftime( '%Y%m%d' ) )
                         )
                     if not SLC_phase_shift(SLC_tmp, SLC_tmp + '.par', SLC_ok, SLC_ok + '.par', -1.25, logfilename):
                         print('Something went wrong correcting for old IPF version data. Log file {0}'.format(logfilename), file=sys.stderr)

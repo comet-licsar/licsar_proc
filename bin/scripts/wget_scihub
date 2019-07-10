@@ -20,7 +20,9 @@ BN=`basename $filename .zip`
 #get file ID
 wget ${HOST}/odata/v1/Products?%24format=text/csv\&%24select=Id\&%24filter=Name%20eq%20%27$BN%27 -O tmp_wget.txt 2>/dev/null
 #for some reason this file is in DOS format....causing problems in linux
-dos2unix tmp_wget.txt 2>/dev/null
+#normally would fix using dos2unix, but xfer2 does not have such :(((
+#dos2unix tmp_wget.txt 2>/dev/null
+sed -i 's/\r//' tmp_wget.txt 
 ID=`grep "-" tmp_wget.txt`; rm tmp_wget.txt
 if [ "$ID" == 'Id' -o "$ID" == "" ]; then
     >&2 echo Product with name \"$BN\" not found
