@@ -23,15 +23,12 @@ def do_query(query, commit=False):
         if conn == 'MYSQL ERROR':
             print('No database connection could be established to perform the following query: \n%s' % query)
             return 'MYSQL ERROR'
-
         with conn.cursor() as c:
             c.execute(query, )
             res_list = c.fetchall()
-
             if commit:
                 conn.commit()
                 res_list = c.rowcount
-
     except pymysql.err.Error as e:
         print("\nUnexpected MySQL error {0}: {1}".format(e[0], e[1]))
         return []
@@ -105,6 +102,11 @@ def get_frame_files_date(frame,date):
         "and pol='VV'"\
         "order by files.acq_date;".format(frame,date)
     return do_query(sql_q)
+
+def get_ipf(filename):
+    # filename should be e.g. S1A_IW_SLC__1SSV_20141222T210739_20141222T210809_003837_00496E_C84D
+    sql_q = "select distinct proc_vers from files where name='{0}';".format(filename)
+    return do_query(sql_q)[0][0]
 
 def get_burst_no(frame,date):
     # takes frame and datetime.date object and returns burst numbers

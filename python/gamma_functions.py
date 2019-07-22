@@ -183,6 +183,29 @@ def S1_coreg_overlap(mastertab,slavetab,pair,offfile,offrefine,auxtab,logfilenam
         return True
 
 
+def S1_coreg_subswath_overlap(mastertab,slavetab,pair,offfile,offrefine,auxtab,logfilename):
+    """ Estimate coregistration offset based on the subswath overlap
+    """
+    if auxtab == '':
+        overlapcall = ['S1_coreg_subswath_overlap',mastertab,slavetab,pair,offfile,offrefine,
+                   '0.8','0.01','0.8','1']
+    else:
+        overlapcall = ['S1_coreg_subswath_overlap',mastertab,slavetab,pair,offfile,offrefine,
+                   '0.8','0.01','0.8','1',auxtab]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(overlapcall,stdout=f)
+        except:
+            print('Something went wrong during the subswath overlap function. Log file {0}'.format(logfilename))
+            return False
+
+    if rc != 0:
+        print('Something went wrong during the subswath overlap function. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
+
 def create_offset(masterpar,slavepar,offfile,rglks,azlks,logfilename):
     """
     """

@@ -25,6 +25,8 @@ LiCSAR_03_mk_ifgs.py -f <framename> -d </path/to/processing/location>
     -p    polygon
     -z    sip file
     -y    batch mode
+    -a    azimuth looks
+    -r    range looks
     -c <level> clean rslcs after succesful interferogram creation, acording to level:
             0 - keep rslcs and subswathes (default)
             1 - keep only subswathes. Subswathes may be required during 
@@ -66,10 +68,12 @@ def main(argv=None):
     ifgListFile = None
     cleanLvl = 0
     reportfile = None
+    rglks = gc.rglks
+    azlks = gc.azlks
 ############################################################ Process Args.
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhi:f:d:j:y:p:z:c:T:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "vhi:f:d:j:y:p:z:r:a:c:T:", ["version", "help"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
@@ -83,6 +87,10 @@ def main(argv=None):
                 return 0
             elif o == '-f':
                 framename = a
+            elif o == '-r':
+                rglks = int(a)
+            elif o == '-a':
+                azlks = int(a)
             elif o == '-d':
                 procdir = a
             elif o == '-i':
@@ -162,10 +170,11 @@ def main(argv=None):
     
 ############################################################ Parse multilook paramters
     masterslcdir = os.path.join(procdir,'SLC',masterdatestr)
-
-    gc.rglks = int(grep1('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
-    gc.azlks = int(grep1('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
-
+    #only updating gc.rglks config in case the parameter has been customized .. (maybe not needed really...)
+    if rglks != gc.rglks:
+        gc.rglks = int(grep1('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    if azlks != gc.azlks:
+        gc.azlks = int(grep1('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
 ############################################################ Get a list of co registered slaves and dates
     date_pairs = []
     if ifgListFile:
@@ -218,7 +227,7 @@ def main(argv=None):
 ############################################################ Loop through and create interferograms 
         procDates = []
         for date_pair in date_pairs:
-            rc = make_interferogram(masterdate,date_pair[0],date_pair[1],procdir, lq,job_id)
+            rc = make_interferogram(masterdate,date_pair[0],date_pair[1],procdir, lq,job_id, rglks, azlks)
             if rc == 0:
                 f.write('\nSuccesfully created interferogram between {0}:{1}.'.format(*date_pair))
                 procDates += date_pair

@@ -23,6 +23,7 @@ import logging
 from gamma_functions import *
 from LiCSAR_lib.LiCSAR_misc import Usage,cd
 from LiCSAR_lib.orbit_lib import getValidOrbFile,logger
+from LiCSAR_db.LiCSquery import get_ipf
 
 ################################################################################
 # Check Bursts function
@@ -91,7 +92,6 @@ def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery):
                                         m.strftime('%Y%m%d') for m in 
                                         sorted( list( dates )) 
                                         if m != masterdate ])), file=sys.stderr)
-
                 return 1                    
         else:
             print('\nERROR:', file=sys.stderr)
@@ -156,7 +156,6 @@ def get_orb_dir( sat ):
             orbdir = []
     except:
         orbdir = os.environ[ 'ORBs_DIR' ] + '/' + sat
-        
     return orbdir
 
 ################################################################################
@@ -175,14 +174,12 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
     Out:
         Boolean True if successful, False if not
     """
-
 ############################################################ make dir.
     imdirthis = os.path.join( slcdir, imdate.strftime( '%Y%m%d' ))
     if not os.path.exists( slcdir ):
         os.mkdir( slcdir )
     if not os.path.exists( imdirthis ):
         os.mkdir( imdirthis )
-
 ############################################################ link files
     for f in filelist:
         linkthis = os.path.join( imdirthis, f[1] + '.zip' )
@@ -199,7 +196,6 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
                 'directory {1}. Skipping date {2}.'.format( f[2], imdirthis, 
                         imdate ))
                 return False
-
 ############################################################ Unzip the files
     # Finished linking first to assure all files exist, quicker than finding
     # out after unpacking first file that second file does not exist.
@@ -216,7 +212,6 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
                         f[1] + '.zip', imdate ))
                 return False
     # Again, ensured all files unzip before moving on
-
 ############################################################ Convert to Gamma format
     print('Converting files from SAFE to Gamma format...')
     for f in filelist:
@@ -262,7 +257,6 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
                 print('No geotiff file found for subswath {0} in '\
                 'directory{1}. Trying other subswaths.'.format( sw, safedir ))
                 return False
-    
 ############################################################ Update file 2 jobs 
 #                                                            database
     # All checks confirmed and fiels are found, so populated the file2jobs table
@@ -270,8 +264,7 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id ):
     # the files2jobs table, linking job_id to each file id.
     if job_id != -1:
         licsQuery.set_files2jobs( job_id, filelist )
-
-    return True                         
+    return True
 
 ################################################################################
 #Parse slc tab function
@@ -341,11 +334,13 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     
 ############################################################ Pepare file/folders
     #will make date_date as type datetime.date and date as datetime (sadly mess..)
+    #print('debug: date is of type: '+str(type(date)))
     if type(date) is not type(dt.datetime.now().date()):
         date_date = date.date()
     else:
         date_date = date
         date = dt.datetime.fromordinal(date.toordinal())
+    #print('debug: after the change, date is of type: '+str(type(date)))
     slcdir = os.path.join( procdir, 'SLC' )
     imdir = os.path.join( slcdir, date.strftime( '%Y%m%d' ) )
     # Get all files containing frame bursts on current date
@@ -365,7 +360,6 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     if read_files( filelist, slcdir, date, procdir, licsQuery, job_id ):
         # Only do if read_files does not return False, i.e. hits
         # a snag
-        
         # Remove unzipped SAFE directories
         os.system( 'rm -rf {0}/*.SAFE'.format( 
                     os.path.join( imdir ) 
@@ -374,13 +368,28 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         tabdir = os.path.join( procdir, 'tab' )
         if not os.path.exists( tabdir ):
             os.mkdir( tabdir )
-
+        # do the old-IPF correction here, before any other operations (as merging, cropping etc.) (ML, 2019)
+        for f in filelist:
+            fullname=f[1]
+            if get_ipf(fullname)=='002.36':
+                print('Correcting for old IPF version data')
+                shortname=fullname.split( '_' )[5]
+                SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(shortname, 'IW1'))
+                SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(shortname, 'IW1'))
+                shutil.move(SLC_ok, SLC_tmp)
+                shutil.move(SLC_ok + '.par', SLC_tmp + '.par')
+                logfilename = os.path.join( procdir, 'log', 
+                        'phase_shift_{0}.log'.format( date_date.strftime( '%Y%m%d' ) ) )
+                if not SLC_phase_shift(SLC_tmp, SLC_tmp + '.par', SLC_ok, SLC_ok + '.par', -1.25, logfilename):
+                    print('Something went wrong correcting for old IPF version data. Log file {0}'.format(logfilename), file=sys.stderr)
+                    return 3
+                os.remove(SLC_tmp)
+                os.remove(SLC_tmp + '.par')
         if len( filelist ) > 1:
             # bursts are in 2 or more file, copy necessary bursts and merge
             print('Bursts are distributed over more than 1 file, extracting '\
                   'bursts from files and merging...')
             burstnolist = licsQuery.get_burst_no( framename, date )
-
 ############################################################ Sweep through swathes
                 #sw = IW1,IW2, etc.
             for sw in sorted( 
@@ -392,7 +401,6 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 #list of files containing bursts
                 fileset.sort()
                 fileset2 = copy.deepcopy( fileset )
-
 ############################################################ loop through files 
 #                                                            and strip out relevant
 #                                                            bursts
@@ -554,24 +562,6 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                  )
                              )
                          ]
-            
-            ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
-            if date_date < dt.datetime.strptime('20150315','%Y%m%d').date():
-                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))):
-                    print('Correcting for IPF version (data before 2015-03-15)')
-                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
-                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
-                    shutil.move(SLC_ok, SLC_tmp)
-                    shutil.move(SLC_ok + '.par', SLC_tmp + '.par')
-                    logfilename = os.path.join( procdir, 'log', 
-                        'phase_shift_{0}.log'.format( date_date.strftime( '%Y%m%d' ) )
-                        )
-                    if not SLC_phase_shift(SLC_tmp, SLC_tmp + '.par', SLC_ok, SLC_ok + '.par', -1.25, logfilename):
-                        print('Something went wrong correcting for old IPF version data. Log file {0}'.format(logfilename), file=sys.stderr)
-                        return 3
-                    os.remove(SLC_tmp)
-                    os.remove(SLC_tmp + '.par')
-            
             print('Mosaicing subswaths...')
             tabname = os.path.join( procdir, 'tab', 
                     date.strftime( '%Y%m%d' ) + '_tab' )
@@ -731,23 +721,6 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                                  )
                              )
                          ]
-            ### ML, 2019: checking and correcting situation when the IPF is old (< 20150315)
-            if date < dt.datetime.strptime('20150315','%Y%m%d').date():
-                if os.path.exists(os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))):
-                    print('Correcting for IPF version (data before 2015-03-15)')
-                    SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
-                    SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(date_date.strftime('%Y%m%d'), 'IW1'))
-                    shutil.move(SLC_ok, SLC_tmp)
-                    shutil.move(SLC_ok + '.par', SLC_tmp + '.par')
-                    logfilename = os.path.join( procdir, 'log', 
-                        'phase_shift_{0}.log'.format( date_date.strftime( '%Y%m%d' ) )
-                        )
-                    if not SLC_phase_shift(SLC_tmp, SLC_tmp + '.par', SLC_ok, SLC_ok + '.par', -1.25, logfilename):
-                        print('Something went wrong correcting for old IPF version data. Log file {0}'.format(logfilename), file=sys.stderr)
-                        return 3
-                    os.remove(SLC_tmp)
-                    os.remove(SLC_tmp + '.par')
-            
             print('Mosaicing subswaths...')
             tabname = os.path.join( procdir, 'tab', 
                     date.strftime( '%Y%m%d' ) + '_tab' )

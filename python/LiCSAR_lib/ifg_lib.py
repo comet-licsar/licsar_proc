@@ -14,9 +14,9 @@ import global_config as gc
 ################################################################################
 #Make interferograms functions
 ################################################################################
-def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
+def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks):
     """
-    Makes a singular interferogram between the SLC on given maser and slave dates.
+    Makes a singular interferogram between the SLC on given master and slave dates.
     """
 ############################################################ Get orig. master slc
     mastermli = os.path.join(procdir,'SLC',
@@ -54,11 +54,11 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
         if (not is_non_zero_file(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc.par'))) \
             or (not os.path.exists(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc'))):
             print('Regenerating mosaic for '+pomdate)
-            slaverslctab=os.path.join(procdir,'tab',
+            rslctab=os.path.join(procdir,'tab',
                              pomdate+'R_tab')
-            slavefilename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
+            filename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
             logfile = os.path.join(procdir,'log',"mosaic_rslc_{0}.log".format(pomdate))
-            SLC_mosaic_S1_TOPS(slaverslctab,slavefilename,gc.rglks,gc.azlks,logfile,mastertab)
+            SLC_mosaic_S1_TOPS(rslctab,filename,rglks,azlks,logfile,mastertab)
 ############################################################ Create offsets
     offsetfile = os.path.join(ifgthisdir,pair+'.off')
     masterpar = os.path.join(procdir,'RSLC',
@@ -69,7 +69,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
                         slavedate.strftime('%Y%m%d')+'.rslc.par')
     logfilename = os.path.join(procdir,'log','create_offset_{0}.log'.format(pair))
     
-    if not create_offset(masterpar,slavepar,offsetfile,gc.rglks,gc.azlks,logfilename):
+    if not create_offset(masterpar,slavepar,offsetfile,rglks,azlks,logfilename):
         print('\nERROR:', file=sys.stderr)
         print('\nSomething went wrong with creating the offset file {0}.'.format(offsetfile), file=sys.stderr)
         shutil.rmtree(ifgthisdir)
@@ -81,6 +81,11 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     hgtfile = os.path.join(procdir,'geo',origmasterdate.strftime('%Y%m%d')+'.hgt')
     simfile = os.path.join(ifgthisdir,pair+'.sim_unw')
     logfilename = os.path.join(procdir,'log','phase_sim_orb_{0}.log'.format(pair))
+    #if rglks != gc.rglks or azlks != gc.azlks:
+    #    hgtfile = os.path.join(procdir,'geo',origmasterdate.strftime('%Y%m%d')+'.hgt.'+str(rglks)+'.'+str(azlks))
+    #    if not os.path.exists(hgtfile):
+    #        print('recomputing hgt file for custom looks')
+    #        
     print('Estimating topographic phase...')
     if not phase_sim_orb(masterpar,slavepar,origmasterpar,offsetfile,hgtfile,simfile,logfilename):
         print('\nERROR:', file=sys.stderr)
@@ -92,10 +97,10 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id):
     print('Forming interferogram...')
     difffile = os.path.join(ifgthisdir,pair+'.diff')
     logfilename = os.path.join(procdir,'log','SLC_diff_intf_{0}.log'.format(pair))
-    if not SLC_diff_intf(masterpar[:-4],slavepar[:-4],masterpar,slavepar,offsetfile,simfile,difffile,gc.rglks,gc.azlks,logfilename):
+    if not SLC_diff_intf(masterpar[:-4],slavepar[:-4],masterpar,slavepar,offsetfile,simfile,difffile,rglks,azlks,logfilename):
         print('\nERROR:', file=sys.stderr)
         print('\nSomething went wrong during the interferogram formation.', file=sys.stderr)
-        print('try yourself by: SLC_diff_intf '+masterpar[:-4]+' '+slavepar[:-4]+' '+masterpar+' '+slavepar+' '+offsetfile+' '+simfile+' '+difffile+' '+str(gc.rglks)+' '+str(gc.azlks))
+        print('try yourself by: SLC_diff_intf '+masterpar[:-4]+' '+slavepar[:-4]+' '+masterpar+' '+slavepar+' '+offsetfile+' '+simfile+' '+difffile+' '+str(rglks)+' '+str(azlks))
         shutil.rmtree(ifgthisdir)
         return 3
 

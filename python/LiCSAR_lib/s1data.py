@@ -9,12 +9,12 @@ import arch2DB
 #here is the nostdout function:
 from LiCSAR_misc import *
 
-def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today()):
+def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), sensType = 'IW'):
     #startdate and enddate should be of type datetime.date (but datetime may also work?)
     if str(type(startdate)).split("'")[1] == 'str':
         startdate = dt.datetime.strptime(startdate,'%Y%m%d').date()
     scihub_user, scihub_pass, scihub_url = get_scihub_creds()
-    sensType = 'IW'
+    #sensType = 'IW'
     nmax = 100
     footprint = lq.get_wkt_boundaries(frameName)
     ascdesc = frameName[3]

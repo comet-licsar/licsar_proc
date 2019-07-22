@@ -303,13 +303,14 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     if not crop:
         croptext=''
         geodir = os.path.join(procdir,'geo')
+        masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+'_tab')
     else:
         croptext='_crop_'+slavedate.strftime('%Y%m%d')
         geodir = os.path.join(slaverslcdir,'geo')
+        masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+'crop_tab')
     mastermli = os.path.join(masterrslcdir,
                              masterdate.strftime('%Y%m%d')+croptext+'.rslc.mli')
     #master mli param file path
-    masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+croptext+'_tab')
     mastermlipar = os.path.join(masterrslcdir,
                              masterdate.strftime('%Y%m%d')+croptext+'.rslc.mli.par')
     [mliwidth,mlilength]=get_mli_size(mastermlipar)
@@ -494,8 +495,8 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     daz10000=10000
     it=0
     itmax=5
-    firstpass=True
-    #firstpass=False
+    #firstpass=True
+    firstpass=False
     with open(qualityfile, "a") as myfile:
             myfile.write("Iterative improvement of refinement offset azimuth overlap regions:\n")
     # iterate while azimuth correction >= 0.0005 SLC pixel
@@ -715,11 +716,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     if not missingbursts:
         print('All bursts available, no recropping of master necessary...')
         #coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id)
-        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile)
-        if rc != 0:
-            print("\nError:", file=sys.stderr)
-            print("Something went wrong during coregistration", file=sys.stderr)
-            return rc
+        coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile)
     else:
 ############################################################ Crop master to fit with smaller slave
         # this solution was working also with the 20181130 gamma codes. Keeping as it is..
@@ -857,11 +854,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         rc = geocode_dem(masterrslcdir,geocropdir,demdir,
                 procdir,masterdate.strftime('%Y%m%d')+croptext,gc.outres)
     #finally the coregistration itself
-        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,True)
-        if rc != 0:
-            print("\nError:", file=sys.stderr)
-            print("Something went wrong during coregistration", file=sys.stderr)
-            return rc
+        coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,True)
 ####
 ############################################################ Pad cropped data
         print('Padding coregistered data to the original master extent')
