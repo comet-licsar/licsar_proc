@@ -346,7 +346,7 @@ def main(argv=None):
 
                 # Interferogram successfully formed, start unwrapping
                 ifgdir = os.path.join(procdir,'IFG')
-                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
+                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
                     print('\Interferogram {0} had a problem during the filtering.'.format(ifg))
@@ -420,7 +420,7 @@ def main(argv=None):
 
                 # Interferogram successfully formed, start unwrapping
                 ifgdir = os.path.join(procdir,'IFG')
-                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
+                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
                     print('\Interferogram {0} had a problem during the filtering.'.format(ifg))
@@ -490,7 +490,7 @@ def main(argv=None):
 
                 # Interferogram successfully formed, start unwrapping
                 ifgdir = os.path.join(procdir,'IFG')
-                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
+                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
                     print('\Interferogram {0} had a problem during the filtering.'.format(ifg))
@@ -547,7 +547,7 @@ def main(argv=None):
                     
                 # Interferogram successfully formed, start unwrapping
                 ifgdir = os.path.join(procdir,'IFG')
-                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),framename,ifg,ifgdir,procdir,lq,job_id)
+                rc = do_unwrapping(masterdate.strftime('%Y%m%d'),ifg,ifgdir,procdir,lq,job_id)
                 if rc ==1:
                     # Filtering
                     print('\Interferogram {0} had a problem during the filtering.'.format(ifg))

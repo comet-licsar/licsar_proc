@@ -16,16 +16,15 @@ May 2017: Original implementation (Karsten Spaans, Uni of Leeds)
 =====
 Usage
 =====
-LiCSAR_04_unwrap.py -f <framename> -d </path/to/processing/location>
+LiCSAR_04_unwrap.py -d </path/to/processing/location>
 
-    -f    Name of the frame to be processed in database
     -d    Path to the processing location. 
     -j    job id
     -p    polygon file
     -z    zipfile list
     -y    batch mode
     -l <file> file containing a list of interferograms to unwrap in format YYYYMMDD_YYYYMMDD
-    -T <file> report file to write to. Defaults to FRAME-unwrap.txt
+    -T <file> report file to write to. Defaults to report-unwrap.txt
 """
 
 ################################################################################
@@ -85,8 +84,8 @@ def main(argv=None):
                 reportfile = a
 
 
-        if not framename:
-            raise Usage('No frame name given, -f option is not optional!')
+        #if not framename:
+        #    raise Usage('No frame name given, -f option is not optional!')
         if not procdir:
             raise Usage('No output data directory given, -d is not optional!')
         if job_id == -1:
@@ -113,10 +112,10 @@ def main(argv=None):
 
         return 1
 
-    if not lq.check_frame(framename):
-        print("\nERROR:", file=sys.stderr)
-        print("Frame {0} was not found in database.".format(framename), file=sys.stderr)
-        return 1
+    #if not lq.check_frame(framename):
+    #    print("\nERROR:", file=sys.stderr)
+    #    print("Frame {0} was not found in database.".format(framename), file=sys.stderr)
+    #    return 1
 
     if not os.path.exists(procdir):
         print("\nERROR:", file=sys.stderr)
@@ -147,7 +146,7 @@ def main(argv=None):
         return 1
 
     if not reportfile:
-        reportfile = os.path.join(procdir,'{0}-unwrap.txt'.format(framename))
+        reportfile = os.path.join(procdir,'report-unwrap.txt')
     starttime = dt.datetime.now()
     with open(reportfile,'w') as f:
         f.write('LiCSAR_04_unwrap processing started {0}.\n'.format(dt.datetime.now().strftime('%Y-%m-%d %H:%M')))
@@ -165,7 +164,7 @@ def main(argv=None):
     success = 0
     with open(reportfile,'a') as f:
         for ifg in ifglist:
-            rc = do_unwrapping(masterdatestr,framename,ifg,ifgdir,procdir,lq,job_id)
+            rc = do_unwrapping(masterdatestr,ifg,ifgdir,procdir,lq,job_id)
             if rc == 0:
                 success +=1
             if rc ==1:

@@ -56,7 +56,7 @@ def link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id):
 ################################################################################
 #geocode dem function
 ################################################################################
-def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres):
+def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres):
     """ Geocodes the DEM to the master image geometry
     """
 ############################################################ Create radar coded DEM

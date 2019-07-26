@@ -16,7 +16,7 @@ from LiCSAR_lib.coreg_lib import get_mli_size
 ################################################################################
 # Do unwrapping function
 ################################################################################
-def do_unwrapping(origmasterdate,framename,ifg,ifgdir,procdir,lq,job_id):
+def do_unwrapping(origmasterdate,ifg,ifgdir,procdir,lq,job_id):
 ############################################################ Get master mli, length and width
     mastermli = os.path.join(procdir,'SLC',
                              origmasterdate,
