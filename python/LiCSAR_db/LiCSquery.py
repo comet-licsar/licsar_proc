@@ -158,7 +158,7 @@ def get_frames_in_polygon(minlon,maxlon,minlat,maxlat):
     sql_q += "and greatest( " \
              "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) >= {0} and least(" \
              "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) <= {1};".format(minlat,maxlat)
-    return lq.do_query(sql_q)
+    return do_query(sql_q)
 
 def get_files_from_burst(burstid):
     sql_q = "select distinct bursts.bid_tanx, files.abs_path from bursts " \
@@ -176,6 +176,20 @@ def get_polygon(polyid_nm):
         "corner11_lon, corner11_lat, corner12_lon, corner12_lat " \
         "FROM polygs where polyid_name = '%s';" % (polyid_nm)
     return do_query(sql_q)
+
+def get_time_of_file(fileID):
+    #takes file ID like e.g. S1B_IW_SLC__1SDV_20190808T040601_20190808T040628_017489_020E3F_C558
+    #and gets the full time of its acquisition, not only date..
+    #you may get the file ID e.g. using
+    #date=datetime.strptime('2019-08-08','%Y-%m-%d')
+    #filelist = get_frame_files_date(frame, date.date())
+    #fileID = filelist[0][1]
+    sql_q = "SELECT acq_date from files where name ='{0}';".format(fileID)
+    try:
+        out = do_query(sql_q)[0][0]
+    except:
+        out = None
+    return out
 
 def get_wkt_boundaries(frameName):
     polygon = get_polygon(frameName)[0]

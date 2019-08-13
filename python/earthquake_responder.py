@@ -1,214 +1,138 @@
+#!/usr/bin/env python
+
+import os
 import LiCSquery as lq
 import datetime
-from shapely.geometry import Polygon
-from shapely.ops import unary_union
+from datetime import datetime, timedelta
+from libcomcat.search import search,count,get_event_by_id
+import pandas as pd
 
-def get_bursts_within_polygon(lon1,lat1,lon2,lat2):
-    sql_q = "select bid, bid_tanx, bid_tanxtk "\
-            'corner1_lon, corner1_lat, '\
-            'corner2_lon, corner2_lat, '\
-            'corner3_lon, corner3_lat, '\
-            'corner4_lon, corner4_lat '\
-            "from bursts " \
-            "where "\
-            "greatest( "\
-            "corner1_lon,corner2_lon,corner3_lon,corner4_lon"\
-            ") "\
-            ">= {0} and "\
-            "least( "\
-            "corner1_lon,corner2_lon,corner3_lon,corner4_lon"\
-            ") "\
-            "<= {1} ".format(lon1,lon2)
-    sql_q += "and "\
-            "greatest( "\
-            "corner1_lat,corner2_lat,corner3_lat,corner4_lat"\
-            ") "\
-            ">= {0} and "\
-            "least( "\
-            "corner1_lat,corner2_lat,corner3_lat,corner4_lat"\
-            ") "\
-            "<= {1};".format(lat1,lat2)
-    #print(sql_q)
-    return lq.do_query(sql_q)
+public_path = os.environ['LiCSAR_public']
+web_path = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'
 
-def get_range_from_magnitude(mag,depth):
-    #from alistair codes:
-    #but it is weird... too small value
-    #on the other hand, John's table showed 1150 km - and this is way too much ..
-    #...or not - USGS showed that IV shaking was felt some 750 km from the epicenter!
-    ang = 10 + mag * 10
-    radius = depth * np.tan(ang/2)
-    return radius
+def get_range_from_magnitude(M, depth, unit = 'km'):
+    #M = 5.5
+    #depth = 9 #km
+    #table based on John Elliott's know-how..
+    eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
+                              6.1,6.2,6.3,6.4,6.5,6.6,6.7,6.8,6.9,7, \
+                              7.1,7.2,7.3,7.4,7.5,7.6,7.7,7.8,7.9,8, \
+                              8.1,8.2,8.3,8.4,8.5],
+          'distance': [20,20,21,25,30,36, \
+                      42,50,60,71,84,100,119,141,167,199, \
+                      236,280,333,396,471,559,664,790,938,1115, \
+                      1325, 1575, 1872, 2225, 2500],
+          'depth': [10,11,12,14,16,18, \
+                   21,24,28,32,36,42,48,55,63,73, \
+                   83,96,110,127,146,168,193,222,250,250, \
+                   250, 250, 250, 250, 250]}
+    eq_limits = pd.DataFrame(eq_data, columns = {'magnitude', 'distance', 'depth'})
+    if M > 8.5 and depth <= 250:
+        distance = 2500
+    else:
+        distance = eq_limits.query('magnitude == {0} and depth >= {1}'.format(M,depth))['distance']
+        if len(distance)>0:
+            distance = int(distance.to_string().split()[1])
+        else:
+            distance = None
+            print('The earthquake parameters do not fit with the limit table')
+    #rad or km?
+    if unit == 'rad':
+        distance = (360.0 / 40007.86) * distance
+    return distance
 
-def get_polygon_from_burst_id(bid):
-    sql = 'select corner1_lat, corner1_lon, corner2_lat, corner2_lon, corner3_lat, corner3_lon,'\
-    ' corner4_lat, corner4_lon from bursts where bid = {0};'.format(bid)
-    coords = lq.do_query(sql)[0]
-    #the coordinates are 'random' so I do a loop to get valid polygon
-    lat_set = [(0, 2, 4, 6),(0, 2, 6, 4),(0, 4, 6, 2),(0, 4, 2, 6),(0, 6, 4, 2),(0, 6, 2, 4)]
-    lon_set = [(1, 3, 5, 7),(1, 3, 7, 5),(1, 5, 7, 3),(1, 5, 3, 7),(1, 7, 5, 3),(1, 7, 3, 5)]
-    for i in range(len(lat_set)):
-        lat_point_list = []
-        lon_point_list = []
-        for x in lat_set[i]:
-            lat_point_list.append(coords[x])
-        for y in lon_set[i]:
-            lon_point_list.append(coords[y])
-        polygon_geom = Polygon(zip(lon_point_list, lat_point_list))
-        if polygon_geom.is_valid:
-            break
-    return polygon_geom
+def create_kmls(frame, toi):
+    #toi is Time Of Interest - and should be as datetime
+    doi = toi.date()
+    track = str(int(frame[0:3]))
+    global public_path
+    products_path = os.path.join(public_path, track, frame, 'products')
+    doi_str = int(doi.strftime('%Y%m%d'))
+    publicifgs = os.listdir(products_path)
+    ## should do check for valid folder name here!
+    selected_ifgs = []
+    for pifg in publicifgs:
+        is_coseismic = False
+        mas = int(pifg.split('_')[0])
+        slv = int(pifg.split('_')[1])
+        #this is to generate kmz files only for coseismic ifgs
+        if (doi_str > mas) and (doi_str < slv):
+            is_coseismic = True
+        if (doi_str == mas):
+            date = datetime.strptime(str(mas),'%Y%m%d').date()
+            filelist = lq.get_frame_files_date(frame, date)
+            tof = get_time_of_file(filelist[0][1])
+            if tof < toi:
+                is_coseismic = True
+        if (doi_str == slv):
+            date = datetime.strptime(str(slv),'%Y%m%d').date()
+            filelist = lq.get_frame_files_date(frame, date)
+            tof = lq.get_time_of_file(filelist[0][1])
+            if tof > toi:
+                is_coseismic = True
+        if is_coseismic:
+            if not os.path.exists(os.path.join(products_path,pifg,pifg+'.kmz')):
+                #generate kmz
+                os.system('create_kmz.sh {0}'.format(os.path.join(products_path,pifg)))
+                selected_ifgs.append(pifg)
+    return selected_ifgs
 
-def create_new_frame(burst_ids,iw1,iw2,iw3,polyid_track,eq_date):
-    #if polyid_name exists in db, just return its name. otherwise:
-    #insert into polygs: polyid_name=011D_00000_050505
-    datestring = eq_date.strftime("%y%m%d")[1:]
-    iw1_str = str(iw1); iw2_str = str(iw2); iw3_str = str(iw3)
-    if iw1 < 10: iw1_str = '0'+str(iw1)
-    if iw2 < 10: iw2_str = '0'+str(iw2)
-    if iw3 < 10: iw3_str = '0'+str(iw3)
-    if (iw1 > 99) or (iw2 > 99) or (iw3 > 99):
-        print('The track '+polyid_track+' exceeds limit of less than 100 bursts per swath')
-        return
-    polyid_name = polyid_track+'_'+datestring+'_'+iw1_str+iw2_str+iw3_str
-    #check if such polyid_name exists:
-    sql = "select count(*) from polygs where polyid_name = '{0}';".format(polyid_name)
-    polyid_exists = lq.do_query(sql)[0][0]
-    if polyid_exists:
-        print('the polyid_name '+ polyid_name +' exists, skipping')
-        return
-    polyid_colat10 = datestring
-    name_old = 'eqake_'+polyid_track[-1]+'_t'+str(int(polyid_track[0:3]))+'_'+eq_date.strftime("%y%m%d")
-    #hardest part: to identify corner lat, lon coordinates
-    print('Getting frame polygon from bursts')
-    polygons = []
-    for bid in burst_ids:
-        polygons.append(get_polygon_from_burst_id(bid))
-    merged_polygon = unary_union(polygons)
-    #this workaround helps if we have some gaps between bursts
-    print(polyid_name)
-    if merged_polygon.geom_type == 'MultiPolygon':
-        merged_polygon = merged_polygon.convex_hull
-    #print('number of original points: '+str(len(merged_polygon.exterior.coords)-2))
-    for simp in range(1,10):
-        frame_polygon = merged_polygon.simplify(0.1*simp, preserve_topology=True)
-        #print(str(len(frame_polygon.exterior.coords)-2))
-        if len(frame_polygon.exterior.coords)-2 <= 12:
-            break
-    #if still complex, do hull and simplify again
-    if len(frame_polygon.exterior.coords)-2 > 12:
-        frame_polygon = frame_polygon.convex_hull
-    if len(frame_polygon.exterior.coords)-2 > 12:
-        for simp in range(1,100):
-            frame_polygon = frame_polygon.simplify(0.1*simp, preserve_topology=False)
-            if len(frame_polygon.exterior.coords)-2 <= 12:
-                break
-    #boundary = gpd.GeoSeries(merged_polygon)
-    #boundary.plot(color = 'blue')
-    #plt.show()
-    #print('number of simplified points: '+str(len(frame_polygon.exterior.coords)-2))
-    #boundary = gpd.GeoSeries(frame_polygon)
-    #boundary.plot(color = 'red')
-    #plt.show()
-    #return
-    max_i = len(frame_polygon.exterior.coords)-1
-    #get minimum number of 4 vertices
-    if max_i < 4: max_i = 4
-    lons = []; lats = []
-    for i in range(12):
-        lons.append('NULL')
-        lats.append('NULL')
-    for i in range(1, max_i):
-        lons[i-1] = frame_polygon.exterior.coords[i][0]
-        lats[i-1] = frame_polygon.exterior.coords[i][1]
-    #now to insert the new temporary frame to the database
-    sql = 'select polyid from polygs order by polyid desc limit 1;'
-    lastpolyid = lq.do_query(sql)
-    polyid = int(lastpolyid[0][0])+1
-    inserted = str(datetime.datetime.now())
-    sql = "INSERT INTO polygs VALUES ({0}, '{1}', '{2}', {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, "\
-    "{12}, {13}, {14}, {15}, {16}, {17}, {18}, {19}, {20}, {21}, {22}, {23}, {24}, {25}, {26}, {27}, "\
-    "{28}, {29}, {30}, '{31}', {32}, '{33}');".format(\
-                       polyid, polyid_name, polyid_track, polyid_colat10, iw1, iw2, iw3,\
-                       lats[0], lons[0], lats[1], lons[1], lats[2], lons[2], lats[3], lons[3],\
-                       lats[4], lons[4], lats[5], lons[5], lats[6], lons[6], lats[7], lons[7],\
-                       lats[8], lons[8], lats[9], lons[9], lats[10], lons[10], lats[11], lons[11],\
-                       name_old, 0, inserted)
-    #print(sql)
-    res = lq.do_query(sql, 1)
-    #and fill the polygs2bursts for relation polyid<->burst_ids
-    for bid in burst_ids:
-        sql = 'INSERT INTO polygs2bursts VALUES ({0}, {1});'.format(polyid,bid)
-        #print(sql)
-        res = lq.do_query(sql, 1)
-    return polyid_name
+def main():
+    #will process daily and check also for older earthquakes (to get max 12 days co-seismic pair)
+    eventlist = search(starttime=datetime.now()-timedelta(days=13),
+                           endtime=datetime.now(),
+                           minmagnitude=5.5)
+    #for debug only now
+    eventlist = search(starttime=datetime.now()-timedelta(days=5.2), endtime=datetime.now()-timedelta(days=4),minmagnitude=5.5)
+    if eventlist:
+        for event in eventlist:
+            print('There was an event - ID '+event.id)
+            #print(event.id)
+            print("Time of event: "+str(event.time))
+            print("Lat: "+str(event.latitude)+", Lon: "+str(event.longitude))
+            print("Magnitude: "+str(event.magnitude)+", depth: "+str(event.depth)+" km")
+            #print(event.location)
+            #print(event.url)
+            #now my functions:
+            radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
+            #print(radius)
+            if event.hasProduct('shakemap'):
+                print('there is shakemap existing. we should download it and include to kml..')
+                print('see: '+event.url)
+                #event.getDetailURL() #here just change geojson to kml...
+                #event.url # shakemap can be downloaded with only contours > M5
+            minlon = event.longitude - radius
+            maxlat = event.latitude + radius
+            maxlon = event.longitude + radius
+            minlat = event.latitude - radius
+            #global public_path
+            #global web_path
+            eventfile = os.path.join(public_path,'EQ',event.id+'.html')
+            frames = lq.get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
+            print('{0} frames detected for event {1}, will be processing them'.format(str(len(frames)),event.id))
+            for frame in frames:
+                frame = frame[0]
+                indate = event.time-timedelta(days=13)
+                offdate = datetime.now()
+                print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
+                #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
+                os.system('licsar_make_frame.sh -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
+                #this way is a kind of prototype and should be improved
+                new_kmls = create_kmls(frame,event.time)
+                if new_kmls:
+                    #update the event ID file:
+                    print("Generated "+str(len(new_kmls))+" new (co-seismic ifg?) kml files")
+                    f=open(eventfile, "a+")
+                    for kml in new_kmls:
+                        track = str(int(frame[0:3]))
+                        fullwebpath = os.path.join(web_path, track, frame, 'products', kml, kml + '.kmz')
+                        newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath, frame, kml)
+                        f.write(newline)
+                    f.close()
+            if os.path.exists(eventfile):
+                os.system('sort -u {0} > ~/tmpbardak; mv ~/tmpbardak {0}'.format(eventfile))
+                print('done. Check this webpage:')
+                print(os.path.join(web_path,'EQ',event.id+'.html'))
 
-
-
-
-
-#and this is the main code:
-#... so this code actually defines polygons (frames) containing the eathquake
-# i use now only licsar_live ...
-# probably should change it - and clean the polygons that have polyid > 9000
-
-#center coordinates:
-#let's try the Peru earthquake:
-lat = -5.807
-lon = -75.264
-MAG = 8
-depth = 122 #km
-rad_km = get_range_from_magnitude(MAG,depth)
-#range in km:
-rad_km = 750
-#date of earthquake:
-#to make things go properly, we should introduce also time here!
-eq_date = datetime.datetime(2019,5,26)
-radius = (360.0 / 40007.86) * rad_km
-minlon = lon - radius
-maxlat = lat + radius
-maxlon = lon + radius
-minlat = lat - radius
-selected_bursts = get_bursts_within_polygon(minlon,minlat,maxlon,maxlat)
-#print(selected_bursts)
-print(str(len(selected_bursts))+' bursts selected')
-
-burst_ids=[]
-relorbs=[]
-for i in range(len(selected_bursts)):
-    burst_ids.append(selected_bursts[i][1])
-    relorbs.append(selected_bursts[i][2])
-relorbs = list(dict.fromkeys(relorbs))
-print(str(len(relorbs))+' orbital tracks')
-
-polyids = []
-#one of polyids as i tested was: 127D_90526_285070
-for relorb in relorbs:
-    bids=[]
-    iw1=0
-    iw2=0
-    iw3=0
-    pom=0
-    #datestring = eq_date.strftime("%y%m%d")[1:]
-    for i in range(len(selected_bursts)):
-        if selected_bursts[i][2] == relorb:
-            if pom==0:
-                #i should get orb_dir here
-                bid=str(selected_bursts[i][0])
-                sql='select f.orb_dir from files2bursts fb inner join files f on fb.fid=f.fid where fb.bid={0} limit 1;'.format(bid)
-                orb_dir=lq.do_query(sql)[0][0]
-                relorb_str = str(relorb)
-                if relorb < 100: relorb_str = '0'+relorb_str
-                if relorb < 10: relorb_str = '0'+relorb_str
-                polyid_track = relorb_str+orb_dir
-                #print(orb_dir)
-                pom=1
-            bids.append(selected_bursts[i][0])
-            iw=int(selected_bursts[i][1].split('_')[1][2])
-            if iw==1: iw1+=1
-            if iw==2: iw2+=1
-            if iw==3: iw3+=1
-    #print(bids)
-    #print(iw1)
-    polyids.append(create_new_frame(bids,iw1,iw2,iw3,polyid_track,eq_date))
-print(polyids)
+if __name__ == '__main__':
+    main()

@@ -67,10 +67,27 @@ rm -f geo/${master}.geo.rad.orientation #geo/${master}.geo.deg.heading.tif geo/$
 # Create a mask in geographical and radarcoordinates 
 # we use a very conservative approach, and we mask only areas that are impossible to unwrap 
 # (layover/shadows and sea surface)
-geomask.py geo/EQA.dem geo/pix geo/hgtpix.geo.mask ${width_dem} ${length_dem} 
-rascc_mask geo/hgtpix.geo.mask - ${width_dem} - - - - - $H_threshold - 0 1 - - - geo/geo.mask.bmp > /dev/null 2>&1
-geocode geo/${master}.lt_fine geo/hgtpix.geo.mask ${width_dem} geo/mask ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback mask to radar coordinates
-rascc_mask geo/mask - ${width} - - - - - $H_threshold - 0 1 - - - geo/mask.bmp > /dev/null 2>&1
+# 
+# 2019-08: this concept is horrible (who did this??) - mask > 0.1 is only visible in ras preview, and also we should NOT exclude negative elevations
+# and also the mask gets lost during the geocode process due to used SQR(1/dist) method for interpolation...
+# somebody should be really really ashamed here.....
+#
+#geomask.py geo/EQA.dem geo/pix geo/hgtpix.geo.mask ${width_dem} ${length_dem}
+#rascc_mask geo/hgtpix.geo.mask - ${width_dem} - - - - - $H_threshold - 0 1 - - - geo/geo.mask.bmp > /dev/null 2>&1
+#geocode geo/${master}.lt_fine geo/hgtpix.geo.mask ${width_dem} geo/mask ${width} ${length} 2 0 > /dev/null 2>&1 # geocodeback mask to radar coordinates
+#rascc_mask geo/mask - ${width} - - - - - $H_threshold - 0 1 - - - geo/mask.bmp > /dev/null 2>&1
+
+#so this is the more proper way:
+#generating mask only based on shadow/layover - small difference from the previous
+geomask2.py geo/EQA.dem geo/ls_map geo/hgt.geo.masked ${width_dem} ${length_dem}
+#geocode geo/${master}.lt_fine geo/ls_map ${width_dem} geo/ls_map.rc ${width} ${length} 1 4 > /dev/null 2>&1 # geocodeback layover/shadow file to radar coordinates
+#geomask2.py geo/${master}.hgt geo/ls_map.rc geo/hgt.masked ${width} ${length} # this does not work... ls_map is wrongly converted..
+
+#geocode geo/${master}.lt_fine geo/hgt.geo.masked ${width_dem} geo/hgt.masked ${width} ${length} 1 0 > /dev/null 2>&1 # geocodeback mask to radar coordinates
+#the above command is not useful - NN interpolation gives awful output, but other interpolation method would remove the mask.. better not use masking at all??
+
+# will not generate the bmp previews - if you want to check, use:
+# dishgt hgt.geo.masked - $width_dem
 
 #rm -f geo/${master}.geo.deg.hdr geo/${master}.geo.rad.elev.grd.aux.xml geo/${master}.geo.deg.heading2.aux.xml geo/${master}.geo.deg.inc2.aux.xml geo/${master}.geo.rad.orientation.grd.aux.xml
 

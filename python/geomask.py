@@ -56,4 +56,3 @@ if outFile:
 
 out.tofile(fout)
 fout.close()
-

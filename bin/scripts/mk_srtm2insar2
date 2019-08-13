@@ -76,22 +76,16 @@ tmpnm=`pwd | awk -F '/' '{print $NF}'`
 # gdalwarp has poor performance adjusting the cache memory [e.g. 1Gb] performance increases
 # see https://trac.osgeo.org/gdal/wiki/UserDocs/GdalWarp
 gdalwarp -multi --config GDAL_CACHEMAX 1000 -wm 1000 -overwrite -of GTiff `ls *.hgt` ${LiCSAR_temp}/${tmpnm}.tif 
-#mv ${LiCSAR_temp}/${tmpnm}.tif ${output}.tif
+mv ${LiCSAR_temp}/${tmpnm}.tif ${output}.tif
 # 
 
 #geoid_height=0
 #resampled_geoid_map='tmp.map'
 #now GAMMA 20181130
 #echo srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
-
-#here a workaround to preserve zero values
-gdal_calc.py -A ${LiCSAR_temp}/${tmpnm}.tif --calc='(A==0)*32000+(A!=0)*A' --outfile=${output}.tif --NoDataValue=-32768 >/dev/null 2>/dev/null
-rm ${LiCSAR_temp}/${tmpnm}.tif
-
-srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
-wid=`grep "width:" $output.dem_par | gawk {'print $2'}`
-replace_values ${output}.dem 32000 0.01 bagr $wid 0 2
-mv bagr ${output}.dem
+echo "debug:"
+pwd
+echo srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
 
 # Check gamma version to add geoid heights
 # This is a version that work with GAMMA 20151209
@@ -101,6 +95,6 @@ mv bagr ${output}.dem
 #srtm2dem ${output}.tif ${output}.dem ${output}.dem_par $geoid_height # GAMMA 201507 version
 
 #Cleaning
-rm -f *.hgt
-rm srtm_tmp.hdr srtm2dem.log ${output}.tif 2>/dev/null
+echo rm -f *.hgt
+echo rm srtm_tmp.hdr srtm2dem.log ${output}.tif 2>/dev/null
 

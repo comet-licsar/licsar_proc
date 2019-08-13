@@ -213,7 +213,9 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
     logfilename = os.path.join(tmpdir,'snaphu.log')
     with open(logfilename,'w') as f:
         #new snaphu: parameter -S for optimization within tiling
-        cmdstr = 'snaphu -v -S -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
+        #cmdstr = 'snaphu -v -S -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
+        #old snaphu (YuM identified significant differences, the older version is preferred)
+        cmdstr = 'snaphu -v -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
         job = subp.Popen(cmdstr,shell=True,stdout=f,stderr=f,stdin=None)
     job.wait()
     try:
@@ -237,7 +239,21 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
 ################################################################################
 # Get snaphu conf
 ################################################################################
+# constant problems with tiling - returning back to no-tiling
 def get_snaphu_conf(tmpdir):
+    return ('INFILE  {0}/snaphu.in\n'.format(tmpdir),
+            'OUTFILE {0}/snaphu.out\n'.format(tmpdir),
+            'COSTINFILE {0}/snaphu.costinfile\n'.format(tmpdir),
+            'STATCOSTMODE  DEFO\n',
+            'INFILEFORMAT  COMPLEX_DATA\n',
+            'OUTFILEFORMAT FLOAT_DATA\n',
+            'NSHORTCYCLE 100\n',
+            'NTILEROW 1\n',
+            'NTILECOL 1\n',
+            'NPROC 1\n',
+            'RMTMPTILE TRUE\n')
+
+def get_snaphu_conf_tiled(tmpdir):
     return ('INFILE  {0}/snaphu.in\n'.format(tmpdir),
             'OUTFILE {0}/snaphu.out\n'.format(tmpdir),
             'COSTINFILE {0}/snaphu.costinfile\n'.format(tmpdir),

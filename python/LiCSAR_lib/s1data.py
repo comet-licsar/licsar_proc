@@ -27,7 +27,10 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
                      platformname = 'Sentinel-1', producttype = 'SLC', \
                      relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
     #scihub.to_geodataframe(result)
-    images = scihub.to_dataframe(result)['title'].values.tolist()
+    if result:
+        images = scihub.to_dataframe(result)['title'].values.tolist()
+    else:
+        images = None
     return images
 
 def get_scihub_creds():

@@ -38,19 +38,29 @@ filetype2=np.int8
 assert os.path.isfile(heightfile), 'LiCSAR - geomask.py: height (elevations) angle file does not exist'
 assert os.path.isfile(shadowfile), 'LiCSAR - geomask.py: layover/shadow pixels file does not exist'
   
-fin = open(heightfile,'rb'); height = np.fromfile(file=fin,dtype=filetype,count=nx*ny).reshape(ny,nx); fin.close()
+fin = open(heightfile,'rb')
+height = np.fromfile(file=fin,dtype=filetype,count=nx*ny).reshape(ny,nx)
 height.byteswap(True) # Swap bytes - from big endian to little endian
+fin.close()
 
-fin = open(shadowfile,'rb'); shadow = np.fromfile(file=fin,dtype=filetype2,count=nx*ny).reshape(ny,nx); fin.close()
+fin = open(shadowfile,'rb')
+shadow = np.fromfile(file=fin,dtype=filetype2,count=nx*ny).reshape(ny,nx)
+fin.close()
 shadow.astype(np.float32)
 shadow_masked=np.where(shadow>1., 0., 1.)  # Mask any value larger than 1, if condition is true 0 else 1
 
-out = np.multiply(shadow_masked, height); 
+out = np.multiply(shadow_masked, height)
+#this way we will change 0 to 1e-20 as to be used for NoData - we consider low probability of 0 m pixels, yet this may actually happen..
+out[out == 0] = 1e-20
 out = out.astype(np.float32)
-out1= out.byteswap(True); 
+out1= out.byteswap(True)
 
 outFile = isinstance(outfile,str)
 if outFile:
   fout = open(outfile,'wb')
 out1.tofile(fout)
 fout.close()
+
+
+
+
