@@ -567,28 +567,8 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
         print("\nError:", file=sys.stderr)
         print("Something went wrong resampling the slave SLC", file=sys.stderr)
         return 3
+    return 0
 #########################################################################
-    #Do the RSLC mosaic
-    logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
-                               slavedate.strftime('%Y%m%d')+
-                               '.log')
-    if not SLC_mosaic_S1_TOPS(slaverslctab,slaverfilename,gc.rglks,gc.azlks,logfilename,mastertab=masterslctab):
-        print('Something went wrong mosaicing subswaths '\
-                'together. Log file {0}. Continuing with next acquisition '\
-                'date.'.format(logfilename), file=sys.stderr)
-        return 3
-    #Multilook (average) resampled slc
-    logfilename =  os.path.join(procdir,'log',
-                                        'multilookRSLC_{0}_crop.log'.format(
-                                            slavedate.strftime('%Y%m%d')))
-    multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
-            slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
-    rc = os.system(multicall)
-    if rc != 0:
-        print('Something went wrong multilooking the '\
-                'resampled slave image. Log file {0}. Continuing with '\
-                'next acquisition date.'.format(logfilename), file=sys.stderr)
-    return rc
 
 def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id):
     """ Coregister and resample slave to master geometry
@@ -720,6 +700,27 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("\nError:", file=sys.stderr)
             print("Something went wrong during coregistration", file=sys.stderr)
             return rc
+        #Do the RSLC mosaic
+        logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
+                                   slavedate.strftime('%Y%m%d')+
+                                   '.log')
+        if not SLC_mosaic_S1_TOPS(slaverslctab,slaverfilename,gc.rglks,gc.azlks,logfilename,mastertab=masterslctab):
+            print('Something went wrong mosaicing subswaths '\
+                    'together. Log file {0}. Continuing with next acquisition '\
+                    'date.'.format(logfilename), file=sys.stderr)
+            return 3
+        #Multilook (average) resampled slc
+        logfilename =  os.path.join(procdir,'log',
+                                            'multilookRSLC_{0}_crop.log'.format(
+                                                slavedate.strftime('%Y%m%d')))
+        multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
+                slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
+        rc = os.system(multicall)
+        if rc != 0:
+            print('Something went wrong multilooking the '\
+                    'resampled slave image. Log file {0}. Continuing with '\
+                    'next acquisition date.'.format(logfilename), file=sys.stderr)
+            return rc
     else:
 ############################################################ Crop master to fit with smaller slave
         # this solution was working also with the 20181130 gamma codes. Keeping as it is..
@@ -737,7 +738,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         cropfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')
                                                                         +croptext+'.rslc')
     #loop through swaths
-        for iw in ['IW1','IW2','IW3']:
+        for iw in swathlist: #['IW1','IW2','IW3']:
         #get master and slave bursts
             iwthisburst_m = sorted([b[0] for b in masterbursts if iw in b[0]])
             iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
@@ -862,9 +863,63 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             print("\nError:", file=sys.stderr)
             print("Something went wrong during coregistration", file=sys.stderr)
             return rc
+    # as final touches, rslcs for all swaths separately will be padded. therefore there will be no issues mosaicking in the future
+        for iw in swathlist: #['IW1','IW2','IW3']:
+            if os.path.exists(os.path.join(slaverslcdir,slavedate.strftime('%Y%m%d')+'.'+iw+'.rslc')):
+                masterOrigRslc = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+'.'+iw+'.rslc')
+                masterCropRslc = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+croptext+'.'+iw +'.rslc')
+                if os.path.getsize(masterOrigRslc) != os.path.getsize(masterCropRslc):
+                    # do the padding here... this seems like the easier solution on the 'ghosting' problem
+                    # better (disk saving) option would be to save just azimuth offset (lines) towards orig. master
+                    # and use it for generating RSLC mosaic. however this would need more coding and...
+                    # we are not going to store the full RSLCs anyway....
+                    # also, padding the IW RSLCs would be more savvy towards RAM memory needs
+                    azoffsetcall = ['master2mastercrop_offset.sh',
+                                    os.path.join(masterrslcdir,
+                                                 masterdate.strftime('%Y%m%d')+'.'+iw),
+                                    'rslc',
+                                    os.path.join(masterrslcdir,
+                                                 masterdate.strftime('%Y%m%d'))+croptext+'.'+iw,
+                                    'rslc']
+                    azoffset = subp.check_output(azoffsetcall).strip()
+                    azoffset = azoffset.decode('ascii')
+                    rslccall = ['rslc2rslc.sh',
+                                os.path.join(masterrslcdir,
+                                                 masterdate.strftime('%Y%m%d')+'.'+iw),
+                                os.path.join(slaverslcdir,
+                                                 slavedate.strftime('%Y%m%d')+'.'+iw),
+                                str(azoffset)]
+                    rc = subp.check_call(rslccall)
+                    if rc > 0:
+                        print("\nError:", file=sys.stderr)
+                        print("Something went wrong zero padding cropped RSLC.", file=sys.stderr)
+                        return 4
+        #Do the RSLC mosaic
+        rc, msg = make_SLC_tab(masterslctab,masterslcfilename,swathlist)
+        logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
+                                   slavedate.strftime('%Y%m%d')+
+                                   '.log')
+        if not SLC_mosaic_S1_TOPS(slaverslctab,slaverfilename,gc.rglks,gc.azlks,logfilename,mastertab=masterslctab):
+            print('Something went wrong mosaicing subswaths '\
+                    'together. Log file {0}. Continuing with next acquisition '\
+                    'date.'.format(logfilename), file=sys.stderr)
+            return 3
+        #Multilook (average) resampled slc
+        logfilename =  os.path.join(procdir,'log',
+                                            'multilookRSLC_{0}_crop.log'.format(
+                                                slavedate.strftime('%Y%m%d')))
+        multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
+                slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
+        rc = os.system(multicall)
+        if rc != 0:
+            print('Something went wrong multilooking the '\
+                    'resampled slave image. Log file {0}. Continuing with '\
+                    'next acquisition date.'.format(logfilename), file=sys.stderr)
+            return rc
 ####
 ############################################################ Pad cropped data
-        print('Padding coregistered data to the original master extent')
+#### this part is to save the azimuth offset (lines no.) between orig and cropped master. it may be useful for the LUT-only recoregistration
+        #print('Padding coregistered data to the original master extent')
         azoffsetcall = ['master2mastercrop_offset.sh',
                         os.path.join(masterrslcdir,
                                      masterdate.strftime('%Y%m%d')),
@@ -874,31 +929,21 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                         'rslc']
         azoffset = subp.check_output(azoffsetcall).strip()
         azoffset = azoffset.decode('ascii')
-        #print(str(azoffset))
-        #this can be done through rslc2rslc.py 
-        rslccall = ['rslc2rslc.sh',
-                    os.path.join(masterrslcdir,
-                                     masterdate.strftime('%Y%m%d')),
-                    os.path.join(slaverslcdir,
-                                     slavedate.strftime('%Y%m%d')),
-                    str(azoffset)]
-        rc = subp.check_call(rslccall)
-        if rc > 0:
-            print("\nError:", file=sys.stderr)
-            print("Something went wrong zero padding cropped RSLC.", file=sys.stderr)
-            return 4
-
-        logfilename =  os.path.join(procdir,'log',
-                                            'multilookRSLC_{0}'+croptext+'.log'.format(
-                                                slavedate.strftime('%Y%m%d')))
-
-    #multilook cropped padded data
-        multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
-                slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
-        rc = os.system(multicall)
-        if rc != 0:
-            print('Something went wrong multilooking the resampled slave image. Log file {0}. Continuing with next acquisition date.'.format(logfilename), file=sys.stderr)
-
+        with open(qualityfile, "a") as myfile:
+            myfile.write("There were missing bursts. The azimuth offset towards master SLC is: \n")
+            myfile.write("azoffset_lines: "+str(azoffset)+"\n")
+# this is residual from previous version where missing bursts were mosaicked and only then padded (here we would need to keep mosaic instead of IWs)
+        #rslccall = ['rslc2rslc.sh',
+        #            os.path.join(masterrslcdir,
+        #                             masterdate.strftime('%Y%m%d')),
+        #            os.path.join(slaverslcdir,
+        #                             slavedate.strftime('%Y%m%d')),
+        #            str(azoffset)]
+        #rc = subp.check_call(rslccall)
+        #if rc > 0:
+        #    print("\nError:", file=sys.stderr)
+        #    print("Something went wrong zero padding cropped RSLC.", file=sys.stderr)
+        #    return 4
 ############################################################ remove lock file
     os.remove(slaveLockFile)
 

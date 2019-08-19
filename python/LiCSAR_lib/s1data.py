@@ -54,7 +54,11 @@ def get_neodc_path_images(images):
         year = image[17:21]
         mon = image[21:23]
         day = image[23:25]
-        neodcpath = os.path.join('/neodc/sentinel1'+AorB,'data/IW/L1_SLC/IPF_v2',year,mon,day,image+'.zip')
+        if int(year)>=2019 and int(mon)>=6 and int(day)>=25:
+            vers='3'
+        else:
+            vers='2'
+        neodcpath = os.path.join('/neodc/sentinel1'+AorB,'data/IW/L1_SLC/IPF_v'+vers,year,mon,day,image+'.zip')
         neodc_paths.append(neodcpath)
     return neodc_paths
 

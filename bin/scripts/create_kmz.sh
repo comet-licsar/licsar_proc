@@ -45,10 +45,19 @@ rm tmp.ewsn 2>/dev/null
 for x in `cat tmp.coord | cut -d ',' -f1 | sort -n -u`; do echo $x >> tmp.ewsn; done
 for x in `cat tmp.coord | cut -d ',' -f2 | sort -n -u`; do echo $x >> tmp.ewsn; done
 
-sed -i 's/TEASTT/'`sed '1q;d' tmp.ewsn`'/' $pair.kml
-sed -i 's/TWESTT/'`sed '2q;d' tmp.ewsn`'/' $pair.kml
-sed -i 's/TSOUTHT/'`sed '3q;d' tmp.ewsn`'/' $pair.kml
-sed -i 's/TNORTHT/'`sed '4q;d' tmp.ewsn`'/' $pair.kml
+E=`sed '1q;d' tmp.ewsn`
+W=`sed '2q;d' tmp.ewsn`
+S=`sed '3q;d' tmp.ewsn`
+N=`sed '4q;d' tmp.ewsn`
+sed -i 's/TEASTT/'$E'/' $pair.kml
+sed -i 's/TWESTT/'$W'/' $pair.kml
+sed -i 's/TSOUTHT/'$S'/' $pair.kml
+sed -i 's/TNORTHT/'$N'/' $pair.kml
+
+centerlat=`python -c "print(("$S"+"$N")/2)"`
+centerlon=`python -c "print(("$E"+"$W")/2)"`
+sed -i 's/TCENLATT/'$centerlat'/' $pair.kml
+sed -i 's/TCENLONT/'$centerlon'/' $pair.kml
 
 zip -r $pair.zip $pair.kml files >/dev/null
 mv $pair.zip $pair.kmz

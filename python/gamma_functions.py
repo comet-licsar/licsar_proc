@@ -545,7 +545,7 @@ def gc_map(mlipar,offpar,dem,demseg,lut,latovr,lonovr,simsar,u,v,inc,psi,pix,lsm
 
 def SLC_mosaic_S1_TOPS(tabname,outfilename,rglks,azlks,logfilename,mastertab=''):
     """
-    Include mastertab when mosaicing a resample SLC
+    Include mastertab when mosaicing a resampled SLC
     """
     if mastertab == '':
         mosaiccall = ['SLC_mosaic_S1_TOPS',tabname,outfilename,
