@@ -142,11 +142,20 @@ def get_frame_bursts_on_date(frame,date):
             "and date(files.acq_date)='{1}';".format(frame,date)
         return do_query(sql_q)
 
-def get_bursts_in_polygon(lon1,lon2,lat1,lat2):
+def get_bursts_in_polygon(lon1,lon2,lat1,lat2,relorb = None, swath = None):
+    #swath can be provided, e.g. as 'S6'
+    #relorb can be provided, e.g. as 75
+    #however this is very simplified function - if center is outside of the lat lon area, it would not find anything....
+    # - but what to do if CEDA's mySQL is so historic it doesn't have geotables?
+    #The GIS-enabled postgreSQL db that A.McD. was working so hard on is not used -- for ..various reasons.. but it perhaps should
     sql_q = "select distinct bursts.bid_tanx, bursts.centre_lon, bursts.centre_lat, files.rel_orb, files.swath from bursts " \
         "inner join files2bursts on files2bursts.bid=bursts.bid "\
         "inner join files on files2bursts.fid=files.fid "\
         "where bursts.centre_lon >= '{0}' and bursts.centre_lon <= '{1}' ".format(lon1,lon2)
+    if swath:
+        sql_q += "and files.swath='{0}' ".format(swath)
+    if relorb:
+        sql_q += "and files.rel_orb={0} ".format(relorb)
     sql_q += "and bursts.centre_lat >= '{0}' and bursts.centre_lat <= '{1}';".format(lat1,lat2)
     return do_query(sql_q)
 

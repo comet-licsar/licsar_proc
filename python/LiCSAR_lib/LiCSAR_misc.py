@@ -68,3 +68,24 @@ def grep1(arg,filename):
 ################################################################################
 def is_non_zero_file(fpath): 
     return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
+
+
+# some geometry functions... may or may not be part of LiCSquery?
+def get_centre_from_latlon(latlon):
+    #latlon should be e.g. [(15.088, -24.56),(14.099, -25.66689)] 
+    lats = []
+    lons = []
+    for coord in range(len(latlon)):
+        lats.append(latlon[coord][0])
+        lons.append(latlon[coord][1])
+    centre = ((min(lats)+max(lats))/2, (min(lons)+max(lons))/2)
+    return centre
+
+def get_colat10(lat):
+    lat = round(lat * 100)
+    if lat < 0:
+        lat = abs(lat)
+        colat = lat + 90*100
+    else:
+        colat = 90*100 - lat
+    return colat
