@@ -344,7 +344,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     slcdir = os.path.join( procdir, 'SLC' )
     imdir = os.path.join( slcdir, date.strftime( '%Y%m%d' ) )
     # Get all files containing frame bursts on current date
-    filelist = licsQuery.get_frame_files_date( framename, date )
+    filelist = licsQuery.get_frame_files_date( framename, date_date )
     # if abs_filepath has a metadataonly zip file, modify the filepath to remove
     # this part of the string to point at where the abs_filepath should actually
     # be.

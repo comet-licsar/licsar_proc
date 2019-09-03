@@ -81,7 +81,11 @@ def import_to_licsinfo(images, meta = True):
 def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), meta = True):
     print('Checking S1 images available on /neodc and importing them to licsinfo database')
     images = get_images_for_frame(frameName, startdate, enddate)
-    print('There are {0} acquired images within the given period'.format(str(len(images))))
+    if images:
+        print('There are {0} acquired images within the given period'.format(str(len(images))))
+    else:
+        print('No images found in scihub for the given dates between {0} and {1}. Aborting'.format(str(startdate),str(enddate)))
+        return None
     print('Checking and importing to LiCSInfo database')
     with nostdout():
         todown = import_to_licsinfo(images, meta)

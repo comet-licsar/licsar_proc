@@ -25,7 +25,7 @@ else
  cp $pub_bperp temp_baselines
  cat baselines >> temp_baselines
  #echo "master    slave     bperp   btemp" > $pub_bperp
- sort -u temp_baselines >> $pub_bperp
+ sort -u temp_baselines > $pub_bperp
  rm temp_baselines
 fi
 

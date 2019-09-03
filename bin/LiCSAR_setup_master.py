@@ -190,8 +190,13 @@ def main(argv=None):
     else:
         print('checking for S1 data not ingested to licsinfo db')
         s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=90)))
-        burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
-        if automaster:
+        try:
+            burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
+        except:
+            burstlist = None
+            filelist = None
+            dates = None
+        if automaster and dates:
             print('doing automatic selection of master')
             #rc will be changed to 0 if a proper master is found and checked
             rc = 1

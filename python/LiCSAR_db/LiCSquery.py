@@ -92,15 +92,23 @@ def get_frame_files_date(frame,date):
     # takes frame and one datetime.date object and returns
     # polygon name, file name and file path for all files 
     # in frame on the given date
+    
+    #in this mess, some scripts use date, and some timestamp or datetime..
+    #let's convert it to date type only
+    if type(date) is not type(dt.datetime.now().date()):
+        date = date.date()
+    
+    #this is to fix for the around-midnight data:
+    date2 = date + dt.timedelta(days=1)
     sql_q = "select distinct polygs.polyid_name, " \
         "files.name, files.abs_path from files " \
         "inner join files2bursts on files.fid=files2bursts.fid " \
         "inner join polygs2bursts on files2bursts.bid=polygs2bursts.bid " \
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
-        "and date(files.acq_date)='{1}' "\
+        "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
         "and pol='VV'"\
-        "order by files.acq_date;".format(frame,date)
+        "order by files.acq_date;".format(frame,date,date2)
     return do_query(sql_q)
 
 def get_ipf(filename):
