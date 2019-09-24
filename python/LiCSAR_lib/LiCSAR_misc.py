@@ -63,6 +63,11 @@ def grep1(arg,filename):
     file.close()
     return res
 
+def getipf(parfile):
+    line = grep1('IPF', parfile)
+    res = float(line.split('IPF')[1].split(')')[0])
+    return res
+
 ################################################################################
 # Get information if the file exists or is non-zero
 ################################################################################

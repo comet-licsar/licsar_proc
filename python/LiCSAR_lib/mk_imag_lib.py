@@ -65,7 +65,7 @@ def check_bursts( framename, startdate, enddate, licsQuery ):
 ################################################################################
 #Check master burst function
 ################################################################################
-def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery):
+def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery, midnighterror = False):
     """
     Checks if masterdate was acquired, and if all bursts were acquired on master
     date. Returns greater than 0 if bursts can be found.
@@ -73,6 +73,11 @@ def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery):
     if masterdate in dates:
         masterburstlist = licsQuery.get_frame_bursts_on_date( framename,
                 masterdate )
+        if midnighterror:
+            masterburstlist2 = licsQuery.get_frame_bursts_on_date( framename,
+                masterdate + dt.timedelta(days=1) )
+            masterburstlist = masterburstlist + masterburstlist2
+            
         if masterburstlist:
             missingbursts = [ b[0] for b in burstlist 
                     if not b in masterburstlist ]
@@ -344,7 +349,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     slcdir = os.path.join( procdir, 'SLC' )
     imdir = os.path.join( slcdir, date.strftime( '%Y%m%d' ) )
     # Get all files containing frame bursts on current date
-    filelist = licsQuery.get_frame_files_date( framename, date_date )
+    filelist = licsQuery.get_frame_files_date( framename, date )
     # if abs_filepath has a metadataonly zip file, modify the filepath to remove
     # this part of the string to point at where the abs_filepath should actually
     # be.

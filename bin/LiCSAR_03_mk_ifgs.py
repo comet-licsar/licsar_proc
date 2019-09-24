@@ -66,6 +66,7 @@ def main(argv=None):
     framename = []
     job_id = -1
     ifgListFile = None
+    ziplistfile = None
     cleanLvl = 0
     reportfile = None
     rglks = gc.rglks

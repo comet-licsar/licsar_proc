@@ -150,7 +150,7 @@ def get_frame_bursts_on_date(frame,date):
             "and date(files.acq_date)='{1}';".format(frame,date)
         return do_query(sql_q)
 
-def get_bursts_in_polygon(lon1,lon2,lat1,lat2,relorb = None, swath = None):
+def get_bursts_in_polygon_old(lon1,lon2,lat1,lat2,relorb = None, swath = None):
     #swath can be provided, e.g. as 'S6'
     #relorb can be provided, e.g. as 75
     #however this is very simplified function - if center is outside of the lat lon area, it would not find anything....
@@ -165,6 +165,22 @@ def get_bursts_in_polygon(lon1,lon2,lat1,lat2,relorb = None, swath = None):
     if relorb:
         sql_q += "and files.rel_orb={0} ".format(relorb)
     sql_q += "and bursts.centre_lat >= '{0}' and bursts.centre_lat <= '{1}';".format(lat1,lat2)
+    return do_query(sql_q)
+
+def get_bursts_in_polygon(minlon,maxlon,minlat,maxlat,relorb = None, swath = None):
+    sql_q = "select distinct b.bid_tanx from bursts b " \
+            "inner join files2bursts on files2bursts.bid=b.bid " \
+            "inner join files on files2bursts.fid=files.fid " \
+            "where greatest ( " \
+            "b.corner1_lon, b.corner2_lon, b.corner3_lon, b.corner4_lon) >= {0} and least(" \
+            "b.corner1_lon, b.corner2_lon, b.corner3_lon, b.corner4_lon) <= {1} ".format(minlon,maxlon)
+    if swath:
+        sql_q += "and files.swath='{0}' ".format(swath)
+    if relorb:
+        sql_q += "and files.rel_orb={0} ".format(relorb)
+    sql_q += "and greatest( " \
+             "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) >= {0} and least(" \
+             "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) <= {1};".format(minlat,maxlat)
     return do_query(sql_q)
 
 def get_frames_in_polygon(minlon,maxlon,minlat,maxlat):

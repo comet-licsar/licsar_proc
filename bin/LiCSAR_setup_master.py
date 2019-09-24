@@ -182,9 +182,13 @@ def main(argv=None):
     # Check if master is in date list, and has all bursts. Missing bursts ok
     # for slaves, but not for master.
     if masterdate:
-        filelist = lq.get_frame_files_period(framename,masterdate,masterdate)
+        #the timedelta below is a fix for midnight error in case of master:
+        filelist = lq.get_frame_files_period(framename,masterdate,masterdate+dt.timedelta(days=1))
+        midnighterror = False
+        for f in filelist:
+            if f[1] > masterdate: midnighterror = True
         burstlist = lq.get_bursts_in_frame(framename)
-        rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq)
+        rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq, midnighterror)
         if rc != 0:
             return 1
     else:
