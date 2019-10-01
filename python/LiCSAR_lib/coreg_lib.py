@@ -499,9 +499,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     #
     daz10000=10000
     it=0
-    itmax=5
-    firstpass=True
-    #firstpass=False
+    itmax=6
     with open(qualityfile, "a") as myfile:
             rc = myfile.write("Iterative improvement of refinement offset azimuth overlap regions:\n")
     # iterate while azimuth correction >= 0.0005 SLC pixel
@@ -511,9 +509,6 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     #and (daz != 0)
     while (daz10000 > 5 or daz10000 < -5) and (it < itmax):
         it += 1
-        #first write the previous iteration (or pwr_tracking) to the qualityfile
-        with open(qualityfile, "a") as myfile:
-            rc = myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)\n")
         #get the total daz value (w.r.t. image resampled after orbit-based coreg = rdc_trans)
         daz_total = daz_total + daz
         print('offset refinement using spectral diversity in azimuth overlap region iteration '+str(it))
@@ -533,14 +528,16 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
                 return 3
         offazovrout=offfile+'.az_ovr.'+str(it)+'.out'
         #note that the slave3tab is already set - and is empty string if should not be used
-        if firstpass and not (getipf(masterpar) == getipf(slavepar)):
+        if it==1 and not (getipf(masterpar) == getipf(slavepar)):
+            with open(qualityfile, "a") as myfile:
+                myfile.write("IPF versions were differing, first iteration done by S1_coreg_subswath_overlap\n")
             #do one iteration of subswath correction...:
             print('IPF versions of the data differ:')
             print('..getting offsets using subswath overlap (first iteration)')
             print('(this process generates a lot of errors but do not worry - this is normal)')
-            logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
-                                       masterdate.strftime('%Y%m%d')+'_'+
-                                       slavedate.strftime('%Y%m%d')+'.'+str(it)+'.log')
+            #logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
+            #                           masterdate.strftime('%Y%m%d')+'_'+
+            #                           slavedate.strftime('%Y%m%d')+'.'+str(it)+'.log')
             #note that the slave3tab is already set - and is empty string if should not be used
             #ETA 15 min+ !
             # this function gives not only lot of errors in command line but also may crash. so we run in 'safely' here:
@@ -555,12 +552,11 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
             #    print("\nError:", file=sys.stderr)
             #    print("Something went wrong during the first offset refinement using subswath overlap.", file=sys.stderr)
             #    return 4
-            firstpass=False
         else:
             print('..getting offsets using spectral diversity...')
-            logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
-                                   masterdate.strftime('%Y%m%d')+'_'+
-                                   slavedate.strftime('%Y%m%d')+'.'+str(it)+'.log')
+            #logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
+            #                       masterdate.strftime('%Y%m%d')+'_'+
+            #                       slavedate.strftime('%Y%m%d')+'.'+str(it)+'.log')
             #ETA 30+ min.
             if not S1_coreg_overlap(masterslctab,slaverslctab,masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d'),
                                                 offfile+'.start',offfile,slave3tab,offazovrout):
@@ -569,14 +565,21 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
                 return 4
         daztmp = grep1('azimuth_pixel_offset',offazovrout)
         daz = float(daztmp.split()[1])
+        #write the iteration output to the qualityfile
+        with open(qualityfile, "a") as myfile:
+            rc = myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)\n")
         if not (daz == 0):
             daz10000 = int(daz*10000)
         shutil.copyfile(offfile,offfile+'.az_ovr.'+str(it))
     if daz == daz_initial:
         print('Something got wrong during ESD estimation - the daz value is same as during init. This cannot be trusted')
         return 4
+    if (daz10000 > 5 or daz10000 < -5):
+        print('The ESD estimation finished in |daz| value above threshold: '+str(daz)+' px and thus marked as failed')
+        return 4
     with open(qualityfile, "a") as myfile:
             myfile.write("Total azimuth offset (w.r.t. image resampled after rdc_trans): "+str(daz_total)+" (daz in SLC pixel)\n")
+            myfile.write("(if the last iteration led to |daz| < 0.0005 px then this iteration was ignored)\n")
     #resample full data set
     print('Resampling the full data set')
     logfile_interp_lt3 = os.path.join(procdir,'log',
