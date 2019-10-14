@@ -11,6 +11,8 @@ import pymysql
 from configparser import SafeConfigParser
 import datetime as dt
 import pdb
+from numbers import Number
+from shapely.geometry import Polygon
 
 # Local imports
 import global_config as gc
@@ -50,6 +52,48 @@ def check_frame(frame):
         "where polyid_name='{0}'".format(frame)
     return do_query(sql_q)
 
+def get_polygon_from_bidtanx(bidtanx):
+    sql = "select corner1_lat, corner1_lon, corner2_lat, corner2_lon, corner3_lat, corner3_lon," \
+    " corner4_lat, corner4_lon from bursts where bid_tanx = '{0}';".format(bidtanx)
+    coords = do_query(sql)[0]
+    #the coordinates are 'random' so I do a loop to get valid polygon
+    lat_set = [(0, 2, 4, 6),(0, 2, 6, 4),(0, 4, 6, 2),(0, 4, 2, 6),(0, 6, 4, 2),(0, 6, 2, 4)]
+    lon_set = [(1, 3, 5, 7),(1, 3, 7, 5),(1, 5, 7, 3),(1, 5, 3, 7),(1, 7, 5, 3),(1, 7, 3, 5)]
+    for i in range(len(lat_set)):
+        lat_point_list = []
+        lon_point_list = []
+        for x in lat_set[i]:
+            lat_point_list.append(coords[x])
+        for y in lon_set[i]:
+            lon_point_list.append(coords[y])
+        polygon_geom = Polygon(zip(lon_point_list, lat_point_list))
+        if polygon_geom.is_valid:
+            break
+    return polygon_geom
+
+def get_polygon_from_frame(frame):
+    sql_q = "select corner1_lon, corner2_lon, corner3_lon, corner4_lon, " \
+        "corner5_lon, corner6_lon, corner7_lon, corner8_lon, " \
+        "corner9_lon, corner10_lon, corner11_lon, corner12_lon " \
+        "from polygs where polyid_name='{0}';".format(frame)
+    lons = do_query(sql_q)[0]
+    sql_q = "select corner1_lat, corner2_lat, corner3_lat, corner4_lat, " \
+        "corner5_lat, corner6_lat, corner7_lat, corner8_lat, " \
+        "corner9_lat, corner10_lat, corner11_lat, corner12_lat " \
+        "from polygs where polyid_name='{0}';".format(frame)
+    lats = do_query(sql_q)[0]
+    lons2 = []
+    lats2 = []
+    for lon in lons:
+        if isinstance(lon, Number):
+            lons2.append(lon)
+    for lat in lats:
+        if isinstance(lat, Number):
+            lats2.append(lat)
+    lons2.append(lons[0])
+    lats2.append(lats[0])
+    polygon = Polygon(zip(lons2,lats2))
+    return polygon
 
 def get_bursts_in_frame(frame):
     # takes frame, returns list with burstid, centre_lon and 
@@ -108,7 +152,7 @@ def get_frame_files_date(frame,date):
         "where polygs.polyid_name='{0}' " \
         "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
         "and pol='VV'"\
-        "order by files.acq_date;".format(frame,date,date2)
+        "order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
     return do_query(sql_q)
 
 def get_ipf(filename):

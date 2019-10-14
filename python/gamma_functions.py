@@ -239,6 +239,22 @@ def SLC_interp_lt_S1_TOPS(slavetab,slavepar,mastertab,masterpar,lut,mastermlipar
         return False
     return True
 
+def SLC_interp(slaveslc,masterpar,slavepar, offpar, slaveRslc, slaveRpar,logfilename):
+    """ Resampling of SLC based on lookup table and offset file
+    """
+    interpcall = ['SLC_interp',slaveslc, masterpar,slavepar,
+                  offpar, slaveRslc, slaveRpar]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(interpcall,stdout=f)
+        except:
+            print('Something went wrong resampling image. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong resampling image. Log file {0}'.format(logfilename))
+        return False
+    return True
+
 def rdc_trans(mastermlipar,demhgt,slavemlipar,lut,logfilename):
     """
     """
@@ -351,10 +367,17 @@ def offset_fitm(offs,ccp,diffpar,coffs,coffsets,thres,npoly,logfilename):
     else:
         return True
 
-def offset_fit(p,doffset,logfilename):
+def offset_fit(p,doffset,logfilename,acqMode='iw'):
     """
     """
-    fitcall = ['offset_fit',p+'.offs',p+'.snr',doffset,'-','-','0.2','1','0']
+    if acqMode == 'iw':
+        thres = 0.2
+        npoly = 1
+    elif acqMode == 'sm':
+        thres = 0.15
+        npoly = 3
+
+    fitcall = ['offset_fit',p+'.offs',p+'.snr',doffset,'-','-',str(thres),str(npoly),'0']
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(fitcall,stdout=f)
@@ -406,6 +429,22 @@ def offset_pwr_tracking(slc1,rslc,slc1_par,rslc_par,dofffile,p,rstep,azstep,logf
             return False
     if rc != 0:
         print('Something went wrong during the cross correlation offset tracking. Log file {0}'.format(logfilename))
+        return False
+    else:
+        return True
+
+def offset_pwr(slc1,slc2,slc1_par,slc2_par,offfile,p,logfilename):
+    """
+    """
+    pwrcall = ['offset_pwr',slc1,slc2,slc1_par,slc2_par,offfile,p+'.offs',p+'.snr','32','32','-','1','-','-','0.15']
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(pwrcall,stdout=f)
+        except:
+            print('Something went wrong during the cross correlation offset estimation. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during the cross correlation offset estimation. Log file {0}'.format(logfilename))
         return False
     else:
         return True
@@ -634,11 +673,17 @@ def SLC_copy_S1_TOPS(SLColdtab,SLCnewtab,bursttab,imdir,procdir,logfile):
 
     return 0
 
-def par_S1_SLC(tiff,annot,calib,noise,slc,logfile):
+def par_S1_SLC(tiff,annot,calib,noise,slc,logfile,acqMode='iw'):
     """
     """
+    if acqMode == 'iw':
+        topsfile = slc+'.TOPS_par'
+        dtype = 1 
+    elif acqMode == 'sm':
+        topsfile = '-'
+        dtype = 1
     parcall = ['par_S1_SLC',tiff,annot,calib,noise,
-                       slc+'.par',slc,slc+'.TOPS_par','1','60']
+                       slc+'.par',slc,topsfile,str(dtype),'60']
     try:
         with open(logfile,'w') as lf:
             rc = subp.check_call(parcall,stdout=lf,stderr=lf)
@@ -791,7 +836,50 @@ def base_calc(SLC_tab, SLC_par, bperp_file, itab, bperp_min, bperp_max, delta_T_
         return False
     return True
 
+def init_offset_orbit(masterpar,slavepar,offfile,logfilename):
+    """
+    """
+    initofforbitcall = ['init_offset_orbit',masterpar,slavepar,offfile]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(initofforbitcall,stdout=f)
+        except:
+            print('Something went wrong estimating offset using orbit information. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong estimating offset using orbit information. Log file {0}'.format(logfilename))
+        return False
+    return True
 
+def init_offset(masterfile,slavefile,masterpar,slavepar,offfile,rglks,azlks,logfilename):
+    """
+    """
+    initoffcall = ['init_offset',masterfile,slavefile,masterpar,slavepar,offfile,str(rglks),str(azlks)]
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(initoffcall,stdout=f)
+        except:
+            print('Something went wrong estimating offset using orbit information. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong estimating offset using orbit information. Log file {0}'.format(logfilename))
+        return False
+    return True
+
+def multi_look(slc, slcpar, mli, mlipar, rlks, azlks, logfilename):
+    """
+    """
+    mlcall = ['multi_look', slc, slcpar, mli, mlipar, str(rlks), str(azlks),'-','-','1e-6']
+    with open(logfilename,'w') as f:
+        try:
+            rc = subp.check_call(mlcall,stdout=f)
+        except:
+            print('Something went wrong during multilooking. Log file {0}'.format(logfilename))
+            return False
+    if rc != 0:
+        print('Something went wrong during multilooking. Log file {0}'.format(logfilename))
+        return False
+    return True
 
 
 

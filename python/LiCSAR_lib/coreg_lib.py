@@ -1270,3 +1270,188 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
     os.remove(slaveLockFile)
 
     return 0
+
+################################################################################
+# Co-register slave function for stripmaps
+# (by Daniel Juncu, Uni of Leeds)
+# currently co-registration follows ISP_users_guide A.3, p.47 ff
+# alternative approach could be implemented from GEO_users_guide Section I, p.81 ff
+################################################################################
+def coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaverfilename,qualityfile,crop = False):
+    if not crop:
+        croptext=''
+        geodir = os.path.join(procdir,'geo')
+    else:
+        croptext='_crop_'+slavedate.strftime('%Y%m%d')
+        geodir = os.path.join(slaverslcdir,'geo')
+    mastermli = os.path.join(procdir,'SLC',masterdate.strftime('%Y%m%d'),
+                             masterdate.strftime('%Y%m%d')+croptext+'.slc.mli')
+    #master mli param file path
+    masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+croptext+'_tab')
+    mastermlipar = os.path.join(procdir,'SLC',masterdate.strftime('%Y%m%d'),
+                             masterdate.strftime('%Y%m%d')+croptext+'.slc.mli.par')
+    [mliwidth,mlilength]=get_mli_size(mastermlipar)
+    #master param file path
+    masterpar = os.path.join(masterrslcdir,
+                             masterdate.strftime('%Y%m%d')+croptext+'.rslc.par')
+    masterslcfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+croptext+'.rslc')
+    slaveslcfilename    = os.path.join(slaveslcdir,slavedate.strftime('%Y%m%d')+croptext+'.slc')
+    #slave mli param file path
+    slaveRmlipar = os.path.join(slaverslcdir,
+                            slavedate.strftime('%Y%m%d')+'.rslc.mli.par')
+    slaveRmlifile = os.path.join(slaverslcdir,
+                            slavedate.strftime('%Y%m%d')+'.rslc.mli')
+    #master param file path
+    slavepar = os.path.join(slaveslcdir,
+                            slavedate.strftime('%Y%m%d')+'.slc.par')
+    slaveRpar = os.path.join(slaverslcdir,
+                            slavedate.strftime('%Y%m%d')+'.rslc.par')
+    slaverslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'R_tab')
+    #DEM height file
+    demhgt = os.path.join(geodir,masterdate.strftime('%Y%m%d')+croptext+'.hgt')
+    #lookup table path
+    lut = os.path.join(slaverslcdir,
+                       masterdate.strftime('%Y%m%d')+'_'+
+                       slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
+    pair = os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d'))
+    #offset parameter file path
+    offfile = pair+'.off'
+    dofffile = pair+'.doff'
+    #setting logfile and going on
+    logfile_offset = os.path.join(procdir,'log','create_offset_'+
+                           masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.log')
+    if not create_offset(masterpar,slavepar,offfile,str(1),
+                         str(1),logfile_offset):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong creating the offset file.", file=sys.stderr)
+        return 4
+    with open(qualityfile, "a") as myfile:
+            myfile.write("Improvement of coregistration offset using intensity cross-correlation:\n")
+    print("Offset estimation using intensity cross-correlation")
+    shutil.copyfile(offfile,offfile+'.start')
+    print("Offset estimation using using orbit information")
+    # estimation of offset using orbit information
+    if not init_offset_orbit(masterpar,slavepar,offfile,logfile_offset):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong estimating offset using orbit information (1).", file=sys.stderr)
+        return 4
+    print("Improve offset estimate")
+    # improve estimate (multi-looked)
+    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, gc.rglks_stripmap, gc.azlks_stripmap, logfile_offset):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong estimating offset using orbit information (2).", file=sys.stderr)
+        return 4
+    # improve estimate (single-look)
+    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 1, 1, logfile_offset):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong estimating offset using orbit information (3).", file=sys.stderr)
+        return 4
+    logfile = os.path.join(procdir,'log','offset_pwr_'+
+                       masterdate.strftime('%Y%m%d')+'_'+
+                       slavedate.strftime('%Y%m%d')+'.log')
+    if not offset_pwr(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile,pair,logfile):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong with offset estimation.", file=sys.stderr)
+        return 4
+    #then we do offset fitting (gamma recommends offset_fit and not offset_fitm)
+    if not offset_fit(pair,offfile,pair+'.off.out',acqMode='sm'):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong with offset fitting.", file=sys.stderr)
+        return 4
+    fittmp = grep1('final model fit std. dev.',pair+'.off.out')
+    range_stdev = float(fittmp.split(':')[1].split()[0])
+    azimuth_stdev = float(fittmp.split(':')[2])
+    daztmp = grep1('azimuth_offset_polynomial:',offfile)
+    drtmp = grep1('range_offset_polynomial:',offfile)
+    daz = float(daztmp.split()[1])
+    daz_mli = daz/gc.azlks_stripmap
+    dr = float(drtmp.split()[1])
+    dr_mli = dr/gc.rglks_stripmap
+    if os.path.exists(pair+'.diff_par'): os.remove(pair+'.diff_par')
+    logfile = os.path.join(procdir,'log',
+                   'resampling_'+
+                   masterdate.strftime('%Y%m%d')+'_'+
+                   slavedate.strftime('%Y%m%d')+'.log')
+    # resample 
+    print("Resampling...")
+    if not SLC_interp(slaveslcfilename, masterpar, slavepar, offfile, slaverfilename, slaveRpar,logfile):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong resampling the slave SLC", file=sys.stderr)
+        return 3
+    # multi look RSLC
+    logfile = os.path.join(procdir,'log',
+                   'multilooking'+
+                   masterdate.strftime('%Y%m%d')+'_'+
+                   slavedate.strftime('%Y%m%d')+'.log')
+    print("multi look RSLC...")    
+    if not multi_look(slaverfilename, slaveRpar, slaveRmlifile, slaveRmlipar, gc.rglks_stripmap, gc.azlks_stripmap , logfile):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong multilooking", file=sys.stderr)
+        return 3
+    logfile = os.path.join(procdir,'log','rdc_trans_'+
+                           masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.log')
+    # create lookup table from master and slave mli par and master height file
+    print('Derive lookup table for MLI coregistration...')
+    if not rdc_trans(mastermlipar,demhgt,slaveRmlipar,lut,logfile):
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong during lookup table generation.", file=sys.stderr)
+        return 2    
+    return 0
+#########################################################################
+
+#########################################################################
+# coreg slave to master for stripmaps
+####
+def coreg_slave_sm(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id):
+    """ Coregister and resample slave to master geometry
+    """ 
+    print('\nCoregistering slave {0}...'.format(slavedate.date()))
+    #get/create slave slc directory paths
+    slaveslcdir = os.path.join(slcdir,slavedate.strftime('%Y%m%d'))
+    slaverslcdir = os.path.join(rslcdir,slavedate.strftime('%Y%m%d'))
+    if os.path.exists(slaverslcdir):
+        shutil.rmtree(slaverslcdir)
+    os.mkdir(slaverslcdir)
+    #Create lock file for coregistration
+    slaveLockFile = slaverslcdir+slavedate.strftime('/%Y%m%d.lock')
+    open(slaveLockFile,'a').close() # OSX doesn't like os.mknod
+    #master slc paths
+    masterslcdir = os.path.join(slcdir,masterdate.strftime('%Y%m%d'))
+    masterrslcdir = os.path.join(rslcdir,masterdate.strftime('%Y%m%d'))
+    #calc diff date
+    masterdiff = abs(slavedate.date()-masterdate)
+    print("master difference is {0}".format(masterdiff))
+    #create slave diff list
+    procslavelist = [s for s in os.listdir(rslcdir) if 
+            s != masterdate.strftime( '%Y%m%d') and s != slavedate.strftime('%Y%m%d')]
+    print("Found slaves ... {0}".format(procslavelist))
+    procslavediff = [dt.datetime.strptime(s,'%Y%m%d')-slavedate for s in
+                                                                    procslavelist]
+############################################################ Create input tab files
+    masterfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+'.rslc')
+    slavefilename = os.path.join(slaveslcdir,slavedate.strftime('%Y%m%d')+'.slc')
+    slaverfilename = os.path.join(slaverslcdir,slavedate.strftime('%Y%m%d')+'.rslc')
+############################################################ Geometric coregistration
+    qualityfile=os.path.join(procdir,'log','coreg_quality_'+
+                              masterdate.strftime('%Y%m%d')+'_'+
+                              slavedate.strftime('%Y%m%d')+'.log')
+    rc = coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaverfilename,qualityfile)
+    if rc != 0:
+        print("\nError:", file=sys.stderr)
+        print("Something went wrong during coregistration", file=sys.stderr)
+        return rc
+############################################################ remove lock file
+    os.remove(slaveLockFile)
+############################################################ Update job database (if not in batch mode)
+    # Populate the RSLC table with the location of the new slave RSLC
+    print("RSLC succesfully made, now to write to RSLC table...")
+    print("job_id: %d" % job_id)
+    if job_id != -1:
+        print('Attempting to input new rslc SLAVE product')
+        lq.set_new_rslc_product(job_id,slavedate.strftime('%Y%m%d'),
+                                masterrslcdir+'/'+masterdate.strftime('%Y%m%d')+'.rslc',
+                                slavedate.strftime('%Y%m%d') + '.rslc', slaverslcdir)
+    return 0

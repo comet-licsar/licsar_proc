@@ -77,7 +77,9 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   # Convert to geotiff
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif ]; then 
    echo "Converting to GeoTIFF"
-   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.unw 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif 0.0  >> $logfile 2>/dev/null
+   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.unw 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.orig.tif 0.0  >> $logfile 2>/dev/null
+   gdal_translate -of GTiff -ot Float32 -co "COMPRESS=LZW" -co "PREDICTOR=3" ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif >> $logfile 2>/dev/null
+   rm ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.orig.tif
 #   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
   fi
   # Create bmps
@@ -100,27 +102,29 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
 #   convert ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp
    #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile   
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp ]; then
-   convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp
+   convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.png
   fi
 #  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
 
 #Filtered interferograms... also is in this public LiCSAR website...
-if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.diff.bmp ]; then
+if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif ]; then
  echo "Creating filtered interferogram tiffs"
  # Extract the mag and phase
- cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.filt.diff ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width 3  >> $logfile
+ #cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.filt.diff ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width 3  >> $logfile
  cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.filt.diff ${procdir}/IFG/${ifg}/${ifg}.diff_pha $width 4  >> $logfile
  # Geocode all the data
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.filt.diff $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.diff ${width_dem} ${length_dem} 1 1 >> $logfile
- geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} ${length_dem} 1 0 >> $logfile
+ #geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} ${length_dem} 1 0 >> $logfile
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_pha $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${width_dem} ${length_dem} 0 0 >> $logfile
  # Convert to geotiff
- data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.tif 0.0  >> $logfile 2>/dev/null
- data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif 0.0  >> $logfile 2>/dev/null
+ #data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.tif 0.0  >> $logfile 2>/dev/null
+ data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif 0.0  >> $logfile 2>/dev/null
+ gdal_translate -of GTiff -ot Float32 -co "COMPRESS=LZW" -co "PREDICTOR=3" ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif >> $logfile 2>/dev/null
+ rm ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif
  # Create bmps
  rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp >> $logfile
- convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.diff.bmp
+ convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.diff.png
  #rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
 
@@ -132,12 +136,15 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg
 fi
 
 # Unfiltered coherence
-if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp ]; then
+if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.tif ]; then
   echo "Creating unfiltered coherence tiffs"
   # Geocode
   geocode_back ${procdir}/IFG/${ifg}/${ifg}.cc $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/${ifg}/${ifg}.geo.cc ${width_dem} ${length_dem} 1 0 >> $logfile
   # Convert to geotiff
-  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.cc 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.tif 0.0  >> $logfile 2>/dev/null
+  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.cc 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.orig.tif 0.0  >> $logfile 2>/dev/null
+  #for compression types differences, check e.g. https://kokoalberti.com/articles/geotiff-compression-optimization-guide/
+  gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co "COMPRESS=LZW" -co "PREDICTOR=2" ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.tif >> $logfile 2>/dev/null
+  rm ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.orig.tif
   # create bmps
   #new version of gamma shows coherence in colour... using old-school cpxfiddle as workaround
   #rascc ${procdir}/GEOC/${ifg}/${ifg}.geo.cc - ${width_dem} - - - $reducfac_dem $reducfac_dem 0 1 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp >> $logfile
@@ -148,8 +155,26 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg
   rm -f ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp
   # Need to remove the black border, but the command below is no good as it removes the black parts of the coherence!
   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
-  convert -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
+  convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.png
 fi
+
+
+#finally amplitudes
+mkdir $procdir/GEOC.MLI 2>/dev/null
+for im in `echo $ifg | sed 's/_/ /'`; do
+if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/GEOC.MLI/$im ]; then
+ mkdir -p ${procdir}/GEOC.MLI/$im
+ echo "preparing GeoTIFF and PNG for amplitude of "$im
+ #geocode MLI
+ geocode_back ${procdir}/RSLC/$im/$im.rslc.mli $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC.MLI/$im/$im.geo.mli ${width_dem} ${length_dem} 0 0 >> $logfile
+ #convert MLI to geotiff
+ data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC.MLI/$im/$im.geo.mli 2 ${procdir}/GEOC.MLI/$im/$im.geo.mli.tif 0.0  >> $logfile 2>/dev/null
+ #generate raster preview
+ raspwr ${procdir}/GEOC.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
+ convert -transparent black -resize 30% ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli.png
+fi 
+done
+
 echo "done"
 
 #Move it to the public area(?)

@@ -23,7 +23,8 @@ else
  echo "updating baselines file in "$pub_bperp
  #tail -n+2 $pub_bperp > temp_bperp_file
  cp $pub_bperp temp_baselines
- cat baselines >> temp_baselines
+ #getting rid of potential nomaster error here:
+ sed '/^0.0000/d' baselines >> temp_baselines
  #echo "master    slave     bperp   btemp" > $pub_bperp
  #sometimes there can be two/more different bperp lines. so 'sort -u' would not help, awk is very fast in here..
  awk -F" " '!_[$2]++' temp_baselines > $pub_bperp
