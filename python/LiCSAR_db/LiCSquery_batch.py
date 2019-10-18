@@ -74,7 +74,7 @@ def get_burst_centers(ziplist):
         slc = slczip.SLCzip(line)       # use the zipslc class
         swaths = slc.get_swathid()
         #print swaths
-        anxid_list = slc.get_burst_ANXID()
+        anxid_list = slc.get_burst_ANXID()[0]
         #print anxid_list
         _,coords_list = slc.get_burstGeo_coords()  ### conventioon here is (lat,long)
         
@@ -89,7 +89,8 @@ def get_burst_centers(ziplist):
                     #print str(anxid)+sws
                     anxids.append(str(anxid)+sws)
                     centers.append(coords_list[swath][i]) # retrieve the burst centre for the same burst
-    
+    #print(anxids)
+    #print(centers)
     # Reverse the coordinate order to lon,lat:
     centers2 = []
     for coord in centers:
@@ -107,6 +108,10 @@ def np2tuplearray(data):
         result.append(tuple((data[i,0],data[i,1])))
     return result
 
+def get_ipf(filename):
+    print('function for getting IPF version is not working yet for non-licsinfo approach')
+    print('this is still safe if you do not work with <201503xx data')
+    return 0
 
 #def swaths2all(anxids, xys ):
     #outids = []
@@ -130,7 +135,6 @@ class dbquery:
         self.polygon = loadpolygon(polygonfile)
         self.allburstanxids, self.allburstcoords = get_burst_centers(self.ziplist)
         self.anxids = self.__get_bursts_in_polygon()
-        
         ## Debugging tools:
         #self.bursts, self.anxids = self.get_bursts_in_polygon()
         

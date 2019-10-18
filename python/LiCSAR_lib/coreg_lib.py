@@ -528,7 +528,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
                 return 3
         offazovrout=offfile+'.az_ovr.'+str(it)+'.out'
         #note that the slave3tab is already set - and is empty string if should not be used
-        if it==1 and not (getipf(masterpar) == getipf(slavepar)):
+        if it==1 and not (getipf(masterpar) == getipf(slavepar)) and (slavedate < dt.datetime.strptime('20160101','%Y%m%d')):
             with open(qualityfile, "a") as myfile:
                 myfile.write("IPF versions were differing, first iteration done by S1_coreg_subswath_overlap\n")
             #do one iteration of subswath correction...:

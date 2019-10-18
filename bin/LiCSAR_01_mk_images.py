@@ -331,14 +331,23 @@ def main(argv=None):
     print('\nUnzipping, converting and merging image files per date...')
     for date in dates:
         print('\nProcessing acquisition date {0}:'.format(date))
-        if framename:
+        #print(polygon)
+        #print(polygon)
+        if gc.batchflag:
+            imburstlist = lq.get_bursts_in_polygon()
+            #print(imburstlist)
+        elif framename:
             imburstlist = lq.get_frame_bursts_on_date(framename,date)
-        elif polygonname:
-            imburstlist = lq.get_bursts_in_polygon(polygon[:,0].min(),
-                                                   polygon[:,0].max(),
-                                                   polygon[:,1].min(),
-                                                   polygon[:,1].max())
-            
+        #elif polygon:
+        #    imburstlist = lq.get_bursts_in_polygon(polygon[:,0].min(),
+        #                                           polygon[:,0].max(),
+        #                                           polygon[:,1].min(),
+        #                                           polygon[:,1].max())
+        #    print('image burst list:')
+        #    print(imburstlist)
+        #else:
+        #    imburstlist = []
+        #    print('for debug purposes - skipping check for ')
 ############################################################ if no missing bursts -> Make Frames
         if imburstlist:
             # Check if all bursts of frame are in current image

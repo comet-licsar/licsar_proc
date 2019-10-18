@@ -394,6 +394,34 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         l[2] = l[2].replace( '.metadata_only.', '.' )
         fl[ idx ] = tuple( l )
     filelist = tuple( fl )
+    #check for duplicites:
+    names = set()
+    for i in range(len(filelist)):
+        names.add(filelist[i][1][0:62])
+    if len(names) < len(filelist):
+        print('a duplicite was found')
+        filelist2 = []
+        for name in names:
+            pom = 0
+            #filep = []
+            for filea in filelist:
+                if name == filea[1][0:62]:
+                    pom = pom +1
+                    #filep.append(filea[2])
+            if pom == 0:
+                for idx in range(len(filelist)):
+                    if name == filelist[idx][1][0:62]:
+                        filelist2.append(filelist[idx])
+            else:
+                for idx in range(len(filelist)):
+                    if name == filelist[idx][1][0:62]:
+                        if os.path.exists(filelist[idx][2]):
+                            filelist2.append(filelist[idx])
+                            break
+        if len(names) > len(filelist2):
+            print('some file is not existing. cancelling')
+            return 2
+        filelist = filelist2
     #raise Usage("DEBUG")
 ############################################################ Build Frame
     if read_files( filelist, slcdir, date, procdir, licsQuery, job_id, acqMode ):
@@ -408,6 +436,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         if not os.path.exists( tabdir ):
             os.mkdir( tabdir )
         # do the old-IPF correction here, before any other operations (as merging, cropping etc.) (ML, 2019)
+        # however right now this will work only in case we run standard processing chain, using licsinfo db
         for f in filelist:
             fullname=f[1]
             if get_ipf(fullname)=='002.36':

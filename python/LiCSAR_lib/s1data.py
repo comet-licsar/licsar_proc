@@ -13,6 +13,8 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     #startdate and enddate should be of type datetime.date (but datetime may also work?)
     if str(type(startdate)).split("'")[1] == 'str':
         startdate = dt.datetime.strptime(startdate,'%Y%m%d').date()
+    if str(type(enddate)).split("'")[1] == 'str':
+        enddate = dt.datetime.strptime(enddate,'%Y%m%d').date()
     scihub_user, scihub_pass, scihub_url = get_scihub_creds()
     #sensType = 'IW'
     nmax = 100
