@@ -439,7 +439,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         # however right now this will work only in case we run standard processing chain, using licsinfo db
         for f in filelist:
             fullname=f[1]
-            if get_ipf(fullname)=='002.36':
+            if licsQuery.get_ipf(fullname)=='002.36':
                 print('Correcting for old IPF version data')
                 shortname=fullname.split( '_' )[5]
                 SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(shortname, 'IW1'))

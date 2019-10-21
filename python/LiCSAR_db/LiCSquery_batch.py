@@ -109,11 +109,6 @@ def np2tuplearray(data):
         result.append(tuple((data[i,0],data[i,1])))
     return result
 
-def get_ipf(filename):
-    print('function for getting IPF version is not working yet for non-licsinfo approach')
-    print('this is still safe if you do not work with <201503xx data')
-    return 0
-
 #def swaths2all(anxids, xys ):
     #outids = []
     #outcx = []
@@ -142,6 +137,11 @@ class dbquery:
     def do_query(query, commit=False):
         print("Something has attempted to run a database query in batch mode... This is probably a bug, but will carry on regardless")
         return True
+
+    def get_ipf(filename):
+        print('function for getting IPF version is not working yet for non-licsinfo approach')
+        print('this is still safe if you do not work with <201503xx data')
+        return False
 
     def connection_established(self):
         return True
