@@ -73,8 +73,9 @@ def get_burst_centers(ziplist):
     for line in ziplist: # loop over the zip files
         slc = slczip.SLCzip(line)       # use the zipslc class
         swaths = slc.get_swathid()
+        #swaths = list(set(swaths))
         #print swaths
-        anxid_list = slc.get_burst_ANXID()[0]
+        anxid_list = slc.get_burst_ANXID() #[0]
         #print anxid_list
         _,coords_list = slc.get_burstGeo_coords()  ### conventioon here is (lat,long)
         
