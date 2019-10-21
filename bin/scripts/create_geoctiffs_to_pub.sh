@@ -2,7 +2,7 @@
 if [ -z $2 ]; then echo "inputs are: procdir ifg"; exit; fi
 #what is needed here (can be changed probably) is *.rslc.mli.par !!!
 
-module load doris
+#module load doris
 #module load LiCSAR/dev
 
 procdir=$1
@@ -78,7 +78,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif ]; then 
    echo "Converting to GeoTIFF"
    data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.unw 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.orig.tif 0.0  >> $logfile 2>/dev/null
-   gdal_translate -of GTiff -ot Float32 -co "COMPRESS=LZW" -co "PREDICTOR=3" ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif >> $logfile 2>/dev/null
+   gdal_translate -of GTiff -ot Float32 -co COMPRESS=LZW -co PREDICTOR=3 ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.tif >> $logfile 2>/dev/null
    rm ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.orig.tif
 #   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
   fi
@@ -120,7 +120,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg
  # Convert to geotiff
  #data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.tif 0.0  >> $logfile 2>/dev/null
  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif 0.0  >> $logfile 2>/dev/null
- gdal_translate -of GTiff -ot Float32 -co "COMPRESS=LZW" -co "PREDICTOR=3" ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif >> $logfile 2>/dev/null
+ gdal_translate -of GTiff -ot Float32 -co COMPRESS=LZW -co PREDICTOR=3 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif >> $logfile 2>/dev/null
  rm ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif
  # Create bmps
  rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp >> $logfile
@@ -143,7 +143,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg
   # Convert to geotiff
   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.cc 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.orig.tif 0.0  >> $logfile 2>/dev/null
   #for compression types differences, check e.g. https://kokoalberti.com/articles/geotiff-compression-optimization-guide/
-  gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co "COMPRESS=LZW" -co "PREDICTOR=2" ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.tif >> $logfile 2>/dev/null
+  gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=LZW -co PREDICTOR=2 ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.orig.tif ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.tif >> $logfile 2>/dev/null
   rm ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.orig.tif
   # create bmps
   #new version of gamma shows coherence in colour... using old-school cpxfiddle as workaround

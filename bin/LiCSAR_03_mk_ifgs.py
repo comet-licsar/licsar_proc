@@ -172,10 +172,15 @@ def main(argv=None):
 ############################################################ Parse multilook paramters
     masterslcdir = os.path.join(procdir,'SLC',masterdatestr)
     #only updating gc.rglks config in case the parameter has been customized .. (maybe not needed really...)
-    if rglks != gc.rglks:
+    #if rglks != gc.rglks:
+    #    gc.rglks = int(grep1('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    #if azlks != gc.azlks:
+    #    gc.azlks = int(grep1('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    try:
         gc.rglks = int(grep1('range_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
-    if azlks != gc.azlks:
         gc.azlks = int(grep1('azimuth_looks',os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc.mli.par')).split(':')[1].strip())
+    except:
+        print('master mli not existing? not a problem now')
 ############################################################ Get a list of co registered slaves and dates
     date_pairs = []
     if ifgListFile:

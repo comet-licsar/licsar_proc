@@ -138,7 +138,7 @@ class dbquery:
         print("Something has attempted to run a database query in batch mode... This is probably a bug, but will carry on regardless")
         return True
 
-    def get_ipf(filename):
+    def get_ipf(self, filename):
         print('function for getting IPF version is not working yet for non-licsinfo approach')
         print('this is still safe if you do not work with <201503xx data')
         return False
