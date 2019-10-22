@@ -504,6 +504,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
             rc = myfile.write("Iterative improvement of refinement offset azimuth overlap regions:\n")
     # iterate while azimuth correction >= 0.0005 SLC pixel
     daz_total=0
+    subswath_corr = False
     #...following condition - should include also that the prev is not same as now
     #and (daz_total != daz_total + daz)
     #and (daz != 0)
@@ -535,6 +536,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
             print('IPF versions of the data differ:')
             print('..getting offsets using subswath overlap (first iteration)')
             print('(this process generates a lot of errors but do not worry - this is normal)')
+            subswath_corr = True #just to know that this processing has been performed..
             #logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
             #                           masterdate.strftime('%Y%m%d')+'_'+
             #                           slavedate.strftime('%Y%m%d')+'.'+str(it)+'.log')
@@ -570,6 +572,12 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
             rc = myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)\n")
         if not (daz == 0):
             daz10000 = int(daz*10000)
+        #daz is 0 in case burst overlap ifgs are too decorrelated. here we would skip the image
+        # the check keeps 1 iteration for subswath_correction and 1 for ESD in case of different IPFs
+        if (daz == 0) and ((it==1 and not subswath_corr) or (it==2 and subswath_corr)):
+            with open(qualityfile, "a") as myfile:
+                myfile.write("Spectral diversion estimation failed with wrong |daz|=0 px. Skipping\n")
+            return 4
         shutil.copyfile(offfile,offfile+'.az_ovr.'+str(it))
     if daz == daz_initial:
         print('Something got wrong during ESD estimation - the daz value is same as during init. This cannot be trusted')
@@ -635,8 +643,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 slave3date = dt.datetime.strptime(procslavelist[slave3ix],'%Y%m%d')
                 print("found potential aux slave date {0}".format(slave3date))
                 slave3rslcdir = os.path.join(rslcdir,slave3date.strftime('%Y%m%d'))
-                print(slavebursts)
-                print(masterbursts)
+                #print(slavebursts)
+                #print(masterbursts)
                 slave3bursts = masterbursts
                 #slave3bursts = lq.get_frame_bursts_on_date(framename,slave3date)
                 if os.path.exists(slave3rslcdir+slave3date.strftime('/%Y%m%d.lock')):
