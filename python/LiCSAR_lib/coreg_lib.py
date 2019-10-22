@@ -898,7 +898,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         rc = geocode_dem(masterrslcdir,geocropdir,demdir,
                 procdir,masterdate.strftime('%Y%m%d')+croptext,gc.outres)
     #finally the coregistration itself
-        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,True)
+        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3_croptab,qualityfile,True)
         if rc != 0:
             print("\nError:", file=sys.stderr)
             print("Something went wrong during coregistration", file=sys.stderr)
