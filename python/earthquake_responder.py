@@ -56,6 +56,7 @@ def create_kmls(frame, toi):
             return None
     doi_str = int(doi.strftime('%Y%m%d'))
     publicifgs = os.listdir(products_path)
+    publicifgs = [i for i in publicifgs if '_' in i]
     if publicifgs is None:
         print('there are no final georeferenced products generated')
         return None
