@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import datetime as dt
+import glob
 
 from LiCSAR_misc import is_non_zero_file, grep1
 from LiCSAR_lib.coreg_lib import get_mli_size
@@ -58,6 +59,17 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
                              pomdate+'R_tab')
             filename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
             logfile = os.path.join(procdir,'log',"mosaic_rslc_{0}.log".format(pomdate))
+            #donno why but there is error here - glob.glob is not found!
+            import glob
+            iwfiles = glob.glob(os.path.join(procdir,'RSLC',pomdate,pomdate+'.IW*.rslc'))
+            swathlist = []
+            for iwfile in iwfiles:
+                swathlist.append(iwfile.split('/')[-1].split('.')[1])
+            swathlist.sort()
+            rc, msg = make_SLC_tab(rslctab,filename,swathlist)
+            if rc > 0:
+                print('Something went wrong creating the slave resampled tab file...')
+                return 1
             SLC_mosaic_S1_TOPS(rslctab,filename,rglks,azlks,logfile,mastertab)
 ############################################################ Create offsets
     offsetfile = os.path.join(ifgthisdir,pair+'.off')

@@ -78,5 +78,5 @@ done < rslc.list
 #base_calc SLC_mosaics_tab $tmpdir/${master}/${master}.rslc.par bperp_file_tmp itab 0 >/dev/null 2>/dev/null
 
 ## Remove intermediate files
-rm rslc.list
+rm -f rslc.list
 rm -rf $tmpdir

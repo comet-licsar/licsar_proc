@@ -1,14 +1,15 @@
 #!/bin/bash
-if [ -z $2 ]; then echo "inputs are: procdir ifg"; exit; fi
-#what is needed here (can be changed probably) is *.rslc.mli.par !!!
+if [ -z $2 ]; then echo "inputs are: procdir ifg, e.g. \`pwd\` 20160101_20160202"; exit; fi
+#what is needed here (can be changed probably) is *.rslc.mli.par of master image !!!
 
 #module load doris
 #module load LiCSAR/dev
-
+UNWONLY=0
 procdir=$1
 #master=$2
 master=`ls $procdir/geo/*[0-9].hgt | rev | cut -d '/' -f1 | rev | cut -d '.' -f1 | head -n1`
 ifg=$2
+if [ ! -z $3 ]; then echo "you do only unw geo now.."; UNWONLY=1; fi
 #publicdir=
 
 echo "Processing dir: $procdir"
@@ -107,6 +108,8 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
 #  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
 
+if [ $UNWONLY -eq 1 ]; then exit; fi
+
 #Filtered interferograms... also is in this public LiCSAR website...
 if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.tif ]; then
  echo "Creating filtered interferogram tiffs"
@@ -132,7 +135,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg
  #raspwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
  # Clean
- rm ${procdir}/IFG/${ifg}/${ifg}.diff_mag ${procdir}/IFG/${ifg}/${ifg}.diff_pha
+ rm ${procdir}/IFG/${ifg}/${ifg}.diff_mag ${procdir}/IFG/${ifg}/${ifg}.diff_pha 2>/dev/null
 fi
 
 # Unfiltered coherence
