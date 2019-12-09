@@ -11,7 +11,7 @@ if [ ! `echo $pair | wc -m` -eq 18 ]; then
  exit
 fi
 
-if [ ! -f $1/$pair.geo.unw.bmp ] || [ ! -f $1/$pair.geo.diff.bmp ] || [ ! -f $1/$pair.geo.unw.tif ]; then
+if [ ! -f $1/$pair.geo.unw.png ] || [ ! -f $1/$pair.geo.diff.png ] || [ ! -f $1/$pair.geo.unw.tif ]; then
  echo "some of the geocoded product does not exist here"
  exit
 fi
@@ -20,14 +20,15 @@ fi
 echo "generating kmz file for pair "$pair
 cd $1
 unw_tif=$pair.geo.unw.tif
-unw_bmp=$pair.geo.unw.bmp
+unw_bmp=$pair.geo.unw.png
 #ifg_tif=$pair.geo.diff_pha.tif
-ifg_bmp=$pair.geo.diff.bmp
+ifg_bmp=$pair.geo.diff.png
 
 #generating previews
 cp -r $LiCSARpath/misc/kmlfiles files
-convert $unw_bmp files/`basename $unw_bmp .bmp`.png
-convert $ifg_bmp files/`basename $ifg_bmp .bmp`.png
+#convert $unw_bmp files/`basename $unw_bmp .bmp`.png
+#convert $ifg_bmp files/`basename $ifg_bmp .bmp`.png
+cp $unw_bmp $ifg_bmp files/.
 
 #getting templates and fit it
 cp $LiCSARpath/misc/template.kml $pair.kml
@@ -36,8 +37,10 @@ cp $LiCSARpath/misc/template.kml $pair.kml
 #sed -i 's/TYEART/'`date +'%Y'`'/' $pair.kml
 sed -i 's/TFIRSTDATET/'`echo $pair | cut -d '_' -f1`'/' $pair.kml
 sed -i 's/TLASTDATET/'`echo $pair | cut -d '_' -f2`'/' $pair.kml
-sed -i 's/TFILEUNWT/'`basename $unw_bmp .bmp`.png'/' $pair.kml
-sed -i 's/TFILEIFGT/'`basename $ifg_bmp .bmp`.png'/' $pair.kml
+#sed -i 's/TFILEUNWT/'`basename $unw_bmp .bmp`.png'/' $pair.kml
+#sed -i 's/TFILEIFGT/'`basename $ifg_bmp .bmp`.png'/' $pair.kml
+sed -i 's/TFILEUNWT/'`basename $unw_bmp`'/' $pair.kml
+sed -i 's/TFILEIFGT/'`basename $ifg_bmp`'/' $pair.kml
 
 #coordinates
 gdalinfo -stats $unw_tif | grep Coordinates -A4 | tail -n+2 | cut -d '(' -f2 | cut -d ')' -f1 > tmp.coord

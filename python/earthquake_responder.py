@@ -6,6 +6,7 @@ import datetime
 from datetime import datetime, timedelta
 from libcomcat.search import search,count,get_event_by_id
 import pandas as pd
+from LiCSAR_lib.s1data import get_images_for_frame
 
 public_path = os.environ['LiCSAR_public']
 web_path = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'
@@ -90,6 +91,49 @@ def create_kmls(frame, toi):
                     selected_ifgs.append(pifg)
     return selected_ifgs
 
+def get_next_expected_datetime(frame, eventtime):
+    track = str(int(frame[0:3]))
+    lastmonth = eventtime-timedelta(days=30)
+    eqimages = get_images_for_frame(frame, startdate = lastmonth.date(), enddate = eventtime.date(), sensType = 'IW')
+    eqimgdates = set()
+    for eqi in eqimages:
+        imgdate = eqi.split('T')[0].split('_')[-1]
+        imgdate = dt.datetime.strptime(imgdate,'%Y%m%d')
+        eqimgdates.add(imgdate)
+    eqimgdates = sorted(eqimgdates) # list now
+    
+    #lastimage = eqimgdates[-1]
+    expectedtime = eqimages[-1].split('T')[1].split('_')[0]
+    expectedtime = dt.datetime.strptime(expectedtime[0:4],'%H%M')
+    nextposimage = eqimgdates[-1]+timedelta(days=6)
+    nextposimage = nextposimage.replace(hour=expectedtime.hour, minute=expectedtime.minute)
+    
+    imgdiffs = []
+    for i in range(len(eqimgdates)-1):
+        imgdiffs.append((eqimgdates[i+1] - eqimgdates[i]).days)
+    bestcasediff = min(imgdiffs)
+    worstcasediff = max(imgdiffs)
+    if not worstcasediff == bestcasediff:
+        print('Temporal sampling is irregular (expecting worst case), i.e. '+str(worstcasediff)+' days diff')
+    imgdiff = worstcasediff
+    
+    nextexpectedimage = eqimgdates[-1] + timedelta(days=imgdiff)
+    nextexpectedimage = nextexpectedimage.replace(hour=expectedtime.hour, minute=expectedtime.minute)
+    
+    returnlist = [nextexpectedimage, nextposimage]
+    return returnlist
+
+def get_next_expected_images(frames):
+    print('checking expected acquisition time for covering frames:')
+    for frame in frames:
+        frame = frame[0]
+        print(frame+': ')
+        [nextexp, nextpos] = get_next_expected_datetime(frame, event.time)
+        print('Expected: '+str(nextexp))
+        if nextexp != nextpos:
+            print('Warning, this area is not observed at the highest frequency')
+            print('Next possible flight: '+str(nextpos))
+
 def main():
     #will process daily and check also for older earthquakes (to get max 12 days co-seismic pair)
     eventlist = search(starttime=datetime.now()-timedelta(days=max_days),
@@ -136,6 +180,8 @@ def main():
                     f.write(newline)
                     f.close()
                 frames = lq.get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
+                #this would print info on next expected images:
+                #get_next_expected_images(frames)
                 if len(frames) == 0:
                     print('No frames are available for the event {0}'.format(event.id))
                 else:
@@ -144,7 +190,7 @@ def main():
                         frame = frame[0]
                         track = str(int(frame[0:3]))
                         indate = event.time-timedelta(days=max_days)
-                        offdate = datetime.now()
+                        offdate = datetime.now()+timedelta(days=1)
                         if not os.path.exists(os.path.join(public_path,track,frame)):
                             print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
                             os.system('licsar_initiate_new_frame.sh {0} >/dev/null 2>/dev/null'.format(frame))

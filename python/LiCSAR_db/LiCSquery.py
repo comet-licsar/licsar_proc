@@ -212,6 +212,9 @@ def get_bursts_in_polygon_old(lon1,lon2,lat1,lat2,relorb = None, swath = None):
     return do_query(sql_q)
 
 def get_bursts_in_polygon(minlon,maxlon,minlat,maxlat,relorb = None, swath = None):
+    if swath:
+        if 'IW' not in swath:
+            swath = 'IW'+str(swath)
     sql_q = "select distinct b.bid_tanx from bursts b " \
             "inner join files2bursts on files2bursts.bid=b.bid " \
             "inner join files on files2bursts.fid=files.fid " \

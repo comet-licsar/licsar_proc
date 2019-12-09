@@ -19,3 +19,11 @@ outres = 0.001
 batchflag=False
 
 configfile = os.environ["LiCSARconfig"]
+
+#this trick here makes variables available
+#just save them to local_config.py file in your processing folder..
+#cdir = os.getcwd()
+sys.path.append('')
+if os.path.exists('local_config.py'):
+    from local_config import *
+    #import local_config

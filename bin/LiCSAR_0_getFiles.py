@@ -45,6 +45,7 @@ class badFrameError(Exception):
         self.msg = '{0}'
     def __str__(self):
         return str(self.code) + ":" + self.msg.formate(self.frame)
+
 class notOnNLAError(Exception):
     def __init__(self,file):
         self.file
@@ -86,7 +87,7 @@ def main(argv=None):
             if not userEmail:
                 userEmail = reqInfo['email']
 
-            label = frameName + '-' + fileSeries.index[0].strftime('%Y-%m-%d') + ' -> ' + fileSeries.index[-1].strftime('%Y-%m-%d')
+            label = frameName + ': ' + fileSeries.index[0].strftime('%Y-%m-%d') + ' -> ' + fileSeries.index[-1].strftime('%Y-%m-%d')
             nla.make_request( files = list( fileSeries ),
                     label = label,
                     retention=retentionDate)
@@ -164,7 +165,10 @@ def main(argv=None):
 ############################## Check files using scihub -> NLA
 
     print('checking for S1 data not ingested to licsinfo db')
-    s1data.check_and_import_to_licsinfo(frameName, startDate.date(), endDate.date())
+    s1dataa = s1data.check_and_import_to_licsinfo(frameName, startDate.date(), endDate.date())
+    if not s1dataa:
+        print('no data found, quitting')
+        return False
 
 ############################## Get file list
 
@@ -187,7 +191,6 @@ def main(argv=None):
             if pom==file[:-9]:
                 filesDF=filesDF[filesDF.files != file]
             else: pom=file[:-9]
-
 ############################## Write out file list
 
     if zipListFile:
@@ -200,14 +203,24 @@ def main(argv=None):
         print("No zip file list filename provided - not writing file list")
 
 ############################## Work out which files are on tape and which are not
-
+    print('checking for files existing on Tape')
     filesDF['onTape'] = filesDF['files'].map(check_nla)
-
+    fileSeries = filesDF.loc[filesDF['onTape'],'files']
+    print('There are {0} files to be requested'.format(str(len(fileSeries))))
+    existing = len(filesDF['files'])-len(fileSeries)
+    if existing > 0:
+        print('Seems there are {0} files already existing on disk'.format(str(existing)))
+        print('WARNING - we will not update their NLA expiry date')
 ############################## Make batches of NLA request
     if makeNLAReq:
-        print("Making NLA file requests")
-        groupedFiles = filesDF.loc[filesDF['onTape'],'files'].resample(batchMode)
-        requestList = groupedFiles.aggregate(make_nla_request,userEmail=userEmail)
+        print("Making NLA file request")
+        requestNumber = make_nla_request(fileSeries,userEmail=userEmail)
+        # previously we were separating files to several requests
+        # this is not really effective towards NLA system
+        # so only one NLA request is now applied
+        #print("Making NLA file requests")
+        #groupedFiles = filesDF.loc[filesDF['onTape'],'files'].resample(batchMode)
+        #requestList = groupedFiles.aggregate(make_nla_request,userEmail=userEmail)
 
 ################################################################################
 # execute main function

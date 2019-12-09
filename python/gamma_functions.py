@@ -329,7 +329,7 @@ def S1_OPOD_vec(parFile,orbitFile,logfilename):
         try:
             rc = subp.check_call(OPOD_call,stdout=f)
         except:
-            print('Something whent wrong corecting {0} with orbit {1}- see log {2}'.format(parFile,orbitFile,logfilename))
+            print('Something went wrong corecting {0} with orbit {1} - see log {2}'.format(parFile,orbitFile,logfilename))
             return False
       # S1_OPOD_vec ${img} $orbit_file 
     return True 
@@ -420,7 +420,7 @@ def offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,rwin,azwin,offsets,n_ovr,nr,na
 def offset_pwr_tracking(slc1,rslc,slc1_par,rslc_par,dofffile,p,rstep,azstep,logfilename):
     """
     """
-    pwrcall = ['offset_pwr_tracking',slc1,rslc,slc1_par,rslc_par,dofffile,p+'.offs',p+'.snr','128','64','-','1','0.2',str(rstep),str(azstep)]
+    pwrcall = ['offset_pwr_tracking',slc1,rslc,slc1_par,rslc_par,dofffile,p+'.offs',p+'.snr','128','64','-','1','0.2',str(rstep),str(azstep),'-','-','-','-','-','-','1']
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(pwrcall,stdout=f)

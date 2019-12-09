@@ -673,15 +673,21 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     mtch = re.search('.*(S1[AB]).*',zipFile)
                     sat = mtch.groups()[0]
                     localOrbDir = get_orb_dir(sat)
-                    orbit = getValidOrbFile(localOrbDir,zipFile)
+                    try:
+                        orbit = getValidOrbFile(localOrbDir,zipFile)
+                        orbdone = True
+                    except:
+                        print('error during getting orbit file')
+                        orbdone = False
                     slcOrbit = imdir+"/"+os.path.basename(orbit)
                     if not os.path.lexists(imdir+"/"+os.path.basename(orbit)):
                         #syslink as not always on same physical device
                         os.symlink(orbit,slcOrbit)
                 logger.removeHandler(fileHan)
-                for parFile in glob(imdir+"/*.sl*.par"):
-                    print("applying orbit correction to {0}".format(parFile))
-                    S1_OPOD_vec(parFile,slcOrbit,logfilename)
+                if orbdone:
+                    for parFile in glob(imdir+"/*.sl*.par"):
+                        print("applying orbit correction to {0}".format(parFile))
+                        S1_OPOD_vec(parFile,slcOrbit,logfilename)
             else:
     ############################################################ Special case of singular file
                 # bursts are in only 1 file, just copy necessary
