@@ -21,7 +21,7 @@ length=`awk '$1 == "azimuth_lines:" {print $2}' ${procdir}/RSLC/$master/$master.
 reducfac=`echo $width | awk '{if(int($1/16000) > 1) print int($1/16000); else print 1}'`
 
 #if [ -d "${procdir}/GEOC" ]; then rm -rf ${procdir}/GEOC; fi
-if [ ! -d "${procdir}/GEOC" ]; then mkdir ${procdir}/GEOC; fi
+if [ ! -d "${procdir}/GEOC" ]; then mkdir ${procdir}/GEOC 2>/dev/null; fi
 
 lat=`awk '$1 == "corner_lat:" {print $2}' ${procdir}/geo/EQA.dem_par`
 lon=`awk '$1 == "corner_lon:" {print $2}' ${procdir}/geo/EQA.dem_par`

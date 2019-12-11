@@ -334,7 +334,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     logfile = os.path.join(procdir,'log','S1_coreg_TOPS_'+masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.log')
     errfile = os.path.join(procdir,'log','S1_coreg_TOPS_'+masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.err')
     # S1_coreg_TOPS <SLC1_tab> <SLC1_ID> <SLC2_tab> <SLC2_ID> <RSLC2_tab> [hgt] [RLK] [AZLK] [poly1] [poly2] [cc_thresh] [fraction_thresh] [ph_stdev_thresh] [cleaning] [flag1] [RSLC3_tab] [RSLC3_ID]
-    cmd = 'S1_coreg_TOPS_noifg {} {} {} {} {} {} {} {} - - 0.8 0.01 0.8 0 1 {} {} > {} 2> {}'.format(masterslctab, masterdatestr, slaveslctab, slavedatestr,
+    cmd = 'S1_coreg_TOPS_noifg {} {} {} {} {} {} {} {} - - 0.8 0.01 0.8 0 1 {} {} > {} 2> {}'.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, 
                 slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), slave3tab, slave3datestr, logfile, errfile)
     #now this may take some 80 minutes
     rc = os.system(cmd)
