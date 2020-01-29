@@ -1856,7 +1856,7 @@ def coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir
         return 4
     print("Improve offset estimate")
     # improve estimate (multi-looked)
-    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, gc.rglks_stripmap, gc.azlks_stripmap, logfile_offset):
+    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, gc.rglks, gc.azlks, logfile_offset):
         print("\nError:", file=sys.stderr)
         print("Something went wrong estimating offset using orbit information (2).", file=sys.stderr)
         return 4
@@ -1883,9 +1883,9 @@ def coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir
     daztmp = grep1('azimuth_offset_polynomial:',offfile)
     drtmp = grep1('range_offset_polynomial:',offfile)
     daz = float(daztmp.split()[1])
-    daz_mli = daz/gc.azlks_stripmap
+    daz_mli = daz/gc.azlks
     dr = float(drtmp.split()[1])
-    dr_mli = dr/gc.rglks_stripmap
+    dr_mli = dr/gc.rglks
     if os.path.exists(pair+'.diff_par'): os.remove(pair+'.diff_par')
     logfile = os.path.join(procdir,'log',
                    'resampling_'+
@@ -1903,7 +1903,7 @@ def coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir
                    masterdate.strftime('%Y%m%d')+'_'+
                    slavedate.strftime('%Y%m%d')+'.log')
     print("multi look RSLC...")    
-    if not multi_look(slaverfilename, slaveRpar, slaveRmlifile, slaveRmlipar, gc.rglks_stripmap, gc.azlks_stripmap , logfile):
+    if not multi_look(slaverfilename, slaveRpar, slaveRmlifile, slaveRmlipar, gc.rglks, gc.azlks, logfile):
         print("\nError:", file=sys.stderr)
         print("Something went wrong multilooking", file=sys.stderr)
         return 3

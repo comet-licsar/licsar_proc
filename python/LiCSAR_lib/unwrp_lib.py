@@ -178,7 +178,7 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
 
 ############################################################ Unwrap parameters
     #parts of the interferogram with low coherence
-    zeroix = coh < 0.5    
+    zeroix = coh < 0.5
     #zero low coherence parts of the interferogram
     ifg[zeroix] = np.complex64(0+0j)
     #get edges
@@ -223,6 +223,7 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
     except:
         print('Something went wrong unwrapping the interferogram. Log file {0}'.format(logfilename))
         return False
+    # fully removing (filtered) coh points of < 0.5.. maybe too strict here?
     uw[coh < 0.5] = np.nan
     try:
         uw.byteswap().tofile(os.path.join(ifgdir,date,date+'.unw'))

@@ -511,7 +511,7 @@ if __name__ == "__main__":
         try:
             os.mkdir(outDir)
         except:
-            outDir='~/.licscheck'
+            outDir='~/licscheck'
             if not os.path.exists(outDir): os.mkdir(outDir)
     var.outDir = outDir
     #app = QtWidgets.QApplication(sys.argv)

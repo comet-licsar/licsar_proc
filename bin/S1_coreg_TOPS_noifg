@@ -607,7 +607,7 @@ echo "Iterative improvement of refinement offset azimuth overlap regions:" >> $p
 
 set daz10000 = "10000"
 set it = "0"
-while ( (( "$daz10000" > "10" ) || ( "$daz10000" < "-10" )) && ( "$it" < "$itmax" ) )     # iterate while azimuth correction >= 0.001 SLC pixel
+while ( (( "$daz10000" > "5" ) || ( "$daz10000" < "-5" )) && ( "$it" < "$itmax" ) )     # iterate while azimuth correction >= 0.0005 SLC pixel
 
   # increase iteration counter
   set it = `echo "$it" | awk '{printf "%d", $1+1}'`

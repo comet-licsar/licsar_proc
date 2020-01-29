@@ -138,12 +138,14 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
                              slavedate.strftime('%Y%m%d'),
                              slavedate.strftime('%Y%m%d')+'.rslc.mli')
     #get baselines information to the qualityfile
-    templog = procdir+'/log/tmp_base.log'
+    #templog = procdir+'/log/tmp_base.log'
+    templog = procdir+'/log/tmp_base_'+masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.log'
     pom = os.system('base_orbit '+mastermli+'.par '+slavemli+'.par - > '+templog)
     with open(qualityfile, "a") as myfile:
             myfile.write(grep1('perpendicular', templog))
             myfile.write(grep1('parallel', templog))
-    os.remove(procdir+'/log/tmp_base.log')
+    #os.remove(procdir+'/log/tmp_base.log')
+    os.remove(templog)
     
     cohfile = os.path.join(ifgdir,pair,pair+'.cc')
     logfilename  = os.path.join(procdir,'log','cc_wave_{0}.log'.format(pair))
