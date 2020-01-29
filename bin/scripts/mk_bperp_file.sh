@@ -24,6 +24,7 @@ echo $master $master 0.0000 0 > baselines
 
 while read day; do
 if [ $day != $master ]; then
+ echo $day
  #put the rslc.par files to the temp folder
  ## If 7zipped
  if [ -f RSLC/${day}.7z ]; then

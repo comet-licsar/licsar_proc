@@ -61,3 +61,8 @@ if [ -e ${procdir}/geo/U ]; then
   data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/lookangles/$master.geo.U 2 ${procdir}/GEOC/lookangles/$master.geo.U.tif 0.0
 fi
 
+#hgt - not a 'look angle', but useful for LiCSBAS etc
+if [ -e ${procdir}/geo/$master.hgt ]; then
+ geocode_back ${procdir}/geo/$master.hgt $width ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/lookangles/$master.geo.hgt ${width_dem} ${length_dem} 1 0 >> $logfile
+ data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/lookangles/$master.geo.hgt 2 ${procdir}/GEOC/lookangles/$master.geo.hgt.tif 0.0
+fi

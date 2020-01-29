@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import os, shutil
 import LiCSquery as lq
 import datetime
 from datetime import datetime, timedelta
@@ -9,6 +9,7 @@ import pandas as pd
 from LiCSAR_lib.s1data import get_images_for_frame
 
 public_path = os.environ['LiCSAR_public']
+procdir_path = os.environ['LiCSAR_procdir']
 web_path = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'
 max_days = 13
 
@@ -49,6 +50,7 @@ def create_kmls(frame, toi):
     track = str(int(frame[0:3]))
     global public_path
     products_path = os.path.join(public_path, track, frame, 'products')
+    frameproc_path = os.path.join(procdir_path, track, frame)
     if not os.path.exists(products_path):
         try:
             os.mkdir(products_path)
@@ -83,11 +85,18 @@ def create_kmls(frame, toi):
             if tof > toi:
                 is_coseismic = True
         if is_coseismic:
-            if not os.path.exists(os.path.join(products_path,pifg,pifg+'.kmz')):
+            if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
+                #first of all regenerate preview in full resolution
+                os.system('create_geoctiffs_to_pub.sh -F {0} {1}'.format(frameproc_path, pifg))
                 #generate kmz
-                os.system('create_kmz.sh {0}'.format(os.path.join(products_path,pifg)))
-                if os.path.exists(os.path.join(products_path,pifg,pifg+'.kmz')):
-                    os.rename(os.path.join(products_path,pifg,pifg+'.kmz'), os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz'))
+                #os.system('create_kmz.sh {0}'.format(os.path.join(products_path,pifg))) #this will do it directly in LiCSAR_public
+                os.system('create_kmz.sh {0}'.format(os.path.join(frameproc_path,'GEOC',pifg)))
+                #if os.path.exists(os.path.join(products_path,pifg,pifg+'.kmz')):
+                if os.path.exists(os.path.join(frameproc_path,'GEOC',pifg,pifg+'.kmz')):
+                    #os.rename(os.path.join(products_path,pifg,pifg+'.kmz'), os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz'))
+                    os.rename(os.path.join(frameproc_path,'GEOC',pifg,pifg+'.kmz'), os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz'))
+                    #clean the generated hires files
+                    shutil.rmtree(os.path.join(frameproc_path,'GEOC',pifg))
                     selected_ifgs.append(pifg)
     return selected_ifgs
 
@@ -98,13 +107,13 @@ def get_next_expected_datetime(frame, eventtime):
     eqimgdates = set()
     for eqi in eqimages:
         imgdate = eqi.split('T')[0].split('_')[-1]
-        imgdate = dt.datetime.strptime(imgdate,'%Y%m%d')
+        imgdate = datetime.strptime(imgdate,'%Y%m%d')
         eqimgdates.add(imgdate)
     eqimgdates = sorted(eqimgdates) # list now
     
     #lastimage = eqimgdates[-1]
     expectedtime = eqimages[-1].split('T')[1].split('_')[0]
-    expectedtime = dt.datetime.strptime(expectedtime[0:4],'%H%M')
+    expectedtime = datetime.strptime(expectedtime[0:4],'%H%M')
     nextposimage = eqimgdates[-1]+timedelta(days=6)
     nextposimage = nextposimage.replace(hour=expectedtime.hour, minute=expectedtime.minute)
     
@@ -123,12 +132,12 @@ def get_next_expected_datetime(frame, eventtime):
     returnlist = [nextexpectedimage, nextposimage]
     return returnlist
 
-def get_next_expected_images(frames):
+def get_next_expected_images(frames, eventtime):
     print('checking expected acquisition time for covering frames:')
     for frame in frames:
         frame = frame[0]
         print(frame+': ')
-        [nextexp, nextpos] = get_next_expected_datetime(frame, event.time)
+        [nextexp, nextpos] = get_next_expected_datetime(frame, eventtime)
         print('Expected: '+str(nextexp))
         if nextexp != nextpos:
             print('Warning, this area is not observed at the highest frequency')

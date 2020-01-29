@@ -324,7 +324,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     if not os.path.exists(slaverslcdir):
         os.mkdir(slaverslcdir)
     masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+croptext+'_tab')
-    slaveslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+croptext+'_tab')
+    slaveslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'_tab')
     slaverslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'R_tab')
     demhgt = os.path.join(geodir,masterdate.strftime('%Y%m%d')+croptext+'.hgt')
     masterdatestr = masterdate.strftime('%Y%m%d')+croptext
@@ -371,6 +371,10 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     rc = os.system(cmd)
     total_daztmp = grep1('azimuth_offset_polynomial:',gamma_off)
     total_daz = float(total_daztmp.split()[1])
+    #if this is 0, it means an error in ESD estimation and should be cancelled
+    if (total_daz == 0):
+        print('daz was estimated as 0.0 px - this means for GAMMA that it failed J')
+        return 2
     with open(qualityfile, "a") as myfile:
             rc = myfile.write("Total azimuth offset (w.r.t. LUT): {} (daz in SLC pixel)\n".format(total_daz))
             rc = myfile.write("(if the last iteration led to |daz| < 0.0005 px then this iteration was ignored)\n")
@@ -650,7 +654,7 @@ def coreg_slave_common_old(procdir,masterdate,masterrslcdir,slavedate,slaveslcdi
             
             
             
-            #i had to return this shit here...
+            #i had to return this here...
             if not (daz == 0):
                 logfile_interp_lt2 = os.path.join(procdir,'log',
                        'SLC_interp_lt_ScanSAR.{0}.2.out'.format(slavedate.strftime('%Y%m%d')))
@@ -854,8 +858,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             rc = myfile.write("Spectral diversity estimation will be performed through near RSLC: "+slave3date.strftime('%Y%m%d')+"\n")
     #if no missing bursts....
     #missingbursts = False
-    #need to improve this - it would help a LOT for missing bursts coregistration..:
-    # it should be if missingbursts:
+    #this code below would use orig GAMMA command. However our solution is exactly same, (while GAMMA's would work only with newer TOPS_par)
     if not 1==1:
         # using official gamma solution (as the one before did some errors e.g. with orbit misfits:
         print('There are '+str(len(missingbursts))+' missing bursts at either or both ends of the scene')
@@ -884,6 +887,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         if rc != 0:
             print("\nError:", file=sys.stderr)
             print("Something went wrong during coregistration", file=sys.stderr)
+            if os.path.exists(slaverslcdir):
+                shutil.rmtree(slaverslcdir)
             return rc
         #Do the RSLC mosaic (should actually exist from the previous steps..
         if not os.path.exists(slaverfilename):
@@ -936,12 +941,14 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             iwstart = iwthisburst_m.index(iwthisburst_s[0])+1
             iwstop = iwthisburst_m.index(iwthisburst_s[-1])+1
         #Create master slc tab file
-            rc, msg = make_SLC_tab(masterslctab,masterslcfilename,[iw])
+            mastertabiw = masterslctab+'.'+iw
+            rc, msg = make_SLC_tab(mastertabiw,masterslcfilename,[iw])
             if rc > 0:
                 print('Something went wrong creating the master tab file...')
                 return 1
         #create a corresponding cropped master slc tab file
-            rc, msg = make_SLC_tab(croptab,cropfilename,[iw])
+            croptabiw = croptab+'.'+iw
+            rc, msg = make_SLC_tab(croptabiw,cropfilename,[iw])
             if rc > 0:
                 print('Something went wrong creating the cropped master tab file...')
                 return 1
@@ -960,7 +967,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                        masterdate.strftime('%Y%m%d')+
                                        croptext+'.log')
         #copy out bursts which are relevant to the cropped master
-            if SLC_copy_S1_TOPS(masterslctab,croptab,bursttab,'',procdir,
+            if SLC_copy_S1_TOPS(mastertabiw,croptabiw, bursttab,'',procdir,
                                                                     logfilename):
                 print("\nError:", file=sys.stderr)
                 print("Something went wrong recropping the master SLC", file=sys.stderr)
@@ -978,7 +985,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                                                                 +'_tab')
                 slave3slcfilename = os.path.join(slave3rslcdir,
                                     slave3date.strftime('%Y%m%d')+'.rslc')
-                rc, msg = make_SLC_tab(slave3slctab,slave3slcfilename,[iw])
+                slave3slctabiw = slave3slctab+'.'+iw
+                rc, msg = make_SLC_tab(slave3slctabiw,slave3slcfilename,[iw])
                 if rc > 0:
                     print('Something went wrong creating the auxiliary slave tab file...')
                     return 1
@@ -987,7 +995,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                 slave3date.strftime('%Y%m%d')+croptext+'_tab')
                 slave3_cropfilename = os.path.join(slave3rslcdir,
                                 slave3date.strftime('%Y%m%d')+croptext+'.rslc')
-                rc, msg = make_SLC_tab(slave3_croptab,slave3_cropfilename,[iw])
+                slave3_croptabiw = slave3_croptab+'.'+iw
+                rc, msg = make_SLC_tab(slave3_croptabiw,slave3_cropfilename,[iw])
                 if rc > 0:
                     print('Something went wrong creating the cropped '\
                                         'auxiliary slave tab file...')
@@ -1007,7 +1016,9 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                                 date, msg ), file=sys.stderr)
                     return 2
         #copy out relevent bursts in master to aux slavetab??? is it correct (Nick)??
-                if SLC_copy_S1_TOPS(masterslctab,slave3_croptab,
+        #       if SLC_copy_S1_TOPS(masterslctab,slave3_croptaw,.......
+        #oh no, it was an error -- took too long to find it out..
+                if SLC_copy_S1_TOPS(slave3slctabiw,slave3_croptabiw,
                                    bursttab,'',procdir,logfilename):
                     print("\nError:", file=sys.stderr)
                     print("Something went wrong recropping the master SLC", file=sys.stderr)
@@ -1018,6 +1029,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                    '_{0}'+croptext+'.log'.format(iw))
         rc, msg = make_SLC_tab(croptab,cropfilename,swathlist)
         print('(mosaicking cropped swaths)')
+
         if not SLC_mosaic_S1_TOPS(croptab,cropfilename,gc.rglks,gc.azlks,logfilename):
             print('Something went wrong mosaicing subswaths '\
                     'together. Log file {0}. Continuing with next acquisition '\
@@ -1032,8 +1044,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 return 3
         #multilook (average) cropped data
         logfilename =  os.path.join(procdir,'log',
-                            'multilookRSLC_{0}'+croptext+'.log'.format(
-                                masterdate.strftime('%Y%m%d')))
+                            'multilookRSLC_'+masterdate.strftime('%Y%m%d')+croptext+'.log')
         print('(multilooking cropped mosaic)')
         multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
                 masterdate.strftime('%Y%m%d')+croptext,gc.rglks,gc.azlks,
@@ -1055,6 +1066,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         if rc != 0:
             print("\nError:", file=sys.stderr)
             print("Something went wrong during coregistration", file=sys.stderr)
+            if os.path.exists(slaverslcdir):
+                shutil.rmtree(slaverslcdir)
             return rc
     # as final touches, rslcs for all swaths separately will be padded. therefore there will be no issues mosaicking in the future
         for iw in swathlist: #['IW1','IW2','IW3']:
@@ -1856,7 +1869,7 @@ def coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir
         return 4
     print("Improve offset estimate")
     # improve estimate (multi-looked)
-    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, gc.rglks, gc.azlks, logfile_offset):
+    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, gc.rglks, gc.azlks, logfile_offset, 128, 128):
         print("\nError:", file=sys.stderr)
         print("Something went wrong estimating offset using orbit information (2).", file=sys.stderr)
         return 4

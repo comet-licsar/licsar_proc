@@ -851,10 +851,10 @@ def init_offset_orbit(masterpar,slavepar,offfile,logfilename):
         return False
     return True
 
-def init_offset(masterfile,slavefile,masterpar,slavepar,offfile,rglks,azlks,logfilename):
+def init_offset(masterfile,slavefile,masterpar,slavepar,offfile,rglks,azlks,logfilename, rwin = '-', azwin = '-'):
     """
     """
-    initoffcall = ['init_offset',masterfile,slavefile,masterpar,slavepar,offfile,str(rglks),str(azlks)]
+    initoffcall = ['init_offset',masterfile,slavefile,masterpar,slavepar,offfile,str(rglks),str(azlks),'-','-','-','-','-',str(rwin),str(azwin)]
     with open(logfilename,'w') as f:
         try:
             rc = subp.check_call(initoffcall,stdout=f)

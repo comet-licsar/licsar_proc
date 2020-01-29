@@ -1,16 +1,36 @@
 #!/bin/bash
-if [ -z $2 ]; then echo "inputs are: procdir ifg, e.g. \`pwd\` 20160101_20160202"; exit; fi
+if [ -z $2 ]; then 
+ echo "inputs are: procdir ifg, e.g. \`pwd\` 20160101_20160202";
+ echo "optional parameters:"
+ echo "-u .... geocode only unwrapped interferogram"
+ echo "-F .... do full resolution previews (needed for KML)"
+ exit;
+fi
 #what is needed here (can be changed probably) is *.rslc.mli.par of master image !!!
 
 #module load doris
 #module load LiCSAR/dev
+RESIZE=30
+#to have same resolution in PNG files, use:
+#RESIZE=100
 UNWONLY=0
+
+while getopts ":uF" option; do
+ case "${option}" in
+  u) UNWONLY=1; echo "you do only unw geo now.."; 
+     ;;
+  F) RESIZE=100; echo "previews will be generated in full resolution";
+     ;;
+ esac
+done
+shift $((OPTIND -1))
+
+
 procdir=$1
 #master=$2
 master=`ls $procdir/geo/*[0-9].hgt | rev | cut -d '/' -f1 | rev | cut -d '.' -f1 | head -n1`
 ifg=$2
-if [ ! -z $3 ]; then echo "you do only unw geo now.."; UNWONLY=1; fi
-#publicdir=
+#if [ ! -z $3 ]; then echo "you do only unw geo now.."; UNWONLY=1; fi
 
 echo "Processing dir: $procdir"
 echo "Master image: $master"
@@ -103,7 +123,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
 #   convert ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp
    #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile   
   if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp ]; then
-   convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.png
+   convert -transparent black -resize $RESIZE'%' ${procdir}/GEOC/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.png
   fi
 #  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
@@ -127,7 +147,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.filt.diff ] && [ ! -e ${procdir}/GEOC/${ifg
  rm ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.orig.tif
  # Create bmps
  rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp >> $logfile
- convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.diff.png
+ convert -transparent black -resize $RESIZE'%' ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.diff.png
  #rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${procdir}/geo/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
 
@@ -158,7 +178,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/GEOC/${ifg}/${ifg
   rm -f ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp
   # Need to remove the black border, but the command below is no good as it removes the black parts of the coherence!
   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
-  convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.png
+  convert -transparent black -resize $RESIZE'%' ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.png
 fi
 
 
@@ -174,7 +194,7 @@ if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/GEOC.MLI/$im ]; 
  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC.MLI/$im/$im.geo.mli 2 ${procdir}/GEOC.MLI/$im/$im.geo.mli.tif 0.0  >> $logfile 2>/dev/null
  #generate raster preview
  raspwr ${procdir}/GEOC.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
- convert -transparent black -resize 30% ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli.png
+ convert -transparent black -resize $RESIZE'%' ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli.png
 fi 
 done
 
