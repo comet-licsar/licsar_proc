@@ -21,7 +21,6 @@ LiCSAR_02_coreg.py -f <framename> -d </path/to/processing/location> -m <masterda
     -f    Name of the frame to be processed in database
     -d    Path to the processing location. 
     -m    Date of master image. If not given, it will give a list of available dates
-    -b    =1 for Batch mode,  =0 (default) for automated (depriciated)
     -y    batch mode flag
     -i    skip geocoding of master
     -j    job id
@@ -36,6 +35,8 @@ LiCSAR_02_coreg.py -f <framename> -d </path/to/processing/location> -m <masterda
     -T <file> report file to use. Defaults to FRAME-coreg-report.txt
     -R    Force clean recreation of rslcs - by default if it finds an existing lookup table
           it will use this instead
+
+guys.. if you work with existing LiCSAR frame, please use -i to prevent re-geocoding
 
 """
 
@@ -232,8 +233,8 @@ def main(argv=None):
             
     ############################################################ Link master slc dir in resample dir
             rslcdir = os.path.join(procdir,'RSLC')
-            if os.path.exists(rslcdir):
-                shutil.rmtree(rslcdir)
+            if os.path.exists(os.path.join(rslcdir, masterdate.strftime('%Y%m%d'))):
+                shutil.rmtree(os.path.join(rslcdir, masterdate.strftime('%Y%m%d')))
             rc = link_master_rslc(masterslcdir,rslcdir,masterdate, lq, job_id)
             if rc > 0:
                 f.write('\nProblem creating a link to master SLC directory in RSLC directory.')

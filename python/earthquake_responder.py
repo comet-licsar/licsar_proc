@@ -67,27 +67,41 @@ def create_kmls(frame, toi):
     selected_ifgs = []
     for pifg in publicifgs:
         is_coseismic = False
+        is_postseismic = False
+        is_preseismic = False
         mas = int(pifg.split('_')[0])
         slv = int(pifg.split('_')[1])
         #this is to generate kmz files only for coseismic ifgs
         if (doi_str > mas) and (doi_str < slv):
             is_coseismic = True
+        if (doi_str < mas) and (doi_str < slv):
+            is_postseismic = True
+        if (doi_str > mas) and (doi_str > slv):
+            is_preseismic = True
         if (doi_str == mas):
             date = datetime.strptime(str(mas),'%Y%m%d').date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof < toi:
                 is_coseismic = True
+            if tof > toi:
+                is_postseismic = True
         if (doi_str == slv):
             date = datetime.strptime(str(slv),'%Y%m%d').date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof > toi:
                 is_coseismic = True
-        if is_coseismic:
+            if tof < toi:
+                is_preseismic = True
+        if is_coseismic or is_postseismic:
             if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
-                #first of all regenerate preview in full resolution
-                os.system('create_geoctiffs_to_pub.sh -F {0} {1}'.format(frameproc_path, pifg))
+                #first of all regenerate preview in full resolution - and include unfiltered data
+                os.system('create_geoctiffs_to_pub.sh -F -u {0} {1}'.format(frameproc_path, pifg))
+                print('to generate hires geotiffs:')
+                print('create_geoctiffs_to_pub.sh -H -u {0} {1}'.format(frameproc_path, pifg))
+                print('cd {0}/GEOC_50m/{1}; for x in \`ls *tif\`; do mv \$x \$LiCSAR_public/.../{1}/\`echo \$x | sed \'s/tif/hires.tif/\'\`; cd -'.format(frameproc_path, pifg))
+                #print('mv {0}/{1}/*tif')
                 #generate kmz
                 #os.system('create_kmz.sh {0}'.format(os.path.join(products_path,pifg))) #this will do it directly in LiCSAR_public
                 os.system('create_kmz.sh {0}'.format(os.path.join(frameproc_path,'GEOC',pifg)))
@@ -133,7 +147,7 @@ def get_next_expected_datetime(frame, eventtime):
     return returnlist
 
 def get_next_expected_images(frames, eventtime):
-    print('checking expected acquisition time for covering frames:')
+    print('checking first expected post-seismic acquisition time for covering frames:')
     for frame in frames:
         frame = frame[0]
         print(frame+': ')
@@ -143,11 +157,36 @@ def get_next_expected_images(frames, eventtime):
             print('Warning, this area is not observed at the highest frequency')
             print('Next possible flight: '+str(nextpos))
 
-def main():
-    #will process daily and check also for older earthquakes (to get max 12 days co-seismic pair)
-    eventlist = search(starttime=datetime.now()-timedelta(days=max_days),
+def get_eq_events():
+    return search(starttime=datetime.now()-timedelta(days=max_days),
                            endtime=datetime.now(),
                            minmagnitude=5.5)
+
+def get_event_details(eventcode):
+    eventlist = get_eq_events()
+    for event in eventlist:
+        if event.id == eventcode:
+            selevent = event
+    if selevent:
+        return selevent
+    else:
+        return None
+
+def get_frames_in_event(event,radius = 9999):
+    if radius == 9999:
+        radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
+    minlon = event.longitude - radius
+    maxlat = event.latitude + radius
+    maxlon = event.longitude + radius
+    minlat = event.latitude - radius
+    frames = lq.get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
+    return frames
+
+def main():
+    #will process daily and check also for older earthquakes (to get max 12 days co-seismic pair)
+    eventlist = get_eq_events() #search(starttime=datetime.now()-timedelta(days=max_days),
+                           #endtime=datetime.now(),
+                           #minmagnitude=5.5)
     #for debug only now
     #eventlist = search(starttime=datetime.now()-timedelta(days=5.2), endtime=datetime.now()-timedelta(days=4),minmagnitude=5.5)
     if eventlist:
@@ -174,10 +213,6 @@ def main():
                     #https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/us60004yps.kml
                     #event.getDetailURL() #here just change geojson to kml...
                     #event.url # shakemap can be downloaded with only contours > M5
-                minlon = event.longitude - radius
-                maxlat = event.latitude + radius
-                maxlon = event.longitude + radius
-                minlat = event.latitude - radius
                 #global public_path
                 #global web_path
                 eventfile = os.path.join(public_path,'EQ',event.id+'.html')
@@ -188,7 +223,8 @@ def main():
                     newline = "<a href='{0}'>USGS kml file</a> <br /> \n".format(event.getDetailURL().replace('geojson','kml'))
                     f.write(newline)
                     f.close()
-                frames = lq.get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
+                
+                frames = get_frames_in_event(event, radius)
                 #this would print info on next expected images:
                 #get_next_expected_images(frames)
                 if len(frames) == 0:

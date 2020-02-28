@@ -91,5 +91,5 @@ def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20
     print('Checking and importing to LiCSInfo database')
     with nostdout():
         todown = import_to_licsinfo(images, meta)
-    print('There are '+str(len(todown))+' images acquired that do not exist on /neodc for the given period')
+    print('Summary: There are '+str(len(todown))+' images that were physically acquired but do not exist in NLA')
     return todown

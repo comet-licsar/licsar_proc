@@ -139,7 +139,7 @@ def main(argv=None):
             elif p == '-r':
                 gc.rglks = int(a)
             elif p == '-o':
-                gc.outres = int(a)
+                gc.outres = float(a)
             elif p == '-e':
                 days_limit = 0
 
@@ -288,8 +288,11 @@ def main(argv=None):
 ############################################################ Create Directory structure
     slcdir = os.path.join(procdir,'SLC')
     geodir = os.path.join(procdir,'geo')
+    logdir = os.path.join(procdir,'log')
     if not os.path.exists(geodir):
         os.mkdir(geodir)
+    if not os.path.exists(logdir):
+        os.mkdir(logdir)
     demdir = os.path.join(procdir,'DEM')
     masterslcdir = os.path.join(slcdir,masterdate.strftime('%Y%m%d'))
     rslcdir = os.path.join(procdir,'RSLC')

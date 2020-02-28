@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2">
+<Document>
+<name>TFIRSTDATET - TLASTDATET</name>
+  <LookAt>
+    <longitude>TCENLONT</longitude>
+    <latitude>TCENLATT</latitude>
+    <altitude>0</altitude>
+    <heading>0</heading>
+    <tilt>0</tilt>
+    <range>500000</range>
+  </LookAt>
+<GroundOverlay>
+    <name>interferogram</name>
+          <Icon>
+               <href>files/TFILEIFGT</href>
+               <viewBoundScale>1</viewBoundScale>
+          </Icon>
+          <LatLonBox>
+               <north>TNORTHT</north>
+               <south>TSOUTHT</south>
+               <east>TEASTT</east>
+               <west>TWESTT</west>
+          </LatLonBox>
+</GroundOverlay>
+<GroundOverlay>
+    <name>unfiltered ifg</name>
+          <Icon>
+               <href>files/TFILEUNFIFGT</href>
+               <viewBoundScale>1</viewBoundScale>
+          </Icon>
+          <LatLonBox>
+               <north>TNORTHT</north>
+               <south>TSOUTHT</south>
+               <east>TEASTT</east>
+               <west>TWESTT</west>
+          </LatLonBox>
+</GroundOverlay>
+<GroundOverlay>
+    <name>unwrapped ifg</name>
+          <Icon>
+               <href>files/TFILEUNWT</href>
+               <viewBoundScale>1</viewBoundScale>
+          </Icon>
+          <LatLonBox>
+               <north>TNORTHT</north>
+               <south>TSOUTHT</south>
+               <east>TEASTT</east>
+               <west>TWESTT</west>
+          </LatLonBox>
+</GroundOverlay>
+<Folder>
+<name>Logos</name>
+<ScreenOverlay>
+        <name>LiCS NERC</name>
+        <Icon>
+          <href>files/lics.png</href>
+        </Icon>
+        <overlayXY x="0" y="1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0" y="1" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0.12" y="0" xunits="fraction" yunits="fraction"/>
+</ScreenOverlay>
+<ScreenOverlay>
+        <name>COMET NERC</name>
+        <Icon>
+          <href>files/comet.jpg</href>
+        </Icon>
+        <overlayXY x="0.9" y="1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0.9" y="1" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0.16" y="0" xunits="fraction" yunits="fraction"/>
+</ScreenOverlay>
+<ScreenOverlay>
+        <name>NERC</name>
+        <Icon>
+          <href>files/nerc.png</href>
+        </Icon>
+        <overlayXY x="0.8" y="0.0" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0.8" y="0.025" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0.075" y="0" xunits="fraction" yunits="fraction"/>
+</ScreenOverlay>
+</Folder>
+</Document>
+</kml>

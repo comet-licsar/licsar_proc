@@ -33,13 +33,13 @@ if [ -e ${procdir}/geo/psi ]; then
   # Geocode the data
   geocode_back ${procdir}/geo/psi $width_dem ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/lookangles/$master.geo.psi ${width_dem} ${length_dem} 1 0 >> $logfile
   # Convert to geotiff
-  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/lookangles/$master.geo.psi 2 ${procdir}/GEOC/lookangles/$master.geo.psi.tif 0.0
+  #data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/lookangles/$master.geo.psi 2 ${procdir}/GEOC/lookangles/$master.geo.psi.tif 0.0
 fi
 if [ -e ${procdir}/geo/inc ]; then
   # Geocode the data
   geocode_back ${procdir}/geo/inc $width_dem ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/lookangles/$master.geo.inc ${width_dem} ${length_dem} 1 0 >> $logfile
   # Convert to geotiff
-  data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/lookangles/$master.geo.inc 2 ${procdir}/GEOC/lookangles/$master.geo.inc.tif 0.0
+  #data2geotiff ${procdir}/geo/EQA.dem_par ${procdir}/GEOC/lookangles/$master.geo.inc 2 ${procdir}/GEOC/lookangles/$master.geo.inc.tif 0.0
 fi
 #E-N-U
 if [ -e ${procdir}/geo/E ]; then

@@ -34,11 +34,14 @@ def do_unwrapping(origmasterdate,ifg,ifgdir,procdir,lq,job_id):
     filtfile = os.path.join(ifgdirthis,ifg+'.filt.diff')
     ccfile = os.path.join(ifgdirthis,ifg+'.filt.cc')
     logfilename = os.path.join(procdir,'log','adf_{0}.log'.format(ifg))
-    print('Filtering...')
-    if not adf(difffile,filtfile,ccfile,width,'1','32',logfilename):
-        print('\nERROR:', file=sys.stderr)
-        print('\nSomething went wrong filtering interferogram{0}.'.format(ifg), file=sys.stderr)
-        return 1
+    if os.path.exists(filtfile):
+        print('filtered ifg exists - will use it further')
+    else:
+        print('Filtering...')
+        if not adf(difffile,filtfile,ccfile,width,str(gc.adf_alpha),str(gc.adf_window),logfilename):
+            print('\nERROR:', file=sys.stderr)
+            print('\nSomething went wrong filtering interferogram{0}.'.format(ifg), file=sys.stderr)
+            return 1
 
     #Create a preview ras file
     logfilename = os.path.join(procdir,'log','rasmph_pwr_filt_{0}.log'.format(ifg))
@@ -178,7 +181,7 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
 
 ############################################################ Unwrap parameters
     #parts of the interferogram with low coherence
-    zeroix = coh < 0.5
+    zeroix = coh < gc.coh_unwrap_threshold  #orig value was 0.5
     #zero low coherence parts of the interferogram
     ifg[zeroix] = np.complex64(0+0j)
     #get edges

@@ -634,7 +634,11 @@ while ( (( "$daz10000" > "5" ) || ( "$daz10000" < "-5" )) && ( "$it" < "$itmax" 
   echo "az_ovr_iteration_""$it"": $daz (daz in SLC pixel)" >> $p.coreg_quality
   more $p.results >> $p.coreg_quality
   echo "" >> $p.coreg_quality
-
+  # if daz10000 is zero then it means ESD failed
+  # if ( "$daz10000" == "0" ) then
+  #  echo "ERROR: ESD estimation failed"
+  #  exit
+  #endif
 end
 
 #########################################################################################

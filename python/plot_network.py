@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# two outputs are: png plot and text file for gaps (both are mandatory)
 # e.g. $LiCSAR_public/$track/$frame output.png gaps.txt
 #%% Import
 import os

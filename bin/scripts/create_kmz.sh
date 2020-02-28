@@ -29,9 +29,17 @@ cp -r $LiCSARpath/misc/kmlfiles files
 #convert $unw_bmp files/`basename $unw_bmp .bmp`.png
 #convert $ifg_bmp files/`basename $ifg_bmp .bmp`.png
 cp $unw_bmp $ifg_bmp files/.
-
 #getting templates and fit it
 cp $LiCSARpath/misc/template.kml $pair.kml
+
+
+# update 2020: include unfiltered if exists
+ifg_unfiltered_bmp=$pair.geo.diff_unfiltered.png
+if [ -f $ifg_unfiltered_bmp ]; then
+ echo "including also unfiltered file"
+ cp $ifg_unfiltered_bmp files/.
+ cp $LiCSARpath/misc/template_unfilt.kml $pair.kml
+fi
 
 #sed -i 's///' $pair.kml
 #sed -i 's/TYEART/'`date +'%Y'`'/' $pair.kml
@@ -41,6 +49,10 @@ sed -i 's/TLASTDATET/'`echo $pair | cut -d '_' -f2`'/' $pair.kml
 #sed -i 's/TFILEIFGT/'`basename $ifg_bmp .bmp`.png'/' $pair.kml
 sed -i 's/TFILEUNWT/'`basename $unw_bmp`'/' $pair.kml
 sed -i 's/TFILEIFGT/'`basename $ifg_bmp`'/' $pair.kml
+
+if [ -f $ifg_unfiltered_bmp ]; then
+ sed -i 's/TFILEUNFIFGT/'`basename $ifg_unfiltered_bmp`'/' $pair.kml
+fi
 
 #coordinates
 gdalinfo -stats $unw_tif | grep Coordinates -A4 | tail -n+2 | cut -d '(' -f2 | cut -d ')' -f1 > tmp.coord

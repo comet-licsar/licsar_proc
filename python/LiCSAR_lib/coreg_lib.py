@@ -354,6 +354,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
         rc = shutil.copyfile(gamma_lut,lutfile)
         pom = 1
     else:
+        print('output lut file was not generated. this happens often when SD is wrongly estimated')
         pom = 0
     if not os.path.exists(gamma_qual):
         pom = 0
@@ -1869,12 +1870,13 @@ def coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir
         return 4
     print("Improve offset estimate")
     # improve estimate (multi-looked)
-    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, gc.rglks, gc.azlks, logfile_offset, 128, 128):
+    #previously: gc.rglks, gc. azlks
+    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 4, 4, logfile_offset, 512, 512, 0.15, False):
         print("\nError:", file=sys.stderr)
         print("Something went wrong estimating offset using orbit information (2).", file=sys.stderr)
         return 4
     # improve estimate (single-look)
-    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 1, 1, logfile_offset):
+    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 1, 1, logfile_offset, 128, 128, 0.15, False):
         print("\nError:", file=sys.stderr)
         print("Something went wrong estimating offset using orbit information (3).", file=sys.stderr)
         return 4

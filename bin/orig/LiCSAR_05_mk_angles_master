@@ -16,7 +16,7 @@ if [ ! -d SLC ]; then
  exit
 fi
 if [ -z $1 ]; then
- master=`ls geo/*.hgt | cut -c 5-12`
+ master=`ls geo/2???????.hgt | cut -c 5-12`
 else
  master=$1         # Master date
 fi

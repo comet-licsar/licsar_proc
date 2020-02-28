@@ -110,6 +110,20 @@ def get_bursts_in_frame(frame):
             "where polygs.polyid_name='{0}';".format(frame)
         return do_query(sql_q)
 
+def get_bidtanxs_in_frame(frame):
+    # takes frame, returns list with burstid, centre_lon and 
+    # centre_lat of all bursts in frame
+    frametest = check_frame(frame)
+    if not frametest:
+        print('\nWarning!\nFrame {0} not found in database'.format(frame))
+        return []
+    else:
+        sql_q = "select distinct bursts.bid_tanx from bursts " \
+            "inner join polygs2bursts on polygs2bursts.bid=bursts.bid " \
+            "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
+            "where polygs.polyid_name='{0}';".format(frame)
+        return do_query(sql_q)
+
 def get_frame_files_period(frame,t1,t2):
     # takes frame and two datetime.date objects and returns list returns
     # polygon name, aquisition date, file name and file path for all files 
@@ -230,6 +244,15 @@ def get_bursts_in_polygon(minlon,maxlon,minlat,maxlat,relorb = None, swath = Non
              "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) <= {1};".format(minlat,maxlat)
     return do_query(sql_q)
 
+def get_frames_in_lonlat(lon,lat):
+    radius = 0.01
+    minlon = lon-radius
+    minlat = lat-radius
+    maxlon = lon+radius
+    maxlat = lat+radius
+    frames = get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
+    return frames
+
 def get_frames_in_polygon(minlon,maxlon,minlat,maxlat):
     sql_q = "select distinct p.polyid_name from polygs p inner join polygs2bursts pb on p.polyid=pb.polyid " \
             "inner join bursts b on pb.bid=b.bid where greatest( " \
@@ -240,12 +263,29 @@ def get_frames_in_polygon(minlon,maxlon,minlat,maxlat):
              "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) <= {1};".format(minlat,maxlat)
     return do_query(sql_q)
 
+def get_frames_in_orbit(relorb, orbdir = None):
+    relorb = str(relorb)
+    while len(relorb) < 3:
+        relorb = '0'+relorb
+    if orbdir:
+        #e.g. 124D
+        relorb = relorb+orbdir
+    sql_q = "select distinct polyid_name from polygs where polyid_name LIKE '{}%';".format(relorb)
+    return do_query(sql_q)
+
 def get_files_from_burst(burstid):
     sql_q = "select distinct bursts.bid_tanx, files.abs_path from bursts " \
         "inner join files2bursts on files2bursts.bid=bursts.bid "\
         "inner join files on files2bursts.fid=files.fid "\
         "where bursts.bid_tanx = '{0}';".format(burstid)
     return do_query(sql_q)
+
+def get_orbit_from_bidtanx(bidtanx):
+    #e.g. bidtanx = '127_IW1_20509'
+    sql_q = "select f.orb_dir from files f inner join files2bursts fb " \
+        "on f.fid=fb.fid inner join bursts b on fb.bid=b.bid " \
+        "where b.bid_tanx='{0}' limit 1;".format(bidtanx)
+    return do_query(sql_q)[0][0]
 
 def get_polygon(polyid_nm):
     sql_q = "SELECT corner1_lon, corner1_lat, corner2_lon, corner2_lat, " \
@@ -370,6 +410,12 @@ def set_error_for_unclean_job_finishes(job_id):
     res = do_query(sql_q, True)
 
     return
+
+def sqlout2list(insql):
+    out = []
+    for a in insql:
+        out.append(a[0])
+    return out
 
 # DEPRECATED - delete after testing its replacement
 # def set_job_finished_clean(job_id):

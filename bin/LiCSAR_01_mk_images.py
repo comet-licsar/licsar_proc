@@ -92,7 +92,8 @@ def main(argv=None):
     skipMstr = False
     reportfile = None
     removeSlcs = False
-    
+    make_local_config = False
+
 ############################################################ Parse program args.
     try:
         try:
@@ -131,8 +132,12 @@ def main(argv=None):
             elif o == '-j':
                 job_id = int(a)
             elif o == '-a':
+                if int(gc.azlks) != int(a):
+                    make_local_config = True
                 gc.azlks = int(a)
             elif o == '-r':
+                if int(gc.rglks) != int(a):
+                    make_local_config = True
                 gc.rglks = int(a)
             elif o == '-z':
                 ziplistfile = a
@@ -195,6 +200,13 @@ def main(argv=None):
     # Check if proc dir can be created
     if not os.path.exists(procdir):
         os.mkdir(procdir)
+    if make_local_config:
+        lc_file = os.path.join(procdir, 'local_config.py')
+        with open(lc_file,'w') as lc:
+            lc.write('\n\n azlks = {0}\n'.format(str(gc.azlks)))
+            lc.write('\n\n rglks = {0}\n'.format(str(gc.rglks)))
+            #assuming higher resolution, lets create hires geo files
+            lc.write('\n\n outres = 0.0001\n')
 
 ############################################################ Date init.
     # Start and end date needed for database query

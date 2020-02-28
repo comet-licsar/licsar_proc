@@ -19,6 +19,7 @@ import subprocess as subp
 from glob import glob
 import pdb
 import global_config as gc
+from LiCSAR_lib.LiCSAR_misc import *
 
 
 def rasrmg(uwfile,mlifile,width,reducfac,logfilename):
@@ -851,19 +852,34 @@ def init_offset_orbit(masterpar,slavepar,offfile,logfilename):
         return False
     return True
 
-def init_offset(masterfile,slavefile,masterpar,slavepar,offfile,rglks,azlks,logfilename, rwin = '-', azwin = '-'):
+def init_offset(masterfile,slavefile,masterpar,slavepar,offfile,rglks,azlks,logfilename, rwin = '-', azwin = '-',thres='-', stoponerror = True):
     """
     """
-    initoffcall = ['init_offset',masterfile,slavefile,masterpar,slavepar,offfile,str(rglks),str(azlks),'-','-','-','-','-',str(rwin),str(azwin)]
+    initoffcall = ['init_offset',masterfile,slavefile,masterpar,slavepar,offfile,str(rglks),str(azlks),'-','-','-','-',str(thres),str(rwin),str(azwin)]
+    errfile = logfilename.replace('.log','.err')
     with open(logfilename,'w') as f:
-        try:
-            rc = subp.check_call(initoffcall,stdout=f)
-        except:
-            print('Something went wrong estimating offset using orbit information. Log file {0}'.format(logfilename))
-            return False
-    if rc != 0:
-        print('Something went wrong estimating offset using orbit information. Log file {0}'.format(logfilename))
-        return False
+        with open(errfile,'w') as e:
+            try:
+                rc = subp.check_call(initoffcall,stdout=f,stderr=e)
+            except:
+                print('Something went wrong estimating offset using orbit information. Log file {0}'.format(logfilename))
+                #print('continuing as this may have been caused by only a warning')
+                #return False
+                #return True
+    #dealing with errors vs warnings, rather than the weird rc value:
+    #if rc != 0:
+    if os.path.exists(errfile):
+        err = grep1('ERROR', errfile)
+        if err:
+            print('Something went wrong estimating offset using orbit information.')
+            print('Log file {0}'.format(logfilename))
+            print('Err file {0}'.format(errfile))
+            #print('but continuing as this may have been caused by only a warning')
+            if stoponerror:
+                return False
+            else:
+                print('...continuing further')
+            #return True
     return True
 
 def multi_look(slc, slcpar, mli, mlipar, rlks, azlks, logfilename):
