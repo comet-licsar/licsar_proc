@@ -227,7 +227,8 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
         print('Something went wrong unwrapping the interferogram. Log file {0}'.format(logfilename))
         return False
     # fully removing (filtered) coh points of < 0.5.. maybe too strict here?
-    uw[coh < 0.5] = np.nan
+    # hmm... keeping it customisable..
+    uw[coh < gc.coh_unwrap_threshold] = np.nan
     try:
         uw.byteswap().tofile(os.path.join(ifgdir,date,date+'.unw'))
     except:

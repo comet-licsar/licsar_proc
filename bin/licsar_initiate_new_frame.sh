@@ -47,18 +47,20 @@ fi
   exit
  fi
 
-echo "Setting the master image and DEM for frame "$frame
-LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r $r -a $a -o $outres
-if [ ! -d $curdir/$tr/$frame/SLC ]; then
- echo "Something got wrong with the initiation"
-else
- cd $curdir/$tr/$frame
+mkdir -p $curdir/$tr/$frame
+cd $curdir/$tr/$frame
 if [ $a == 1 ]; then
      echo "rglks = 1" > local_config.py
      echo "azlks = 1" >> local_config.py
      echo "outres = 0.0001" >> local_config.py
 fi
 
+echo "Setting the master image and DEM for frame "$frame
+LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r $r -a $a -o $outres
+if [ ! -d $curdir/$tr/$frame/SLC ]; then
+ echo "Something got wrong with the initiation"
+ cd - 2>/dev/null
+else
  m=`ls SLC`
  if [ ! -d RSLC/$m ]; then 
   mkdir -p RSLC/$m

@@ -18,6 +18,11 @@ from shapely.geometry import Polygon
 import global_config as gc
 from dbfunctions import Conn_db
 
+def delete_frame_only(frame):
+    sql = "delete from polygs where polygs.polyid_name='{}';".format(frame)
+    res = do_query(sql, True)
+    return res
+
 def do_query(query, commit=False):
     # execute MySQL query and return result
     try:

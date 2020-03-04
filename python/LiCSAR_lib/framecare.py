@@ -71,6 +71,13 @@ def bursts2geopandas(bidtanxs, merge = False):
 
 def frame2geopandas(frame):
     bidtanxs = lq.get_bursts_in_frame(frame)
+    if not bidtanxs:
+        #try it once again
+        bidtanxs = lq.get_bursts_in_frame(frame)
+        if not bidtanxs:
+            print('the frame '+frame+' is not connected to any bursts. removing the frame')
+            lq.delete_frame_only(frame)
+            return None
     bidtanxs = lq.sqlout2list(bidtanxs)
     try:
         newname = generate_frame_name(bidtanxs)
@@ -104,7 +111,26 @@ def bursts_group_to_iws(bidtanxs):
     iw3s.sort()
     return [iw1s, iw2s, iw3s]
 
-def generate_frame_polygon(bidtanxs, orbdir):
+def generate_frame_polygon(bidtanxs, orbdir = None):
+    if not orbdir:
+        orbdir = get_orbit_from_bidtanx(bidtanxs[0])
+    burstgpd = bursts2geopandas(bidtanxs)
+    #unite bursts, but this will keep errors:
+    framegpd = burstgpd.unary_union
+    #corrections based on:
+    # https://gis.stackexchange.com/questions/277334/shapely-polygon-union-results-in-strange-artifacts-of-tiny-non-overlapping-area
+    eps = 0.025
+    tolsim = eps
+    from shapely.geometry import JOIN_STYLE
+    framegpd = framegpd.buffer(eps, 1, join_style=JOIN_STYLE.mitre).buffer(-eps, 1, join_style=JOIN_STYLE.mitre)
+    framegpd = framegpd.simplify(tolerance=tolsim)
+    #maximal number of points should be 13!
+    while len(framegpd.exterior.coords[:])>13:
+        tolsim = tolsim+0.001
+        framegpd = framegpd.simplify(tolerance=tolsim)
+    return Polygon(framegpd.exterior)
+
+def generate_frame_polygon_old(bidtanxs, orbdir):
     [iw1s, iw2s, iw3s] = bursts_group_to_iws(bidtanxs)
     if orbdir == 'A':
         #print('not yet tested')
