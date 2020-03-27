@@ -676,13 +676,13 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     try:
                         orbit = getValidOrbFile(localOrbDir,zipFile)
                         orbdone = True
+                        slcOrbit = imdir+"/"+os.path.basename(orbit)
+                        if not os.path.lexists(imdir+"/"+os.path.basename(orbit)):
+                            #symlink as not always on same physical device
+                            os.symlink(orbit,slcOrbit)
                     except:
                         print('error during getting orbit file')
                         orbdone = False
-                    slcOrbit = imdir+"/"+os.path.basename(orbit)
-                    if not os.path.lexists(imdir+"/"+os.path.basename(orbit)):
-                        #syslink as not always on same physical device
-                        os.symlink(orbit,slcOrbit)
                 logger.removeHandler(fileHan)
                 if orbdone:
                     for parFile in glob(imdir+"/*.sl*.par"):

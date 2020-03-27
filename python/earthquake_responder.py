@@ -13,11 +13,8 @@ procdir_path = os.environ['LiCSAR_procdir']
 web_path = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'
 max_days = 13
 
-def get_range_from_magnitude(M, depth, unit = 'km'):
-    #M = 5.5
-    #depth = 9 #km
-    #table based on John Elliott's know-how..
-    eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
+#table based on John Elliott's know-how..
+eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
                               6.1,6.2,6.3,6.4,6.5,6.6,6.7,6.8,6.9,7, \
                               7.1,7.2,7.3,7.4,7.5,7.6,7.7,7.8,7.9,8, \
                               8.1,8.2,8.3,8.4,8.5],
@@ -29,7 +26,14 @@ def get_range_from_magnitude(M, depth, unit = 'km'):
                    21,24,28,32,36,42,48,55,63,73, \
                    83,96,110,127,146,168,193,222,250,250, \
                    250, 250, 250, 250, 250]}
-    eq_limits = pd.DataFrame(eq_data, columns = {'magnitude', 'distance', 'depth'})
+eq_limits = pd.DataFrame(eq_data, columns = {'magnitude', 'distance', 'depth'})
+
+
+
+def get_range_from_magnitude(M, depth, unit = 'km'):
+    #M = 5.5
+    #depth = 9 #km
+    M = round(M,1)
     if M > 8.5 and depth <= 250:
         distance = 2500
     else:
@@ -157,10 +161,10 @@ def get_next_expected_images(frames, eventtime):
             print('Warning, this area is not observed at the highest frequency')
             print('Next possible flight: '+str(nextpos))
 
-def get_eq_events():
+def get_eq_events(minmag = 5.5):
     return search(starttime=datetime.now()-timedelta(days=max_days),
                            endtime=datetime.now(),
-                           minmagnitude=5.5)
+                           minmagnitude=minmag)
 
 def get_event_details(eventcode):
     eventlist = get_eq_events()
@@ -183,8 +187,12 @@ def get_frames_in_event(event,radius = 9999):
     return frames
 
 def main():
+    minmag = 5.5
+    #here will be exceptions (i.e. eqs that MUST be processed):
+    minmag = 4.6
+    exceptions = ['us60008e8e', 'us70008dx7']
     #will process daily and check also for older earthquakes (to get max 12 days co-seismic pair)
-    eventlist = get_eq_events() #search(starttime=datetime.now()-timedelta(days=max_days),
+    eventlist = get_eq_events(minmag) #search(starttime=datetime.now()-timedelta(days=max_days),
                            #endtime=datetime.now(),
                            #minmagnitude=5.5)
     #for debug only now
@@ -201,6 +209,10 @@ def main():
             #print(event.url)
             #now my functions:
             radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
+            #exceptions:
+            if event.id in exceptions:
+                print('ADDING EXCEPTION TO THIS EVENT')
+                radius = get_range_from_magnitude(5.5, 10, 'rad')
             #print(radius)
             if radius:
                 if event.hasProduct('shakemap'):

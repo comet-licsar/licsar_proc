@@ -21,7 +21,8 @@ fi
 
 track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
 
-indir=$LiCSAR_public/$track/$frame/products
+indir=$LiCSAR_public/$track/$frame/interferograms
+epochdir=$LiCSAR_public/$track/$frame/epochs
 metadir=$LiCSAR_public/$track/$frame/metadata
 workdir=`pwd`
 
@@ -35,7 +36,7 @@ ln -s $metadir/baselines
 source $metadir/metadata.txt #this will bring 'master=' info
 ln -s $indir/$master/$master.geo.mli.tif
 
-for epoch in `ls $indir/epochs`; do
+for epoch in `ls $epochdir`; do
   if [ $epoch -ge $startdate ] && [ $epoch -lt $enddate ]; then
     for ifg in `ls $indir/$epoch* -d 2>/dev/null`; do
      if [ `basename $ifg | cut -d '_' -f2` -le $enddate ]; then

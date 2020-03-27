@@ -1871,15 +1871,15 @@ def coreg_slave_common_sm(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir
     print("Improve offset estimate")
     # improve estimate (multi-looked)
     #previously: gc.rglks, gc. azlks
-    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 4, 4, logfile_offset, 512, 512, 0.15, False):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong estimating offset using orbit information (2).", file=sys.stderr)
-        return 4
-    # improve estimate (single-look)
-    if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 1, 1, logfile_offset, 128, 128, 0.15, False):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong estimating offset using orbit information (3).", file=sys.stderr)
-        return 4
+    ##if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 4, 4, logfile_offset, 512, 512, 0.15, False):
+    ##    print("\nError:", file=sys.stderr)
+    ##    print("Something went wrong estimating offset using orbit information (2).", file=sys.stderr)
+    ##    return 4
+    ### improve estimate (single-look)
+    ##if not init_offset(masterslcfilename,slaveslcfilename,masterpar,slavepar,offfile, 1, 1, logfile_offset, 128, 128, 0.15, False):
+    ##    print("\nError:", file=sys.stderr)
+    ##    print("Something went wrong estimating offset using orbit information (3).", file=sys.stderr)
+    ##    return 4
     logfile = os.path.join(procdir,'log','offset_pwr_'+
                        masterdate.strftime('%Y%m%d')+'_'+
                        slavedate.strftime('%Y%m%d')+'.log')

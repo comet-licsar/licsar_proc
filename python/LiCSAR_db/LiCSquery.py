@@ -20,7 +20,16 @@ from dbfunctions import Conn_db
 
 def delete_frame_only(frame):
     sql = "delete from polygs where polygs.polyid_name='{}';".format(frame)
+    print(sql)
+    #res = do_query(sql, True)
+    return True
+    #return res
+
+def rename_frame(frameold, framenew):
+    sql = "update polygs set polyid_name='{0}' where polyid_name='{1}';".format(framenew, frameold)
+    #print(sql)
     res = do_query(sql, True)
+    #return True
     return res
 
 def do_query(query, commit=False):
@@ -57,6 +66,11 @@ def check_frame(frame):
         "where polyid_name='{0}'".format(frame)
     return do_query(sql_q)
 
+def geom_from_polygs2geom(frame):
+    polyid = get_frame_polyid(frame)[0][0]
+    sql_q = "select AsText(geom) from polygs2gis where polyid={0}".format(polyid)
+    return do_query(sql_q)[0][0].decode('UTF-8')
+
 def get_polygon_from_bidtanx(bidtanx):
     sql = "select corner1_lat, corner1_lon, corner2_lat, corner2_lon, corner3_lat, corner3_lon," \
     " corner4_lat, corner4_lon from bursts where bid_tanx = '{0}';".format(bidtanx)
@@ -68,7 +82,11 @@ def get_polygon_from_bidtanx(bidtanx):
         lat_point_list = []
         lon_point_list = []
         for x in lat_set[i]:
-            lat_point_list.append(coords[x])
+            try:
+                lat_point_list.append(coords[x])
+            except:
+                print('some error in coords, maybe mysql connection')
+                return None
         for y in lon_set[i]:
             lon_point_list.append(coords[y])
         polygon_geom = Polygon(zip(lon_point_list, lat_point_list))
@@ -172,6 +190,10 @@ def get_frame_files_date(frame,date):
         "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
         "and pol='VV'"\
         "order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
+    return do_query(sql_q)
+
+def get_frame_polyid(frame):
+    sql_q = "select distinct polyid from polygs where polyid_name='{0}';".format(frame)
     return do_query(sql_q)
 
 def get_ipf(filename):
@@ -340,6 +362,19 @@ def get_wkt_boundaries(frameName):
     wkt = 'POLYGON(({0}))'.format(polyText)
     return wkt
 
+
+def is_in_polygs2geom(frameid):
+    polyid = get_frame_polyid(frameid)
+    if polyid:
+        polyid = polyid[0][0]
+    else:
+        print('some error - the frame ID does not exist?')
+        return None
+    is_in_geom_sql = "select count(*) from polygs2gis where polyid = {0};".format(str(polyid))
+    res = do_query(is_in_geom_sql)
+    is_in_geom = res[0][0]
+    return is_in_geom
+
 def set_job_started(job_id):
     sql_q = "UPDATE jobs "\
         "SET licsar_version = '%s' , " \
@@ -416,7 +451,27 @@ def set_error_for_unclean_job_finishes(job_id):
 
     return
 
+
+def store_frame_geometry(frameid, wkt):
+    polyid = get_frame_polyid(frameid)
+    if polyid:
+        polyid = polyid[0][0]
+    else:
+        print('some error - the frame ID does not exist?')
+        return None
+    is_in_geom = is_in_polygs2geom(frameid)
+    if is_in_geom > 0:
+        sql_q = "UPDATE polygs2gis set geom=GeomFromText('{0}') where polyid={1}".format(wkt,str(polyid))
+    else:
+        sql_q = "INSERT INTO polygs2gis VALUES ({0}, GeomFromText('{1}'));".format(str(polyid), wkt)
+    # perform query, get result (should be blank), and then commit the transaction
+    res = do_query(sql_q, True)
+    return res
+
 def sqlout2list(insql):
+    #in case we get only string, we assume it was an error
+    if type(insql)=='str':
+        return None
     out = []
     for a in insql:
         out.append(a[0])
@@ -574,10 +629,8 @@ def set_new_ifg_product(job_id, rslc_path_1, rslc_path_2, filepath, ifg_status=0
 
 def update_ifg_product_unwrapped(job_id, filename, status=1):
     sql_q = "UPDATE ifg SET unwrapped=%d WHERE job_id=%d AND filename='%s';" % (status, job_id, filename)
-
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
-
     return
     
 def set_new_coherence_product(job_id, rslc_path_1, rslc_path_2, filepath, coh_status=0):

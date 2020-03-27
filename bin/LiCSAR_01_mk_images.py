@@ -203,10 +203,10 @@ def main(argv=None):
     if make_local_config:
         lc_file = os.path.join(procdir, 'local_config.py')
         with open(lc_file,'w') as lc:
-            lc.write('\n\n azlks = {0}\n'.format(str(gc.azlks)))
-            lc.write('\n\n rglks = {0}\n'.format(str(gc.rglks)))
+            lc.write('azlks = {0}\n'.format(str(gc.azlks)))
+            lc.write('rglks = {0}\n'.format(str(gc.rglks)))
             #assuming higher resolution, lets create hires geo files
-            lc.write('\n\n outres = 0.0001\n')
+            lc.write('outres = 0.0001\n')
 
 ############################################################ Date init.
     # Start and end date needed for database query

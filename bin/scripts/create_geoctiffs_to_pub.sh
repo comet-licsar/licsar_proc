@@ -3,9 +3,13 @@ if [ -z $2 ]; then
  echo "inputs are: procdir ifg, e.g. \`pwd\` 20160101_20160202";
  echo "optional parameters:"
  echo "-u .... geocode also unfiltered wrapped interferogram"
- echo "-U .... geocode only unwrapped interferogram"
  echo "-F .... do full resolution previews (needed for KML)"
  echo "-H .... do full resolution geotiffs (50x50 m)"
+ echo "some more parameters:"
+ echo "-U .... geocode only unwrapped interferogram"
+ echo "-I .... geocode only wrapped interferogram"
+ echo "-C .... geocode only coherence"
+ echo "-M .... geocode only MLI"
  exit;
 fi
 #what is needed here (can be changed probably) is *.rslc.mli.par of master image !!!
@@ -15,15 +19,24 @@ fi
 RESIZE=30
 #to have same resolution in PNG files, use:
 #RESIZE=100
-UNWONLY=0
+UNWDO=1
+IFGDO=1
+COHDO=1
+MLIDO=1
 HIRES=0
 UNFILT=0
 
-while getopts ":uUFH" option; do
+while getopts ":uUCFHIM" option; do
  case "${option}" in
   u) UNFILT=1; echo "unfiltered ifg will also be geocoded";
      ;;
-  U) UNWONLY=1; echo "you do only unw geo now..";
+  U) IFGDO=0; COHDO=0; MLIDO=0; echo "you do ONLY unw geo now..";
+     ;;
+  C) IFGDO=0; UNWDO=0; MLIDO=0; echo "you do ONLY coh geo now..";
+     ;;
+  I) COHDO=0; UNWDO=0; MLIDO=0; echo "you do ONLY ifg geo now..";
+     ;;
+  M) COHDO=0; UNWDO=0; IFGDO=0; echo "you do ONLY MLIs geo now..";
      ;;
   F) RESIZE=100; echo "previews will be generated in full resolution";
      ;;
@@ -40,7 +53,6 @@ ifg=$2
 geodir=geo
 
 GEOCDIR=GEOC
-#if [ ! -z $3 ]; then echo "you do only unw geo now.."; UNWONLY=1; fi
 
 if [ $HIRES == 1 ]; then
  if [ ! -d $procdir/geo_50m ]; then
@@ -109,6 +121,7 @@ echo "   check "$logfile" if something goes wrong "
 if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
 echo "   Geocoding results for inteferogram: ${ifg}" ;
 
+if [ $UNWDO -eq 1 ]; then
 # Unwrapped interferogram
 if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   # Geocode all the data
@@ -162,8 +175,8 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   fi
 #  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
+fi
 
-if [ $UNWONLY -eq 1 ]; then exit; fi
 #if [ $UNFILT -eq 1 ]; then
 # ifgext="diff"
 # ifgtext="unfiltered"
@@ -173,7 +186,7 @@ if [ $UNWONLY -eq 1 ]; then exit; fi
 #fi
 #echo "bagr"
 
-
+if [ $IFGDO -eq 1 ]; then
 ifgext="filt.diff"
 ifgtext="filtered"
 ifgout="diff"
@@ -203,6 +216,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  # Clean
  rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' 2>/dev/null
 fi
+fi
 
 if [ $UNFILT -eq 1 ]; then
  #do the unfiltered ifg as well as filtered
@@ -221,6 +235,8 @@ if [ $UNFILT -eq 1 ]; then
  rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' 2>/dev/null
 fi
 
+
+if [ $COHDO -eq 1 ]; then
 # Unfiltered coherence
 if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif ]; then
   echo "Creating unfiltered coherence tiffs"
@@ -243,8 +259,9 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/$
   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
   convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.png
 fi
+fi
 
-
+if [ $MLIDO -eq 1 ]; then
 #finally amplitudes/intensities
 mkdir $procdir/GEOC.MLI 2>/dev/null
 for im in `echo $ifg | sed 's/_/ /'`; do
@@ -260,6 +277,7 @@ if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/GEOC.MLI/$im ]; 
  convert -transparent black -resize $RESIZE'%' ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli.png
 fi 
 done
+fi
 
 echo "done"
 

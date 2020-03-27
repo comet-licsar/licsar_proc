@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+# Mar 2020 - Milan Lazecky
+
 import os
 import LiCSquery as lq
 import datetime as dt
@@ -9,6 +12,9 @@ from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
 import LiCSAR_lib.LiCSAR_misc as misc
 gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
+
+pubdir = os.environ['LiCSAR_public']
+procdir = os.environ['LiCSAR_procdir']
 
 def vis_aoi(aoi):
     # to visualize a polygon element ('aoi')
@@ -69,7 +75,23 @@ def bursts2geopandas(bidtanxs, merge = False):
         aoi_gpd = gpd.GeoDataFrame({'frameID': [framename]}, crs=crs, geometry=[polygon])
     return aoi_gpd
 
-def frame2geopandas(frame):
+def frame2geopandas(frame, brute = False):
+    if brute:
+        gpan = frame2geopandas_brute(frame)
+    else:
+        if not lq.is_in_polygs2geom(frame):
+            print('frame {} has no record in polygs2geom. Recreating'.format(frame))
+            gpan = frame2geopandas_brute(frame)
+        else:
+            #geometry = []
+            crs = {'init': 'epsg:4326'}
+            wkt = lq.geom_from_polygs2geom(frame)
+            geom = loads(wkt)
+            #gpan['frameID'] = frame
+            gpan = gpd.GeoDataFrame({'frameID': [frame]}, crs=crs, geometry=[geom])
+    return gpan
+
+def frame2geopandas_brute(frame):
     bidtanxs = lq.get_bursts_in_frame(frame)
     if not bidtanxs:
         #try it once again
@@ -84,13 +106,115 @@ def frame2geopandas(frame):
     except:
         print('some problem generating frame name from the bursts of frame: '+frame)
         return None
-    if frame[-6:] != newname[-6:]:
+    #get the geopandas record
+    gpan = bursts2geopandas(bidtanxs, merge = True)
+    if gpan.empty:
+        return None
+    if not newname:
+        return None
+    if (frame[-6:] != newname[-6:]) or (frame[3] != newname[3]):
         #print('WARNING! This frame changed its definition')
         #print('{0} ---> {1}'.format(frame,newname))
-        print('framecare_rename.sh {0} {1}'.format(frame,newname))
-    gpan = bursts2geopandas(bidtanxs, merge = True)
+        #print('framecare_rename.sh {0} {1}'.format(frame,newname))
+        #rename it in database
+        lq.rename_frame(frame,newname)
+        #print('now we should do: rename_frame_main(frame,newname)')
+        rename_frame_main(frame,newname)
+    else:
+        #keep the original name if bursts did not change..
+        gpan['frameID']=frame
     #outgpd = outgpd.append(gpan, ignore_index=True)
     return gpan
+
+def rename_frame_main(framename,newname, reportcsv = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/frameid_changes.txt'):
+    track = str(int(framename[0:3]))
+    pubpath = os.path.join(pubdir,track,framename)
+    procpath = os.path.join(procdir,track,framename)
+    newpubpath = os.path.join(pubdir,track,newname)
+    newprocpath = os.path.join(procdir,track,newname)
+    if os.path.exists(pubpath):
+        os.rename(pubpath, newpubpath)
+        for fileext in ['.geo.E.tif','.geo.N.tif','.geo.hgt.tif','.geo.U.tif','-poly.txt']:
+            oldfile = os.path.join(newpubpath,'metadata',framename+fileext)
+            newfile = os.path.join(newpubpath,'metadata',newname+fileext)
+            if os.path.exists(oldfile):
+                os.rename(oldfile,newfile)
+    if os.path.exists(procpath):
+        os.rename(procpath, newprocpath)
+    if os.path.exists(os.path.join(newprocpath,framename+'-poly.txt')):
+        os.remove(os.path.join(newprocpath,framename+'-poly.txt'))
+    print('frame {0} renamed to {1}'.format(framename,newname))
+    if not os.path.exists(reportcsv):
+        with open(reportcsv, 'w') as f:
+            f.write('oldname,newname\n')
+    with open(reportcsv, 'a') as f:
+        f.write('{0},{1}\n'.format(framename, newname))
+
+def get_number_of_ifgs(framename):
+    pubdir = os.environ['LiCSAR_public']
+    track = str(int(framename[0:3]))
+    pubpath = os.path.join(pubdir,track,framename)
+    if not os.path.exists(pubpath):
+        return 0
+    ifgspath = os.path.join(pubpath,'interferograms')
+    if not os.path.exists(ifgspath):
+        return 0
+    filenumber = len(os.listdir(ifgspath))
+    return filenumber
+
+def export_frames_to_licsar_csv(framesgpd, outcsv):
+    #print('now we would export the frame to outcsv, including wkb')
+    if not os.path.exists(outcsv):
+        with open(outcsv,'w') as f:
+            f.write('the_geom,frame,files,download,direction\n')
+    with open(outcsv,'a') as f:
+        #extract needed information
+        for index, row in framesgpd.iterrows():
+            framename = row['frameID']
+            track = int(framename[0:3])
+            download = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/{0}/{1}/' target='_blank'>Link<a>".format(str(track),framename)
+            orbdir = framename[3]
+            if orbdir == 'A':
+                direction = 'Ascending'
+            elif orbdir == 'D':
+                direction = 'Descending'
+            else:
+                print('wrong framename! Aborting')
+                return False
+            #get number of files
+            files = get_number_of_ifgs(framename)
+            #get geometrywkb
+            geom = row['geometry'].wkb_hex
+            #we do not want to export it in case of no files in public...:
+            if files > 0:
+                f.write('{0},{1},{2},{3},{4}\n'.format(str(geom), framename, str(files), download, direction))
+
+def store_frame_geometry(framesgpd):
+    fileio_error = False
+    for index, row in framesgpd.iterrows():
+        framename = row['frameID']
+        track = int(framename[0:3])
+        geom = row['geometry'].wkt
+        #update the xy file:
+        pubfile = os.path.join(pubdir,str(track),framename,'metadata',framename+'-poly.txt')
+        procfile = os.path.join(procdir,str(track),framename,framename+'-poly.txt')
+        procframefile = os.path.join(procdir,str(track),framename,'frame.xy')
+        xy = row['geometry'].exterior.coords.xy
+        x = xy[0]
+        y = xy[1]
+        for fileout in [pubfile, procfile, procframefile]:
+            if os.path.exists(fileout):
+                os.remove(fileout)
+            try:
+                with open(fileout,'w') as f:
+                    for i in range(len(x)-1):
+                        f.write(str(x[i])+' '+str(y[i])+'\n')
+            except:
+                fileio_error = True
+                #print('warning, {0} could not have been generated'.format(fileout))
+        #update the database GIS table
+        res = lq.store_frame_geometry(framename, geom)
+    return res
 
 def export_geopandas_to_kml(gpan, outfile):
     gpan.to_file(outfile, driver='KML')
@@ -113,8 +237,12 @@ def bursts_group_to_iws(bidtanxs):
 
 def generate_frame_polygon(bidtanxs, orbdir = None):
     if not orbdir:
-        orbdir = get_orbit_from_bidtanx(bidtanxs[0])
-    burstgpd = bursts2geopandas(bidtanxs)
+        orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
+    try:
+        burstgpd = bursts2geopandas(bidtanxs)
+    except:
+        print('some error during bursts2geopandas, maybe mysql problem')
+        return None
     #unite bursts, but this will keep errors:
     framegpd = burstgpd.unary_union
     #corrections based on:
@@ -197,6 +325,9 @@ def generate_frame_name(bidtanxs):
     track = bidtanxs[0].split('_')[0]
     orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
     polyhon = generate_frame_polygon(bidtanxs, orbdir)
+    if not polyhon:
+        print('some error generating frame polygon - mysql access error?')
+        return None
     lat_center = polyhon.centroid.xy[1][0]
     colat = misc.get_colat10(lat_center)
     #print(colat)
@@ -344,6 +475,7 @@ def export_frame_to_kml(frame, outpath = '/gws/nopw/j04/nceo_geohazards_vol2/LiC
 
 def delete_frame_commands(frame):
     print('setFrameInactive.py {0}'.format(frame))
+    track=str(int(frame[0:3]))
     print('rm -rf $LiCSAR_procdir/{0}/{1} $LiCSAR_public/{0}/{1}'.format(track,frame))
     print('lics_mysql.sh')
     sql = "select polyid from polygs where polyid_name = '{0}';".format(frame)
@@ -359,5 +491,4 @@ def delete_frame_commands(frame):
     sql = "delete from polygs where polygs.polyid_name='{}';".format(frame_workaround)
     print(sql)
     print('')
-    track=str(int(frame[0:3]))
 
