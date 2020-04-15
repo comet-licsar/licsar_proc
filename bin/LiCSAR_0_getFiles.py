@@ -82,16 +82,21 @@ def main(argv=None):
         return False
     def make_nla_request(fileSeries,userEmail=None):
         if not fileSeries.empty:
+            print('getting previous request ids')
             reqInfo = nla.list_requests()
             priorReqs = set([req['id'] for req in reqInfo['requests']])
+            print(reqInfo['requests'])
             if not userEmail:
                 userEmail = reqInfo['email']
 
             label = frameName + ': ' + fileSeries.index[0].strftime('%Y-%m-%d') + ' -> ' + fileSeries.index[-1].strftime('%Y-%m-%d')
+            print('Requesting: '+label)
             nla.make_request( files = list( fileSeries ),
                     label = label,
                     retention=retentionDate)
+            print('nla requested')
             reqInfo = nla.list_requests()
+
             postReqs = set([req['id'] for req in reqInfo['requests']])
             curReq = postReqs-priorReqs
             if len(curReq) != 0:
@@ -166,12 +171,13 @@ def main(argv=None):
 
     print('checking for S1 data not ingested to licsinfo db')
     s1dataa = s1data.check_and_import_to_licsinfo(frameName, startDate.date(), endDate.date())
-    if not s1dataa:
-        print('no data found, quitting')
-        return False
+    print('check for existing S1 data finished')
+    #if not s1dataa:
+    #    print('no data to download found, quitting')
+    #    return False
 
 ############################## Get file list
-
+    print('getting file list')
     frameFilesTable = lq.get_frame_files_period(frameName,startDate.strftime('%Y-%m-%d'),endDate.strftime('%Y-%m-%d'))
 
     print("Stripping file list down to unique zipfiles")

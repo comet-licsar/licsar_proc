@@ -1,14 +1,19 @@
 #!/usr/bin/env python
 
 import pymysql
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 import global_config as gc
-
+import os
+try:
+    import sshtunnel
+except:
+    None
+configfile = os.environ["LiCSARconfig"]
 
 def Conn_db():
     # Returns the connection handle
     # Get DB connection info from config file
-    parser = SafeConfigParser()
+    parser = ConfigParser()
     parser.read(gc.configfile)
     sqlhost = parser.get('sqlinfo', 'host')
     sqldb = parser.get('sqlinfo', 'dbname')
@@ -34,3 +39,42 @@ def Conn_db():
         conn = 'MYSQL ERROR'
 
     return conn
+
+
+def Conn_tunnel_db():
+    # Returns the connection handle for within ssh tunnel
+    # Get DB connection info from config file
+    parser = ConfigParser()
+    parser.read(gc.configfile)
+    sql_hostname = parser.get('sqlinfo', 'host')
+    #sql_batch_database = parser.get('sqlinfo', 'dbbatchname')
+    sql_live_database = parser.get('sqlinfo', 'dbname')
+    sql_username = parser.get('sqlinfo', 'dbuser')
+    sql_password = parser.get('sqlinfo', 'dbpass')
+    sql_port = parser.get('sqlinfo', 'port')
+    sql_port = int(sql_port)
+    ssh_host = 'cems-login1.cems.rl.ac.uk'
+    ssh_pkey = os.path.join(os.environ['HOME'],'.ssh/id_jasmin')
+    if not os.path.exists(ssh_pkey):
+        print('please install JASMIN RSA key to your ~/.ssh/id_jasmin')
+        return None
+    ssh_port = 22
+    ssh_username = os.environ["USER"]
+    tunnel = sshtunnel.SSHTunnelForwarder((ssh_host, ssh_port),
+                ssh_username=ssh_username, ssh_pkey=ssh_pkey,
+                remote_bind_address=(sql_hostname, sql_port))
+    if tunnel.tunnel_is_up:
+        tunnel.stop()
+    tunnel.start()  #this works, but in case of error it may be kept ON?
+    conn = pymysql.connect(host='127.0.0.1',
+                     user=sql_username,
+                     passwd=sql_password,
+                     database=sql_live_database,
+                     port=tunnel.local_bind_port)
+    cur = conn.cursor()
+    cur.execute('SELECT VERSION();')
+    res = cur.fetchone()
+    if not res:
+        print("Error in database communication")
+        return 'MYSQL ERROR'
+    return conn, tunnel

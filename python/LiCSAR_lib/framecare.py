@@ -16,6 +16,33 @@ gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 pubdir = os.environ['LiCSAR_public']
 procdir = os.environ['LiCSAR_procdir']
 
+def get_master(frame, asdate = False, asdatetime = False):
+    track=str(int(frame[0:3]))
+    metafile = os.path.join(pubdir,track,frame,'metadata','metadata.txt')
+    if not os.path.exists(metafile):
+        print('frame {} is not initialised'.format(frame))
+        return False
+    master = misc.grep1line('master',metafile)
+    if not master:
+        print('error parsing information from metadata.txt')
+        return False
+    masterdate = master.split('=')[1]
+    if asdate:
+        a = masterdate
+        masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
+    if asdatetime:
+        a = masterdate
+        centime = misc.grep1line('center_time',metafile)
+        if not centime:
+            print('error parsing information from metadata.txt')
+            return False
+        centime = centime.split('=')[1].split('.')[0]
+        masterdate = dt.datetime(int(a[:4]),int(a[4:6]),int(a[6:8]),
+                        int(centime.split(':')[0]),
+                        int(centime.split(':')[1]),
+                        int(centime.split(':')[2]))
+    return masterdate
+
 def vis_aoi(aoi):
     # to visualize a polygon element ('aoi')
     crs = {'init': 'epsg:4326'}

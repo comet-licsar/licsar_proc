@@ -63,6 +63,18 @@ def grep1(arg,filename):
     file.close()
     return res
 
+def grep1line(arg,filename):
+    file = open(filename, "r")
+    res=''
+    for line in file:
+        if re.search(arg, line):
+            res=line
+            break
+    file.close()
+    if res:
+        res = res.split('\n')[0]
+    return res
+
 def getipf(parfile):
     line = grep1('IPF', parfile)
     res = float(line.split('IPF')[1].split(')')[0])

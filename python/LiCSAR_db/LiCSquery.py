@@ -8,15 +8,24 @@ import os
 import sys
 import itertools
 import pymysql
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 import datetime as dt
-import pdb
+#import pdb
 from numbers import Number
 from shapely.geometry import Polygon
+import pandas as pd
 
 # Local imports
 import global_config as gc
-from dbfunctions import Conn_db
+
+#get tunnel or not
+parser = ConfigParser()
+parser.read(gc.configfile)
+parser.get('sqlinfo','use_tunnel')
+if bool(int(parser.get('sqlinfo','use_tunnel'))):
+    from dbfunctions import Conn_tunnel_db as Conn_db
+else:
+    from dbfunctions import Conn_db
 
 def delete_frame_only(frame):
     sql = "delete from polygs where polygs.polyid_name='{}';".format(frame)
@@ -31,6 +40,11 @@ def rename_frame(frameold, framenew):
     res = do_query(sql, True)
     #return True
     return res
+
+def do_pd_query(query):
+    conn = Conn_db()
+    df = pd.read_sql_query(query, conn)
+    return df
 
 def do_query(query, commit=False):
     # execute MySQL query and return result
@@ -306,6 +320,7 @@ def get_files_from_burst(burstid):
         "inner join files on files2bursts.fid=files.fid "\
         "where bursts.bid_tanx = '{0}';".format(burstid)
     return do_query(sql_q)
+
 
 def get_orbit_from_bidtanx(bidtanx):
     #e.g. bidtanx = '127_IW1_20509'
@@ -664,3 +679,34 @@ def set_new_coherence_product(job_id, rslc_path_1, rslc_path_2, filepath, coh_st
 
     return
 
+def get_eqid(eventid):
+    sql_q = "select eqid from eq where USGS_ID='{0}';".format(eventid)
+    res = do_query(sql_q)
+    if res:
+        res = res[0][0]
+    else:
+        res = None
+    return res
+
+def insert_new_eq(event):
+    sql_q = "INSERT INTO eq " \
+            "    (USGS_ID, magnitude, depth, time, lat, lon) " \
+            "VALUES ('{0}',{1},{2},'{3}',{4},{5});".format(event.id, event.magnitude,
+            event.depth, event.time.strftime('%Y-%m-%d %H:%M:%S'), round(event.latitude,2), round(event.longitude,2))
+    # perform query, get result (should be blank), and then commit the transaction
+    res = do_query(sql_q, True)
+    test = get_eqid(event.id)
+    if not test:
+        print('some error happened - eq was not saved to database')
+        return False
+    else:
+        return test
+
+def insert_new_eq2frame(eqid, fid, post_acq):
+    last_acq = post_acq + dt.timedelta(days=6)
+    sql_q = "INSERT INTO eq2frame " \
+            "    (eqid, fid, frame_status, post_acq, coifg_status, last_acq, postifg_status) " \
+            "VALUES ({0},{1},1,'{2}',1,'{3}',1);".format(eqid, fid, post_acq.strftime('%Y-%m-%d %H:%M:%S'), last_acq.strftime('%Y-%m-%d %H:%M:%S'))
+    # perform query, get result (should be blank), and then commit the transaction
+    res = do_query(sql_q, True)
+    return res

@@ -5,16 +5,26 @@ import os
 import datetime as dt
 from sentinelsat.sentinel import SentinelAPI
 import re
-import arch2DB
+#import arch2DB
 #here is the nostdout function:
 from LiCSAR_misc import *
 
-def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), sensType = 'IW'):
-    #startdate and enddate should be of type datetime.date (but datetime may also work?)
+def download(uuid, slcdir):
+    scihub_user, scihub_pass, scihub_url = get_scihub_creds()
+    scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
+    rc = scihub.download(uuid, slcdir)
+    return rc
+
+def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
+             enddate = dt.date.today(), sensType = 'IW', outAspd = False):
+    #startdate and enddate should be of type datetime.date (but datetime may also work)
+    # problem is that only full days are selected, no search by time
     if str(type(startdate)).split("'")[1] == 'str':
         startdate = dt.datetime.strptime(startdate,'%Y%m%d').date()
     if str(type(enddate)).split("'")[1] == 'str':
         enddate = dt.datetime.strptime(enddate,'%Y%m%d').date()
+    #one extra date needed for scihub:
+    enddate = enddate + dt.timedelta(days=1)
     scihub_user, scihub_pass, scihub_url = get_scihub_creds()
     #sensType = 'IW'
     nmax = 100
@@ -30,7 +40,10 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
                      relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
     #scihub.to_geodataframe(result)
     if result:
-        images = scihub.to_dataframe(result)['title'].values.tolist()
+        if outAspd:
+            images = scihub.to_dataframe(result)
+        else:
+            images = scihub.to_dataframe(result)['title'].values.tolist()
     else:
         images = None
     return images
@@ -56,7 +69,7 @@ def get_neodc_path_images(images):
         year = image[17:21]
         mon = image[21:23]
         day = image[23:25]
-        if int(year)>=2019 and int(mon)>=6 and int(day)>=25:
+        if dt.datetime.strptime(year+mon+day,'%Y%m%d') >= dt.datetime.strptime('20190625','%Y%m%d'):
             vers='3'
         else:
             vers='2'
@@ -67,14 +80,25 @@ def get_neodc_path_images(images):
 def import_to_licsinfo(images, meta = True):
     #output is list of files to be downloaded
     todown=[]
+    print('printing from s1data.py for debug')
     neodc_paths = get_neodc_path_images(images)
+    i=0
+    leng=len(neodc_paths)
+    print('there are {} paths to check'.format(leng))
     for imagepath in neodc_paths:
+        i=i+1
+        print('[{0}/{1}] checking {2}'.format(str(i),str(leng),imagepath))
         if os.path.exists(imagepath):
-            arch2DB.main('-f'+imagepath)
+            # this was not working, donno why
+            #arch2DB.main('-f'+imagepath)
+            os.system('arch2DB.py -f {}'.format(imagepath))
         else:
             metaonly = imagepath.replace('.zip','.metadata_only.zip')
+            print('SLC not existing in neodc. checking '+metaonly)
             if os.path.exists(metaonly) and meta==True:
-                arch2DB.main('-f'+metaonly)
+                #perhaps some long file name problem, donno..
+                #arch2DB.main('-f'+metaonly)
+                os.system('arch2DB.py -f {}'.format(metaonly))
             else:
                 print('Image '+os.path.basename(imagepath)+' is not in neodc. Including to the list for download')
                 todown.append(os.path.basename(imagepath))
@@ -89,7 +113,10 @@ def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20
         print('No images found in scihub for the given dates between {0} and {1}. Aborting'.format(str(startdate),str(enddate)))
         return None
     print('Checking and importing to LiCSInfo database')
-    with nostdout():
-        todown = import_to_licsinfo(images, meta)
-    print('Summary: There are '+str(len(todown))+' images that were physically acquired but do not exist in NLA')
+    #with nostdout():
+    todown = import_to_licsinfo(images, meta)
+    if len(todown)>0:
+        print('Summary: There are '+str(len(todown))+' images that were physically acquired but do not exist in CEDA Archive')
+    else:
+        print('All needed files should exist in CEDA Archive')
     return todown

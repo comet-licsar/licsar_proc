@@ -3,23 +3,29 @@
 #module load licsar_proc #or _testing
 curdir=$LiCSAR_procdir
 
+setupmasterextra=''
 outres=0.001
 r=20
 a=4
 
 if [ -z $1 ];
 then
- echo "Usage: licsar_initiate_new_frame.sh FRAME [MASTER_YYMMDD]"
+ echo "Usage: licsar_initiate_new_frame.sh FRAME [MASTER_YYMMDD] "
  echo "where frame can be e.g. 010D_11058_131313 20180722"
  echo "(if master date is not given, it will choose automatically, from last 3 months data)"
  echo "(to include custom downloaded master files, don't forget to arch2DB.py them first)"
- echo "if you put -H parameter, it will do master in highest resolution (r=1, a=1)"
+ echo "parameters:"
+ echo " -H - do master in highest resolution (r=1, a=1)"
+ echo " -D /path/to/dem.tif - use custom DEM - you may want to use gdal_merge.py -a_nodata -32768 .."
  exit
 fi
 
-while getopts ":H" option; do
+while getopts ":H:D" option; do
  case "${option}" in
   H) a=1; r=1; outres=0.0001; echo "high resolution option enabled"
+     ;;
+  D) setupmasterextra="-D "$2;
+     shift
      ;;
  esac
 done
@@ -29,7 +35,7 @@ shift $((OPTIND -1))
 if [ ! -z $2 ]; then
  getmaster="-m "$2
  else
- getmaster="-A"
+ getmaster="-A 1"
 fi
 
 
@@ -56,7 +62,7 @@ if [ $a == 1 ]; then
 fi
 
 echo "Setting the master image and DEM for frame "$frame
-LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r $r -a $a -o $outres
+LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r $r -a $a -o $outres $setupmasterextra
 if [ ! -d $curdir/$tr/$frame/SLC ]; then
  echo "Something got wrong with the initiation"
  cd - 2>/dev/null

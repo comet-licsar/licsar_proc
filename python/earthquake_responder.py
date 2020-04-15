@@ -2,16 +2,19 @@
 
 import os, shutil
 import LiCSquery as lq
-import datetime
+import datetime as dt
 from datetime import datetime, timedelta
 from libcomcat.search import search,count,get_event_by_id
 import pandas as pd
 from LiCSAR_lib.s1data import get_images_for_frame
+import LiCSAR_lib.framecare as fc
+import numpy as np
+import LiCSAR_lib.LiCSAR_misc as misc
 
 public_path = os.environ['LiCSAR_public']
 procdir_path = os.environ['LiCSAR_procdir']
 web_path = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'
-max_days = 13
+max_days = 30
 
 #table based on John Elliott's know-how..
 eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
@@ -48,12 +51,30 @@ def get_range_from_magnitude(M, depth, unit = 'km'):
         distance = (360.0 / 40007.86) * distance
     return distance
 
+def create_eq_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'):
+    #get all eqs
+    query = "select * from eq;"
+    eq_df = lq.do_pd_query(query)
+    eq_df['link'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/EQ/" + eq_df['USGS_ID'] + ".html' target='_blank'>Link<a>"
+    dbcols = ['USGS_ID','magnitude','depth','time','lat','lon', 'link']
+    eq_df[dbcols].to_csv(csvfile, index=False)
+    return True
+
+def update_eq_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'):
+    #get all eqs
+    query = "select * from eq where USGS_ID='{}';".format(eventid)
+    eq_df = lq.do_pd_query(query)
+    eq_df['link'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/EQ/" + eq_df['USGS_ID'] + ".html' target='_blank'>Link<a>"
+    dbcols = ['USGS_ID','magnitude','depth','time','lat','lon', 'link']
+    eq_df[dbcols].to_csv(csvfile, mode='a', index = False, header=False)
+    return True
+
 def create_kmls(frame, toi):
     #toi is Time Of Interest - and should be as datetime
     doi = toi.date()
     track = str(int(frame[0:3]))
     global public_path
-    products_path = os.path.join(public_path, track, frame, 'products')
+    products_path = os.path.join(public_path, track, frame, 'interferograms')
     frameproc_path = os.path.join(procdir_path, track, frame)
     if not os.path.exists(products_path):
         try:
@@ -117,6 +138,17 @@ def create_kmls(frame, toi):
                     shutil.rmtree(os.path.join(frameproc_path,'GEOC',pifg))
                     selected_ifgs.append(pifg)
     return selected_ifgs
+
+def get_earliest_expected_dt(frame, eventtime):
+    masterdate = fc.get_master(frame, asdatetime = True)
+    if not masterdate:
+        print('error getting masterdate')
+        return False
+    daysdiff = (eventtime - masterdate).days
+    noepochs = int(np.floor(daysdiff/6))
+    lastepoch = masterdate+dt.timedelta(days=noepochs*6)
+    expected_dt = lastepoch+dt.timedelta(days=6)
+    return expected_dt
 
 def get_next_expected_datetime(frame, eventtime):
     track = str(int(frame[0:3]))
@@ -186,6 +218,28 @@ def get_frames_in_event(event,radius = 9999):
     frames = lq.get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
     return frames
 
+def import_to_licsinfo_eq(event):
+    if lq.get_eqid(event.id):
+        print('eq already in database, cancelling')
+        return False
+    else:
+        eqid = lq.insert_new_eq(event)
+        return eqid
+
+def import_to_licsinfo_eq2frame(eqid, event, frame):
+    fid = lq.get_frame_polyid(frame)
+    try:
+        fid = lq.sqlout2list(fid)[0]
+    except:
+        print('the frame does not exist in licsinfo!')
+        return False
+    post_acq = get_earliest_expected_dt(frame, event.time)
+    rc = lq.insert_new_eq2frame(eqid, fid, post_acq)
+    if not rc:
+        print('some problem importing event frame to eq2frame')
+        return False
+    return True
+
 def main():
     minmag = 5.5
     #here will be exceptions (i.e. eqs that MUST be processed):
@@ -235,13 +289,15 @@ def main():
                     newline = "<a href='{0}'>USGS kml file</a> <br /> \n".format(event.getDetailURL().replace('geojson','kml'))
                     f.write(newline)
                     f.close()
-                
                 frames = get_frames_in_event(event, radius)
                 #this would print info on next expected images:
                 #get_next_expected_images(frames)
                 if len(frames) == 0:
                     print('No frames are available for the event {0}'.format(event.id))
                 else:
+                    #ok, we will be processing this event, so let's:
+                    #ingest it to the eq database
+                    eqid = import_to_licsinfo_eq(event)
                     print('{0} frames detected for event {1}, will be processing them'.format(str(len(frames)),event.id))
                     for frame in frames:
                         frame = frame[0]
@@ -252,6 +308,12 @@ def main():
                             print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
                             os.system('licsar_initiate_new_frame.sh {0} >/dev/null 2>/dev/null'.format(frame))
                         if os.path.exists(os.path.join(public_path,track,frame)):
+                            if eqid:
+                                #if equid means if first time to fille. then we should fill the eq2frame table
+                                try:
+                                    import_to_licsinfo_eq2frame(eqid, event, frame)
+                                except:
+                                    print('error during importing to eq2frame (database)')
                             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
                             #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
                             os.system('licsar_make_frame.sh -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
@@ -263,18 +325,22 @@ def main():
                             #    new_kmls = None
                             #    print('some error happened during processing frame '+frame)
                             if new_kmls:
+                                #so if something was generated, update it to the list of eqs
+                                eqsfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'
+                                if not misc.grep1line(event.id,eqsfile):
+                                    update_eq_csv(event.id, eqsfile)
                                 #update the event ID file:
                                 print("Generated "+str(len(new_kmls))+" new (co-seismic ifg?) kml files")
                                 f=open(eventfile, "a+")
                                 for kml in new_kmls:
                                     track = str(int(frame[0:3]))
-                                    fullwebpath = os.path.join(web_path, track, frame, 'products', kml, frame+'_'+kml + '.kmz')
+                                    fullwebpath = os.path.join(web_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')
                                     newline = '<a href="{0}">{1}: {2}.kmz</a> <br /> \n'.format(fullwebpath, frame, kml)
                                     f.write(newline)
                                     fullwebpath_metadata = os.path.join(web_path, track, frame, 'metadata')
                                     newline = '<a href="{0}">{1} metadata</a> <br /> \n'.format(fullwebpath_metadata, frame)
                                     f.write(newline)
-                                    fullwebpath_ifg = os.path.join(web_path, track, frame, 'products', kml)
+                                    fullwebpath_ifg = os.path.join(web_path, track, frame, 'interferograms', kml)
                                     newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath_ifg, frame, kml)
                                     f.write(newline)
                                 f.close()

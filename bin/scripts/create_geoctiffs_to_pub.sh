@@ -4,6 +4,7 @@ if [ -z $2 ]; then
  echo "optional parameters:"
  echo "-u .... geocode also unfiltered wrapped interferogram"
  echo "-F .... do full resolution previews (needed for KML)"
+ echo "-L .... do low resolution geotiffs (500x500 m)"
  echo "-H .... do full resolution geotiffs (50x50 m)"
  echo "some more parameters:"
  echo "-U .... geocode only unwrapped interferogram"
@@ -24,9 +25,10 @@ IFGDO=1
 COHDO=1
 MLIDO=1
 HIRES=0
+LORES=0
 UNFILT=0
 
-while getopts ":uUCFHIM" option; do
+while getopts ":uUCFHIML" option; do
  case "${option}" in
   u) UNFILT=1; echo "unfiltered ifg will also be geocoded";
      ;;
@@ -41,6 +43,8 @@ while getopts ":uUCFHIM" option; do
   F) RESIZE=100; echo "previews will be generated in full resolution";
      ;;
   H) HIRES=1; echo "geotiffs will be generated in full resolution (50x50 m)";
+     ;;
+  L) LORES=1; echo "geotiffs will be generated in low resolution (500x500 m)";
      ;;
  esac
 done
@@ -70,11 +74,24 @@ if [ $HIRES == 1 ]; then
  GEOCDIR=GEOC_50m
  mkdir -p $GEOCDIR
  cd $thisdir
+fi
 
-# if [ -d ${procdir}/$GEOCDIR/${ifg} ]; then
-#  echo "old geocoded files detected. removing before continuation"
-#  rm -rf ${procdir}/$GEOCDIR/${ifg}
-# fi
+if [ $LORES == 1 ]; then
+ if [ ! -d $procdir/geo_500m ]; then
+  echo "generating low resolution geo files (500 m)"
+  thisdir=`pwd`
+  cd $procdir
+  submit_geo_lores.py
+  geodir=geo_500m
+ fi
+ if [ -f $procdir/geo_500m/locked ]; then
+  echo "seems like the lores geocoding is locked by another process. please wait for it to finish first"
+  exit
+ fi
+
+ GEOCDIR=GEOC_500m
+ mkdir -p $GEOCDIR
+ cd $thisdir
 fi
 
 master=`ls $procdir/$geodir/*[0-9].hgt | rev | cut -d '/' -f1 | rev | cut -d '.' -f1 | head -n1`

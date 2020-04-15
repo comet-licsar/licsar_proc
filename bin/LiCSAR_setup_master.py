@@ -26,10 +26,10 @@ Display this message
 LiCSAR_setup_master.py -v
 Display the version
 
-LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -A]
+LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -D <path to custom DEM (tif)> -A]
   (parameter -A or --automaster : will attempt to get a master date automatically)
   (parameter -e would mean allowing also latest images to become master - useful for earthquake responder)
-  
+  (parameter -D for custom DEM in tif format - e.g. download ALOS World 3D tiles and merge them by gdal_merge.py -o out.tif -of GTiff -a_nodata -32768 *.tif)
 """
 ################################################################################
 # Imports
@@ -108,11 +108,12 @@ def main(argv=None):
     job_id = -1
     automaster = 0
     days_limit = 22
+    customdem = ''
 
 ############################################################ Parse argument list
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:A:e:", ["version", "help","automaster"])
+            opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:A:D:e:", ["version", "help","automaster"])
         except getopt.error as msg:
             raise Usage(msg)
         for p, a in opts:
@@ -128,6 +129,8 @@ def main(argv=None):
                 framename = a
             elif p == '-d':
                 procdir = a
+            elif p == '-D':
+                customdem = a
             elif p == '-j':
                 job_id = int(a)
             elif p == '-m':
@@ -193,7 +196,8 @@ def main(argv=None):
             return 1
     else:
         print('checking for S1 data not ingested to licsinfo db')
-        s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=90)))
+        todown = s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=90)))
+        print(todown)
         try:
             burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
         except:
@@ -282,7 +286,10 @@ def main(argv=None):
 ############################################################ Crop the DEM
     print('\n\n')
     with cd(procdir):
-        demcall = 'LiCSAR_01_mk_crop_extDEM DEM/dem_crop'
+        if customdem:
+            demcall = 'LiCSAR_01_mk_crop_extDEM DEM/dem_crop 0 {}'.format(customdem)
+        else:
+            demcall = 'LiCSAR_01_mk_crop_extDEM DEM/dem_crop'
         os.system(demcall)
 
 ############################################################ Create Directory structure
