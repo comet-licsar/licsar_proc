@@ -19,22 +19,24 @@ else
 fi
 
 for rsc in $work_dir/$frame/*.ztd; do 
-   LiCSAR_ztd2geotiff.py -z $rsc -u $frame/$frame.geo.U.tif
+  if [ `ls -al $rsc | gawk {'print $5'}` -lt 100 ]; then rm $rsc; else
+   if [ ! -f $rsc.geo.tif ]; then
+    LiCSAR_ztd2geotiff.py -z $rsc -u $frame/$frame.geo.U.tif
+   fi
+  fi
 done
 
 for geotif in $work_dir/$frame/*.geo.tif; do
-   date=$(echo $geotif | awk -F"." '{print $1}' | awk -F'/' '{print $12}')
-   mkdir -p  $prod_dir/$track/$frame/epochs/$date/
-done
-
-for geotif in $work_dir/$frame/*.geo.tif; do
-   date=$(echo $geotif | awk -F"." '{print $1}' | awk -F'/' '{print $12}')
-   cp -f $geotif $prod_dir/$track/$frame/epochs/$date/
+   #date=$(echo $geotif | awk -F"." '{print $1}' | awk -F'/' '{print $12}')
+   date=`basename $geotif | cut -d '.' -f1`
+   mkdir -p  $prod_dir/$track/$frame/epochs/$date
+   cp -f $geotif $prod_dir/$track/$frame/epochs/$date/.
 done
 
 for jpg in $work_dir/$frame/*.ztd.jpg; do
-   date=$(echo $jpg | awk -F"." '{print $1}' | awk -F'/' '{print $12}')
-   cp -f $jpg $prod_dir/$track/$frame/epochs/$date/
+   #date=$(echo $jpg | awk -F"." '{print $1}' | awk -F'/' '{print $12}')
+   date=`basename $jpg | cut -d '.' -f1`
+   cp -f $jpg $prod_dir/$track/$frame/epochs/$date/.
 done
 
 

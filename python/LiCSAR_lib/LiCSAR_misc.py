@@ -50,6 +50,9 @@ def grep(arg,file):
     res = subp.check_output(['grep',arg,file])
     return res
 
+def touch(filee):
+    open(filee, 'a').close()
+
 ################################################################################
 # Grep for only first occurrence (better for text files in python3+)
 ################################################################################

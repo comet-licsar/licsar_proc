@@ -189,8 +189,9 @@ def get_number_of_ifgs(framename):
     filenumber = len(os.listdir(ifgspath))
     return filenumber
 
-def export_frames_to_licsar_csv(framesgpd, outcsv):
+def export_frames_to_licsar_csv(framesgpd, outcsv = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/frames.csv'):
     #print('now we would export the frame to outcsv, including wkb')
+    # this will update the csv, not rewrite it..
     if not os.path.exists(outcsv):
         with open(outcsv,'w') as f:
             f.write('the_geom,frame,files,download,direction\n')
@@ -447,6 +448,13 @@ def generate_new_frame(bidtanxs,testonly = True):
         else:
             res = lq.do_query(sql, 1)
     if not testonly:
+        print('including to polyg2gis table')
+        gpan = frame2geopandas_brute(frame)
+        rc = store_frame_geometry(gpan)
+        if rc != 1:
+            print('ERROR STORING TO polyg2gis TABLE!!!')
+        #actually the licsar csv should not contain this..
+        #rc = export_frames_to_licsar_csv(gpan)
         print('generated new frame '+polyid_name)
         print('you may do following now: ')
         print('licsar_initiate_new_frame.sh '+polyid_name)
@@ -504,6 +512,7 @@ def delete_frame_commands(frame):
     print('setFrameInactive.py {0}'.format(frame))
     track=str(int(frame[0:3]))
     print('rm -rf $LiCSAR_procdir/{0}/{1} $LiCSAR_public/{0}/{1}'.format(track,frame))
+    print("sed -i '/{}/d' /gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/frames.csv".format(frame))
     print('lics_mysql.sh')
     sql = "select polyid from polygs where polyid_name = '{0}';".format(frame)
     polyid = lq.do_query(sql)[0][0]

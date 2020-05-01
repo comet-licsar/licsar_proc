@@ -207,9 +207,12 @@ def main(argv=None):
 
     ### Cut and resapmle ztd to geo
     print('\nCut and resapmle ztd...', flush=True)
-    ztd_geo = gdal.Warp("", bilfile, format='MEM', outputBounds=(lonw_geo, lats_geo, lone_geo, latn_geo), width=width_geo, height=length_geo, resampleAlg=resampleAlg, srcNodata=0).ReadAsArray()
-    ztd_geo = ztd_geo*m2r_coef ## meter -> rad
-    #ztd_geo[ztd_geo==0] = np.nan
+    try:
+        ztd_geo = gdal.Warp("", bilfile, format='MEM', outputBounds=(lonw_geo, lats_geo, lone_geo, latn_geo), width=width_geo, height=length_geo, resampleAlg=resampleAlg, srcNodata=0).ReadAsArray()
+        ztd_geo = ztd_geo*m2r_coef ## meter -> rad
+    except:
+        print('an error occurred. exiting')
+        exit()
     
     print('\nCompute sltd from ztd and LOSu...', flush=True)
     sltd_geo = ztd_geo/LOSu ## LOSu=cos(inc)

@@ -27,12 +27,17 @@ if [ $# -lt 1 ]; then
 fi
 
 username=gacos01
-keyfile=$LiCSAR_configpath/id_rsa_gacos
+keyfile=~/.id_rsa_gacos
+
+if [ ! -f $keyfile ]; then 
+ cp $LiCSAR_configpath/id_rsa_gacos $keyfile
+ chmod 500 $keyfile
+fi
 inputfile=$1
 pro_time=`date +%Y%m%d%H%M%S`
 
 
-chmod 500 $keyfile
+#chmod 500 $keyfile
 resultfile=`sed -n '1,1p' $inputfile `
 col=`echo $resultfile | awk '{print NF}'`
 if [ $col -ne 1 ]; then

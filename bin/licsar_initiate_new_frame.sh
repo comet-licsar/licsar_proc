@@ -82,5 +82,8 @@ else
  cp $curdir/$tr/$frame/$frame'-poly.txt' $LiCSAR_public/$tr/$frame/metadata/.
  echo "cleaning"
  rm -f $curdir/$tr/$frame/SLC/*/2*T*.I*sl* 2>/dev/null
+ #removing also the mosaic 
+ #rm -f $curdir/$tr/$frame/SLC/*/
+ rm -f $curdir/$tr/$frame/SLC/*/2???????.slc 2>/dev/null
  echo "done"
 fi

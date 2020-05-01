@@ -7,7 +7,8 @@ import os
 try:
     import sshtunnel
 except:
-    None
+    print('problem importing sshtunnel module - ARC will have problems connecting to LiCSInfo db')
+    #None
 configfile = os.environ["LiCSARconfig"]
 
 def Conn_db():
@@ -63,9 +64,10 @@ def Conn_tunnel_db():
     tunnel = sshtunnel.SSHTunnelForwarder((ssh_host, ssh_port),
                 ssh_username=ssh_username, ssh_pkey=ssh_pkey,
                 remote_bind_address=(sql_hostname, sql_port))
-    if tunnel.tunnel_is_up:
-        tunnel.stop()
-    tunnel.start()  #this works, but in case of error it may be kept ON?
+    #if tunnel.tunnel_is_up:
+    #    tunnel.stop()
+    if not tunnel.tunnel_is_up:
+        tunnel.start()  #this works, but in case of error it may be kept ON?
     conn = pymysql.connect(host='127.0.0.1',
                      user=sql_username,
                      passwd=sql_password,

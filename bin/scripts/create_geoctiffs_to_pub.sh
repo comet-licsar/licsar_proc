@@ -28,15 +28,17 @@ HIRES=0
 LORES=0
 UNFILT=0
 
-while getopts ":uUCFHIML" option; do
+while getopts ":ubUCFHIML" option; do
  case "${option}" in
-  u) UNFILT=1; echo "unfiltered ifg will also be geocoded";
+  b) UNFILT=0; IFGDO=0; COHDO=0; UNWDO=0; MLIDO=0; echo "bypassing other (fast fix)";
+     ;;
+  u) UNFILT=1; echo "unfiltered ifg will be geocoded";
      ;;
   U) IFGDO=0; COHDO=0; MLIDO=0; echo "you do ONLY unw geo now..";
      ;;
   C) IFGDO=0; UNWDO=0; MLIDO=0; echo "you do ONLY coh geo now..";
      ;;
-  I) COHDO=0; UNWDO=0; MLIDO=0; echo "you do ONLY ifg geo now..";
+  I) COHDO=0; UNWDO=0; MLIDO=0; IFGDO=1; echo "you do ONLY ifg geo now..";
      ;;
   M) COHDO=0; UNWDO=0; IFGDO=0; echo "you do ONLY MLIs geo now..";
      ;;

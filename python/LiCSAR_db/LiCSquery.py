@@ -24,8 +24,12 @@ parser.read(gc.configfile)
 parser.get('sqlinfo','use_tunnel')
 if bool(int(parser.get('sqlinfo','use_tunnel'))):
     from dbfunctions import Conn_tunnel_db as Conn_db
+    conn, tunnel = Conn_db()
 else:
     from dbfunctions import Conn_db
+    conn = Conn_db()
+if conn == 'MYSQL ERROR':
+    print('No database connection could be established')
 
 def delete_frame_only(frame):
     sql = "delete from polygs where polygs.polyid_name='{}';".format(frame)
@@ -42,17 +46,21 @@ def rename_frame(frameold, framenew):
     return res
 
 def do_pd_query(query):
-    conn = Conn_db()
+    #conn = Conn_db()
+    #if type(conn) == tuple:
+    #    conn = conn[0]
     df = pd.read_sql_query(query, conn)
     return df
 
 def do_query(query, commit=False):
     # execute MySQL query and return result
     try:
-        conn = Conn_db()
+        #conn = Conn_db()
         if conn == 'MYSQL ERROR':
             print('No database connection could be established to perform the following query: \n%s' % query)
             return 'MYSQL ERROR'
+        #if type(conn) == tuple:
+        #    conn = conn[0]
         with conn.cursor() as c:
             c.execute(query, )
             res_list = c.fetchall()
@@ -63,6 +71,19 @@ def do_query(query, commit=False):
         print("\nUnexpected MySQL error {0}: {1}".format(e[0], e[1]))
         return []
     return res_list
+
+def close_db_and_tunnel():
+    try:
+        conn.close()
+    except:
+        print('MySQL connection perhaps already closed?')
+    if tunnel.is_active:
+        tunnel.close()
+        print('ssh tunnel closed')
+        return True
+    else:
+        #print('there is no ssh tunnel established here')
+        return False
 
 
 def connection_established():
@@ -690,8 +711,8 @@ def get_eqid(eventid):
 
 def insert_new_eq(event):
     sql_q = "INSERT INTO eq " \
-            "    (USGS_ID, magnitude, depth, time, lat, lon) " \
-            "VALUES ('{0}',{1},{2},'{3}',{4},{5});".format(event.id, event.magnitude,
+            "    (USGS_ID, magnitude, location, depth, time, lat, lon) " \
+            "VALUES ('{0}',{1},'{2}',{3},'{4}',{5},{6});".format(event.id, event.magnitude, event.location,
             event.depth, event.time.strftime('%Y-%m-%d %H:%M:%S'), round(event.latitude,2), round(event.longitude,2))
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
@@ -702,11 +723,17 @@ def insert_new_eq(event):
     else:
         return test
 
-def insert_new_eq2frame(eqid, fid, post_acq):
-    last_acq = post_acq + dt.timedelta(days=6)
-    sql_q = "INSERT INTO eq2frame " \
-            "    (eqid, fid, frame_status, post_acq, coifg_status, last_acq, postifg_status) " \
-            "VALUES ({0},{1},1,'{2}',1,'{3}',1);".format(eqid, fid, post_acq.strftime('%Y-%m-%d %H:%M:%S'), last_acq.strftime('%Y-%m-%d %H:%M:%S'))
+def insert_new_eq2frame(eqid, fid, post_acq = False):
+    if post_acq:
+        next_acq = post_acq + dt.timedelta(days=6)
+        last_acq = post_acq + dt.timedelta(days=12)
+        sql_q = "INSERT INTO eq2frame " \
+            "    (eqid, fid, frame_status, post_acq, coifg_status, next_acq, last_acq, postifg_status) " \
+            "VALUES ({0},{1},1,'{2}',1,'{3}','{4}', 1);".format(eqid, fid, post_acq.strftime('%Y-%m-%d %H:%M:%S'), next_acq.strftime('%Y-%m-%d %H:%M:%S'), last_acq.strftime('%Y-%m-%d %H:%M:%S'))
+    else:
+        sql_q = "INSERT INTO eq2frame " \
+        "    (eqid, fid)" \
+        "VALUES ({0},{1});".format(eqid, fid)
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
     return res

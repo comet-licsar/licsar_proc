@@ -175,7 +175,7 @@ def downloadOrbit(url,outDir):
 
     if resp.ok: #if downloaded write to file
         with open(outDir+'/'+outputFile,'w') as f:
-            f.write(resp.content)
+            f.write(resp.content.decode())
 
         return outputFile
     else:
@@ -213,7 +213,14 @@ def findValidOrbFile(baseDir,sat,startTime,endTime):
 
             #Check if the orbit time includes the measurement time period
             if (vldTimeStart<=startTime) and (vldTimeStop>=endTime):
-                return f #and return
+                #sometimes the files are wrong and 0 size... so:
+                if os.path.getsize(os.path.join(baseDir,f)) < 100:
+                    try:
+                        os.remove(os.path.join(baseDir,f))
+                    except:
+                        print('ERROR - the orbit file {} is erroneous but you do not have rights to update it'.format(f))
+                else:
+                    return f #and return
 
     return None #otherwise return none
 

@@ -313,10 +313,14 @@ def main(argv=None):
             gtcall = ['create_geoctiff_lookangles.sh', procdir, masterdate.strftime('%Y%m%d')]
             try:
                 gt_code = subp.check_call(gtcall)
+                if gt_code != 0:
+                    print('Something went wrong during the geotiff creation - non zero return.') 
             except:
                 print('Something went wrong during the geotiff creation - except call.')
+                #f.write('\nSomething went wrong during the geotiff creation\n')
+            #the line below should be removed. but i keep it, otherwise i would cause an error further in licsar_initiate_new_frame.sh
             if gt_code != 0:
-                print('Something went wrong during the geotiff creation - non zero return.')                
+                print('Something went wrong during the geotiff creation - non zero return.') 
         if rc == 1:
             f.write('\nMaster geocoding encountered a problem during the lookup table creation')
             master_job_finished_failed(job_id, masterdate)

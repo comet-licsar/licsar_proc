@@ -10,11 +10,19 @@ from LiCSAR_lib.s1data import get_images_for_frame
 import LiCSAR_lib.framecare as fc
 import numpy as np
 import LiCSAR_lib.LiCSAR_misc as misc
+import framecare as fc
 
 public_path = os.environ['LiCSAR_public']
 procdir_path = os.environ['LiCSAR_procdir']
 web_path = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'
+
+#you may want to change these parameters:
 max_days = 30
+minmag = 5.5
+#here will be exceptions (i.e. eqs that MUST be processed):
+#minmag = 4.6
+exceptions = ['us60008e8e', 'us70008dx7']
+
 
 #table based on John Elliott's know-how..
 eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
@@ -45,7 +53,7 @@ def get_range_from_magnitude(M, depth, unit = 'km'):
             distance = int(distance.to_string().split()[1])
         else:
             distance = None
-            print('The earthquake parameters do not fit with the limit table - it will not be processed')
+            #print('The earthquake parameters do not fit with the limit table - it will not be processed')
     #rad or km?
     if unit == 'rad' and distance is not None:
         distance = (360.0 / 40007.86) * distance
@@ -57,7 +65,7 @@ def create_eq_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_pr
     eq_df = lq.do_pd_query(query)
     eq_df['link'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/EQ/" + eq_df['USGS_ID'] + ".html' target='_blank'>Link<a>"
     dbcols = ['USGS_ID','magnitude','depth','time','lat','lon', 'link']
-    eq_df[dbcols].to_csv(csvfile, index=False)
+    eq_df[dbcols].to_csv(csvfile, sep = ';', index=False)
     return True
 
 def update_eq_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'):
@@ -66,7 +74,40 @@ def update_eq_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/
     eq_df = lq.do_pd_query(query)
     eq_df['link'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/EQ/" + eq_df['USGS_ID'] + ".html' target='_blank'>Link<a>"
     dbcols = ['USGS_ID','magnitude','depth','time','lat','lon', 'link']
-    eq_df[dbcols].to_csv(csvfile, mode='a', index = False, header=False)
+    eq_df[dbcols].to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
+    return True
+
+def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv'):
+    """
+       This csv will be loaded to the eq responder map
+    """
+    #fid = lq.get_frame_polyid(framename)
+    #try:
+    #    fid = lq.sqlout2list(fid)[0]
+    #except:
+    #    print('error - the frame {} does not exist in licsinfo database'.format(framename))
+    #query = "select pg.geom from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg on pg.polyid=e2f.fid where eq.USGS_ID='{0}' and e2f.fid={1};".format(eventid, str(fid))
+    #query = "select pg.geom,e2f.fid from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg on pg.polyid=e2f.fid where eq.USGS_ID='{0}'".format(eventid)
+    query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid where eq.USGS_ID='{0}'".format(eventid)
+    #hmm.. this does not load geometry as wkb... need to solve it!
+    e2f = lq.do_pd_query(query)
+    if len(e2f) < 1:
+        print('error - nothing found in eq2frames for this event {}'.format(eventid))
+        return False
+    e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
+    e2f['download'] = e2f['track']*0
+    for i, f in e2f.iterrows():
+        try:
+            row = fc.frame2geopandas(f['frame']).iloc[0]
+            geometry = row['geometry'].wkb_hex
+            e2f.iloc[i].the_geom = geometry
+        except:
+            print('probably this frame is not in geom database')
+            return False
+        e2f.iloc[i]['download'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/{0}/{1} target='_blank'>Link<a>".format(f['track'], f['frame'])
+    #e2f['download'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/{0}/{1} target='_blank'>Link<a>".format(track, framename)
+    dbcols = ['the_geom','frame','usgsid','download', 'location']
+    e2f[dbcols].to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
     return True
 
 def create_kmls(frame, toi):
@@ -193,7 +234,7 @@ def get_next_expected_images(frames, eventtime):
             print('Warning, this area is not observed at the highest frequency')
             print('Next possible flight: '+str(nextpos))
 
-def get_eq_events(minmag = 5.5):
+def get_eq_events(minmag = 5.5, max_days = 30):
     return search(starttime=datetime.now()-timedelta(days=max_days),
                            endtime=datetime.now(),
                            minmagnitude=minmag)
@@ -226,25 +267,27 @@ def import_to_licsinfo_eq(event):
         eqid = lq.insert_new_eq(event)
         return eqid
 
-def import_to_licsinfo_eq2frame(eqid, event, frame):
+def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True):
     fid = lq.get_frame_polyid(frame)
     try:
         fid = lq.sqlout2list(fid)[0]
     except:
         print('the frame does not exist in licsinfo!')
         return False
-    post_acq = get_earliest_expected_dt(frame, event.time)
-    rc = lq.insert_new_eq2frame(eqid, fid, post_acq)
+    if postacq:
+        post_acq = get_earliest_expected_dt(frame, event.time)
+        if not post_acq:
+            print('post event acquisition could not be identified')
+            return False
+        rc = lq.insert_new_eq2frame(eqid, fid, post_acq)
+    else:
+        rc = lq.insert_new_eq2frame(eqid, fid)
     if not rc:
         print('some problem importing event frame to eq2frame')
         return False
     return True
 
 def main():
-    minmag = 5.5
-    #here will be exceptions (i.e. eqs that MUST be processed):
-    minmag = 4.6
-    exceptions = ['us60008e8e', 'us70008dx7']
     #will process daily and check also for older earthquakes (to get max 12 days co-seismic pair)
     eventlist = get_eq_events(minmag) #search(starttime=datetime.now()-timedelta(days=max_days),
                            #endtime=datetime.now(),
@@ -329,6 +372,7 @@ def main():
                                 eqsfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'
                                 if not misc.grep1line(event.id,eqsfile):
                                     update_eq_csv(event.id, eqsfile)
+                                    update_eq2frames_csv(event.id)
                                 #update the event ID file:
                                 print("Generated "+str(len(new_kmls))+" new (co-seismic ifg?) kml files")
                                 f=open(eventfile, "a+")

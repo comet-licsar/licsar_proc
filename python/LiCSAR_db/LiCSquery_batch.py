@@ -21,7 +21,7 @@ import datetime as dt
 import global_config as gc
 from LiCSAR_lib.LiCSAR_misc import Usage
 #from dbfunctions import Conn_db            ##
-import slczip
+import slczip_batch as slczip
 
 def loadziplist(ziplistfile):
     # Load full paths to the zip files into a list
