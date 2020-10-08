@@ -60,6 +60,7 @@ import global_config as gc
 # import pdb
 from LiCSAR_lib.LiCSAR_misc import *
 from LiCSAR_lib.coreg_lib import *
+from gamma_functions import *
 
 ################################################################################
 # Main program function
@@ -72,6 +73,7 @@ def main(argv=None):
     framename = []
     ignrMstr = False
     batchflag = 0
+    cleandone = True
     job_id = -1
     coregListFile = None
     keepSLCs = False
@@ -165,22 +167,22 @@ def main(argv=None):
         print("Processing directory {0} does not seem to exist.".format(procdir), file=sys.stderr)
         return 1
     slcdir = os.path.join(procdir,'SLC')
-    if not os.path.exists:
+    if not os.path.exists(slcdir):
         print("\nERROR:", file=sys.stderr)
         print("SLC directory {0} does not seem to exist.".format(slcdir), file=sys.stderr)
         return 1
 
 ############################################################ Check that existing directories are present
     masterslcdir = os.path.join(slcdir,masterdate.strftime('%Y%m%d'))
-    if not os.path.exists:
+    if not os.path.exists(masterslcdir):
         print("\nERROR:", file=sys.stderr)
         print("Master SLC directory {0} does not seem to exist.".format(masterslcdir), file=sys.stderr)
         return 1
-    demdir = os.path.join(procdir,'DEM')
-    if not os.path.exists:
-        print("\ERROR:", file=sys.stderr)
-        print("DEM directory {0} does not seem to exist.".format(masterslcdir), file=sys.stderr)
-        return 1
+    #demdir = os.path.join(procdir,'DEM')
+    #if not os.path.exists:
+    #    print("\ERROR:", file=sys.stderr)
+    #    print("DEM directory {0} does not seem to exist.".format(masterslcdir), file=sys.stderr)
+    #    return 1
 
 
 ############################################################ Parse multi look parameters from parameter files
@@ -204,6 +206,11 @@ def main(argv=None):
 ############################################################ Geocode the DEM to master image
         if not ignrMstr:
         ############################################################Create Geoencoded directory
+            demdir = os.path.join(procdir,'DEM')
+            if not os.path.exists(demdir):
+                print("\ERROR:", file=sys.stderr)
+                print("DEM directory {0} does not seem to exist.".format(demdir), file=sys.stderr)
+                return 1
             geodir = os.path.join(procdir,'geo')
             if os.path.exists(geodir):
                 shutil.rmtree(geodir)
@@ -230,20 +237,32 @@ def main(argv=None):
                 if rc == 6:
                     f.write('\nMaster geocoding encountered a problem during the creation of the master height file')
                     return 1
-            
-    ############################################################ Link master slc dir in resample dir
-            rslcdir = os.path.join(procdir,'RSLC')
-            if os.path.exists(os.path.join(rslcdir, masterdate.strftime('%Y%m%d'))):
-                shutil.rmtree(os.path.join(rslcdir, masterdate.strftime('%Y%m%d')))
-            rc = link_master_rslc(masterslcdir,rslcdir,masterdate, lq, job_id)
-            if rc > 0:
-                f.write('\nProblem creating a link to master SLC directory in RSLC directory.')
-                return 1
         else:
             f.write('\nMaster geocode ignore flag given - skipping geocoding')
             rslcdir = os.path.join(procdir,'RSLC')
 
-    
+        ############################################################ Link master slc dir in resample dir, regenerate mosaic
+        masterslcdir = os.path.join(procdir, 'SLC', masterdate.strftime('%Y%m%d'))
+        mastermosaic = os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc')
+        if not os.path.exists(mastermosaic):
+            print('regenerating master mosaic (some 2 minutes)')
+            slctab = os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.mosaic.tab')
+            logmosaic = os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.mosaic.log')
+            iwfiles = glob(os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.IW*.slc'))
+            swathlist = []
+            for iwfile in iwfiles:
+                swathlist.append(iwfile.split('/')[-1].split('.')[1])
+            swathlist.sort()
+            rc, msg = make_SLC_tab(slctab,mastermosaic,swathlist)
+            rc = SLC_mosaic_S1_TOPS(slctab,mastermosaic,gc.rglks,gc.azlks,logmosaic)
+            os.remove(slctab)
+        rslcdir = os.path.join(procdir,'RSLC')
+        if os.path.exists(os.path.join(rslcdir, masterdate.strftime('%Y%m%d'))):
+            shutil.rmtree(os.path.join(rslcdir, masterdate.strftime('%Y%m%d')))
+        rc = link_master_rslc(masterslcdir,rslcdir,masterdate, lq, job_id)
+        if rc > 0:
+            f.write('\nProblem creating a link to master SLC directory in RSLC directory.')
+            return 1
 ############################################################ Create list of slave images
     if coregListFile:
         slavedatelist = list()
@@ -311,7 +330,14 @@ def main(argv=None):
                     f.write('\nAcquisition {0} had a problem during the spectral diversity'.format(sd))
                 elif rc == 5:
                     f.write('\nAcquisition {0} had a problem during the recropping of the master'.format(sd))
-        
+        #if rc == 0:
+        if cleandone:
+            slavestr = sd.strftime('%Y%m%d')
+            masterstr = masterdate.strftime('%Y%m%d')
+            slaverslcdir = os.path.join(rslcdir,sd.strftime('%Y%m%d'))
+            #for ext in ['']
+            os.system('rm {0}/{1}.IW?.rslc.[0-9]*.[0-9]*'.format(slaverslcdir,slavestr))
+            os.system('rm {0}_{1}.* {1}.* SLC_interp_lt_ScanSAR.* core.*'.format(masterstr,slavestr))
     
 ################################################################################
 # Execute main function

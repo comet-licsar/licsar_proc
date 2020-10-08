@@ -15,6 +15,8 @@ import numpy as np
 
 #%%
 licscheckdir = '/nfs/a1/insar/lics_check/'
+if not os.path.exists(licscheckdir):
+    licscheckdir = '.'
 
 if len(sys.argv) <= 1:
     print('\nUsage: {} FrameID'.format(os.path.basename(sys.argv[0])))

@@ -94,9 +94,11 @@ function mk_dem(){
   #if [ ${latmin} -lt "60.0" || ${latmax} -lt "-56.0" ]; then # #if [ ${latmin} > "60.0" ]; then #
   #strange... this was here:
   #if [ `echo $latmin'<'60.0 | bc -l` == 0 ]; then
-  if [ `echo $latmax'<'60.0 | bc -l` == 0 ]; then
-    echo "USE make_gdem2insar [some files might not exist. It could not be a problem...]"
-    mk_gdem2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
+  if [ `echo $latmax'<'60.0 | bc -l` == 0 ] || [ `echo $latmin'>'-56.0 | bc -l` == 0 ]; then
+    #echo "USE make_gdem2insar [some files might not exist. It could not be a problem...]"
+    echo "USE make_tdm2insar"
+    #mk_gdem2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
+    mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
   else
     echo "USE make_srtm2insar [some files might not exist. It could not be a problem...]"
     mk_srtm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1

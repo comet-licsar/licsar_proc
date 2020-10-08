@@ -12,6 +12,6 @@ master=`ls $LiCSAR_procdir/$track/$frame/geo/*[0-9].hgt | rev | cut -d '/' -f1 |
 echo "master="$master > $outfile
 
 #write coarse acquisition time (e.g. for GACOS purposes)
-time=`grep center_time $LiCSAR_procdir/$track/$frame/RSLC/$master/$master.rslc.par | gawk {'print $2'}`
+time=`grep center_time $LiCSAR_procdir/$track/$frame/SLC/$master/$master.slc.par | gawk {'print $2'}`
 time_hours=`python -c "import datetime as dt; time=dt.timedelta(seconds="$time"); print(str(time))"`
 echo "center_time="$time_hours >> $outfile

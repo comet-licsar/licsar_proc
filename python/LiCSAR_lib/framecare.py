@@ -2,7 +2,7 @@
 
 # Mar 2020 - Milan Lazecky
 
-import os
+import os, glob
 import LiCSquery as lq
 import datetime as dt
 import fiona
@@ -16,9 +16,22 @@ gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 pubdir = os.environ['LiCSAR_public']
 procdir = os.environ['LiCSAR_procdir']
 
-def get_master(frame, asdate = False, asdatetime = False):
-    track=str(int(frame[0:3]))
-    metafile = os.path.join(pubdir,track,frame,'metadata','metadata.txt')
+
+def get_bidtanxs_from_xy(intxt, relorb = None):
+    if not os.path.exists(intxt):
+        print('ERROR, the file does not exist')
+        return False
+    lonlat = load_xy(intxt)
+    bidtanxs = lq.get_bursts_in_polygon(lonlat[0][0],lonlat[0][-1],lonlat[1][0], lonlat[1][-1], relorb = relorb)
+    bidtanxs = lq.sqlout2list(bidtanxs)
+    print('check the bursts, e.g. export_bidtanxs_to_kml')
+    return bidtanxs
+
+
+def get_master(frame, asdate = False, asdatetime = False, metafile = None):
+    if not metafile:
+        track=str(int(frame[0:3]))
+        metafile = os.path.join(pubdir,track,frame,'metadata','metadata.txt')
     if not os.path.exists(metafile):
         print('frame {} is not initialised'.format(frame))
         return False
@@ -34,7 +47,7 @@ def get_master(frame, asdate = False, asdatetime = False):
         a = masterdate
         centime = misc.grep1line('center_time',metafile)
         if not centime:
-            print('error parsing information from metadata.txt')
+            print('error parsing center_time information from metadata.txt')
             return False
         centime = centime.split('=')[1].split('.')[0]
         masterdate = dt.datetime(int(a[:4]),int(a[4:6]),int(a[6:8]),
@@ -186,10 +199,36 @@ def get_number_of_ifgs(framename):
     ifgspath = os.path.join(pubpath,'interferograms')
     if not os.path.exists(ifgspath):
         return 0
-    filenumber = len(os.listdir(ifgspath))
+    filenumber = len(glob.glob1(ifgspath,'2???????_2???????'))
     return filenumber
 
-def export_frames_to_licsar_csv(framesgpd, outcsv = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/frames.csv'):
+
+def get_ifg_list_pubdir(framename):
+    pubdir = os.environ['LiCSAR_public']
+    track = str(int(framename[0:3]))
+    pubpath = os.path.join(pubdir,track,framename)
+    if not os.path.exists(pubpath):
+        return 0
+    ifgspath = os.path.join(pubpath,'interferograms')
+    if not os.path.exists(ifgspath):
+        return 0
+    ifglist = glob.glob1(ifgspath,'2???????_2???????')
+    return ifglist
+
+
+def get_epochs_from_ifg_list_pubdir(framename):
+    ifglist = get_ifg_list_pubdir(framename)
+    epochs = set()
+    if ifglist == 0:
+        return 0
+    else:
+        for ifg in ifglist:
+            epochs.add(ifg.split('_')[0])
+            epochs.add(ifg.split('_')[1])
+    return list(epochs)
+
+
+def export_frames_to_licsar_csv(framesgpd, outcsv = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/frames.csv', store_zero = False):
     #print('now we would export the frame to outcsv, including wkb')
     # this will update the csv, not rewrite it..
     if not os.path.exists(outcsv):
@@ -214,8 +253,12 @@ def export_frames_to_licsar_csv(framesgpd, outcsv = '/gws/nopw/j04/nceo_geohazar
             #get geometrywkb
             geom = row['geometry'].wkb_hex
             #we do not want to export it in case of no files in public...:
-            if files > 0:
+            if ((not store_zero) and files > 0) or store_zero:
+                #if frame already in csv file, remove its line and update by new files no.
+                if misc.grep1line(framename, outcsv):
+                    misc.sed_rmlinematch(framename, outcsv)
                 f.write('{0},{1},{2},{3},{4}\n'.format(str(geom), framename, str(files), download, direction))
+
 
 def store_frame_geometry(framesgpd):
     fileio_error = False
@@ -449,10 +492,12 @@ def generate_new_frame(bidtanxs,testonly = True):
             res = lq.do_query(sql, 1)
     if not testonly:
         print('including to polyg2gis table')
-        gpan = frame2geopandas_brute(frame)
+        gpan = frame2geopandas_brute(polyid_name)
         rc = store_frame_geometry(gpan)
         if rc != 1:
             print('ERROR STORING TO polyg2gis TABLE!!!')
+        #else:
+        #
         #actually the licsar csv should not contain this..
         #rc = export_frames_to_licsar_csv(gpan)
         print('generated new frame '+polyid_name)
@@ -460,6 +505,7 @@ def generate_new_frame(bidtanxs,testonly = True):
         print('licsar_initiate_new_frame.sh '+polyid_name)
         #delete_frame_commands(frame)
     return polyid_name
+
 
 def load_bursts_from_txt(intxt):
     f = open(intxt,'r')
@@ -470,13 +516,30 @@ def load_bursts_from_txt(intxt):
     f.close()
     return bursts
 
+
+def load_xy(intxt, onlyminmax = True):
+    f = open(intxt,'r')
+    contents = f.readlines()
+    f.close()
+    lon = []
+    lat = []
+    for line in contents:
+        lon.append(float(line.split(' ')[0]))
+        lat.append(float(line.split(' ')[1]))
+    if onlyminmax:
+        out = [min(lon), max(lon)], [min(lat), max(lat)]
+    else:
+        out = [lon, lat]
+    return out
+
+
 def load_bursts_from_kml(inputkml):
     #inputkml = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/insar_temp/frames_redef/kmls/test_146a.kml'
     newbursts = gpd.read_file(inputkml, driver='KML')
     newbursts = newbursts[newbursts.columns[0]].tolist()
     return newbursts
 
-def export_bidtanxs_to_kml(bidtanxs, outpath = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/insar_temp/frames_redef/kmls', projname = 'track', merge = False):
+def export_bidtanxs_to_kml(bidtanxs, outpath = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/test', projname = 'track', merge = False):
     #kmlout name will be auto_completed
     bidtanxs.sort()
     tracks = set()
@@ -508,6 +571,64 @@ def export_frame_to_kml(frame, outpath = '/gws/nopw/j04/nceo_geohazards_vol2/LiC
     bidtanxs = lq.sqlout2list(ai)
     export_bidtanxs_to_kml(bidtanxs, outpath, projname = frame)
 
+
+def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/'):
+    asc_gpd = gpd.geodataframe.GeoDataFrame()
+    desc_gpd = gpd.geodataframe.GeoDataFrame()
+    for i in range(1,175+1):
+        print('preparing frames from track {}'.format(i))
+        #descending:
+        frames = lq.get_frames_in_orbit(i, 'D')
+        frames = lq.sqlout2list(frames)
+        for frame in frames:
+            a = frame2geopandas(frame)
+            if type(a) != type(None):
+                desc_gpd = desc_gpd.append(a)
+        #ascending
+        frames = lq.get_frames_in_orbit(i, 'A')
+        frames = lq.sqlout2list(frames)
+        for frame in frames:
+            a = frame2geopandas(frame)
+            if type(a) != type(None):
+                asc_gpd = asc_gpd.append(a)
+    
+    if os.path.exists(kmldirpath+'ascending.kml'):
+        os.remove(kmldirpath+'ascending.kml')
+    if os.path.exists(kmldirpath+'descending.kml'):
+        os.remove(kmldirpath+'descending.kml')
+    
+    export_geopandas_to_kml(asc_gpd, kmldirpath+'ascending.kml')
+    export_geopandas_to_kml(desc_gpd, kmldirpath+'descending.kml')
+
+
+
+def delete_frame(frame):
+    print('cannot use this anymore, in CentOS7 - please contact admin to delete frame '+frame)
+    return False
+    polyid = lq.get_frame_polyid(frame)[0][0]
+    if not polyid:
+        print('error - is it correct frame??')
+        return
+    cmd_mysql='mysql -h 130.246.129.155 -u earmla -pT34mLiCS licsar_batch'
+    os.system('setFrameInactive.py {0}'.format(frame))
+    track=str(int(frame[0:3]))
+    os.system('rm -rf $LiCSAR_procdir/{0}/{1} $LiCSAR_public/{0}/{1}'.format(track,frame))
+    os.system("sed -i '/{}/d' /gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/frames.csv".format(frame))
+    polyid = lq.get_frame_polyid(frame)[0][0]
+    sql = "delete from polygs2master where polyid={};".format(polyid)
+    os.system(cmd_mysql+' -e "{}"'.format(sql))
+    sql = "delete from polygs2bursts where polyid={};".format(polyid)
+    os.system(cmd_mysql+' -e "{}"'.format(sql))
+    frame_workaround = frame.replace('A','X')
+    frame_workaround = frame_workaround.replace('D','X')
+    sql = "update polygs set polyid_name='{0}' where polyid_name='{1}';".format(frame_workaround, frame)
+    os.system(cmd_mysql+' -e "{}"'.format(sql))
+    sql = "delete from polygs where polygs.polyid_name='{}';".format(frame_workaround)
+    rc = os.system(cmd_mysql+' -e "{}" 2>/dev/null'.format(sql))
+    if rc != 0:
+        print('WARNING: the frame was only partially removed. But it should not appear in processing')
+
+
 def delete_frame_commands(frame):
     print('setFrameInactive.py {0}'.format(frame))
     track=str(int(frame[0:3]))
@@ -527,4 +648,32 @@ def delete_frame_commands(frame):
     sql = "delete from polygs where polygs.polyid_name='{}';".format(frame_workaround)
     print(sql)
     print('')
+
+def remove_bad_bursts(frame, badbursts, testonly = True):
+    #badbursts should be a list of bursts existing in the frame that should be removed
+    #e.g. the list of missing bursts during the licsar_init_frame.sh script..
+    #in testonly - it will only give text output, rather than really do something..
+    bursts = lq.get_bidtanxs_in_frame(frame)
+    bursts = lq.sqlout2list(bursts)
+    for b in badbursts:
+        bursts.remove(b)
+    generate_new_frame(bursts, testonly)
+    print('to remove the old frame, you should do:')
+    print("fc.delete_frame('{}')".format(frame))
+    #delete_frame_commands(frame)
+
+
+def add_more_bursts(frame, extrabursts, testonly = True):
+    #extrabursts should be a list of bursts not existing in the frame, to be added there
+    #in testonly - it will only give text output, rather than really do something..
+    bursts = lq.get_bidtanxs_in_frame(frame)
+    bursts = lq.sqlout2list(bursts)
+    newbursts = bursts+extrabursts
+    #remove duplicities
+    newbursts = list(set(newbursts))
+    newbursts.sort()
+    generate_new_frame(newbursts, testonly)
+    print('to remove the old frame, you should do:')
+    print("fc.delete_frame('{}')".format(frame))
+
 

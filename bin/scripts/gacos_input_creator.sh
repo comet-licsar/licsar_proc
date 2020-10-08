@@ -30,17 +30,17 @@ else
    exit 1
 fi
 
-
-if [ -f $prod_dir/$track/$frame/metadata/$frame'-poly.txt' ]; then
-   minlat=`awk 'BEGIN{a=1000}{if ($2<0+a) a=$2} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
-   maxlat=`awk 'BEGIN{a=   0}{if ($2>0+a) a=$2} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
-
-   minlong=`awk 'BEGIN{a=1000}{if ($1<0+a) a=$1} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
-   maxlong=`awk 'BEGIN{a=   0}{if ($1>0+a) a=$1} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
-   echo $minlat $maxlat $minlong $maxlong >> $work_dir/$frame.inp
+hgttif=$prod_dir/$track/$frame/metadata/$frame'.geo.hgt.tif'
+if [ -f $hgttif ]; then
+   gmt grdinfo -C -M $hgttif | gawk {'print $4" "$5" "$2" "$3'} >> $work_dir/$frame.inp
+   #minlat=`awk 'BEGIN{a=1000}{if ($2<0+a) a=$2} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
+   #maxlat=`awk 'BEGIN{a=   0}{if ($2>0+a) a=$2} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
+   #minlong=`awk 'BEGIN{a=1000}{if ($1<0+a) a=$1} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
+   #maxlong=`awk 'BEGIN{a=   0}{if ($1>0+a) a=$1} END{print a}' $prod_dir/$track/$frame/metadata/$frame'-poly.txt'`
+   #echo $minlat $maxlat $minlong $maxlong >> $work_dir/$frame.inp
 else
    echo "File $FILE does not exist."
-   echo $prod_dir/$track/$frame/metadata/$frame'-poly.txt'
+   echo $hgttif
    rm $frame.inp
    exit 1
 fi
@@ -59,7 +59,11 @@ else
 fi
 
 if [ -f $prod_dir/$track/$frame/metadata/baselines ]; then
-   awk '{print $2}' $prod_dir/$track/$frame/metadata/baselines >>$frame.inp
+   for epoch in `awk '{print $2}' $prod_dir/$track/$frame/metadata/baselines`; do
+    if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.ztd.geo.tif ]; then
+     echo $epoch >> $frame.inp
+    fi
+   done
 else
    echo "File $FILE does not exist."
    echo $prod_dir/$track/$frame/metadata/baselines

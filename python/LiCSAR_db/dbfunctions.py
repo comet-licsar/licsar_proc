@@ -7,7 +7,8 @@ import os
 try:
     import sshtunnel
 except:
-    print('problem importing sshtunnel module - ARC will have problems connecting to LiCSInfo db')
+    print('no ssh tunneling available')
+    #print('problem importing sshtunnel module - ARC will have problems connecting to LiCSInfo db')
     #None
 configfile = os.environ["LiCSARconfig"]
 

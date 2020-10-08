@@ -15,9 +15,13 @@ framedir = sys.argv[1]
 pngfile = sys.argv[2] 
 gapfile = sys.argv[3]
 
-ifgdir = os.path.join(framedir, 'products')
+ifgdir = os.path.join(framedir, 'interferograms')
 bperp_file = os.path.join(framedir, 'metadata', 'baselines')
 
+if os.path.exists(pngfile):
+    os.remove(pngfile)
+if os.path.exists(gapfile):
+    os.remove(gapfile)
 #%%
 ifgdates = tools_lib.get_ifgdates(ifgdir)
 imdates = tools_lib.ifgdates2imdates(ifgdates)

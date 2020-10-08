@@ -1,11 +1,12 @@
 #!/bin/bash
 if [ -z $2 ]; then 
- echo "inputs are: procdir ifg, e.g. \`pwd\` 20160101_20160202";
+ echo "inputs are: create_geoctiffs_to_pub.sh procdir ifg, e.g. \`pwd\` 20160101_20160202";
  echo "optional parameters:"
  echo "-u .... geocode also unfiltered wrapped interferogram"
- echo "-F .... do full resolution previews (needed for KML)"
+ echo "-F .... do full resolution previews (needed for KML) - this will use different colour bar"
  echo "-L .... do low resolution geotiffs (500x500 m)"
  echo "-H .... do full resolution geotiffs (50x50 m)"
+ echo "-m .... use land mask if available"
  echo "some more parameters:"
  echo "-U .... geocode only unwrapped interferogram"
  echo "-I .... geocode only wrapped interferogram"
@@ -27,12 +28,16 @@ MLIDO=1
 HIRES=0
 LORES=0
 UNFILT=0
+FULL=0
+mask=0
 
-while getopts ":ubUCFHIML" option; do
+while getopts ":ubmUCFHIML" option; do
  case "${option}" in
   b) UNFILT=0; IFGDO=0; COHDO=0; UNWDO=0; MLIDO=0; echo "bypassing other (fast fix)";
      ;;
   u) UNFILT=1; echo "unfiltered ifg will be geocoded";
+     ;;
+  m) mask=1; echo "will try masking"
      ;;
   U) IFGDO=0; COHDO=0; MLIDO=0; echo "you do ONLY unw geo now..";
      ;;
@@ -42,7 +47,7 @@ while getopts ":ubUCFHIML" option; do
      ;;
   M) COHDO=0; UNWDO=0; IFGDO=0; echo "you do ONLY MLIs geo now..";
      ;;
-  F) RESIZE=100; echo "previews will be generated in full resolution";
+  F) FULL=1; echo "previews will be generated in full resolution";
      ;;
   H) HIRES=1; echo "geotiffs will be generated in full resolution (50x50 m)";
      ;;
@@ -191,7 +196,11 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
    #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile   
   if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.bmp ]; then
    convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.png
+   if [ $FULL -eq 1 ]; then
+    convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.full.png
+   fi
   fi
+  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp 2>/dev/null
 #  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
 fi
 fi
@@ -226,6 +235,11 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  # Create bmps
  rasmph_pwr ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' >> $logfile
  convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
+ if [ $FULL -eq 1 ]; then
+  gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -A${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
+  #convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.png' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
+  #rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.png'
+ fi
  #rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #rasmph_pwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
 
@@ -233,7 +247,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  #raspwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
  # Clean
- rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' 2>/dev/null
+ rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' 2>/dev/null
 fi
 fi
 
@@ -251,7 +265,12 @@ if [ $UNFILT -eq 1 ]; then
  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
  rasmph_pwr ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' >> $logfile
  convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
- rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' 2>/dev/null
+ if [ $FULL -eq 1 ]; then
+  gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -A${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
+  #convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.png' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
+  #rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.png'
+ fi
+ rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' 2>/dev/null
 fi
 
 
@@ -270,13 +289,19 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/$
   #new version of gamma shows coherence in colour... using old-school cpxfiddle as workaround
   #rascc ${procdir}/GEOC/${ifg}/${ifg}.geo.cc - ${width_dem} - - - $reducfac_dem $reducfac_dem 0 1 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp >> $logfile
  # module load doris
-  byteswap -o ${ifg}.geo.cc.tmp 4 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc >/dev/null
+  #byteswap -o ${ifg}.geo.cc.tmp 4 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc >/dev/null
+  #will use the gamma swapper here..
+  swap_bytes ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc ${ifg}.geo.cc.tmp 4 >/dev/null
   cpxfiddle -q normal -w ${width_dem} -f r4 -o sunraster -c gray -M $reducfac_dem/$reducfac_dem -r 0/0.9 ${ifg}.geo.cc.tmp > ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras 2>/dev/null
   convert ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp
   rm -f ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp
   # Need to remove the black border, but the command below is no good as it removes the black parts of the coherence!
   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
   convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.png
+  if [ $FULL -eq 1 ]; then
+   convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.full.png
+  fi
+  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp 2>/dev/null
 fi
 fi
 
@@ -294,12 +319,37 @@ if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/GEOC.MLI/$im ]; 
  #generate raster preview
  raspwr ${procdir}/GEOC.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
  convert -transparent black -resize $RESIZE'%' ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli.png
+ rm ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli  2>/dev/null
 fi 
 done
 fi
 
+rm gmt.history 2>/dev/null
+
 echo "done"
 
+if [ $mask -eq 1 ]; then
+  echo "not ready yet"
+  exit
+  frame=`basename $procdir`
+  tr=`echo $frame | sed 's/^0//' | sed 's/^0//'`
+  if [ -f $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif ]; then
+   maskfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+  elif [ -f $procdir/$frame.geo.landmask.tif ]; then
+   maskfile=$procdir/$frame.geo.landmask.tif
+  else 
+   wget --no-check-certificate -O $procdir/$frame.geo.landmask.tif https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
+   if [ -f $procdir/$frame.geo.landmask.tif ]; then maskfile=$procdir/$frame.geo.landmask.tif; else maskfile=''; fi
+  fi
+  if [ ! -z $maskfile ]; then
+   echo "applying mask"
+   for x in `ls $procdir/GEOC/${ifg}/*tif`; do
+    mv $x $x.temp.tif
+    gdal_calc.py -A $x.temp.tif -B $maskfile --NoDataValue=0 --outfile=$x --calc="A*B" >/dev/null 2>/dev/null
+    rm $x.temp.tif
+   done
+  fi
+fi
 #Move it to the public area(?)
 #for filename in .......; do
 # if [ ! -f ${publicdir}/ ]

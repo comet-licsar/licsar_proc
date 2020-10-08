@@ -22,14 +22,17 @@ import global_config as gc
 parser = ConfigParser()
 parser.read(gc.configfile)
 parser.get('sqlinfo','use_tunnel')
-if bool(int(parser.get('sqlinfo','use_tunnel'))):
+use_tunnel = bool(int(parser.get('sqlinfo','use_tunnel')))
+if use_tunnel:
     from dbfunctions import Conn_tunnel_db as Conn_db
+    print('warning - ssh tunnel will be used - close it when finished')
     conn, tunnel = Conn_db()
 else:
     from dbfunctions import Conn_db
-    conn = Conn_db()
-if conn == 'MYSQL ERROR':
-    print('No database connection could be established')
+    #conn = Conn_db()
+
+#if conn == 'MYSQL ERROR':
+#    print('No database connection could be established')
 
 def delete_frame_only(frame):
     sql = "delete from polygs where polygs.polyid_name='{}';".format(frame)
@@ -46,7 +49,10 @@ def rename_frame(frameold, framenew):
     return res
 
 def do_pd_query(query):
-    #conn = Conn_db()
+    if use_tunnel:
+        global conn
+    else:
+        conn = Conn_db()
     #if type(conn) == tuple:
     #    conn = conn[0]
     df = pd.read_sql_query(query, conn)
@@ -55,7 +61,10 @@ def do_pd_query(query):
 def do_query(query, commit=False):
     # execute MySQL query and return result
     try:
-        #conn = Conn_db()
+        if use_tunnel:
+            global conn
+        else:
+            conn = Conn_db()
         if conn == 'MYSQL ERROR':
             print('No database connection could be established to perform the following query: \n%s' % query)
             return 'MYSQL ERROR'
@@ -153,6 +162,17 @@ def get_polygon_from_frame(frame):
     polygon = Polygon(zip(lons2,lats2))
     return polygon
 
+
+def get_bursts_in_file(filename):
+    # S1 file name can end on .zip, .SAFE or be just identifier..
+    filename = filename.split('.')[0]
+    sql_q = "select distinct bursts.bid_tanx from bursts " \
+            "inner join files2bursts fb on fb.bid=bursts.bid " \
+            "inner join files on fb.fid=files.fid "\
+            "where files.name='{0}';".format(filename)
+    return do_query(sql_q)
+
+
 def get_bursts_in_frame(frame):
     # takes frame, returns list with burstid, centre_lon and 
     # centre_lat of all bursts in frame
@@ -181,6 +201,21 @@ def get_bidtanxs_in_frame(frame):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
             "where polygs.polyid_name='{0}';".format(frame)
         return do_query(sql_q)
+
+
+def get_bidtanxs_in_track(track = '001A', onlyFrames = True):
+    # takes trackid (e.g. '001A'), returns list with burstid, centre_lon and 
+    if onlyFrames:
+        sql_q = "select distinct bursts.bid_tanx from bursts " \
+            "inner join polygs2bursts on polygs2bursts.bid=bursts.bid " \
+            "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
+            "where polygs.polyid_track='{0}';".format(track)
+    else:
+        if type(track) == str:
+            track = str(int(track[:3]))
+        sql_q = "select distinct bursts.bid_tanx from bursts where bid_tanxtk = {0};".format(track)
+    return do_query(sql_q)
+
 
 def get_frame_files_period(frame,t1,t2):
     # takes frame and two datetime.date objects and returns list returns
@@ -229,6 +264,10 @@ def get_frame_files_date(frame,date):
 
 def get_frame_polyid(frame):
     sql_q = "select distinct polyid from polygs where polyid_name='{0}';".format(frame)
+    return do_query(sql_q)
+
+def get_framename_from_fid(fid):
+    sql_q = "select distinct polyid_name from polygs where polyid={0};".format(str(fid))
     return do_query(sql_q)
 
 def get_ipf(filename):
@@ -712,7 +751,7 @@ def get_eqid(eventid):
 def insert_new_eq(event):
     sql_q = "INSERT INTO eq " \
             "    (USGS_ID, magnitude, location, depth, time, lat, lon) " \
-            "VALUES ('{0}',{1},'{2}',{3},'{4}',{5},{6});".format(event.id, event.magnitude, event.location,
+            "VALUES ('{0}',{1},'{2}',{3},'{4}',{5},{6});".format(event.id, event.magnitude, event.location.replace("'"," "),
             event.depth, event.time.strftime('%Y-%m-%d %H:%M:%S'), round(event.latitude,2), round(event.longitude,2))
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
@@ -726,7 +765,7 @@ def insert_new_eq(event):
 def insert_new_eq2frame(eqid, fid, post_acq = False):
     if post_acq:
         next_acq = post_acq + dt.timedelta(days=6)
-        last_acq = post_acq + dt.timedelta(days=12)
+        last_acq = post_acq + dt.timedelta(days=24)
         sql_q = "INSERT INTO eq2frame " \
             "    (eqid, fid, frame_status, post_acq, coifg_status, next_acq, last_acq, postifg_status) " \
             "VALUES ({0},{1},1,'{2}',1,'{3}','{4}', 1);".format(eqid, fid, post_acq.strftime('%Y-%m-%d %H:%M:%S'), next_acq.strftime('%Y-%m-%d %H:%M:%S'), last_acq.strftime('%Y-%m-%d %H:%M:%S'))

@@ -19,6 +19,15 @@
 # documented on the project page [to be done!].
 #
 ##########################################################
+
+#fix for bsub -> slurm
+a=`which bsub 2>/dev/null`
+if [ -z $a ]; then
+ echo "setting bsub2slurm"
+ alias bsub=bsub2slurm.sh
+fi
+
+
 function init_LiCSAR(){
   # RAW_DIR variable has to be defined in the launch script!!
   while getopts ":m:p:" OPTION ; do
@@ -479,14 +488,15 @@ function check_missing_bursts(){
 
 ########################################################################
 ########################################################################
-# Uncompress zip files using jar
+# Uncompress zip files
 function uncompressSAFE(){
   local slcdate=$1
   local slcdir=SLC/${slcdate}
   cd ${slcdir}
   for i in `ls *.zip`; do 
     echo "  Uncompressing for date: $slcdate file: $i"
-    jar -xf $i ; # It is necessary to move where the zip softlinks are to uncompress them
+    #jar -xf $i ; # It is necessary to move where the zip softlinks are to uncompress them
+    7za x $i ; # It is necessary to move where the zip softlinks are to uncompress them
   done
   cd ../..
 }; export -f uncompressSAFE

@@ -6,18 +6,16 @@ Created on Mon Jul 15 14:25:06 2019
 @author: earmla
 """
 from PyQt5 import QtCore, QtWidgets, QtGui
-#from PyQt5.QtGui import QPixmap
-#from PyQt5.QtWidgets import QLabel, QMainWindow, QApplication, QWidget, QVBoxLayout
-#from PyQt5.QtWidgets import QWidget,QMessageBox #, QListWidgetItem
-import sys, os #, stat
+import sys, os
 from fnmatch import fnmatch
-import subprocess as subp
+#import subprocess as subp
 import pickle
 import copy
+import requests
+import numpy as np
+from lxml import html
+import wget
 
-#import pandas as pd
-
-#from check_ifg import *
 class var():
     outDir = None
 
@@ -32,8 +30,6 @@ class Ui_dialogChooseFrames(object):
     #this way I do a class variable, i.e. shared through all classes.. maybe should be private one?
     frameList = None
     frameListAll = None
-    #def dummy(self):
-    #    self.labeldown.setVisible(True)
         
     def runChecker(self):
         #print(str(self.listFrames.selectedItems()[0].text()))
@@ -42,15 +38,20 @@ class Ui_dialogChooseFrames(object):
         print('Downloading images, wait a bit')
         self.labeldown.setVisible(True)
         self.buttonBox.setDisabled(True)
-        if downloadIfgs(track, frame):
+        try:
+            downloadIfgs(track, frame)
+            downloaded = True
+        except:
+            downloaded = False
+        if downloaded:
             self.DialogCheck = QtWidgets.QDialog()
             self.UiCheckIfg = Ui_DialogCheckIfg()
             self.UiCheckIfg.setupUi(self.DialogCheck)
             self.UiCheckIfg.selectedFrame = frame
             self.UiCheckIfg.selectedTrack = track
             self.UiCheckIfg.ifgs = getIfgList(frame)
-            self.UiCheckIfg.ifgerrors = getIfgErrors(frame)
-            self.UiCheckIfg.posIfg = 0
+            self.UiCheckIfg.ifgerrors, self.UiCheckIfg.posIfg = getIfgErrors(frame)
+            #self.UiCheckIfg.posIfg = 0
             self.UiCheckIfg.retranslateUi(self.DialogCheck)
             self.UiCheckIfg.drawIfgs(self.DialogCheck)
             #DialogCheck.selectedFrame=selectedFrame
@@ -59,15 +60,8 @@ class Ui_dialogChooseFrames(object):
             self.DialogCheck.raise_()
         else:
             error='some error happened (maybe the frame has no data ready?)'
-            #msg = QtWidgets.QMessageBox()
-            #msg.setText(error)
-            #msg.setStandardButtons(QtWidgets.QMessageBox.Ok )
-            #msg.exec_()
-            #error_dialog = QtWidgets.QErrorMessage(self.DialogCheck)
             error_dialog = QtWidgets.QErrorMessage()
             error_dialog.showMessage(str(error))
-            #error_dialog.setWindowModality(QtCore.Qt.ApplicationModal)
-            #error_dialog.setWindowModality(QtCore.Qt.WindowModal)
             error_dialog.exec_()
         self.buttonBox.setEnabled(True)
         self.labeldown.setVisible(False)
@@ -137,7 +131,7 @@ class Ui_dialogChooseFrames(object):
         self.label.setText(_translate("dialogChooseFrames", "Please select track and frame"))
         #self.labeldown.setText(_translate("dialogChooseFrames", "Please wait, downloading..."))
         self.labeldown.setText(_translate("dialogChooseFrames", "wait for download after clicking"))
-        self.checkOnly.setText(_translate("dialogChooseFrames", "not checked only"))
+        self.checkOnly.setText(_translate("dialogChooseFrames", "exclude checked"))
 
 class Ui_DialogCheckIfg(object):
     selectedFrame = None
@@ -240,6 +234,34 @@ class Ui_DialogCheckIfg(object):
         shortcutright = QtWidgets.QShortcut(QtGui.QKeySequence.MoveToNextChar, self.btnNextImage)
         shortcutleft.activated.connect(self.showPrevIfg)
         shortcutright.activated.connect(self.showNextIfg)
+        
+        shortcut0 = QtWidgets.QShortcut(QtGui.QKeySequence('0'), self.rbNoError)
+        shortcut0.activated.connect(self.rbNoError.toggle)
+        shortcut1 = QtWidgets.QShortcut(QtGui.QKeySequence('1'), self.btnError1)
+        shortcut1.activated.connect(self.btnError1.toggle)
+        shortcut2 = QtWidgets.QShortcut(QtGui.QKeySequence('2'), self.btnError2)
+        shortcut2.activated.connect(self.btnError2.toggle)
+        shortcut3 = QtWidgets.QShortcut(QtGui.QKeySequence('3'), self.btnError3)
+        shortcut3.activated.connect(self.btnError3.toggle)
+        shortcut4 = QtWidgets.QShortcut(QtGui.QKeySequence('5'), self.btnError4)
+        shortcut4.activated.connect(self.btnError4.toggle)
+        shortcut5 = QtWidgets.QShortcut(QtGui.QKeySequence('6'), self.btnError5)
+        shortcut5.activated.connect(self.btnError5.toggle)
+        shortcut6 = QtWidgets.QShortcut(QtGui.QKeySequence('7'), self.btnError6)
+        shortcut6.activated.connect(self.btnError6.toggle)
+        shortcut7 = QtWidgets.QShortcut(QtGui.QKeySequence('4'), self.btnError7)
+        shortcut7.activated.connect(self.btnError7.toggle)
+
+        shortcutpgup = QtWidgets.QShortcut(QtGui.QKeySequence.MoveToPreviousPage, self.label)
+        shortcutpgdwn = QtWidgets.QShortcut(QtGui.QKeySequence.MoveToNextPage, self.label)
+        shortcutpgup.activated.connect(self.showNextIfgMore)
+        shortcutpgdwn.activated.connect(self.showPrevIfgMore)
+
+        shortcutshpgup = QtWidgets.QShortcut(QtGui.QKeySequence.SelectPreviousPage, self.label)
+        shortcutshpgdwn = QtWidgets.QShortcut(QtGui.QKeySequence.SelectNextPage, self.label)
+        shortcutshpgup.activated.connect(self.showNextIfgMore100)
+        shortcutshpgdwn.activated.connect(self.showPrevIfgMore100)
+        
         self.labelCheckingIfg = QtWidgets.QLabel(Dialog)
         self.labelCheckingIfg.setGeometry(QtCore.QRect(10, 10, 581, 16))
         self.labelCheckingIfg.setObjectName("labelCheckingIfg")
@@ -274,14 +296,14 @@ class Ui_DialogCheckIfg(object):
         self.label_2.setText(_translate("Dialog", "unwrapped ifg:"))
         #self.btnCancel.setText(_translate("Dialog", "Cancel"))
         self.label_3.setText(_translate("Dialog", "Type of error identified"))
-        self.rbNoError.setText(_translate("Dialog", "no errors"))
-        self.btnError1.setText(_translate("Dialog", "swath discontinuity ('vertical' line)"))
-        self.btnError2.setText(_translate("Dialog", "unwrapping error (tiles visible)"))
-        self.btnError3.setText(_translate("Dialog", "coregistration error (shifted areas)"))
-        self.btnError7.setText(_translate("Dialog", "spectral div. error (azimuth fringes)"))
-        self.btnError4.setText(_translate("Dialog", "missing bursts (gray/blue areas)"))
-        self.btnError5.setText(_translate("Dialog", "missing (only) unwrapped data"))
-        self.btnError6.setText(_translate("Dialog", "other (or mixed) error"))
+        self.rbNoError.setText(_translate("Dialog", "0: no errors"))
+        self.btnError1.setText(_translate("Dialog", "1: swath discontinuity ('vertical' line)"))
+        self.btnError2.setText(_translate("Dialog", "2: unwrapping error (tiles visible)"))
+        self.btnError3.setText(_translate("Dialog", "3: coregistration error ('ghosting')"))
+        self.btnError7.setText(_translate("Dialog", "4: spectral div. error (azimuth fringes)"))
+        self.btnError4.setText(_translate("Dialog", "5: missing bursts (gray/blue areas)"))
+        self.btnError5.setText(_translate("Dialog", "6: missing (only) unwrapped data"))
+        self.btnError6.setText(_translate("Dialog", "7: other (or mixed) error"))
         self.btnNextImage.setText(_translate("Dialog", "Next image pair"))
         self.btnPrevImage.setText(_translate("Dialog", "Previous"))
         
@@ -290,17 +312,32 @@ class Ui_DialogCheckIfg(object):
         self.labelCheckingIfg.setText(_translate("Dialog", "Checking combination "+pairpath))
         #self.labelIfgNo.setText(_translate("Dialog", "ifg no "))
         self.labelIfgNo.setText(_translate("Dialog", "ifg no. "+str(int(self.posIfg)+1)+" from "+str(len(self.ifgs))))
-        self.labelHelp.setText(_translate("Dialog", "(try left/right arrows and click on images)"))
-    
-    def showNextIfg(self):
+        self.labelHelp.setText(_translate("Dialog", "try arrows, (shift+)PgUp, numbers, click image"))
+
+    def showNextIfgMore(self):
+        self.showNextIfg(20)
+
+    def showPrevIfgMore(self):
+        self.showPrevIfg(20)
+
+    def showNextIfgMore100(self):
+        self.showNextIfg(100)
+
+    def showPrevIfgMore100(self):
+        self.showPrevIfg(100)
+
+    def showNextIfg(self, num = 1):
         _translate = QtCore.QCoreApplication.translate
-        if self.posIfg+1 == self.totalIfgs:
+        if self.posIfg+num >= self.totalIfgs:
             print('You have reached the end of the dataset')
             print('Will save your current inputs - thank you')
             saveIfgErrors(self.selectedFrame,self.ifgs,self.ifgerrors)
             self.labelIfgNo.setText(_translate("Dialog", "results saved"))
         else:
-            self.posIfg = self.posIfg+1
+            if (self.posIfg > 0 and (np.mod(self.posIfg, 25)) == 0):
+                print('autosaving in position {0}'.format(str(self.posIfg)))
+                saveIfgErrors(self.selectedFrame,self.ifgs,self.ifgerrors)
+            self.posIfg = self.posIfg+num
             self.curIfg = self.ifgs[self.posIfg]
             self.curIfgErr = self.ifgerrors[self.posIfg]
             pairpath = str(self.selectedTrack)+'/'+str(self.selectedFrame)+"/"+str(self.ifgs[self.posIfg])
@@ -314,15 +351,15 @@ class Ui_DialogCheckIfg(object):
             #self.rbNoError.toggle()
             self.drawIfgs(self)
 
-    def showPrevIfg(self):
+    def showPrevIfg(self, num = 1):
         _translate = QtCore.QCoreApplication.translate
-        if self.posIfg == 0:
+        if self.posIfg-num < 0:
             print('You have reached the end of the dataset')
             print('Will save your current inputs - thank you')
             saveIfgErrors(self.selectedFrame,self.ifgs,self.ifgerrors)
             self.labelIfgNo.setText(_translate("Dialog", "results saved"))
         else:
-            self.posIfg = self.posIfg-1
+            self.posIfg = self.posIfg-num
             self.curIfg = self.ifgs[self.posIfg]
             self.curIfgErr = self.ifgerrors[self.posIfg]
             pairpath = str(self.selectedTrack)+'/'+str(self.selectedFrame)+"/"+str(self.ifgs[self.posIfg])
@@ -419,16 +456,14 @@ def get_framelist():
 
 def getUncheckedFrames(frameList):
     resFiles = [file for file in os.listdir(var.outDir) if fnmatch(file, '*.savedResults')]
-    checkedFrames = []
+    checkedFrames = [f.split('.')[0] for f in resFiles]
     framelist = frameList.copy()
     framelist = copy.deepcopy(frameList)
-    for item in resFiles:
-        checkedFrames.append(item.split('.')[0])
     for track in framelist:
         frames = framelist[track]
         for item in frames:
             if item in checkedFrames: frames.remove(item)
-        framelist.update({track:frames})
+        #framelist.update({track:frames})
     return framelist
 
 def getIfgList(frame):
@@ -457,46 +492,72 @@ def saveIfgErrors(frame,ifglist,ifgerrors):
     pickle.dump(ifgset,outfile)
     outfile.close()
     #os.chmod(pickleFilePath,stat.S_IRWXG)
-    os.chmod(pickleFilePath,0o777)
+    try:
+        os.chmod(pickleFilePath,0o777)
+    except:
+        print('warning, could not change savedResults permissions')
     print('Saved to '+pickleFilePath)
     #print('Please send this file to M.Lazecky@leeds.ac.uk')
     
 def getIfgErrors(frame):
     #fullpath=os.path.join(var.outDir,frame)
     pickleFile=frame+'.savedResults'
-    ifgerrorslist = []
+    ifglist = getIfgList(frame)
+    lastpos = 0
     if os.path.exists(os.path.join(var.outDir,pickleFile)):
         #print('yes - just load the pickle')
         infile = open(os.path.join(var.outDir,pickleFile),'rb')
         ifgset = pickle.load(infile)
         infile.close()
         ifgerrorslist = ifgset[1]
+        #position of last erroneous ifg
+        try:
+            lastpos = max([i for i, e in enumerate(ifgerrorlist) if e != 0])
+        except:
+            lastpos = 0
+        if len(ifgerrorslist)<len(ifglist):
+            lastpos = len(ifgerrorslist) - 1
+            bb = [0] * (len(ifglist)-len(ifgerrorslist))
+            ifgerrorslist = ifgerrorslist + bb
     else:
-        #prepare it and put all to -1
-        ifglist = getIfgList(frame)
-        noifg = len(ifglist)
-        for i in range(0,noifg):
-            ifgerrorslist.append(0)
-    return ifgerrorslist
+        ifgerrorslist = [0] * len(ifglist)
+    return ifgerrorslist, lastpos
 
 def downloadIfgs(track,frame):
     outDir = os.path.join(var.outDir,str(frame))
     if not os.path.exists(outDir):
         os.mkdir(outDir)
-    os.system('chmod -R 777 '+outDir)
-    webaddr = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'+str(track)+'/'+str(frame)+'/products'
+    rc = os.system('chmod -R 777 '+outDir+' 2>/dev/null')
+    #get list of ifgs:
+    webaddr = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'+str(track)+'/'+str(frame)+'/interferograms'
+    print('getting list of interferograms in LiCSAR')
+    a = requests.get(webaddr)
+    b = html.fromstring(a.content)
+    ifgs = b.xpath('//tr/td/a/text()')
+    ifgs.remove(ifgs[0])
+    ifgs = [w.split('/')[0] for w in ifgs]
+    for ifg in ifgs:
+        print('checking/downloading '+ifg)
+        for ext in ['unw.png', 'diff.png']:
+            webpath = webaddr+'/'+ifg+'/'+ifg+'.geo.'+ext
+            outpath = os.path.join(outDir,ifg+'.geo.'+ext)
+            ##cmd = ['wget','-O',outpath,'-nc',webpath]
+            #cmd = 'wget -O {0} -nc {1} 2>/dev/null'.format(outpath,webpath)
+            #rc = os.system(cmd)
+            #wget.download(url, '/Users/scott/Downloads/cat4.jpg')
+            wget.download(webpath, outpath)
     #wgetcmd = 'wget -r -nd -c -e robots=off -A unw.png,diff.png -P '+outDir
     #cmd = wgetcmd+' '+webadd
     #cmd = [wgetcmd,webadd]
-    cmd = ['wget','-r','-nd','-c','-np','-e','robots=off','-A','unw.png,diff.png','-P',outDir,webaddr]
-    logfilename = os.path.join(outDir,'wget.log')
-    with open(logfilename,'w') as f:
-        try:
-            subp.check_call(cmd,stdout=f)
-            #print('jojojo')
-        except:
-            print('some error happened downloading the products')
-            #messageBox('some error happened (maybe the frame has no data ready?)')
+    #cmd = ['wget','-r','-nd','-c','-np','-e','robots=off','-A','unw.png,diff.png','-P',outDir,webaddr]
+    #logfilename = os.path.join(outDir,'wget.log')
+    #with open(logfilename,'a') as f:
+    #    try:
+    #        subp.check_call(cmd,stdout=f)
+    #        #print('jojojo')
+    #    except:
+    #        print('some error happened downloading the products')
+    #        #messageBox('some error happened (maybe the frame has no data ready?)')
     #print('rc je')
     #print(rc)
     #if rc != 0:
@@ -508,11 +569,13 @@ def downloadIfgs(track,frame):
 if __name__ == "__main__":
     outDir = '/nfs/a1/insar/lics_check'
     if not os.path.exists(outDir):
-        try:
-            os.mkdir(outDir)
-        except:
-            outDir='~/licscheck'
-            if not os.path.exists(outDir): os.mkdir(outDir)
+        print('warning, directory {} does not exist - perhaps you do not run it at Leeds Uni. No problem though'.format(outDir))
+        #try:
+            #os.mkdir(outDir)
+        #except:
+        outDir=os.path.expanduser('licscheck')
+        print('we will use directory {} instead'.format(outDir))
+        if not os.path.exists(outDir): os.mkdir(outDir)
     var.outDir = outDir
     #app = QtWidgets.QApplication(sys.argv)
     app = QtWidgets.QApplication([])

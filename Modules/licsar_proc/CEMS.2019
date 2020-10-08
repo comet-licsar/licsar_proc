@@ -8,7 +8,7 @@ proc ModulesHelp { } {
 #module-whatis "licsar_proc"
 
 set LiCSARpath "/gws/smf/j04/nceo_geohazards/software/licsar_proc"
-puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
+
 
 if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded gamma] } {
@@ -50,7 +50,7 @@ set USER $::env(USER)
 #Setup LiCSAR enviroment variables
 setenv LiCSAR_configpath "$configpath"
 setenv LiCSARpath "$LiCSARpath"
-setenv LiCSAR_temp "/work/scratch-nompiio/$USER/LiCSAR_temp/"
+setenv LiCSAR_temp "/work/scratch-nopw/$USER/LiCSAR_temp/"
 
 setenv ORB_DIR "$grouppath/orbits/"
 setenv dems_dir "$grouppath/DEMs/"
@@ -70,4 +70,7 @@ prepend-path PATH "$LiCSARpath/python"
 prepend-path PYTHONPATH "$LiCSARpath/python"
 prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_lib"
 prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_db"
+
+#load bash routines - this includes bsub2slurm
+puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 

@@ -75,6 +75,30 @@ else
  LiCSAR_05_mk_angles_master
  echo "Generating E-N-U files"
  submit_lookangles.py -f $frame -t $tr
+ echo "Generating land mask (would remove heights below 0 m)"
+ landmask=$curdir/$tr/$frame/geo/landmask
+ hgtgeo=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+ gmt grdlandmask -G$landmask.grd -R$hgtgeo -Df -N0/1/1/1/1
+ gmt grdconvert $landmask.grd $landmask.tif
+ rm $landmask.grd
+ cp $landmask.tif $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+
+#but this is wrong..so fixing.. ugly fast way:
+ hgt=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+ lm=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+ g=`gmt grdinfo -C $hgt`
+ ulx=`echo $g | gawk {'print $2'}`
+ uly=`echo $g | gawk {'print $5'}`
+ lrx=`echo $g | gawk {'print $3'}`
+ lry=`echo $g | gawk {'print $4'}`
+ #gdal_translate -of GTIFF -projwin $ulx $uly $lrx $lry $LiCSAR_procdir/GIS/GLDASp4_landmask_025d.nc4 $out
+ ncpdq -O -h -a -lat $lm $lm.temp
+ rm $lm
+ gdal_translate -co COMPRESS=DEFLATE -co PREDICTOR=3 -a_ullr $ulx $uly $lrx $lry -of GTiff -a_srs EPSG:4326 $lm.temp $lm
+ rm $lm.temp
+
+ 
+ 
  echo "Generating public metadata file"
  submit_to_public_metadata.sh $frame
  #sometimes .xy is not generated..

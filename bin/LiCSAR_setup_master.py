@@ -50,6 +50,7 @@ from LiCSAR_lib.mk_imag_lib import check_master_bursts, check_bursts, make_frame
 from LiCSAR_lib.coreg_lib import link_master_rslc, geocode_dem
 from LiCSAR_lib.LiCSAR_misc import Usage,cd
 from LiCSAR_lib import s1data
+import framecare as fc
 
 ################################################################################
 # Master job started function
@@ -61,6 +62,7 @@ def master_job_started(job_id, acq_date):
         lq.set_job_started(job_id)
         # update job requests table with status
         lq.set_job_request_started_master(job_id, acq_date)
+
 
 ################################################################################
 # Master job finished clean function
@@ -199,7 +201,7 @@ def main(argv=None):
         todown = s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=90)))
         print(todown)
         try:
-            burstlist, filelist, dates = check_bursts(framename,dt.date(2014,10,0o1),dt.date.today(),lq)
+            burstlist, filelist, dates = check_bursts(framename,dt.date(2015,10,0o1),dt.date.today(),lq)
         except:
             burstlist = None
             filelist = None
@@ -311,16 +313,18 @@ def main(argv=None):
         if rc == 0:
             f.write('\nMaster geocoding completed successfully\n')
             gtcall = ['create_geoctiff_lookangles.sh', procdir, masterdate.strftime('%Y%m%d')]
-            try:
-                gt_code = subp.check_call(gtcall)
-                if gt_code != 0:
-                    print('Something went wrong during the geotiff creation - non zero return.') 
-            except:
-                print('Something went wrong during the geotiff creation - except call.')
-                #f.write('\nSomething went wrong during the geotiff creation\n')
+            print('now do :')
+            print(gtcall)
+            #try:
+            #    gt_code = subp.check_call(gtcall)
+            #    if gt_code != 0:
+            #        print('Something went wrong during the geotiff creation - non zero return.') 
+            #except:
+            #    print('Something went wrong during the geotiff creation - except call.')
+            #    #f.write('\nSomething went wrong during the geotiff creation\n')
             #the line below should be removed. but i keep it, otherwise i would cause an error further in licsar_initiate_new_frame.sh
-            if gt_code != 0:
-                print('Something went wrong during the geotiff creation - non zero return.') 
+            #if gt_code != 0:
+            #    print('Something went wrong during the geotiff creation - non zero return.') 
         if rc == 1:
             f.write('\nMaster geocoding encountered a problem during the lookup table creation')
             master_job_finished_failed(job_id, masterdate)
@@ -352,7 +356,10 @@ def main(argv=None):
             f.write('\nProblem creating a link to master SLC directory in RSLC directory.')
             master_job_finished_failed(job_id, masterdate)
             return 1
-
+############################################################ Update frames.csv file
+    print('updating frames.csv file')
+    gpan = fc.frame2geopandas(framename)
+    fc.export_frames_to_licsar_csv(gpan, store_zero = True)
 ############################################################ Update job database
     # Write to DB output the time the processing has finished and update its status.
     master_job_finished_clean(job_id, masterdate)

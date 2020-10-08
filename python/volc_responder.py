@@ -10,6 +10,7 @@ from batchEnvLib import get_rslc_list
 
 public_path = os.environ['LiCSAR_public']
 framelistfile = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/active_frames.txt'
+customframesfile = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/active_frames_custom.txt'
 
 def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
     #thanks Fabien for this!
@@ -73,7 +74,14 @@ def main():
     print('getting list of frames covering the active volcanoes')
     frames = get_frames_from_kml()
     print('There are {0} frames to process over the active volcanoes'.format(str(len(frames))))
-    print('their list is saved to: {}'.format(framelistfile))
+    with open(customframesfile, 'r') as f:
+        custom_frames = f.read().splitlines()
+    for cf in custom_frames:
+        if cf in frames:
+            custom_frames.remove(cf)
+    print('adding other {} custom frames to the set'.format(len(custom_frames)))
+    frames = frames + custom_frames
+    print('The final list is saved to: {}'.format(framelistfile))
     with open(framelistfile, 'w') as f:
         for frame in frames:
             f.write("%s\n" % frame)

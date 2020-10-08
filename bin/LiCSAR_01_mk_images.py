@@ -401,7 +401,11 @@ def main(argv=None):
                             "processing with next image...")
                     rc = 4
         # datedir = os.path.join(procdir,'SLC',date.strftime('%Y%m%d')) # is this needed?
-
+        else:
+            print('WARNING: list of bursts is empty - probably not using LiCSInfo?')
+            print('trying to go on, no warranties')
+            rc = make_frame_image(date,framename,imburstlist,procdir, lq,job_id) # Key processing function
+        
 ############################################################ Processing status > report file
         with open(reportfile,'a') as f:
             if rc == 0:

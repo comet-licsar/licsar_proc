@@ -13,8 +13,10 @@
 #dbuser = s1user
 #dbpass = Aerahf7cee2j
 # functional db in CEMS for COMET LiCS db
-host = 130.246.129.18
-dbname = licsinfo_live
+#host = 130.246.129.18
+host = 130.246.129.155
+dbname = licsar_live
+#dbname = licsinfo_live
 dbuser = lics
 dbpass = T34mLiCS
 

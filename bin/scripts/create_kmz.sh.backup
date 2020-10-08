@@ -1,0 +1,178 @@
+#!/bin/bash
+#this will force regenerate full previews
+overwrite=1
+
+if [ -z $1 ]; then echo "parameter is full path to the folder containing geotiffs";
+echo "e.g. /gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/58/058A_05279_131311/interferograms/20190317_20190323"
+echo "if second (optional) parameter is a frame name, it will use it in the output filename (e.g. 058A_05279_131311_20200505_20200517.kmz)"
+exit;
+fi
+
+if [ ! -z $2 ]; then opt=$2; else opt=0; fi
+
+pair=`basename $1`
+if [ ! `echo $pair | wc -m` -eq 18 ]; then 
+ echo "wrong path - it should end on pairname, e.g. 20190101_20190107"
+ exit
+fi
+
+if [ ! -f $1/$pair.geo.unw.png ] || [ ! -f $1/$pair.geo.diff.png ] || [ ! -f $1/$pair.geo.unw.tif ]; then
+ echo "some of the geocoded product does not exist here"
+ exit
+fi
+
+### let's make it
+echo "generating kmz file for pair "$pair
+cd $1
+unw_tif=$pair.geo.unw.tif
+unw_bmp=$pair.geo.unw.png
+#ifg_tif=$pair.geo.diff_pha.tif
+#ifg_bmp=$pair.geo.diff.png
+#ifg_unfiltered_bmp=$pair.geo.diff_unfiltered.png
+coh_bmp=$pair.geo.cc.png
+ifg_bmp=$pair.geo.diff.full.png
+ifg_unfiltered_bmp=$pair.geo.diff_unfiltered.full.png
+
+if [ -f $pair.geo.unw.full.png ]; then
+ unw_bmp=$pair.geo.unw.full.png;
+ coh_bmp=$pair.geo.cc.full.png
+fi
+
+if [ $overwrite -eq 1 ]; then
+ echo "generating fullscale preview"
+ gmt grdimage $pair.geo.diff_pha.tif -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -A$ifg_bmp
+ convert $ifg_bmp temptemp.png
+ mv temptemp.png $ifg_bmp
+  if [ -f $pair.geo.diff_unfiltered_pha.tif ]; then
+    gmt grdimage $pair.geo.diff_unfiltered_pha.tif -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -A$ifg_unfiltered_bmp
+    convert $ifg_unfiltered_bmp temptemp.png
+    mv temptemp.png $ifg_unfiltered_bmp
+  fi
+else
+ if [ ! -f $ifg_bmp ]; then
+  echo "generating fullscale preview"
+  gmt grdimage $pair.geo.diff_pha.tif -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -A$ifg_bmp
+  convert $ifg_bmp temptemp.png
+  mv temptemp.png $ifg_bmp
+  #convert -transparent black temp_blk.png $ifg_bmp
+  #rm temp_blk.png
+ fi
+ if [ ! -f $ifg_unfiltered_bmp ]; then
+  if [ -f $pair.geo.diff_unfiltered_pha.tif ]; then
+    gmt grdimage $pair.geo.diff_unfiltered_pha.tif -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -A$ifg_unfiltered_bmp
+    convert $ifg_unfiltered_bmp temptemp.png
+    mv temptemp.png $ifg_unfiltered_bmp
+  fi
+ fi
+fi
+
+#if [ ! -f $unw_bmp ]; then
+#  echo "generating fullscale preview"
+#  gmt grdimage $pair.geo.diff_pha.tif -C$LiCSARpath/misc/unw.cpt -JM1 -A$unw_bmp
+  #convert -transparent black temp_blk.png $ifg_bmp
+  #rm temp_blk.png
+#fi
+
+rm gmt.history 2>/dev/null
+#generating previews
+cp -r $LiCSARpath/misc/kmlfiles files
+#convert $unw_bmp files/`basename $unw_bmp .bmp`.png
+#convert $ifg_bmp files/`basename $ifg_bmp .bmp`.png
+cp $unw_bmp $ifg_bmp $coh_bmp files/.
+#getting templates and fit it
+cp $LiCSARpath/misc/template.kml $pair.kml
+
+
+# update 2020: include unfiltered if exists
+if [ -f $ifg_unfiltered_bmp ]; then
+ echo "including also unfiltered file"
+ cp $ifg_unfiltered_bmp files/.
+ cp $LiCSARpath/misc/template_unfilt.kml $pair.kml
+fi
+
+#sed -i 's///' $pair.kml
+#sed -i 's/TYEART/'`date +'%Y'`'/' $pair.kml
+sed -i 's/TFIRSTDATET/'`echo $pair | cut -d '_' -f1`'/' $pair.kml
+sed -i 's/TLASTDATET/'`echo $pair | cut -d '_' -f2`'/' $pair.kml
+#sed -i 's/TFILEUNWT/'`basename $unw_bmp .bmp`.png'/' $pair.kml
+#sed -i 's/TFILEIFGT/'`basename $ifg_bmp .bmp`.png'/' $pair.kml
+sed -i 's/TFILEUNWT/'`basename $unw_bmp`'/' $pair.kml
+sed -i 's/TFILEIFGT/'`basename $ifg_bmp`'/' $pair.kml
+sed -i 's/TFILECOHT/'`basename $coh_bmp`'/' $pair.kml
+
+if [ -f $ifg_unfiltered_bmp ]; then
+ sed -i 's/TFILEUNFIFGT/'`basename $ifg_unfiltered_bmp`'/' $pair.kml
+fi
+
+#coordinates
+gdalinfo -stats $unw_tif | grep Coordinates -A4 | tail -n+2 | cut -d '(' -f2 | cut -d ')' -f1 > tmp.coord
+rm tmp.ewsn 2>/dev/null
+for x in `cat tmp.coord | cut -d ',' -f1 | sort -n -u`; do echo $x >> tmp.ewsn; done
+for x in `cat tmp.coord | cut -d ',' -f2 | sort -n -u`; do echo $x >> tmp.ewsn; done
+
+E=`sed '1q;d' tmp.ewsn`
+W=`sed '2q;d' tmp.ewsn`
+S=`sed '3q;d' tmp.ewsn`
+N=`sed '4q;d' tmp.ewsn`
+sed -i 's/TEASTT/'$E'/' $pair.kml
+sed -i 's/TWESTT/'$W'/' $pair.kml
+sed -i 's/TSOUTHT/'$S'/' $pair.kml
+sed -i 's/TNORTHT/'$N'/' $pair.kml
+
+centerlat=`python -c "print(("$S"+"$N")/2)"`
+centerlon=`python -c "print(("$E"+"$W")/2)"`
+sed -i 's/TCENLATT/'$centerlat'/' $pair.kml
+sed -i 's/TCENLONT/'$centerlon'/' $pair.kml
+
+
+frame=`pwd | rev | cut -d '/' -f3 | rev`
+tr=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+  if [ -f $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif ]; then
+   maskfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+  elif [ -f $procdir/$frame.geo.landmask.tif ]; then
+   maskfile=$procdir/$frame.geo.landmask.tif
+  else 
+   wget --no-check-certificate -O $procdir/$frame.geo.landmask.tif https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
+   if [ -f $procdir/$frame.geo.landmask.tif ]; then maskfile=$procdir/$frame.geo.landmask.tif; else maskfile=''; fi
+  fi
+if [ ! -z $maskfile ]; then
+ maskmin=`gdalinfo -stats $maskfile | grep ICS_MINIMUM | cut -d '=' -f2`
+ if [ $maskmin -eq 0 ]; then
+  echo "applying landmask"
+  maskfilepng=`echo $maskfile | rev | cut -c 4- | rev`png
+  if [ ! -f $maskfilepng ]; then
+   gmt grdimage $maskfile -JM1 -Cwhite,black -Gwhite -A$maskfilepng
+  fi
+  cp $maskfilepng tempmask.png
+  for bmp in `ls files/$pair*png`; do
+   bmpmasked=$bmp.masked.png;
+   dims=`identify $bmp 2>/dev/null | gawk {'print $3'}`
+   if [ ! `identify tempmask.png | gawk {'print $3'}` == $dims ]; then
+    convert $maskfilepng -resize $dims\! tempmask.png
+   fi
+   #from  https://stackoverflow.com/questions/59935181/mask-png-image-with-black-and-white-mask
+   convert $bmp \( tempmask.png -negate \) \( -clone 0 -transparent black +transparent black \) -insert 0 -composite tempp.png
+   convert -flatten tempp.png tempp2.png
+   convert -transparent white tempp2.png $bmpmasked
+   rm tempp.png tempp2.png;
+   mv $bmpmasked $bmp;
+  done
+  rm tempmask.png
+ fi
+fi
+
+zip -r $pair.zip $pair.kml files >/dev/null
+if [ $opt == 0 ]; then
+ outfile=$pair.kmz
+else
+ outfile=$opt'_'$pair.kmz
+fi
+mv $pair.zip $outfile
+
+rm tmp.coord tmp.ewsn
+rm -r files $pair.kml $unw_tif.aux.xml
+if [ `echo $1 | grep -c LiCSAR_products` -gt 0 ]; then
+ echo "done. Being in public folder, the file should be accessible at:"
+ echo "http://gws-access.ceda.ac.uk/public/nceo_geohazards/"`echo $1 | cut -c 43-`"/"$outfile
+fi
+

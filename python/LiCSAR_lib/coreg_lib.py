@@ -320,11 +320,11 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
         slave3datestr = slave3tab.split('/')[-1][0:8]+croptext
     else:
         slave3datestr = ''
-    slaverslcdir = os.path.join(procdir,'RSLC',slavedate.strftime('%Y%m%d'))
+    #slaverslcdir = os.path.join(procdir,'RSLC',slavedate.strftime('%Y%m%d'))
     if not os.path.exists(slaverslcdir):
         os.mkdir(slaverslcdir)
     masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+croptext+'_tab')
-    slaveslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'_tab')
+    #slaveslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'_tab')
     slaverslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'R_tab')
     demhgt = os.path.join(geodir,masterdate.strftime('%Y%m%d')+croptext+'.hgt')
     masterdatestr = masterdate.strftime('%Y%m%d')+croptext
@@ -336,6 +336,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     # S1_coreg_TOPS <SLC1_tab> <SLC1_ID> <SLC2_tab> <SLC2_ID> <RSLC2_tab> [hgt] [RLK] [AZLK] [poly1] [poly2] [cc_thresh] [fraction_thresh] [ph_stdev_thresh] [cleaning] [flag1] [RSLC3_tab] [RSLC3_ID]
     cmd = 'S1_coreg_TOPS_noifg {} {} {} {} {} {} {} {} - - 0.8 0.01 0.8 0 1 {} {} > {} 2> {}'.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, 
                 slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), slave3tab, slave3datestr, logfile, errfile)
+    print(cmd)
     #now this may take some 80 minutes
     rc = os.system(cmd)
     # finally do the checks and move files where they belong
@@ -363,6 +364,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
         return 3
     # fill the coreg_quality file:
     with open(qualityfile, "a") as myfile:
+            rc = myfile.write(str(cmd)+'\n')
             rc = myfile.write("Improvement of coregistration offset using intensity cross-correlation:\n")
     cmd = 'grep matching_iteration_ {} >> {}'.format(gamma_qual, qualityfile)
     rc = os.system(cmd)
@@ -764,7 +766,12 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     #get slave bursts
     slavebursts = lq.get_frame_bursts_on_date(framename,slavedate)
     #get master bursts
-    masterbursts = lq.get_frame_bursts_on_date(framename,masterdate)
+    try:
+        masterbursts = lq.get_frame_bursts_on_date(framename,masterdate)
+    except:
+        print('warning, cannot get list of master bursts. assuming same bursts as the secondary img..')
+        masterbursts = slavebursts
+        #i may do some more check here... like in arc_licsar.sh
 ############################################################ Find nearest (date) coregestered slave (already processed slave) to use as auxiliary
     cond = True
     while cond: #sweep through processed slaves till an appropriate aux is found, or till no processed slave available
@@ -778,8 +785,11 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 slave3rslcdir = os.path.join(rslcdir,slave3date.strftime('%Y%m%d'))
                 #print(slavebursts)
                 #print(masterbursts)
-                slave3bursts = masterbursts
-                #slave3bursts = lq.get_frame_bursts_on_date(framename,slave3date)
+                try:
+                    slave3bursts = lq.get_frame_bursts_on_date(framename,slave3date)
+                except:
+                    print('warning, cannot get list of RSLC3 bursts. assuming same burst as master..')
+                    slave3bursts = masterbursts
                 if os.path.exists(slave3rslcdir+slave3date.strftime('/%Y%m%d.lock')):
                         print("found lock {0}, not using date".format(slave3date))
                 if glob(slave3rslcdir+'/*.IW[1-3].rslc') and not os.path.exists(slave3rslcdir+slave3date.strftime('/%Y%m%d.lock')):
@@ -857,32 +867,14 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     if slave3date:
         with open(qualityfile, "a") as myfile:
             rc = myfile.write("Spectral diversity estimation will be performed through near RSLC: "+slave3date.strftime('%Y%m%d')+"\n")
-    #if no missing bursts....
-    #missingbursts = False
-    #this code below would use orig GAMMA command. However our solution is exactly same, (while GAMMA's would work only with newer TOPS_par)
-    if not 1==1:
-        # using official gamma solution (as the one before did some errors e.g. with orbit misfits:
-        print('There are '+str(len(missingbursts))+' missing bursts at either or both ends of the scene')
-        #slaveslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')
-        #                                                                    +'_tab')
-        croptext = '_crop_'+slavedate.strftime('%Y%m%d')
-        slave_croptab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+croptext+
-                                                                        '_tab')
-        slave_cropfilename = os.path.join(slaverslcdir,
-                                slavedate.strftime('%Y%m%d')+croptext+'.rslc')
-        # prepare tab:
-        rc, msg = make_SLC_tab(slave_croptab,slave_cropfilename,swathlist)
-        if not os.path.exists(slaverslcdir):
-            os.mkdir(slaverslcdir)
-        print('..rebuilding slave file')
-        # if the master TOPS_par is too old, need to regenerate it!
-        #if .........:
-        #     par_S1_SLC........
-        # S1_coreg_TOPS_burst_selection <SLC1_tab> <SLC2_tab> <SLC2_tab1> [mode]
-        cmd = 'S1_coreg_TOPS_burst_selection {} {} {} 0'.format(masterslctab, slaveslctab, slave_croptab)
-        rc = os.system(cmd)
+    print('WARNING - some issues detected with wrong detection of missing bursts')
+    print('doing workaround here - ALWAYS check the burst correspondence through GAMMA command')
+    #print('this needs to be improved - I recommend full rewrite of coreg_lib.py -- really, better do it from scratch as this contains routines from year 0..er.. 2015')
     if not missingbursts:
-        print('All bursts available, no recropping of master necessary...')
+        missingbursts = ['fakemissingburst']
+    if not missingbursts:
+        #print('All bursts available, no recropping of master necessary...')
+        print('debug place 1')
         #coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id)
         rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile)
         if rc != 0:
@@ -917,12 +909,12 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     else:
 ############################################################ Crop master to fit with smaller slave
         # this solution was working also with the 20181130 gamma codes. Keeping as it is..
-        print('There are '+str(len(missingbursts))+' missing bursts at either or both ends of the scene')
-        print('..recropping master file')
-        if slave3date:
-            print('..and also recropping auxilliary slave')
-        with open(qualityfile, "a") as myfile:
-            rc = myfile.write("There were missing bursts. Related coreg routine was used \n")
+        #print('There are '+str(len(missingbursts))+' missing bursts at either or both ends of the scene')
+        #print('..recropping master file')
+        #if slave3date:
+        #    print('..and also recropping auxilliary slave')
+        #with open(qualityfile, "a") as myfile:
+        #    rc = myfile.write("There were missing bursts. Related coreg routine was used \n")
         masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')
                                                                             +'_tab')
         masterslcfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')
@@ -932,80 +924,80 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                                                         '_tab')
         cropfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')
                                                                         +croptext+'.rslc')
-    #loop through swaths
-        print('(cropping on swath level)')
-        for iw in swathlist: #['IW1','IW2','IW3']:
-        #get master and slave bursts
-            iwthisburst_m = sorted([b[0] for b in masterbursts if iw in b[0]])
-            iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
-        #find indices which match slave bursts
-            iwstart = iwthisburst_m.index(iwthisburst_s[0])+1
-            iwstop = iwthisburst_m.index(iwthisburst_s[-1])+1
-        #Create master slc tab file
-            mastertabiw = masterslctab+'.'+iw
-            rc, msg = make_SLC_tab(mastertabiw,masterslcfilename,[iw])
-            if rc > 0:
-                print('Something went wrong creating the master tab file...')
-                return 1
-        #create a corresponding cropped master slc tab file
-            croptabiw = croptab+'.'+iw
-            rc, msg = make_SLC_tab(croptabiw,cropfilename,[iw])
-            if rc > 0:
-                print('Something went wrong creating the cropped master tab file...')
-                return 1
-            bursttab = os.path.join( procdir,'tab', 'master'+croptext+'_{0}_burst_tab'.format( iw ) )
-            rc, msg = make_burst_tab( bursttab, iwstart, iwstop)
-            if rc > 0:
-                print('\nProblem creating burst '\
-                                    'tab {0} for date {1}. Error '\
-                                    'message:'\
-                                    '\n {2}'\
-                                    '\nContinuing with next '\
-                                    'date.'.format( bursttab, 
-                                            date, msg ), file=sys.stderr)
-                return 2
-            logfilename = os.path.join(procdir,'log','SLC_copy_S1_TOPS_'+
-                                       masterdate.strftime('%Y%m%d')+
-                                       croptext+'.log')
-        #copy out bursts which are relevant to the cropped master
-            if SLC_copy_S1_TOPS(mastertabiw,croptabiw, bursttab,'',procdir,
-                                                                    logfilename):
+        croptext = '_crop_'+slavedate.strftime('%Y%m%d')
+        slave_croptab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+croptext+
+                                                                        '_tab')
+        slave_cropfilename = os.path.join(slaverslcdir,
+                                slavedate.strftime('%Y%m%d')+croptext+'.rslc')
+        # prepare tab:
+        rc, msg = make_SLC_tab(slave_croptab,slave_cropfilename,swathlist)
+        if not os.path.exists(slaverslcdir):
+            os.mkdir(slaverslcdir)
+        #print('..rebuilding slave file')
+        # if the master TOPS_par is too old, need to regenerate it!
+        #if .........:
+        #     par_S1_SLC........
+        # S1_coreg_TOPS_burst_selection <SLC1_tab> <SLC2_tab> <SLC2_tab1> [mode]
+        #try new version:
+        cmd = 'S1_coreg_TOPS_burst_selection {} {} {} 0 >/dev/null 2>/dev/null'.format(masterslctab, slaveslctab, slave_croptab)
+        print('bursts selection based on GAMMA (may not work for old primary SLCs)')
+        print(cmd)
+        rc = os.system(cmd)
+        if os.listdir(slaverslcdir):
+            #so this went ok... now let's just use it for processing
+            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaverslcdir,slaverslcdir,slave_croptab,slaverfilename,slave3tab,qualityfile)
+            if rc != 0:
                 print("\nError:", file=sys.stderr)
-                print("Something went wrong recropping the master SLC", file=sys.stderr)
-                return 5
-        #if auxiliary slave is present, crop master to it as well
-            slave3_croptab = ''
-            if slave3date:
-                iwthisburst_s3 = sorted([b[0] for b in slave3bursts if iw in b[0]])
+                print("Something went wrong during coregistration", file=sys.stderr)
+                if os.path.exists(slaverslcdir):
+                    shutil.rmtree(slaverslcdir)
+                return rc
+            #Do the RSLC mosaic (should actually exist from the previous steps..
+            if not os.path.exists(slaverfilename):
+                logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
+                                       slavedate.strftime('%Y%m%d')+
+                                       '.log')
+                if not SLC_mosaic_S1_TOPS(slaverslctab,slaverfilename,gc.rglks,gc.azlks,logfilename,mastertab=masterslctab):
+                    print('Something went wrong mosaicing subswaths '\
+                        'together. Log file {0}. Continuing with next acquisition '\
+                        'date.'.format(logfilename), file=sys.stderr)
+                    return 3
+            #Multilook (average) resampled slc
+            logfilename =  os.path.join(procdir,'log',
+                                                'multilookRSLC_{0}_crop.log'.format(
+                                                    slavedate.strftime('%Y%m%d')))
+            multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
+                    slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
+            rc = os.system(multicall)
+            if rc != 0:
+                print('Something went wrong multilooking the '\
+                        'resampled slave image. Log file {0}. Continuing with '\
+                        'next acquisition date.'.format(logfilename), file=sys.stderr)
+                return rc
+        else:
+            #this often means that the master file was initialised using old version of GAMMA
+            #loop through swaths
+            print('(cropping on swath level)')
+            for iw in swathlist: #['IW1','IW2','IW3']:
+            #get master and slave bursts
+                iwthisburst_m = sorted([b[0] for b in masterbursts if iw in b[0]])
                 iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
-        #find burst indices which correspond to slave limits
-                iwstart = iwthisburst_s3.index(iwthisburst_s[0])+1
-                iwstop = iwthisburst_s3.index(iwthisburst_s[-1])+1
-        #create aux slave tab file
-                slave3slctab = os.path.join(procdir,'tab',slave3date.strftime('%Y%m%d')
-                                                                                +'_tab')
-                slave3slcfilename = os.path.join(slave3rslcdir,
-                                    slave3date.strftime('%Y%m%d')+'.rslc')
-                slave3slctabiw = slave3slctab+'.'+iw
-                rc, msg = make_SLC_tab(slave3slctabiw,slave3slcfilename,[iw])
+            #find indices which match slave bursts
+                iwstart = iwthisburst_m.index(iwthisburst_s[0])+1
+                iwstop = iwthisburst_m.index(iwthisburst_s[-1])+1
+            #Create master slc tab file
+                mastertabiw = masterslctab+'.'+iw
+                rc, msg = make_SLC_tab(mastertabiw,masterslcfilename,[iw])
                 if rc > 0:
-                    print('Something went wrong creating the auxiliary slave tab file...')
+                    print('Something went wrong creating the master tab file...')
                     return 1
-            #create a corresponding crop tab file for aux slave
-                slave3_croptab = os.path.join(procdir,'tab',
-                                slave3date.strftime('%Y%m%d')+croptext+'_tab')
-                slave3_cropfilename = os.path.join(slave3rslcdir,
-                                slave3date.strftime('%Y%m%d')+croptext+'.rslc')
-                slave3_croptabiw = slave3_croptab+'.'+iw
-                rc, msg = make_SLC_tab(slave3_croptabiw,slave3_cropfilename,[iw])
+            #create a corresponding cropped master slc tab file
+                croptabiw = croptab+'.'+iw
+                rc, msg = make_SLC_tab(croptabiw,cropfilename,[iw])
                 if rc > 0:
-                    print('Something went wrong creating the cropped '\
-                                        'auxiliary slave tab file...')
+                    print('Something went wrong creating the cropped master tab file...')
                     return 1
-                logfilename = os.path.join(procdir,'log','SLC_copy_S1_TOPS_'+
-                                           slave3date.strftime('%Y%m%d')+
-                                           croptext+'.log')
-                bursttab = os.path.join( procdir,'tab', 'master_aux'+croptext+'_{0}_burst_tab'.format( iw ) )
+                bursttab = os.path.join( procdir,'tab', 'master'+croptext+'_{0}_burst_tab'.format( iw ) )
                 rc, msg = make_burst_tab( bursttab, iwstart, iwstop)
                 if rc > 0:
                     print('\nProblem creating burst '\
@@ -1016,129 +1008,181 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                                         'date.'.format( bursttab, 
                                                 date, msg ), file=sys.stderr)
                     return 2
-        #copy out relevent bursts in master to aux slavetab??? is it correct (Nick)??
-        #       if SLC_copy_S1_TOPS(masterslctab,slave3_croptaw,.......
-        #oh no, it was an error -- took too long to find it out..
-                if SLC_copy_S1_TOPS(slave3slctabiw,slave3_croptabiw,
-                                   bursttab,'',procdir,logfilename):
+                logfilename = os.path.join(procdir,'log','SLC_copy_S1_TOPS_'+
+                                           masterdate.strftime('%Y%m%d')+
+                                           croptext+'.log')
+            #copy out bursts which are relevant to the cropped master
+                if SLC_copy_S1_TOPS(mastertabiw,croptabiw, bursttab,'',procdir,
+                                                                        logfilename):
                     print("\nError:", file=sys.stderr)
                     print("Something went wrong recropping the master SLC", file=sys.stderr)
                     return 5
-        #mosaic cropped files
-        logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
-                                   masterdate.strftime('%Y%m%d')+
-                                   '_{0}'+croptext+'.log'.format(iw))
-        rc, msg = make_SLC_tab(croptab,cropfilename,swathlist)
-        print('(mosaicking cropped swaths)')
-
-        if not SLC_mosaic_S1_TOPS(croptab,cropfilename,gc.rglks,gc.azlks,logfilename):
-            print('Something went wrong mosaicing subswaths '\
-                    'together. Log file {0}. Continuing with next acquisition '\
-                    'date.'.format(logfilename), file=sys.stderr)
-            return 3
-        if slave3date:
-            rc, msg = make_SLC_tab(slave3_croptab,slave3_cropfilename,swathlist)
-            if not SLC_mosaic_S1_TOPS(slave3_croptab,slave3_cropfilename,gc.rglks,gc.azlks,logfilename):
+            #if auxiliary slave is present, crop master to it as well
+                slave3_croptab = ''
+                if slave3date:
+                    iwthisburst_s3 = sorted([b[0] for b in slave3bursts if iw in b[0]])
+                    iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
+            #find burst indices which correspond to slave limits
+                    iwstart = iwthisburst_s3.index(iwthisburst_s[0])+1
+                    iwstop = iwthisburst_s3.index(iwthisburst_s[-1])+1
+            #create aux slave tab file
+                    slave3slctab = os.path.join(procdir,'tab',slave3date.strftime('%Y%m%d')
+                                                                                    +'_tab')
+                    slave3slcfilename = os.path.join(slave3rslcdir,
+                                        slave3date.strftime('%Y%m%d')+'.rslc')
+                    slave3slctabiw = slave3slctab+'.'+iw
+                    rc, msg = make_SLC_tab(slave3slctabiw,slave3slcfilename,[iw])
+                    if rc > 0:
+                        print('Something went wrong creating the auxiliary slave tab file...')
+                        return 1
+                #create a corresponding crop tab file for aux slave
+                    slave3_croptab = os.path.join(procdir,'tab',
+                                    slave3date.strftime('%Y%m%d')+croptext+'_tab')
+                    slave3_cropfilename = os.path.join(slave3rslcdir,
+                                    slave3date.strftime('%Y%m%d')+croptext+'.rslc')
+                    slave3_croptabiw = slave3_croptab+'.'+iw
+                    rc, msg = make_SLC_tab(slave3_croptabiw,slave3_cropfilename,[iw])
+                    if rc > 0:
+                        print('Something went wrong creating the cropped '\
+                                            'auxiliary slave tab file...')
+                        return 1
+                    logfilename = os.path.join(procdir,'log','SLC_copy_S1_TOPS_'+
+                                               slave3date.strftime('%Y%m%d')+
+                                               croptext+'.log')
+                    bursttab = os.path.join( procdir,'tab', 'master_aux'+croptext+'_{0}_burst_tab'.format( iw ) )
+                    rc, msg = make_burst_tab( bursttab, iwstart, iwstop)
+                    if rc > 0:
+                        print('\nProblem creating burst '\
+                                            'tab {0} for date {1}. Error '\
+                                            'message:'\
+                                            '\n {2}'\
+                                            '\nContinuing with next '\
+                                            'date.'.format( bursttab, 
+                                                    date, msg ), file=sys.stderr)
+                        return 2
+            #copy out relevent bursts in master to aux slavetab??? is it correct (Nick)??
+            #       if SLC_copy_S1_TOPS(masterslctab,slave3_croptaw,.......
+            #oh no, it was an error -- took too long to find it out..
+                    if SLC_copy_S1_TOPS(slave3slctabiw,slave3_croptabiw,
+                                       bursttab,'',procdir,logfilename):
+                        print("\nError:", file=sys.stderr)
+                        print("Something went wrong recropping the master SLC", file=sys.stderr)
+                        return 5
+            #mosaic cropped files
+            logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
+                                       masterdate.strftime('%Y%m%d')+
+                                       '_{0}'+croptext+'.log'.format(iw))
+            rc, msg = make_SLC_tab(croptab,cropfilename,swathlist)
+            print('(mosaicking cropped swaths)')
+    
+            if not SLC_mosaic_S1_TOPS(croptab,cropfilename,gc.rglks,gc.azlks,logfilename):
                 print('Something went wrong mosaicing subswaths '\
                         'together. Log file {0}. Continuing with next acquisition '\
                         'date.'.format(logfilename), file=sys.stderr)
                 return 3
-        #multilook (average) cropped data
-        logfilename =  os.path.join(procdir,'log',
-                            'multilookRSLC_'+masterdate.strftime('%Y%m%d')+croptext+'.log')
-        print('(multilooking cropped mosaic)')
-        multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
-                masterdate.strftime('%Y%m%d')+croptext,gc.rglks,gc.azlks,
-                masterrslcdir,logfilename)
-        rc = os.system(multicall)
-        if rc != 0:
-            print('Something went wrong multilooking the '\
-                    'merged image. Log file {0}. Continuing with next '\
-                    'acquisition date.'.format(logfilename), file=sys.stderr)
-    #create file paths
-        geocropdir = os.path.join(slaverslcdir,'geo')
-        os.mkdir(geocropdir)
-        demdir = os.path.join(procdir,'DEM')
-        print('(cropping DEM, geocoding,..)')
-        rc = geocode_dem(masterrslcdir,geocropdir,demdir,
-                procdir,masterdate.strftime('%Y%m%d')+croptext,gc.outres)
-    #finally the coregistration itself
-        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3_croptab,qualityfile,True)
-        if rc != 0:
-            print("\nError:", file=sys.stderr)
-            print("Something went wrong during coregistration", file=sys.stderr)
-            if os.path.exists(slaverslcdir):
-                shutil.rmtree(slaverslcdir)
-            return rc
-    # as final touches, rslcs for all swaths separately will be padded. therefore there will be no issues mosaicking in the future
-        for iw in swathlist: #['IW1','IW2','IW3']:
-            if os.path.exists(os.path.join(slaverslcdir,slavedate.strftime('%Y%m%d')+'.'+iw+'.rslc')):
-                masterOrigRslc = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+'.'+iw+'.rslc')
-                masterCropRslc = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+croptext+'.'+iw +'.rslc')
-                if os.path.getsize(masterOrigRslc) != os.path.getsize(masterCropRslc):
-                    # do the padding here... this seems like the easier solution on the 'ghosting' problem
-                    # better (disk saving) option would be to save just azimuth offset (lines) towards orig. master
-                    # and use it for generating RSLC mosaic. however this would need more coding and...
-                    # we are not going to store the full RSLCs anyway....
-                    # also, padding the IW RSLCs would be more savvy towards RAM memory needs
-                    azoffsetcall = ['master2mastercrop_offset.sh',
+            if slave3date:
+                rc, msg = make_SLC_tab(slave3_croptab,slave3_cropfilename,swathlist)
+                if not SLC_mosaic_S1_TOPS(slave3_croptab,slave3_cropfilename,gc.rglks,gc.azlks,logfilename):
+                    print('Something went wrong mosaicing subswaths '\
+                            'together. Log file {0}. Continuing with next acquisition '\
+                            'date.'.format(logfilename), file=sys.stderr)
+                    return 3
+            #multilook (average) cropped data
+            logfilename =  os.path.join(procdir,'log',
+                                'multilookRSLC_'+masterdate.strftime('%Y%m%d')+croptext+'.log')
+            print('(multilooking cropped mosaic)')
+            multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
+                    masterdate.strftime('%Y%m%d')+croptext,gc.rglks,gc.azlks,
+                    masterrslcdir,logfilename)
+            rc = os.system(multicall)
+            if rc != 0:
+                print('Something went wrong multilooking the '\
+                        'merged image. Log file {0}. Continuing with next '\
+                        'acquisition date.'.format(logfilename), file=sys.stderr)
+        #create file paths
+            geocropdir = os.path.join(slaverslcdir,'geo')
+            os.mkdir(geocropdir)
+            demdir = os.path.join(procdir,'DEM')
+            print('(cropping DEM, geocoding,..)')
+            rc = geocode_dem(masterrslcdir,geocropdir,demdir,
+                    procdir,masterdate.strftime('%Y%m%d')+croptext,gc.outres)
+        #finally the coregistration itself
+            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3_croptab,qualityfile,True)
+            if rc != 0:
+                print("\nError:", file=sys.stderr)
+                print("Something went wrong during coregistration", file=sys.stderr)
+                if os.path.exists(slaverslcdir):
+                    shutil.rmtree(slaverslcdir)
+                return rc
+        # as final touches, rslcs for all swaths separately will be padded. therefore there will be no issues mosaicking in the future
+            for iw in swathlist: #['IW1','IW2','IW3']:
+                if os.path.exists(os.path.join(slaverslcdir,slavedate.strftime('%Y%m%d')+'.'+iw+'.rslc')):
+                    masterOrigRslc = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+'.'+iw+'.rslc')
+                    masterCropRslc = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+croptext+'.'+iw +'.rslc')
+                    if os.path.getsize(masterOrigRslc) != os.path.getsize(masterCropRslc):
+                        # do the padding here... this seems like the easier solution on the 'ghosting' problem
+                        # better (disk saving) option would be to save just azimuth offset (lines) towards orig. master
+                        # and use it for generating RSLC mosaic. however this would need more coding and...
+                        # we are not going to store the full RSLCs anyway....
+                        # also, padding the IW RSLCs would be more savvy towards RAM memory needs
+                        azoffsetcall = ['master2mastercrop_offset.sh',
+                                        os.path.join(masterrslcdir,
+                                                     masterdate.strftime('%Y%m%d')+'.'+iw),
+                                        'rslc',
+                                        os.path.join(masterrslcdir,
+                                                     masterdate.strftime('%Y%m%d'))+croptext+'.'+iw,
+                                        'rslc']
+                        azoffset = subp.check_output(azoffsetcall).strip()
+                        azoffset = azoffset.decode('ascii')
+                        rslccall = ['rslc2rslc.sh',
                                     os.path.join(masterrslcdir,
-                                                 masterdate.strftime('%Y%m%d')+'.'+iw),
-                                    'rslc',
-                                    os.path.join(masterrslcdir,
-                                                 masterdate.strftime('%Y%m%d'))+croptext+'.'+iw,
-                                    'rslc']
-                    azoffset = subp.check_output(azoffsetcall).strip()
-                    azoffset = azoffset.decode('ascii')
-                    rslccall = ['rslc2rslc.sh',
-                                os.path.join(masterrslcdir,
-                                                 masterdate.strftime('%Y%m%d')+'.'+iw),
-                                os.path.join(slaverslcdir,
-                                                 slavedate.strftime('%Y%m%d')+'.'+iw),
-                                str(azoffset)]
-                    rc = subp.check_call(rslccall)
-                    if rc > 0:
-                        print("\nError:", file=sys.stderr)
-                        print("Something went wrong zero padding cropped RSLC.", file=sys.stderr)
-                        return 4
-        #Do the RSLC mosaic
-        rc, msg = make_SLC_tab(masterslctab,masterslcfilename,swathlist)
-        logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
-                                   slavedate.strftime('%Y%m%d')+
-                                   '.log')
-        if not SLC_mosaic_S1_TOPS(slaverslctab,slaverfilename,gc.rglks,gc.azlks,logfilename,mastertab=masterslctab):
-            print('Something went wrong mosaicing subswaths '\
-                    'together. Log file {0}. Continuing with next acquisition '\
-                    'date.'.format(logfilename), file=sys.stderr)
-            return 3
-        #Multilook (average) resampled slc
-        logfilename =  os.path.join(procdir,'log',
-                                            'multilookRSLC_{0}_crop.log'.format(
-                                                slavedate.strftime('%Y%m%d')))
-        multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
-                slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
-        rc = os.system(multicall)
-        if rc != 0:
-            print('Something went wrong multilooking the '\
-                    'resampled slave image. Log file {0}. Continuing with '\
-                    'next acquisition date.'.format(logfilename), file=sys.stderr)
-            return rc
-####
-############################################################ Pad cropped data
-#### this part is to save the azimuth offset (lines no.) between orig and cropped master. it may be useful for the LUT-only recoregistration
-        #print('Padding coregistered data to the original master extent')
-        azoffsetcall = ['master2mastercrop_offset.sh',
-                        os.path.join(masterrslcdir,
-                                     masterdate.strftime('%Y%m%d')),
-                        'rslc',
-                        os.path.join(masterrslcdir,
-                                     masterdate.strftime('%Y%m%d'))+croptext,
-                        'rslc']
-        azoffset = subp.check_output(azoffsetcall).strip()
-        azoffset = azoffset.decode('ascii')
-        with open(qualityfile, "a") as myfile:
-            myfile.write("There were missing bursts. The azimuth offset towards master SLC is: \n")
-            myfile.write("azoffset_lines: "+str(azoffset)+"\n")
+                                                     masterdate.strftime('%Y%m%d')+'.'+iw),
+                                    os.path.join(slaverslcdir,
+                                                     slavedate.strftime('%Y%m%d')+'.'+iw),
+                                    str(azoffset)]
+                        rc = subp.check_call(rslccall)
+                        if rc > 0:
+                            print("\nError:", file=sys.stderr)
+                            print("Something went wrong zero padding cropped RSLC.", file=sys.stderr)
+                            return 4
+            #Do the RSLC mosaic
+            rc, msg = make_SLC_tab(masterslctab,masterslcfilename,swathlist)
+            logfilename = os.path.join(procdir,'log','SLC_mosaic_S1_TOPS_'+
+                                       slavedate.strftime('%Y%m%d')+
+                                       '.log')
+            if not SLC_mosaic_S1_TOPS(slaverslctab,slaverfilename,gc.rglks,gc.azlks,logfilename,mastertab=masterslctab):
+                print('Something went wrong mosaicing subswaths '\
+                        'together. Log file {0}. Continuing with next acquisition '\
+                        'date.'.format(logfilename), file=sys.stderr)
+                return 3
+            #Multilook (average) resampled slc
+            logfilename =  os.path.join(procdir,'log',
+                                                'multilookRSLC_{0}_crop.log'.format(
+                                                    slavedate.strftime('%Y%m%d')))
+            multicall = 'multilookRSLC {0} {1} {2} 1 {3} &> {4}'.format(
+                    slavedate.strftime('%Y%m%d'),gc.rglks,gc.azlks,slaverslcdir,logfilename)
+            rc = os.system(multicall)
+            if rc != 0:
+                print('Something went wrong multilooking the '\
+                        'resampled slave image. Log file {0}. Continuing with '\
+                        'next acquisition date.'.format(logfilename), file=sys.stderr)
+                return rc
+    ####
+    ############################################################ Pad cropped data
+    #### this part is to save the azimuth offset (lines no.) between orig and cropped master. it may be useful for the LUT-only recoregistration
+            #print('Padding coregistered data to the original master extent')
+            azoffsetcall = ['master2mastercrop_offset.sh',
+                            os.path.join(masterrslcdir,
+                                         masterdate.strftime('%Y%m%d')),
+                            'rslc',
+                            os.path.join(masterrslcdir,
+                                         masterdate.strftime('%Y%m%d'))+croptext,
+                            'rslc']
+            azoffset = subp.check_output(azoffsetcall).strip()
+            azoffset = azoffset.decode('ascii')
+            with open(qualityfile, "a") as myfile:
+                myfile.write("There were missing bursts. The azimuth offset towards master SLC is: \n")
+                myfile.write("azoffset_lines: "+str(azoffset)+"\n")
 # this is residual from previous version where missing bursts were mosaicked and only then padded (here we would need to keep mosaic instead of IWs)
         #rslccall = ['rslc2rslc.sh',
         #            os.path.join(masterrslcdir,
@@ -1248,6 +1292,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
     #if no missing bursts....
     #missingbursts = False
     if not missingbursts:
+        print('debug place 2')
         print('All bursts available, no recropping of master necessary...')
     #master mli param file path
         mastermlipar = os.path.join(masterslcdir,
@@ -1590,6 +1635,7 @@ def recoreg_slave_old(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
     #if no missing bursts....
     #missingbursts = False
     if not missingbursts:
+        print('debug place 3')
         print('All bursts available, no recropping of master necessary...')
     #master mli param file path
         mastermlipar = os.path.join(masterslcdir,

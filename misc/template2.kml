@@ -2,6 +2,7 @@
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2">
 <Document>
 <name>TFIRSTDATET - TLASTDATET</name>
+<open>1</open>
 <GroundOverlay>
     <name>original ifg</name>
           <Icon>
@@ -56,7 +57,7 @@
 <ScreenOverlay>
         <name>COMET NERC</name>
         <Icon>
-          <href>files/comet.jpg</href>
+          <href>files/comet.png</href>
         </Icon>
         <overlayXY x="0.9" y="1" xunits="fraction" yunits="fraction"/>
         <screenXY x="0.9" y="1" xunits="fraction" yunits="fraction"/>

@@ -47,7 +47,7 @@ def main(argv=None):
     pubdir = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/'
     trackdir = os.path.join(currentdir,track)
     framedir = os.path.join(trackdir,frame)
-    framepubdir= os.path.join(pubdir,track,frame,'products')
+    framepubdir= os.path.join(pubdir,track,frame,'interferograms')
     ifgdir = os.path.join(framedir,'IFG')
     ifglist = [x for x in os.listdir(ifgdir) if len(x) == 17]
     for ifg in ifglist:

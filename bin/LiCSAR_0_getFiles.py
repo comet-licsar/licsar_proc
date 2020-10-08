@@ -185,6 +185,23 @@ def main(argv=None):
     acq_dates = [f[1] for f in frameFilesTable]
     files = [f[3] for f in frameFilesTable]
     zipFiles = [re.sub('.metadata_only','',fI) for fI in files]
+    
+    #fix for zipFiles that are not in /neodc:
+    for zipf in zipFiles:
+        if 'neodc' not in zipf:
+            removeddate = acq_dates.pop(zipFiles.index(zipf))
+            zipFiles.remove(zipf)
+    
+    if s1dataa:
+        print('correcting paths for {} missing files'.format(len(s1dataa)))
+        for s1f in s1dataa:
+            s1neodc = s1data.get_neodc_path_images(s1f.split('.')[0])[0]
+            if path.exists(s1neodc.replace('.zip','.manifest')):
+                zipFiles.append(s1neodc)
+                #files.append(s1neodc)
+                s1f_date = dt.datetime.strptime(s1f.split('_')[5].split('T')[0],"%Y%m%d")
+                acq_dates.append(s1f_date.date())
+    
     filesDF = pd.DataFrame({'files':zipFiles,'onTape':False},index=pd.to_datetime(acq_dates))
     filesDF = filesDF.drop_duplicates()
     

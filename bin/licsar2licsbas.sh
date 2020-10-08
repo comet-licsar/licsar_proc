@@ -26,7 +26,7 @@ epochdir=$LiCSAR_public/$track/$frame/epochs
 metadir=$LiCSAR_public/$track/$frame/metadata
 workdir=`pwd`
 
-mkdir GEOC
+mkdir GEOC GACOS
 cd GEOC
 for meta in E N U hgt; do
  ln -s $metadir/$frame.geo.$meta.tif
@@ -38,13 +38,25 @@ ln -s $indir/$master/$master.geo.mli.tif
 
 for epoch in `ls $epochdir`; do
   if [ $epoch -ge $startdate ] && [ $epoch -lt $enddate ]; then
-    for ifg in `ls $indir/$epoch* -d 2>/dev/null`; do
-     if [ `basename $ifg | cut -d '_' -f2` -le $enddate ]; then
-      ln -s $ifg;
-     fi
-    done
+    gacosfile=$epochdir/$epoch/$epoch.sltd.geo.tif
+    if [ -f $gacosfile ]; then
+     ln -s $gacosfile $workdir/GACOS/$epoch.sltd.geo.tif
+    fi
   fi
 done
+
+if [ -z $2 ]; then
+    #cp $epochdir/$epoch/$epoch.sltd.geo.tif ../GACOS/. 2>/dev/null
+  for ifg in `ls $indir/20* -d 2>/dev/null`; do
+    if [ `basename $ifg | cut -d '_' -f2` -le $enddate ]; then
+      ln -s $ifg;
+     fi
+  done
+else
+ echo "nah, not ready yet, do full proc, without startdate enddate please.."
+fi
+
+if [ `ls ../GACOS | wc -l` -lt 2 ]; then rm -r ../GACOS; fi
 
 cd $workdir
 
@@ -54,4 +66,4 @@ copy_batch_LiCSBAS.sh
 
 sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
 nano batch_LiCSBAS.sh
-./batch_LiCSBAS.sh
+echo "now run ./batch_LiCSBAS.sh"

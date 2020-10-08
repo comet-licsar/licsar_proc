@@ -33,7 +33,7 @@ if [ -f ${procdir}/geo/EQA.dem_par ]; then
 if [ -d IFG ]; then
 for ifg in `ls IFG/*/*.unw | cut -d '/' -f2`; do
 #pokud existuje unw ifg v public, pak udelej jen coherence
-if [ -f $pubdir/$frameno/$frame/products/$ifg/$ifg.geo.unw.bmp ]; then
+if [ -f $pubdir/$frameno/$frame/interferograms/$ifg/$ifg.geo.unw.bmp ]; then
  echo "Updating only coherence map for "$ifg
  logfile=~/logs/coh_update.log
  master=`ls $procdir/geo/*[0-9].hgt | rev | cut -d '/' -f1 | rev | cut -d '.' -f1 | head -n1`
@@ -51,16 +51,16 @@ if [ -f $pubdir/$frameno/$frame/products/$ifg/$ifg.geo.unw.bmp ]; then
  convert -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
  rm -f ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp
  #moving to pubdir
-  mkdir -p $pubdir/$frameno/$frame/products/$ifg
- cp $procdir/GEOC/$ifg/$ifg.geo.cc.bmp $procdir/GEOC/$ifg/$ifg.geo.cc.tif $pubdir/$frameno/$frame/products/$ifg/.
+  mkdir -p $pubdir/$frameno/$frame/interferograms/$ifg
+ cp $procdir/GEOC/$ifg/$ifg.geo.cc.bmp $procdir/GEOC/$ifg/$ifg.geo.cc.tif $pubdir/$frameno/$frame/interferograms/$ifg/.
 else
  #v opacnem pripade udelej vse
   echo "Generating whole files for "$ifg
   create_geoctiffs_to_pub.sh $procdir $ifg >/dev/null 2>/dev/null
   #moving to pubdir
   for toexp in cc.bmp cc.tif diff.bmp diff_mag.tif diff_pha.tif unw.bmp unw.tif disp.png; do
-   mkdir -p $pubdir/$frameno/$frame/products/$ifg
-   cp $procdir/GEOC/$ifg/$ifg.geo.$toexp $pubdir/$frameno/$frame/products/$ifg/.
+   mkdir -p $pubdir/$frameno/$frame/interferograms/$ifg
+   cp $procdir/GEOC/$ifg/$ifg.geo.$toexp $pubdir/$frameno/$frame/interferograms/$ifg/.
   done
 fi
 done

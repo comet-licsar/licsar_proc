@@ -23,7 +23,7 @@ import logging
 from gamma_functions import *
 from LiCSAR_lib.LiCSAR_misc import Usage,cd
 from LiCSAR_lib.orbit_lib import getValidOrbFile,logger
-from LiCSAR_db.LiCSquery import get_ipf
+#from LiCSAR_db.LiCSquery import get_ipf
 
 ################################################################################
 # Check Bursts function
@@ -358,7 +358,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     In:
         date        Timestamp object with acquisition date (but some scripts send datetime.date...)
         framename   name of the processing frame
-        burstlist   list of burst ids
+        burstlist   list of burst ids -------- OBSOLETE - NOT USED HERE
         procdir     path to processing directory
         acqMode     Acquisition mode: 'iw' (Interferometric wide swath)  
                     or 'sm' (Stripmap)

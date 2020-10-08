@@ -50,8 +50,13 @@ def grep(arg,file):
     res = subp.check_output(['grep',arg,file])
     return res
 
+
 def touch(filee):
-    open(filee, 'a').close()
+    if os.path.exists(os.path.dirname(filee)):
+        open(filee, 'a').close()
+    else:
+        print('ERROR - can touch files only in existing folder')
+
 
 ################################################################################
 # Grep for only first occurrence (better for text files in python3+)
@@ -82,6 +87,55 @@ def getipf(parfile):
     line = grep1('IPF', parfile)
     res = float(line.split('IPF')[1].split(')')[0])
     return res
+
+#########################
+## sed helper
+
+def sed_rmlinematch(oldstr, infile, dryrun=False):
+    '''
+    Sed-like line deletion function based on given string..
+    Usage: pysed.rmlinematch(<Unwanted string>, <Text File>)
+    Example: pysed.rmlinematch('xyz', '/path/to/file.txt')
+    Example 'DRYRUN': pysed.rmlinematch('xyz', '/path/to/file.txt', dryrun=True) #This will dump the output to STDOUT instead of changing the input file.
+    '''
+    linelist = []
+    with open(infile) as f:
+        for item in f:
+            rmitem = re.match(r'.*{}'.format(oldstr), item)
+            if type(rmitem) == type(None): linelist.append(item)
+    if dryrun == False:
+        with open(infile, "w") as f:
+            f.truncate()
+            for line in linelist: f.writelines(line)
+    elif dryrun == True:
+        for line in linelist: print(line, end='')
+    else:
+        print("Unknown option specified to 'dryrun' argument, Usage: dryrun=<True|False>.")
+        return False
+
+
+def sed_replace(oldstr, newstr, infile, dryrun=False):
+    '''
+    Sed-like Replace function..
+    Usage: pysed.replace(<Old string>, <Replacement String>, <Text File>)
+    Example: pysed.replace('xyz', 'XYZ', '/path/to/file.txt')
+    Example 'DRYRUN': pysed.replace('xyz', 'XYZ', '/path/to/file.txt', dryrun=True) #This will dump the output to STDOUT instead of changing the input file.
+    '''
+    linelist = []
+    with open(infile) as f:
+        for item in f:
+            newitem = re.sub(oldstr, newstr, item)
+            linelist.append(newitem)
+    if dryrun == False:
+        with open(infile, "w") as f:
+            f.truncate()
+            for line in linelist: f.writelines(line)
+    elif dryrun == True:
+        for line in linelist: print(line, end='')
+    else:
+        print("Unknown option specified to 'dryrun' argument, Usage: dryrun=<True|False>.")
+        return False
+
 
 ################################################################################
 # Get information if the file exists or is non-zero

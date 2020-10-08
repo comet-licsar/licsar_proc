@@ -44,9 +44,13 @@ def loadpolygon(polygonfile):
         raise Usage('Empty (<=3 points) polygon file (or bad shape, ncols!=2): %s' % (polygonfile))
     else:
         if ( poly[-1,0] != poly[0,0] ) or ( poly[-1,1] != poly[0,1] ):
-            poly2 = np.append(poly, poly[0,:])
+            #in case there is 'first coordinate' missing in the .xy file:
+            #poly2 = np.append(poly, poly[0,:])
+            poly2 = np.append(poly, [poly[0]], axis=0)
         else:
             poly2 = poly
+            #this is to fix some weird error loading from txt into a composite array
+            #poly2 = np.append(poly[0,:], poly[1:,:])
         return poly2 # flip left-right to adopt (lat,long) convention
 
 def get_zip_dates(ziplist):
@@ -164,7 +168,11 @@ class dbquery:
     def __get_bursts_in_polygon(self):            
         # Based on https://stackoverflow.com/questions/36399381/whats-the-fastest-way-of-checking-if-a-point-is-inside-a-polygon-in-python
         #allburstanxids, allburstcoords = get_burst_centers(self.ziplist)
+        #try:
+        #    #older version of xy files may need this (though maybe not necessary anymore?)
         path = mpltPath.Path(np2tuplearray(self.polygon))
+        #except:
+        #    path = mpltPath.Path(self.polygon)
         inside2 = path.contains_points(np.asarray(self.allburstcoords))
         centers = list(itertools.compress(self.allburstcoords,inside2))
         anxids = list(itertools.compress(self.allburstanxids,inside2))

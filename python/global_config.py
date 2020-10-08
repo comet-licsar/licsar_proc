@@ -19,7 +19,7 @@ adf_alpha = 1
 adf_window = 32
 
 #this threshold is used for coherence in unwrapping
-coh_unwrap_threshold = 0.5
+coh_unwrap_threshold = 0.35
 
 
 ##########################################

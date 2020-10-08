@@ -2,6 +2,7 @@
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2">
 <Document>
 <name>TFIRSTDATET - TLASTDATET</name>
+<open>1</open>
   <LookAt>
     <longitude>TCENLONT</longitude>
     <latitude>TCENLATT</latitude>
@@ -10,8 +11,13 @@
     <tilt>0</tilt>
     <range>500000</range>
   </LookAt>
+
+<Folder>
+    <name>filtered ifg</name>
+    <visibility>0</visibility> 
 <GroundOverlay>
-    <name>original ifg</name>
+    <name>filtered ifg</name>
+    <visibility>0</visibility> 
           <Icon>
                <href>files/TFILEIFGT</href>
                <viewBoundScale>1</viewBoundScale>
@@ -23,8 +29,55 @@
                <west>TWESTT</west>
           </LatLonBox>
 </GroundOverlay>
+<ScreenOverlay>
+        <name>scale bar</name>
+        <visibility>0</visibility> 
+        <Icon>
+          <href>files/scalebar_wrapped.png</href>
+        </Icon>
+        <overlayXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="500" y="0" xunits="pixels" yunits="fraction"/>
+</ScreenOverlay>
+</Folder>
+
+<Folder>
+    <name>coherence</name>
+    <visibility>0</visibility> 
+<GroundOverlay>
+    <name>coherence</name>
+    <visibility>0</visibility> 
+          <Icon>
+               <href>files/TFILECOHT</href>
+               <viewBoundScale>1</viewBoundScale>
+          </Icon>
+          <LatLonBox>
+               <north>TNORTHT</north>
+               <south>TSOUTHT</south>
+               <east>TEASTT</east>
+               <west>TWESTT</west>
+          </LatLonBox>
+</GroundOverlay>
+<ScreenOverlay>
+        <name>scale bar</name>
+        <visibility>0</visibility> 
+        <Icon>
+          <href>files/scalebar_coh.png</href>
+        </Icon>
+        <overlayXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="500" y="0" xunits="pixels" yunits="fraction"/>
+</ScreenOverlay>
+</Folder>
+
+<Folder>
+    <name>unwrapped ifg</name>
+    <visibility>1</visibility> 
 <GroundOverlay>
     <name>unwrapped ifg</name>
+    <visibility>1</visibility> 
           <Icon>
                <href>files/TFILEUNWT</href>
                <viewBoundScale>1</viewBoundScale>
@@ -36,6 +89,19 @@
                <west>TWESTT</west>
           </LatLonBox>
 </GroundOverlay>
+<ScreenOverlay>
+        <name>scale bar</name>
+        <visibility>1</visibility> 
+        <Icon>
+          <href>files/scalebar_unwrapped.png</href>
+        </Icon>
+        <overlayXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <screenXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="500" y="0" xunits="pixels" yunits="fraction"/>
+</ScreenOverlay>
+</Folder>
+
 <Folder>
 <name>Logos</name>
 <ScreenOverlay>
@@ -51,7 +117,7 @@
 <ScreenOverlay>
         <name>COMET NERC</name>
         <Icon>
-          <href>files/comet.jpg</href>
+          <href>files/comet.png</href>
         </Icon>
         <overlayXY x="0.9" y="1" xunits="fraction" yunits="fraction"/>
         <screenXY x="0.9" y="1" xunits="fraction" yunits="fraction"/>
@@ -66,7 +132,7 @@
         <overlayXY x="0.8" y="0.0" xunits="fraction" yunits="fraction"/>
         <screenXY x="0.8" y="0.025" xunits="fraction" yunits="fraction"/>
         <rotationXY x="0" y="0" xunits="fraction" yunits="fraction"/>
-        <size x="0.075" y="0" xunits="fraction" yunits="fraction"/>
+        <size x="0.085" y="0" xunits="fraction" yunits="fraction"/>
 </ScreenOverlay>
 </Folder>
 </Document>
