@@ -42,13 +42,12 @@ def do_unwrapping(origmasterdate,ifg,ifgdir,procdir,lq,job_id):
             print('\nERROR:', file=sys.stderr)
             print('\nSomething went wrong filtering interferogram{0}.'.format(ifg), file=sys.stderr)
             return 1
-
-    #Create a preview ras file
-    logfilename = os.path.join(procdir,'log','rasmph_pwr_filt_{0}.log'.format(ifg))
-    if not rasmph_pwr(filtfile,mastermli,width,logfilename):
-        print('\nERROR:', file=sys.stderr)
-        print('\nSomething went wrong creating the preview raster file of the filtered interferogram {0}.'.format(ifg), file=sys.stderr)
-        return 1
+        #Create a preview ras file
+        logfilename = os.path.join(procdir,'log','rasmph_pwr_filt_{0}.log'.format(ifg))
+        if not rasmph_pwr(filtfile,mastermli,width,logfilename):
+            print('\nERROR:', file=sys.stderr)
+            print('\nSomething went wrong creating the preview raster file of the filtered interferogram {0}.'.format(ifg), file=sys.stderr)
+            return 1
 
 ############################################################ Unwrap the interferogram
     # ccfile = os.path.join(ifgdirthis,filtfile[:-5]+'.cc')

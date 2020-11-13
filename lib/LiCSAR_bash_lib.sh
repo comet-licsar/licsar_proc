@@ -594,6 +594,7 @@ function multilookSLC(){
   local azlks=$3
   local plotme=$4
   local slcdir=$5
+  if [ -z $slcdir ]; then slcdir=SLC/$slcdate; fi
   # Generate a quicklook to inspect everything went correctly
   echo "    Multilooking image ${slcdate} multilook factor $rlks [range] $azlks [azimuth] "
   multi_look $slcdir/${slcdate}.slc $slcdir/${slcdate}.slc.par $slcdir/${slcdate}.slc.mli $slcdir/${slcdate}.slc.mli.par $rlks $azlks > /dev/null 2>&1 #>> $logfile 
@@ -614,6 +615,7 @@ function multilookRSLC(){
   local azlks=$3
   local plotme=$4
   local rslcdir=$5
+  if [ -z $rslcdir ]; then rslcdir=RSLC/$slcdate; fi
   # Generate a quicklook to inspect everything went correctly
   echo "    Multilooking image ${slcdate} multilook factor $rlks [range] $azlks [azimuth] "
   multi_look ${rslcdir}/${slcdate}.rslc ${rslcdir}/${slcdate}.rslc.par ${rslcdir}/${slcdate}.rslc.mli ${rslcdir}/${slcdate}.rslc.mli.par $rlks $azlks > /dev/null 2>&1 #>> $logfile 

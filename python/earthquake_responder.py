@@ -11,6 +11,7 @@ import LiCSAR_lib.framecare as fc
 import numpy as np
 import LiCSAR_lib.LiCSAR_misc as misc
 import framecare as fc
+import time
 
 public_path = os.environ['LiCSAR_public']
 procdir_path = os.environ['LiCSAR_procdir']
@@ -86,7 +87,14 @@ def add_new_event(event, updatecsv = True):
         update_eq_csv(event.id, eqcsvfile)
     return True
 
+
 def update_eq_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv', delete=False):
+    if os.path.exists(csvfile+'.lock'):
+        print('file lock detected, waiting 10 minutes - should be enough for ARC to finish')
+        time.sleep(10*60)
+    if os.path.exists(csvfile+'.lock'):
+        print('probably error during copy by ARC_responder. removing lock file')
+        os.remove(csvfile+'.lock')
     if not delete:
         query = "select * from eq where USGS_ID='{}';".format(eventid)
         eq_df = lq.do_pd_query(query)
@@ -102,10 +110,60 @@ def update_eq_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/
             print('error during removal of the eventid '+eventid)
             return False
 
-def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv'):
+
+def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv'):
+    query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
+        from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg  \
+        on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid"
+    e2f = lq.do_pd_query(query)
+    if len(e2f) < 1:
+        print('error')
+        return False
+    e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
+    e2f['download'] = e2f['track']*0
+    for i, f in e2f.iterrows():
+        #check if we have geometry here:
+        if len(f.the_geom) < 5:
+            try:
+                row = fc.frame2geopandas(f['frame']).iloc[0]
+                geometry = row['geometry'].wkb_hex
+                e2f.at[i, 'the_geom'] = geometry
+            except:
+                print('ERROR: probably frame {0} is not in geom database'.format(f['frame']))
+                continue
+        else:
+            #fix the strange format to ordinary wkb_hex
+            if str(e2f.at[i, 'the_geom'])[0] == 'b':
+                e2f.at[i, 'the_geom'] = e2f.at[i, 'the_geom'].hex().upper()
+        downlink = "<a href='{0}/{1}/{2}/' target='_blank'>Link</a>".format(web_path, f['track'], f['frame'])
+        #if we do not have this combination of frame and event id, include it
+        e2f.at[i, 'download'] = downlink
+    #e2f['download'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/{0}/{1} target='_blank'>Link<a>".format(track, framename)
+    #dbcols = ['the_geom','frame','usgsid','download', 'location','next_possible', 'next_expected']
+    dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected']
+    e2f[dbcols].query('download != ""').to_csv(csvfile, mode='w', sep = ';', index = False, header=False)
+    return True
+
+
+def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv', delete = False):
     """
        This csv will be loaded to the eq responder map
+       WARNING - would read all event frames from database and only add them to the csv file if it is not there yet
     """
+    if os.path.exists(csvfile+'.lock'):
+        print('file lock detected, waiting 10 minutes - should be enough for ARC to finish')
+        time.sleep(10*60)
+    if os.path.exists(csvfile+'.lock'):
+        print('probably error during copy by ARC_responder. removing lock file')
+        os.remove(csvfile+'.lock')
+    if delete:
+        print('deleting of event '+eventid+' from eqframes.csv')
+        rc = os.system("sed -i '/{0}/d' {1}".format(eventid, csvfile))
+        if rc == 0:
+            return True
+        else:
+            print('error during removal of the eventid '+eventid+' from eqframes.csv')
+            return False
     #fid = lq.get_frame_polyid(framename)
     #try:
     #    fid = lq.sqlout2list(fid)[0]
@@ -116,7 +174,9 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     #query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
     query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
         from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg  \
-        on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid where eq.USGS_ID='{0}' and e2f.frame_status > 0 and e2f.frame_status < 50".format(eventid)
+        on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid where eq.USGS_ID='{0}'".format(eventid)
+        #this is the original query... it would not ingest frames that fail in the beginning (copy from CEDA or initialisation). now keeping all identified frames..
+        #on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid where eq.USGS_ID='{0}' and e2f.frame_status > 0 and e2f.frame_status < 50".format(eventid)
     e2f = lq.do_pd_query(query)
     if len(e2f) < 1:
         print('error - nothing found in eq2frames for this event {}'.format(eventid))
@@ -124,15 +184,22 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
     e2f['download'] = e2f['track']*0
     for i, f in e2f.iterrows():
-        try:
-            row = fc.frame2geopandas(f['frame']).iloc[0]
-            geometry = row['geometry'].wkb_hex
-            e2f.at[i, 'the_geom'] = geometry
-        except:
-            print('probably this frame is not in geom database')
-            return False
+        #check if we have geometry here:
+        if len(f.the_geom) < 5:
+            try:
+                row = fc.frame2geopandas(f['frame']).iloc[0]
+                geometry = row['geometry'].wkb_hex
+                e2f.at[i, 'the_geom'] = geometry
+            except:
+                print('ERROR: probably frame {0} is not in geom database'.format(f['frame']))
+                return False
+        else:
+            #fix the strange format to ordinary wkb_hex
+            if str(e2f.at[i, 'the_geom'])[0] == 'b':
+                e2f.at[i, 'the_geom'] = e2f.at[i, 'the_geom'].hex().upper()
         downlink = "<a href='{0}/{1}/{2}/' target='_blank'>Link</a>".format(web_path, f['track'], f['frame'])
-        if not misc.grep1line(downlink, csvfile):
+        #if we do not have this combination of frame and event id, include it
+        if not misc.grep1line(f['frame']+';'+eventid, csvfile):
             e2f.at[i, 'download'] = downlink
         else:
             e2f.at[i, 'download'] = ''
@@ -141,6 +208,51 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected']
     e2f[dbcols].query('download != ""').to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
     return True
+
+
+def list_coseismic_ifgs(frame, toi):
+    #this would list all ifgs in public directory that are coseismic (if there are such)
+    #toi is datetime
+    doi = toi.date()
+    track = str(int(frame[0:3]))
+    global public_path
+    products_path = os.path.join(public_path, track, frame, 'interferograms')
+    if not os.path.exists(products_path):
+        print('error - frame has no interferograms')
+        return False
+    doi_str = int(doi.strftime('%Y%m%d'))
+    publicifgs = os.listdir(products_path)
+    if not publicifgs:
+        print('error - frame has no interferograms')
+        return []
+    publicifgs = [i for i in publicifgs if '_' in i]
+    selected_ifgs = []
+    for pifg in publicifgs:
+        is_coseismic = False
+        mas = int(pifg.split('_')[0])
+        slv = int(pifg.split('_')[1])
+        #this is to generate kmz files only for coseismic ifgs
+        if (doi_str > mas) and (doi_str < slv):
+            is_coseismic = True
+        if (doi_str == mas):
+            date = datetime.strptime(str(mas),'%Y%m%d').date()
+            filelist = lq.get_frame_files_date(frame, date)
+            tof = lq.get_time_of_file(filelist[0][1])
+            if tof < toi:
+                is_coseismic = True
+        if (doi_str == slv):
+            date = datetime.strptime(str(slv),'%Y%m%d').date()
+            filelist = lq.get_frame_files_date(frame, date)
+            if filelist:
+                tof = lq.get_time_of_file(filelist[0][1])
+                if tof > toi:
+                    is_coseismic = True
+            else:
+                is_coseismic = False
+        if is_coseismic:
+            selected_ifgs.append(pifg)
+    return selected_ifgs
+
 
 def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
     #toi is Time Of Interest - and should be as datetime
@@ -207,6 +319,10 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
             if not overwrite:
                 if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
                     os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
+                else:
+                    if dt.datetime.fromtimestamp(os.path.getctime(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz'))) <= pd.to_datetime('2020-11-01'):
+                        print('detected old version of the kmz - overwriting it')
+                        os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
             else:
                 os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
             if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
@@ -238,9 +354,14 @@ john's table about post_acq last date:
 7.0-7.5     -->   9   (typically 54-108 post eq days)
 7.5-8.0     -->   11  (typically 66-132 post eq days, i.e. 2-4 months)
 8+             -->   13  (typically 108-156 post eq days, i.e. 3-6 months)
+
+a workaround for dummy eq - if M0 == last date will be after... X acquisitions..
 """
 def get_max_post_days(magnitude, daysdiff):
-    if magnitude < 6:
+    x = 100 #should give some two years...
+    if magnitude == 0:
+        noimag = x
+    elif magnitude < 6:
         noimag = 3
     elif magnitude < 6.5:
         noimag = 5
@@ -341,15 +462,20 @@ def get_frames_in_event(event,radius = 9999):
     frames = lq.get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
     return frames
 
-def import_to_licsinfo_eq(event):
+
+def import_to_licsinfo_eq(event, active = True):
     if lq.get_eqid(event.id):
         print('eq already in database')#', cancelling')
         return False
     else:
-        eqid = lq.insert_new_eq(event)
+        eqid = lq.insert_new_eq(event, active)
         return eqid
 
-def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True):
+
+def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True, active = True):
+    '''
+    checks and inserts frame of a particular event using insert_new_eq2framme
+    '''
     fid = lq.get_frame_polyid(frame)
     try:
         fid = lq.sqlout2list(fid)[0]
@@ -363,7 +489,7 @@ def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True):
             print('post event acquisition could not be identified')
             return False
         try:
-            rc = lq.insert_new_eq2frame(eqid, fid, post_acq)
+            rc = lq.insert_new_eq2frame(eqid, fid, post_acq, active)
         except:
             print('error inserting to database')
     else:
@@ -377,17 +503,23 @@ def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True):
     return True
 
 
-def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2):
+def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False):
     eventlist = get_eq_events(minmag, pastdays)
+    print('identified {} events to process'.format(len(eventlist)))
     for event in eventlist:
         print(event.id)
+        #keep them active if these are some late eqs..
+        if event.time > dt.datetime.now()-timedelta(days=10):
+            makeactive = True
+        else:
+            makeactive = False
         try:
-            process_eq(event.id,step)
+            process_eq(event.id, step, overwrite, makeactive)
         except:
             print('some issue with event '+event.id)
 
 
-def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False):
+def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False):
     event =  get_event_by_id(eventid)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
     if not radius:
@@ -405,28 +537,41 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False):
     if len(frames) == 0:
         print('No frames are available for the event {0}'.format(event.id))
         return False
+    eqid = import_to_licsinfo_eq(event, active = makeactive)
+    for frame in frames:
+        rc = import_to_licsinfo_eq2frame(eqid, event, frame[0], active = makeactive)
     if step == 1:
-        eqid = import_to_licsinfo_eq(event)
         print('{0} frames detected for event {1}, will be processing them'.format(str(len(frames)),event.id))
         indate = event.time-timedelta(days=max_days)
-        offdate = event.time+timedelta(days=13)
+        offdate = event.time+timedelta(days=25)
         for frame in frames:
             frame = frame[0]
             track = str(int(frame[0:3]))
             if not os.path.exists(os.path.join(public_path,track,frame)):
                 print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
                 os.system('licsar_initiate_new_frame.sh {0} >/dev/null 2>/dev/null'.format(frame))
-            if os.path.exists(os.path.join(public_path,track,frame)):
+            framepubdir = os.path.join(public_path,track,frame)
+            if os.path.exists(framepubdir):
                 #if eqid:
                     #if equid means if first time to fille. then we should fill the eq2frame table
                 #    try:
                 #        import_to_licsinfo_eq2frame(eqid, event, frame)
                 #    except:
                 #        print('error during importing to eq2frame (database)')
-                print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
-                #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
-                #os.system('licsar_make_frame.sh -E -S {0} 1 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
-                os.system('licsar_make_frame.sh -E -S {0} 1 1 {1} {2}'.format(frame,str(indate.date()),str(offdate.date())))
+                if not overwrite:
+                    coseismic_ifgs = list_coseismic_ifgs(frame, event.time)
+                    if not coseismic_ifgs:
+                        start_processing=True
+                    else:
+                        print('there are some coseismic ifgs existing already, so skipping..')
+                        start_processing=False
+                else:
+                    start_processing=True
+                if start_processing:
+                    print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
+                    #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
+                    #os.system('licsar_make_frame.sh -E -S {0} 1 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
+                    os.system('licsar_make_frame.sh -f -P -S {0} 1 1 {1} {2}'.format(frame,str(indate.date()),str(offdate.date())))
     elif step == 2:
         #second run - generate kmls:
         for frame in frames:
@@ -533,7 +678,7 @@ def main():
                                     print('error during importing to eq2frame (database)')
                             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
                             #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
-                            os.system('licsar_make_frame.sh -E -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
+                            os.system('licsar_make_frame.sh -E -P -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
                             #this way is a kind of prototype and should be improved
                             new_kmls = create_kmls(frame,event.time)
                             #try:

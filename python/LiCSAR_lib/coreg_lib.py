@@ -11,6 +11,7 @@ import numpy as np
 import datetime as dt
 import subprocess as subp
 from LiCSAR_lib.LiCSAR_misc import *
+import pandas as pd
 
 from glob import glob
 
@@ -333,9 +334,48 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     #                       slavedate.strftime('%Y%m%d'))
     logfile = os.path.join(procdir,'log','S1_coreg_TOPS_'+masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.log')
     errfile = os.path.join(procdir,'log','S1_coreg_TOPS_'+masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.err')
+    
+    
+    #check if we have all IWs! edit tabs if not
+    stab_pd = pd.read_csv(slaveslctab, header = None, sep=' ')
+    
+    iws = []
+    for i, row in stab_pd.iterrows():
+        if not os.path.exists(row[0]):
+            print('skipping link to non-existing slc file: '+row[0])
+            iws.append(os.path.basename(row[0]).split('.')[1])
+    if iws:
+        masterslctab2 = masterslctab+'.noiw'
+        slaveslctab2 = slaveslctab+'.noiw'
+        slaverslctab2 = slaverslctab+'.noiw'
+        if slave3tab:
+            slave3tab2 = slave3tab+'.noiw'
+            shutil.copy(slave3tab,slave3tab2)
+        shutil.copy(masterslctab,masterslctab2)
+        shutil.copy(slaveslctab,slaveslctab2)
+        shutil.copy(slaverslctab,slaverslctab2)
+        for iw in iws:
+            os.system("sed -i '/{}/d' {}".format(iw,masterslctab2))
+            os.system("sed -i '/{}/d' {}".format(iw,slaveslctab2))
+            os.system("sed -i '/{}/d' {}".format(iw,slaverslctab2))
+            if slave3tab:
+                os.system("sed -i '/{}/d' {}".format(iw,slave3tab2))
+        masterslctab = masterslctab2
+        slaveslctab = slaveslctab2
+        slaverslctab = slaverslctab2
+        if slave3tab:
+            slave3tab = slave3tab2
+        print('not using hgt here')
+        demhgt = '-'
     # S1_coreg_TOPS <SLC1_tab> <SLC1_ID> <SLC2_tab> <SLC2_ID> <RSLC2_tab> [hgt] [RLK] [AZLK] [poly1] [poly2] [cc_thresh] [fraction_thresh] [ph_stdev_thresh] [cleaning] [flag1] [RSLC3_tab] [RSLC3_ID]
-    cmd = 'S1_coreg_TOPS_noifg {} {} {} {} {} {} {} {} - - 0.8 0.01 0.8 0 1 {} {} > {} 2> {}'.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, 
-                slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), slave3tab, slave3datestr, logfile, errfile)
+    #cmd = 'S1_coreg_TOPS_noifg {} {} {} {} {} {} {} {} - - 0.8 0.01 0.8 0 1 {} {} > {} 2> {}'.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, 
+    #            slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), slave3tab, slave3datestr, logfile, errfile)
+    #ML - gamma since version 20200728 - this really improved - we can coregister data we were not able to before!
+    # usage: ScanSAR_coreg.py <SLC1_tab> <SLC1_ID> <SLC2_tab> <SLC2_ID> <RSLC2_tab> [hgt] [rlks] [azlks] [options]
+    extracmd = ' '
+    if slave3datestr:
+        extracmd = '--RSLC3_tab {0} --RSLC3_ID {1}'.format(slave3tab, slave3datestr)
+    cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
     print(cmd)
     #now this may take some 80 minutes
     rc = os.system(cmd)
@@ -366,11 +406,13 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     with open(qualityfile, "a") as myfile:
             rc = myfile.write(str(cmd)+'\n')
             rc = myfile.write("Improvement of coregistration offset using intensity cross-correlation:\n")
-    cmd = 'grep matching_iteration_ {} >> {}'.format(gamma_qual, qualityfile)
+    #cmd = 'grep matching_iteration_ {} >> {}'.format(gamma_qual, qualityfile)
+    cmd = 'grep -A3 "matching iteration" {} >> {}'.format(gamma_qual, qualityfile)
     rc = os.system(cmd)
     with open(qualityfile, "a") as myfile:
             rc = myfile.write("Iterative improvement of refinement offset azimuth overlap regions:\n")
-    cmd = 'grep az_ovr_iteration_ {} >> {}'.format(gamma_qual, qualityfile)
+    #cmd = 'grep az_ovr_iteration_ {} >> {}'.format(gamma_qual, qualityfile)
+    cmd = 'grep "az_ovr iteration" {} >> {}'.format(gamma_qual, qualityfile)
     rc = os.system(cmd)
     total_daztmp = grep1('azimuth_offset_polynomial:',gamma_off)
     total_daz = float(total_daztmp.split()[1])
@@ -383,358 +425,6 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
             rc = myfile.write("(if the last iteration led to |daz| < 0.0005 px then this iteration was ignored)\n")
     return 0
 
-def coreg_slave_common_old(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,crop = False):
-    if not crop:
-        croptext=''
-        geodir = os.path.join(procdir,'geo')
-    else:
-        croptext='_crop_'+slavedate.strftime('%Y%m%d')
-        geodir = os.path.join(slaverslcdir,'geo')
-    mastermli = os.path.join(masterrslcdir,
-                             masterdate.strftime('%Y%m%d')+croptext+'.rslc.mli')
-    #master mli param file path
-    masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+croptext+'_tab')
-    mastermlipar = os.path.join(masterrslcdir,
-                             masterdate.strftime('%Y%m%d')+croptext+'.rslc.mli.par')
-    [mliwidth,mlilength]=get_mli_size(mastermlipar)
-    #master param file path
-    masterpar = os.path.join(masterrslcdir,
-                             masterdate.strftime('%Y%m%d')+croptext+'.rslc.par')
-    masterslcfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+croptext+'.rslc')
-    #slave mli param file path
-    slavemlipar = os.path.join(slaveslcdir,
-                            slavedate.strftime('%Y%m%d')+'.slc.mli.par')
-    #master param file path
-    slavepar = os.path.join(slaveslcdir,
-                            slavedate.strftime('%Y%m%d')+'.slc.par')
-    slaverslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'R_tab')
-    slavefilename = os.path.join(slaveslcdir,slavedate.strftime('%Y%m%d')+'.slc')
-    #DEM height file
-    demhgt = os.path.join(geodir,masterdate.strftime('%Y%m%d')+croptext+'.hgt')
-    #lookup table path
-    lut = os.path.join(slaverslcdir,
-                       masterdate.strftime('%Y%m%d')+'_'+
-                       slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
-    logfile = os.path.join(procdir,'log','rdc_trans_'+
-                           masterdate.strftime('%Y%m%d')+'_'+
-                           slavedate.strftime('%Y%m%d')+'.log')
-    #create lookup table from master and slave mli par and master height file
-    print('Performing the geometric coregistration...')
-    #1 minute
-    if not rdc_trans(mastermlipar,demhgt,slavemlipar,lut,logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during geometric coregistration.", file=sys.stderr)
-        return 2
-    ###########################################################################################################
-    #ML: to reflect gamma 'recipe' from 20181130 (and previous but.. still not reflected version)
-    # we will iterate already the mli-based improvements to reach 0.01 px
-    pair = os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'_'+
-                           slavedate.strftime('%Y%m%d'))
-    #offset parameter file path
-    offfile = pair+'.off'
-    dofffile = pair+'.doff'
-    #correction of offset estimation samples (max 64x64)
-    [width,length]=get_mli_size(masterpar)
-    rs=round(int(width)/64)
-    az=round(int(length)/64)
-    rstep = 64 if 64 > rs else rs
-    azstep= 32 if 32 > az else az
-    #setting logfile and going on
-    logfile_offset = os.path.join(procdir,'log','create_offset_'+
-                           masterdate.strftime('%Y%m%d')+'_'+
-                           slavedate.strftime('%Y%m%d')+'.log')
-    #10 seconds..
-    if not create_offset(masterpar,slavepar,offfile,str(gc.rglks),
-                         str(gc.azlks),logfile_offset):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong creating the offset file.", file=sys.stderr)
-        return 4
-    with open(qualityfile, "a") as myfile:
-            rc = myfile.write("Improvement of coregistration offset using intensity cross-correlation:\n")
-    #Will process it only once - testing showed that more iterations cause only an extra iteration in ESD
-    print("Offset refinement using intensity cross-correlation")
-    #    print("Offset refinement - iteration "+str(it))
-    rc = shutil.copyfile(offfile,offfile+'.start')
-    # originally resampling image - this was left from previous processing by accident..
-    #print('Resampling image...')
-    #print('(ETA 18 minutes)')
-    #if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
-    #                                 masterpar,lut,mastermlipar,slavemlipar,
-    #                                 offfile+'.start',slaverslctab,slaverfilename,
-    #                                 slaverfilename+'.par',logfile):
-    #    print("\nError:", file=sys.stderr)
-    #    print("Something went wrong resampling the slave SLC", file=sys.stderr)
-    #    return 3
-    #we are using some temporary dofffile here, not sure why but was in gamma..
-    if os.path.exists(dofffile): os.remove(dofffile)
-    #if not create_offset(masterpar,slaverfilename+'.par',dofffile,str(gc.rglks),
-    #                 str(gc.azlks),logfile_offset):
-    #    print("\nError:", file=sys.stderr)
-    #    print("Something went wrong creating the offset file.", file=sys.stderr)
-    #    return 4
-    #we do offset tracking between SLC images using intensity cross-correlation
-    logfile = os.path.join(procdir,'log','offset_pwr_tracking_'+
-                       masterdate.strftime('%Y%m%d')+'_'+
-                       slavedate.strftime('%Y%m%d')+'.log')
-    #ETA 5+ minutes
-    if not offset_pwr_tracking(masterslcfilename,slavefilename,masterpar,slavepar,
-                     offfile,pair,rstep,azstep,logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong with offset tracking.", file=sys.stderr)
-        return 4
-    #then we do offset fitting (gamma recommends offset_fit and not offset_fitm)
-    #ETA 2 sec
-    if not offset_fit(pair,offfile,pair+'.off.out'):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong with offset fitting.", file=sys.stderr)
-        return 4
-    fittmp = grep1('final model fit std. dev.',pair+'.off.out')
-    range_stdev = float(fittmp.split(':')[1].split()[0])
-    azimuth_stdev = float(fittmp.split(':')[2])
-    daztmp = grep1('azimuth_offset_polynomial:',offfile)
-    drtmp = grep1('range_offset_polynomial:',offfile)
-    #daz10000 = int(float(daztmp.split()[1])*10000)
-    daz = float(daztmp.split()[1])
-    daz_mli = daz/gc.azlks
-    dr = float(drtmp.split()[1])
-    dr_mli = dr/gc.rglks
-    #    with open(pair+'.refinement.iteration.'+str(it), "w") as myfile:
-    #        myfile.write("dr_mli: "+str(dr_mli)+"    daz_mli: "+str(daz_mli))
-    if os.path.exists(pair+'.diff_par'): os.remove(pair+'.diff_par')
-    logfile = os.path.join(procdir,'log',
-                   'create_diff_par_'+
-                   masterdate.strftime('%Y%m%d')+'_'+
-                   slavedate.strftime('%Y%m%d')+'.log')
-    #this indeed looks weird, but probably is only a gamma 'trick' to create a zero-filled template
-    #ETA 5 sec
-    if not create_diff_par(mastermlipar,mastermlipar,pair+'.diff_par','1','0',logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during the DIFF parameter file creation", file=sys.stderr)
-        return 3
-    #shutil.copyfile(pair+'.diff_par',pair+'.diff_par.'+str(it))
-    if not set_value(pair+'.diff_par',pair+'.diff_par',"range_offset_polynomial",
-                   str(dr_mli)+"   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00"):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during the range value setting", file=sys.stderr)
-        return 3
-    if not set_value(pair+'.diff_par',pair+'.diff_par',"azimuth_offset_polynomial",
-                   str(daz_mli)+"   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00"):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during the azimuth value setting", file=sys.stderr)
-        return 3
-    shutil.move(lut,lut+'.orbitonly')
-    logfile = os.path.join(procdir,'log',
-                   'gc_map_fine_{0}.log'.format(masterdate.strftime('%Y%m%d')))
-    #ETA 20 sec
-    if not gc_map_fine(lut+'.orbitonly',str(mliwidth),pair+'.diff_par',lut,'1',logfile):
-        # Error in lookup table refining
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong refining the lookup table.", file=sys.stderr)
-        return 4
-    with open(qualityfile, "a") as myfile:
-        rc = myfile.write("intensity_matching: "+str(daz)+" "+str(dr)+" "+str(daz_mli)+" "+str(dr_mli)+" (daz dr  daz_mli dr_mli) \n")
-        rc = myfile.write("intensity_matching: "+str(azimuth_stdev)+" "+str(range_stdev) +"  (azi/rg std dev) \n")
-    daz_initial = daz
-    #
-    # Iterative improvement of azimuth refinement using spectral diversity method
-    #
-    #
-    ####### These lines may be used just once. Only for master, before all the coregs start
-    #mazpoly=os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+'.az_ovr.poly')
-    mazpoly=os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'.az_ovr.poly')
-    if os.path.exists(mazpoly+'.lock'):
-        print('now i should check if and when the master crop will be finally performed')
-        print('but now i will just keep making the crops everytime - it is not so heavy for processing..')
-    else:
-        open(mazpoly+'.lock','a').close()
-        print('cropping the bursts of master, yet this should be performed only once! thing to improve..')
-    if os.path.exists(mazpoly): os.remove(mazpoly)
-    logfile = os.path.join(procdir,'log',
-                   'S1_poly_overlap_{0}.log'.format(masterdate.strftime('%Y%m%d')
-                   +'_'+slavedate.strftime('%Y%m%d')))
-    #ETA 1 min
-    if not S1_poly_overlap(masterslctab,str(gc.rglks),str(gc.azlks),mazpoly,'1',logfile):
-        # Error in lookup table refining
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong using S1_poly_overlap", file=sys.stderr)
-        return 4
-    mazovr=os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'.az_ovr')
-    logfile = os.path.join(procdir,'log',
-                   'polymath_{0}.log'.format(masterdate.strftime('%Y%m%d')
-                   +'_'+slavedate.strftime('%Y%m%d')))
-    #ETA 5 sec
-    if not poly_math(mastermli,mazovr,str(mliwidth),mazpoly,logfile):
-        # Error in lookup table refining
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong using poly_math", file=sys.stderr)
-        return 4
-    # maybe should be here?
-    logfile = os.path.join(procdir,'log',
-                   'raspwr_{0}.log'.format(masterdate.strftime('%Y%m%d')
-                   +'_'+slavedate.strftime('%Y%m%d')))
-    #ETA 20 sec
-    if not raspwr(mazovr,str(mliwidth),'1','1',mazovr+'.ras',logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong using raspwr", file=sys.stderr)
-        return 4
-    lutazovr=os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'.lt.az_ovr')
-    logfile = os.path.join(procdir,'log',
-                   'mask_class_{0}.log'.format(masterdate.strftime('%Y%m%d')
-                   +'_'+slavedate.strftime('%Y%m%d')))
-    #ETA 10 sec
-    if not mask_class(mazovr+'.ras',lut,lutazovr,logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong using mask_class", file=sys.stderr)
-        return 4
-    ####### end of what should be done only for master
-    #
-    #
-    #
-    daz10000=10000
-    it=0
-    itmax=2
-    with open(qualityfile, "a") as myfile:
-            rc = myfile.write("Iterative improvement of refinement offset azimuth overlap regions:\n")
-    # iterate while azimuth correction >= 0.0005 SLC pixel
-    daz_total=0
-    subswath_corr = False
-    #...following condition - should include also that the prev is not same as now
-    #and (daz_total != daz_total + daz)
-    #and (daz != 0)
-    #
-    ### using precision to 0.001 instead of original gamma's 0.0005:
-    while (daz10000 > 10 or daz10000 < -10) and (it < itmax):
-        it += 1
-        #get the total daz value (w.r.t. image resampled after orbit-based coreg = rdc_trans)
-        daz_total = daz_total + daz
-        print('offset refinement using spectral diversity in azimuth overlap region iteration '+str(it))
-        rc = shutil.copyfile(offfile,offfile+'.start')
-        offazovrout=offfile+'.az_ovr.'+str(it)+'.out'
-        #note that the slave3tab is already set - and is empty string if should not be used
-        if it==1 and not (getipf(masterpar) == getipf(slavepar)) and (slavedate < dt.datetime.strptime('20160101','%Y%m%d')):
-            with open(qualityfile, "a") as myfile:
-                myfile.write("IPF versions were differing, first iteration done by S1_coreg_subswath_overlap\n")
-            #do one iteration of subswath correction...:
-            print('IPF versions of the data differ:')
-            print('..getting offsets using subswath overlap (first iteration)')
-            print('(this process generates a lot of errors and is very long - but do not worry - this is normal)')
-            subswath_corr = True #just to know that this processing has been performed..
-            #logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
-            #                           masterdate.strftime('%Y%m%d')+'_'+
-            #                           slavedate.strftime('%Y%m%d')+'.'+str(it)+'.log')
-            #note that the slave3tab is already set - and is empty string if should not be used
-            #ETA 15 min+ !
-            # this function gives not only lot of errors in command line but also may crash. so we run in 'safely' here:
-            try:
-                with nostdout():
-                    # it seems it could not work because the script needs resampled slave SLC (and the resample was 
-                    # cropped to burst overlaps only) - solution here is to do full resample, not only burst overlaps..
-                    # will take a long time though, but should save some older images..
-                    if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
-                                     masterpar,lut,mastermlipar,slavemlipar,
-                                     offfile+'.start',slaverslctab,slaverfilename,
-                                     slaverfilename+'.par',logfile_interp_lt2):
-                        print("\nError:", file=sys.stderr)
-                        print("Something went wrong resampling the slave SLC", file=sys.stderr)
-                        return 3
-                    S1_coreg_subswath_overlap(masterslctab,slaverslctab,masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d'),
-                                                offfile+'.start',offfile,slave3tab,offazovrout)
-            except:
-                print('error in subswath overlap function. but continuing')
-            #if not S1_coreg_subswath_overlap(masterslctab,slaverslctab,masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d'),
-            #                                    offfile+'.start',offfile,slave3tab,offazovrout):
-            #    print("\nError:", file=sys.stderr)
-            #    print("Something went wrong during the first offset refinement using subswath overlap.", file=sys.stderr)
-            #    return 4
-        else:
-            
-            ### perhaps no resample is needed... in the first step??
-            
-            
-            #sometimes daz does not show any change.. e.g. after subswath_overlap process, so no need to resample
-            # (in the first run, daz is not 0)
-            
-            
-            
-            
-            #i had to return this here...
-            if not (daz == 0):
-                logfile_interp_lt2 = os.path.join(procdir,'log',
-                       'SLC_interp_lt_ScanSAR.{0}.2.out'.format(slavedate.strftime('%Y%m%d')))
-                #ETA 10 min
-                print('..resampling burst overlaps of slave')
-                if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
-                                         masterpar,lutazovr,mastermlipar,slavemlipar,
-                                         offfile+'.start',slaverslctab,slaverfilename,
-                                         slaverfilename+'.par',logfile_interp_lt2):
-                    print("\nError:", file=sys.stderr)
-                    print("Something went wrong resampling the slave SLC", file=sys.stderr)
-                    return 3
-            print('..getting offsets using spectral diversity...')
-            #logfile = os.path.join(procdir,'log','S1_coreg_overlap_'+
-            #                       masterdate.strftime('%Y%m%d')+'_'+
-            #                       slavedate.strftime('%Y%m%d')+'.'+str(it)+'.log')
-            
-            #
-            ## getting the offsets directly towards slave SLC, no need to re-resample!!!!???
-            #ETA 30+ min.
-            if os.path.exists(slaverfilename):
-                imagetouse = slaverslctab
-            else:
-                imagetouse = slaveslctab
-            if not S1_coreg_overlap(masterslctab,imagetouse,masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d'),
-                                                offfile+'.start',offfile,slave3tab,offazovrout):
-                print("\nError:", file=sys.stderr)
-                print("Something went wrong during the offset refinement using spectral diversity.", file=sys.stderr)
-                return 4
-            #SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
-            #                             masterpar,lutazovr,mastermlipar,slavemlipar,
-            #                             offfile+'.start',slaverslctab,slaverfilename,
-            #                             slaverfilename+'.par',logfile_interp_lt2)
-        daztmp = grep1('azimuth_pixel_offset',offazovrout)
-        daz = float(daztmp.split()[1])
-        #write the iteration output to the qualityfile
-        with open(qualityfile, "a") as myfile:
-            rc = myfile.write("az_ovr_iteration_"+str(it)+": "+str(daz)+" (daz in SLC pixel)\n")
-        #if not (daz == 0):
-        #    daz10000 = int(daz*10000)
-        if (daz == 0):
-            print('daz was estimated as 0.0 px - this means for GAMMA that it failed J')
-            if slave3tab:
-                print('trying without third slave')
-                S1_coreg_overlap(masterslctab,imagetouse,masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d'),
-                                                offfile+'.start',offfile,'',offazovrout)
-        daz10000 = int(daz*10000)
-        #daz is 0 in case burst overlap ifgs are too decorrelated. here we would skip the image
-        # the check keeps 1 iteration for subswath_correction and 1 for ESD in case of different IPFs
-        #if (daz == 0) and ((it==1 and not subswath_corr) or (it==2 and subswath_corr)):
-        #if (daz == 0) and ((it==1 and not subswath_corr) or (it==2 and subswath_corr)):
-        #    with open(qualityfile, "a") as myfile:
-        #        myfile.write("Spectral diversion estimation failed with wrong |daz|=0 px. Skipping\n")
-        #    return 4
-        shutil.copyfile(offfile,offfile+'.az_ovr.'+str(it))
-    if daz == daz_initial:
-        print('Something got wrong during ESD estimation - the daz value is same as during init. This cannot be trusted')
-        return 4
-    #relaxing the threshold condition to 0.0012 pixel
-    if (daz10000 > 12 or daz10000 < -12):
-        print('The ESD estimation finished in |daz| value above threshold: '+str(daz)+' px and thus marked as failed')
-        return 4
-    with open(qualityfile, "a") as myfile:
-            myfile.write("Total azimuth offset (w.r.t. image resampled after rdc_trans): "+str(daz_total)+" (daz in SLC pixel)\n")
-            myfile.write("(if the last iteration led to |daz| < 0.0005 px then this iteration was ignored)\n")
-    #resample full data set
-    print('Resampling the full data set')
-    logfile_interp_lt3 = os.path.join(procdir,'log',
-                   'SLC_interp_lt_ScanSAR.{0}.3.out'.format(slavedate.strftime('%Y%m%d')))
-    if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
-                                 masterpar,lut,mastermlipar,slavemlipar,
-                                 offfile,slaverslctab,slaverfilename,
-                                 slaverfilename+'.par',logfile_interp_lt3):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong resampling the slave SLC", file=sys.stderr)
-        return 3
-    return 0
 #########################################################################
 
 def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id):
@@ -867,13 +557,13 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     if slave3date:
         with open(qualityfile, "a") as myfile:
             rc = myfile.write("Spectral diversity estimation will be performed through near RSLC: "+slave3date.strftime('%Y%m%d')+"\n")
-    print('WARNING - some issues detected with wrong detection of missing bursts')
-    print('doing workaround here - ALWAYS check the burst correspondence through GAMMA command')
+    #print('WARNING - some issues detected with wrong detection of missing bursts')
+    #print('doing workaround here - ALWAYS check the burst correspondence through GAMMA command')
     #print('this needs to be improved - I recommend full rewrite of coreg_lib.py -- really, better do it from scratch as this contains routines from year 0..er.. 2015')
-    if not missingbursts:
-        missingbursts = ['fakemissingburst']
-    if not missingbursts:
-        #print('All bursts available, no recropping of master necessary...')
+    #if not missingbursts:
+    #    missingbursts = ['fakemissingburst']
+    #if not missingbursts:
+    if 1==1:        #print('All bursts available, no recropping of master necessary...')
         print('debug place 1')
         #coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id)
         rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile)

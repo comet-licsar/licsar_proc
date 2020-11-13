@@ -71,6 +71,8 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
                 print('Something went wrong creating the slave resampled tab file...')
                 return 1
             SLC_mosaic_S1_TOPS(rslctab,filename,rglks,azlks,logfile,mastertab)
+            #somehow, the multilooking is not performed!!!
+            os.system('multilookRSLC {} {} {}'.format(str(pomdate),str(gc.rglks), str(gc.azlks)))
 ############################################################ Create offsets
     offsetfile = os.path.join(ifgthisdir,pair+'.off')
     masterpar = os.path.join(procdir,'RSLC',

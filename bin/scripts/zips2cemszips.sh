@@ -3,10 +3,11 @@
 usage() { 
   echo " " 1>&2; 
   echo "Usage: " 1>&2; 
-  echo "  zips2cemszips.sh label_ziplist.full_list label_ziplist.list " 1>&2; 
+  echo "  zips2cemszips.sh label_ziplist.full_list label_ziplist.list [mode]" 1>&2; 
   echo "   " 1>&2; 
   echo "  This program will convert a query zip list to a cems ziplist (with appropriate cems filepaths). " 1>&2; 
   echo "  " 1>&2; 
+  echo "   optional mode parameter can be SM, it is IW by default" 1>&2; 
   exit 1; 
 }
 
@@ -20,9 +21,15 @@ fi
 
 ziplist=$2
 
+#optional third parameter - for non-IW data
+if [ ! -z $3 ]; then
+ mode=$3
+else
+ mode='IW'
+fi
 # Root directory at cems:
-cemsroot1a=/neodc/sentinel1a/data/IW/L1_SLC/IPF_v
-cemsroot1b=/neodc/sentinel1b/data/IW/L1_SLC/IPF_v
+cemsroot1a=/neodc/sentinel1a/data/$mode/L1_SLC/IPF_v
+cemsroot1b=/neodc/sentinel1b/data/$mode/L1_SLC/IPF_v
 
 rm $ziplist 2>/dev/null; touch $ziplist;
 

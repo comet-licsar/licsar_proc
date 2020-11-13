@@ -2,6 +2,11 @@
 # saner programming env: these switches turn some bugs into errors
 set -o errexit -o pipefail -o noclobber -o nounset
 
+
+# IMPORTANT TODO:
+# use jid1=$(sbatch jobscript | tr -dc '0-9')  to get job id for waiting script
+
+
 # -allow a command to fail with !’s side effect on errexit
 # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
 ! getopt --test > /dev/null 

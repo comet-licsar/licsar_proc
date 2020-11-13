@@ -12,7 +12,7 @@ set LiCSARpath "/gws/smf/j04/nceo_geohazards/software/licsar_proc"
 
 if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded gamma] } {
-        module load gamma/20181130
+        module load gamma
     }
     if { ![is-loaded snaphu] } {
         module load snaphu

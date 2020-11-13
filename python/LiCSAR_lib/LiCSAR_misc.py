@@ -2,7 +2,7 @@ import os
 import sys
 import subprocess as subp
 import re
-
+import zipfile
 import sys, traceback
 
 class nostdout(object):
@@ -135,6 +135,25 @@ def sed_replace(oldstr, newstr, infile, dryrun=False):
     else:
         print("Unknown option specified to 'dryrun' argument, Usage: dryrun=<True|False>.")
         return False
+
+
+def is_good_zip(zipf):
+    try:
+        the_zip_file = zipfile.ZipFile(zipf)
+    except:
+        print('error opening zip file - marking as bad')
+        return False
+    try:
+        ret = the_zip_file.testzip()
+    except:
+        print('error testing zip file - marking as bad')
+        return False
+    if ret is not None:
+        print('the file is corrupted')
+        #print "First bad file in zip: %s" % ret
+        return False
+    else:
+        return True
 
 
 ################################################################################

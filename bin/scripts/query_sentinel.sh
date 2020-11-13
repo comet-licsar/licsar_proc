@@ -14,7 +14,7 @@ usage() {
   echo " " 1>&2; 
   echo "  This program queries sci hub to find zip files which are within a polygon. " 1>&2; 
   echo "Usage: " 1>&2; 
-  echo "  query_sentinel.sh track_no asc/dsc polyfile.xy startdate stopdate " 1>&2; 
+  echo "  query_sentinel.sh track_no asc/dsc polyfile.xy startdate stopdate [IW/SM]" 1>&2; 
   echo "   " 1>&2; 
   echo "  " 1>&2; 
   echo "  - can be used instead to collect all tracks within polygon (BETA feature!)" 1>&2; 
@@ -24,6 +24,7 @@ usage() {
   echo "  - can be used instead to collect both ascending and descending (BETA feature!)" 1>&2; 
   echo "  " 1>&2; 
   echo "  start/stop date: yyyymmdd" 1>&2; 
+  echo "  finally, optional parameter will search for given acq. mode (by default: IW only)" 1>&2; 
   echo "  " 1>&2; 
 #  echo "  Authentication: Is done using your scihub login. Set these details in your .netrc file" 1>&2; 
 #  echo "  		e.g. touch ~/.netrc; chmod 600 ~/.netrc; " 1>&2; 
@@ -36,7 +37,7 @@ usage() {
   exit 1; 
 }
 
-if [ "$#" -ne 5 ]; then
+if [ "$#" -lt 5 ]; then
   usage
 else
   track=$1
@@ -44,6 +45,7 @@ else
   polyfile=$3
   startdate=$4
   stopdate=$5
+  if [ ! -z $6 ]; then mode=$6; else mode='IW'; fi
 fi
 
 #getting licsar username/password for scihub
@@ -59,6 +61,7 @@ echo "Orbit direction: $ascdsc"
 echo "Polygon: $polyfile"
 echo "Start epoch: $startdate"
 echo "End epoch: $stopdate"
+echo "Acquisition mode: $mode"
 
 nmax=100
 
@@ -87,8 +90,8 @@ polygon=`awk 'BEGIN{ORS=","}{if($1!=">"){print $1, $2}}' $polyfile | sed 's/,$//
 
 apiroot="https://scihub.copernicus.eu/dhus/search?"
 
-# Always search IW mode:
-querytags1=" AND sensoroperationalmode:IW"
+# by default, search IW mode:
+querytags1=" AND sensoroperationalmode:"$mode
 
 # Check for placeholder arguements "-"
 if [ $orbitdir=='-' ]; then

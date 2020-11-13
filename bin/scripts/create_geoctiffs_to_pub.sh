@@ -147,10 +147,11 @@ echo "   Geocoding results for inteferogram: ${ifg}" ;
 
 if [ $UNWDO -eq 1 ]; then
 # Unwrapped interferogram
-if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
+if [ -f ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   # Geocode all the data
-  if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
-  echo "Replacing nan for 0 values (trick by Yu Morishita)"
+if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
+  echo "geocoding unwrapped data"
+  #echo "Replacing nan for 0 values (trick by Yu Morishita)"
    #I will correct nan-corrected unwrapped ifg here and then convert the unwrapped phase to metric units
    replace_values ${procdir}/IFG/${ifg}/${ifg}.unw nan 0 ${procdir}/IFG/${ifg}/${ifg}.unw0 $width >> $logfile
    if [ `ls -al ${procdir}/IFG/${ifg}/${ifg}.unw  | gawk {'print $5'}` -eq  `ls -al ${procdir}/IFG/${ifg}/${ifg}.unw0  | gawk {'print $5'}` ]; then
@@ -159,7 +160,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
      rm ${procdir}/IFG/${ifg}/${ifg}.unw0 
    fi
    #mv ${procdir}/IFG/${ifg}/${ifg}.disp ${procdir}/IFG/${ifg}/${ifg}.unw
-   echo "Geocoding"
+   #echo "Geocoding"
    geocode_back ${procdir}/IFG/${ifg}/${ifg}.unw $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ${width_dem} ${length_dem} 0 0 >> $logfile
   fi
 #  if [ ! -e ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ]; then
@@ -171,16 +172,112 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif ]; then 
    echo "Converting to GeoTIFF"
    data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif 0.0  >> $logfile 2>/dev/null
-   gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif >> $logfile 2>/dev/null
-   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif
+   #shifting by median
+   nctempfile=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.nc
+   gmt grdclip ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif -G$nctempfile -Sr0/NaN
+   gmt grdmath $nctempfile $nctempfile MEDIAN SUB = ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif=gd:gtiff
+   minmaxcolour=`gmt grdinfo -T+a0.1+s $nctempfile`
+   minmaxreal=`gmt grdinfo -T $nctempfile`
+   gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 -a_srs EPSG:4326 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif >> $logfile 2>/dev/null
+   
 #   data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
+   echo "Generating preview PNG"
+   unw_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.png
+   scalebar_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.scale.png
+   unwcpt=${procdir}/$GEOCDIR/${ifg}/unw.cpt
+   gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$unwcpt
+   frame=`echo ${procdir} | rev | cut -d '/' -f1 | rev`
+   tr=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+   hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+   hillshadecmd=''
+   hillshadefile=''
+   if [ -f $hgtfile ]; then
+     hillshadefile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hillshade.nc
+    if [ ! -f $hillshadefile ]; then
+      hillshadefile=${procdir}/$GEOCDIR/${ifg}/hillshade.nc
+      echo "generating hillshade"
+    opass=`echo $frame | cut -c 4`
+    if [ $opass == 'A' ]; then
+      deg=258
+    else
+      deg=102
+    fi
+    gmt grdgradient -A$deg -Nt1 -G$hillshadefile $hgtfile
+    fi
+   else
+     echo "hgt geofile not found. will skip generating hillshade"
+   fi
+  if [ -f $hillshadefile ]; then
+    hillshadecmd="-I"$hillshadefile
   fi
-  # Create bmps
+  
+  gmt grdimage $nctempfile -C$unwcpt -JM1 -Q -nn+t0.1 $hillshadecmd -A$unw_bmp 2>/dev/null
+  if [ ! -f $unw_bmp ]; then
+    echo "some error, perhaps with hillshade.. skipping it"
+    gmt grdimage $nctempfile -C$unwcpt -JM1 -Q -nn+t0.1 -A$unw_bmp.tt.png
+    #in such case we should be ok with 255 colour palette
+    convert $unw_bmp.tt.png PNG8:$unw_bmp
+    rm $unw_bmp.tt.png
+  fi
+
+  #need to prepare a colorbar based on these values!!!!
+  #you know... the rounding here is not really important... just a colourbar.. or not?
+  mincol=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
+  maxcol=`echo $minmaxcolour | cut -d '/' -f2 `
+  #expecting sentinel
+  minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
+  maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
+  #add also real min and max values
+  minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
+  maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
+  minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
+  maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
+  #burn them to the scalebar
+  minvalsize=`echo $minval | wc -m `
+  if [ $minvalsize -gt 4 ]; then
+   xsize=20
+  elif [ $minvalsize -eq 4 ]; then
+   xsize=40
+  elif [ $minvalsize -eq 3 ]; then
+   xsize=60
+  else
+   xsize=80
+  fi
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png $scalebar_bmp.temp.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" $scalebar_bmp.temp.png $scalebar_bmp
+  mv $scalebar_bmp $scalebar_bmp.temp.png
+  #add real values
+  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
+  mv $scalebar_bmp $scalebar_bmp.temp.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
+
+  convert $unw_bmp -resize 680x \( $scalebar_bmp -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $unw_bmp.sm.png
+  if [ $FULL -eq 1 ]; then
+   mv $unw_bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.full.png
+  fi
+  mv $unw_bmp.sm.png $unw_bmp
+  
+  rm $unwcpt $nctempfile $scalebar_bmp.temp.png ${procdir}/$GEOCDIR/${ifg}/hillshade.nc 2>/dev/null
+  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif $scalebar_bmp 2>/dev/null
+fi
+
+
+fi
+
+
+
+
+
+
+
+
+
+
   #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.unw ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.unw.bmp >> $logfile
-  if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ]; then
-   echo "Converting to raster previews"
-   rasrmg ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp >> $logfile
-  fi 
+  #if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ]; then
+  # echo "Converting to raster previews"
+  # rasrmg ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp >> $logfile
+  #fi 
    #rasrmg ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile
    #get min and max for disp image
 #   gdalinfo -stats ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif > ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.stats
@@ -194,16 +291,18 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
 #   visdt_pwr.py ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} $min $max -b -p ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png 2>/dev/null
 #   convert ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.png ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp
    #rasdt_cmap ${procdir}/GEOC/${ifg}/${ifg}.geo.disp ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem $min $max 0 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp >> $logfile   
-  if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.bmp ]; then
-   convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.png
-   if [ $FULL -eq 1 ]; then
-    convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.full.png
-   fi
-  fi
-  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp 2>/dev/null
+  #if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.bmp ]; then
+  # convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.png
+   #if [ $FULL -eq 1 ]; then
+   # convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.full.png
+   #fi
+  #fi
+  #rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw_blk.bmp 2>/dev/null
 #  convert -transparent black ${procdir}/GEOC/${ifg}/${ifg}.geo.disp_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.png
-fi
-fi
+#fi
+fi  #end of unwdo
+
+
 
 #if [ $UNFILT -eq 1 ]; then
 # ifgext="diff"
@@ -233,8 +332,15 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' >> $logfile 2>/dev/null
  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
  # Create bmps
- rasmph_pwr ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' >> $logfile
- convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
+ ifg_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
+ tmpifgbmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.tmp.png
+ gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$ifg_bmp
+ #to flatten it (and fix transparency...sometimes needed..):
+ convert $ifg_bmp -transparent black -resize $RESIZE'%' PNG8:$tmpifgbmp
+ mv $tmpifgbmp $ifg_bmp
+ 
+ #rasmph_pwr ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' >> $logfile
+ #convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
  if [ $FULL -eq 1 ]; then
   gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -A${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
   #convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.png' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
@@ -263,8 +369,15 @@ if [ $UNFILT -eq 1 ]; then
  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' 0.0  >> $logfile 2>/dev/null
  gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' >> $logfile 2>/dev/null
  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
- rasmph_pwr ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' >> $logfile
- convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
+ #rasmph_pwr ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' >> $logfile
+ #convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
+ # Create bmps
+ ifg_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.png
+ tmpifgbmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.tmp.png
+ gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$ifg_bmp
+ #to flatten it (and fix transparency...sometimes needed..):
+ convert $ifg_bmp -transparent black -resize $RESIZE'%' PNG8:$tmpifgbmp
+ mv $tmpifgbmp $ifg_bmp
  if [ $FULL -eq 1 ]; then
   gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -A${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
   #convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.png' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
@@ -286,22 +399,29 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/$
   gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif >> $logfile 2>/dev/null
   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif
   # create bmps
+
+   gmt makecpt -Cgray -T0/255/1 >${procdir}/$GEOCDIR/${ifg}/cc.cpt
+   gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif -C${procdir}/$GEOCDIR/${ifg}/cc.cpt -JM1 -nn+t0.1 -A${procdir}/$GEOCDIR/${ifg}/bbb.png
+   coh_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.png
+   convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/bbb.png PNG8:$coh_bmp
+   
   #new version of gamma shows coherence in colour... using old-school cpxfiddle as workaround
   #rascc ${procdir}/GEOC/${ifg}/${ifg}.geo.cc - ${width_dem} - - - $reducfac_dem $reducfac_dem 0 1 - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp >> $logfile
  # module load doris
   #byteswap -o ${ifg}.geo.cc.tmp 4 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc >/dev/null
   #will use the gamma swapper here..
-  swap_bytes ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc ${ifg}.geo.cc.tmp 4 >/dev/null
-  cpxfiddle -q normal -w ${width_dem} -f r4 -o sunraster -c gray -M $reducfac_dem/$reducfac_dem -r 0/0.9 ${ifg}.geo.cc.tmp > ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras 2>/dev/null
-  convert ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp
-  rm -f ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp
+  #swap_bytes ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc ${ifg}.geo.cc.tmp 4 >/dev/null
+  #cpxfiddle -q normal -w ${width_dem} -f r4 -o sunraster -c gray -M $reducfac_dem/$reducfac_dem -r 0/0.9 ${ifg}.geo.cc.tmp > ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras 2>/dev/null
+  #convert ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp
+  rm -f ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp 2>/dev/null
   # Need to remove the black border, but the command below is no good as it removes the black parts of the coherence!
   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
-  convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.png
+  #convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.png
   if [ $FULL -eq 1 ]; then
-   convert -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.full.png
+   convert -transparent black ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.full.png
   fi
   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp 2>/dev/null
+  rm ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/cc.cpt 2>/dev/null
 fi
 fi
 

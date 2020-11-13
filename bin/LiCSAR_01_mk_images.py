@@ -423,7 +423,11 @@ def main(argv=None):
                 f.write('\nAcquisition {0} has missing bursts in critical location.'.format(date))
 #                if os.path.exists(datedir):
 #                    shutil.rmtree(datedir)
-
+    try:
+        lq.close_db_and_tunnel()
+    except:
+        print('')
+    
 ############################################################ Finish Report File
     # Finalize report file
     with open(reportfile,'a') as f:

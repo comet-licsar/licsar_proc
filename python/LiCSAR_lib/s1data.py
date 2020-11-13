@@ -69,11 +69,15 @@ def get_neodc_path_images(images):
         year = image[17:21]
         mon = image[21:23]
         day = image[23:25]
+        if image.split('_')[1][0] == 'S':
+            sensType='SM'
+        else:
+            sensType='IW'
         if dt.datetime.strptime(year+mon+day,'%Y%m%d') >= dt.datetime.strptime('20190625','%Y%m%d'):
             vers='3'
         else:
             vers='2'
-        neodcpath = os.path.join('/neodc/sentinel1'+AorB,'data/IW/L1_SLC/IPF_v'+vers,year,mon,day,image+'.zip')
+        neodcpath = os.path.join('/neodc/sentinel1'+AorB,'data',sensType,'L1_SLC/IPF_v'+vers,year,mon,day,image+'.zip')
         neodc_paths.append(neodcpath)
     return neodc_paths
 
@@ -106,7 +110,11 @@ def import_to_licsinfo(images, meta = True):
 
 def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), meta = True):
     print('Checking S1 images available on /neodc and importing them to licsinfo database')
-    images = get_images_for_frame(frameName, startdate, enddate)
+    if frameName.split('_')[1] == 'SM':
+        sensType = 'SM'
+    else:
+        sensType = 'IW'
+    images = get_images_for_frame(frameName, startdate, enddate, sensType)
     if images:
         print('There are {0} acquired images within the given period'.format(str(len(images))))
     else:

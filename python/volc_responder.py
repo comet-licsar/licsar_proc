@@ -91,11 +91,11 @@ def main():
         track = str(int(frame[0:3]))
         if not os.path.exists(os.path.join(public_path,track,frame)):
             print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
-            os.system('licsar_initiate_new_frame.sh {0} >/dev/null 2>/dev/null'.format(frame))
+            os.system('licsar_initiate_new_frame.sh {0}'.format(frame))
         if os.path.exists(os.path.join(public_path,track,frame)):
             indate = get_indate(frame)
             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
-            os.system('licsar_make_frame.sh -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate),str(offdate.date())))
+            os.system('licsar_make_frame.sh -S -P -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate),str(offdate.date())))
 
 if __name__ == '__main__':
     main()

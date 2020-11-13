@@ -55,7 +55,8 @@ def Conn_tunnel_db():
     sql_password = parser.get('sqlinfo', 'dbpass')
     sql_port = parser.get('sqlinfo', 'port')
     sql_port = int(sql_port)
-    ssh_host = 'cems-login1.cems.rl.ac.uk'
+    ssh_host = 'login1.jasmin.ac.uk'
+    #ssh_host = 'cems-login1.cems.rl.ac.uk'
     ssh_pkey = os.path.join(os.environ['HOME'],'.ssh/id_jasmin')
     if not os.path.exists(ssh_pkey):
         print('please install JASMIN RSA key to your ~/.ssh/id_jasmin')
@@ -69,11 +70,36 @@ def Conn_tunnel_db():
     #    tunnel.stop()
     if not tunnel.tunnel_is_up:
         tunnel.start()  #this works, but in case of error it may be kept ON?
-    conn = pymysql.connect(host='127.0.0.1',
+    
+    try:
+        conn = pymysql.connect(host='127.0.0.1',
                      user=sql_username,
                      passwd=sql_password,
                      database=sql_live_database,
                      port=tunnel.local_bind_port)
+    except:
+        print('WARNING! Error connecting to LiCSAR db - trying Leeds back up')
+        tunnel.stop()
+        sql_hostname = 'foe-db.leeds.ac.uk'
+        sql_live_database = 'licsar'
+        sql_username = 'licsadmin'
+        sql_password = 'KtmBuCpP2vVK'
+        conn = pymysql.connect(host=sql_hostname,
+                               user=sql_username,
+                               password=sql_password,
+                               db=sql_live_database)
+        #ssh_host = 'see-gw-01.leeds.ac.uk'
+        #ssh_host = 'foe-linux.leeds.ac.uk'
+        #tunnel = sshtunnel.SSHTunnelForwarder((ssh_host, ssh_port),
+        #        ssh_username=ssh_username, ssh_pkey=ssh_pkey,
+        #        remote_bind_address=(sql_hostname, sql_port))
+        #tunnel.start()
+        #conn = pymysql.connect(host='127.0.0.1',
+        #             user=sql_username,
+        #             passwd=sql_password,
+        #             database=sql_live_database,
+        #             port=tunnel.local_bind_port)
+    
     cur = conn.cursor()
     cur.execute('SELECT VERSION();')
     res = cur.fetchone()

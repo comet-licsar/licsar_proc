@@ -175,7 +175,10 @@ def main(argv=None):
                 f.write('\Interferogram {0} had a problem during the unwrapping.'.format(ifg)) 
         print('Elapsed time {0}'.format(starttime - dt.datetime.now()))
         f.write('Unwrapping completed, {0} interferograms unwrapped successfully.'.format(success))
-
+    try:
+        lq.close_db_and_tunnel()
+    except:
+        print('')
 
 
 if __name__ == "__main__":

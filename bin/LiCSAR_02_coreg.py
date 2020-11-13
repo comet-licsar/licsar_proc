@@ -336,9 +336,12 @@ def main(argv=None):
             masterstr = masterdate.strftime('%Y%m%d')
             slaverslcdir = os.path.join(rslcdir,sd.strftime('%Y%m%d'))
             #for ext in ['']
-            os.system('rm {0}/{1}.IW?.rslc.[0-9]*.[0-9]*'.format(slaverslcdir,slavestr))
-            os.system('rm {0}_{1}.* {1}.* SLC_interp_lt_ScanSAR.* core.*'.format(masterstr,slavestr))
-    
+            os.system('rm {0}/{1}.IW?.rslc.[0-9]*.[0-9]* 2>/dev/null'.format(slaverslcdir,slavestr))
+            os.system('rm {0}_{1}.* {1}.* SLC_interp_lt_ScanSAR.* core.* 2>/dev/null'.format(masterstr,slavestr))
+    try:
+        lq.close_db_and_tunnel()
+    except:
+        print('')
 ################################################################################
 # Execute main function
 ################################################################################

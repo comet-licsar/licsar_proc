@@ -113,7 +113,7 @@ def check_frame(frame):
 def geom_from_polygs2geom(frame):
     polyid = get_frame_polyid(frame)[0][0]
     sql_q = "select AsText(geom) from polygs2gis where polyid={0}".format(polyid)
-    return do_query(sql_q)[0][0].decode('UTF-8')
+    return do_query(sql_q)[0][0]  #.decode('UTF-8')  --- this is needed in case of bit older version of MySQL
 
 def get_polygon_from_bidtanx(bidtanx):
     sql = "select corner1_lat, corner1_lon, corner2_lat, corner2_lon, corner3_lat, corner3_lon," \
@@ -739,6 +739,7 @@ def set_new_coherence_product(job_id, rslc_path_1, rslc_path_2, filepath, coh_st
 
     return
 
+
 def get_eqid(eventid):
     sql_q = "select eqid from eq where USGS_ID='{0}';".format(eventid)
     res = do_query(sql_q)
@@ -748,11 +749,16 @@ def get_eqid(eventid):
         res = None
     return res
 
-def insert_new_eq(event):
+
+def insert_new_eq(event, active = True):
+    if active:
+        stract = '1'
+    else:
+        stract = '0'
     sql_q = "INSERT INTO eq " \
-            "    (USGS_ID, magnitude, location, depth, time, lat, lon) " \
-            "VALUES ('{0}',{1},'{2}',{3},'{4}',{5},{6});".format(event.id, event.magnitude, event.location.replace("'"," "),
-            event.depth, event.time.strftime('%Y-%m-%d %H:%M:%S'), round(event.latitude,2), round(event.longitude,2))
+            "    (USGS_ID, magnitude, location, depth, time, lat, lon, active) " \
+            "VALUES ('{0}',{1},'{2}',{3},'{4}',{5}, {6}, {7});".format(event.id, event.magnitude, event.location.replace("'"," "),
+            event.depth, event.time.strftime('%Y-%m-%d %H:%M:%S'), round(event.latitude,2), round(event.longitude,2), stract)
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
     test = get_eqid(event.id)
@@ -762,13 +768,19 @@ def insert_new_eq(event):
     else:
         return test
 
-def insert_new_eq2frame(eqid, fid, post_acq = False):
+
+def insert_new_eq2frame(eqid, fid, post_acq = False, active = True):
+    if active:
+        stract = '1'
+    else:
+        stract = '0'
     if post_acq:
         next_acq = post_acq + dt.timedelta(days=6)
         last_acq = post_acq + dt.timedelta(days=24)
         sql_q = "INSERT INTO eq2frame " \
-            "    (eqid, fid, frame_status, post_acq, coifg_status, next_acq, last_acq, postifg_status) " \
-            "VALUES ({0},{1},1,'{2}',1,'{3}','{4}', 1);".format(eqid, fid, post_acq.strftime('%Y-%m-%d %H:%M:%S'), next_acq.strftime('%Y-%m-%d %H:%M:%S'), last_acq.strftime('%Y-%m-%d %H:%M:%S'))
+            "    (eqid, fid, frame_status, post_acq, coifg_status, next_acq, last_acq, postifg_status, active) " \
+            "VALUES ({0},{1},1,'{2}',1,'{3}','{4}', 1, {5});".format(eqid, fid, post_acq.strftime('%Y-%m-%d %H:%M:%S'), 
+            next_acq.strftime('%Y-%m-%d %H:%M:%S'), last_acq.strftime('%Y-%m-%d %H:%M:%S'), stract)
     else:
         sql_q = "INSERT INTO eq2frame " \
         "    (eqid, fid)" \

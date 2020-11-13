@@ -264,7 +264,10 @@ def main(argv=None):
                     for iwRslc in iwRslcs:
                         os.remove(iwRslc)
                         f.write('\nSubswathe {0} removed'.format(iwRslc))
-
+    try:
+        lq.close_db_and_tunnel()
+    except:
+        print('')
 
 
 ################################################################################

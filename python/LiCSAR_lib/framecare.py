@@ -592,13 +592,13 @@ def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/p
             if type(a) != type(None):
                 asc_gpd = asc_gpd.append(a)
     
-    if os.path.exists(kmldirpath+'ascending.kml'):
-        os.remove(kmldirpath+'ascending.kml')
-    if os.path.exists(kmldirpath+'descending.kml'):
-        os.remove(kmldirpath+'descending.kml')
+    if os.path.exists(os.path.join(kmldirpath,'ascending.kml')):
+        os.remove(os.path.join(kmldirpath,'ascending.kml'))
+    if os.path.exists(os.path.join(kmldirpath,'descending.kml')):
+        os.remove(os.path.join(kmldirpath,'descending.kml'))
     
-    export_geopandas_to_kml(asc_gpd, kmldirpath+'ascending.kml')
-    export_geopandas_to_kml(desc_gpd, kmldirpath+'descending.kml')
+    export_geopandas_to_kml(asc_gpd, os.path.join(kmldirpath,'ascending.kml'))
+    export_geopandas_to_kml(desc_gpd, os.path.join(kmldirpath,'descending.kml'))
 
 
 
