@@ -27,17 +27,12 @@ if [ $# -lt 1 ]; then
 fi
 
 username=gacos01
-keyfile=~/.id_rsa_gacos
-
-if [ ! -f $keyfile ]; then 
- cp $LiCSAR_configpath/id_rsa_gacos $keyfile
- chmod 500 $keyfile
-fi
+pass=comet01!
 inputfile=$1
 pro_time=`date +%Y%m%d%H%M%S`
 
 
-#chmod 500 $keyfile
+idf=`head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8 ; echo ''`
 resultfile=`sed -n '1,1p' $inputfile `
 col=`echo $resultfile | awk '{print NF}'`
 if [ $col -ne 1 ]; then
@@ -45,7 +40,7 @@ if [ $col -ne 1 ]; then
    exit
 fi
 
-systemfile=API-${username}-${pro_time}.txt
+systemfile=API-${username}-V${idf}-${pro_time}.txt
 
 outname_base=`sed -n '1,1p' $inputfile `
 outname=`basename ${outname_base}`
@@ -88,7 +83,9 @@ echo "GACOSAPI - INFO - $timestr - Request submitted"
 echo finished >> ${systemfile}.finish
 
 
-sftp -oIdentityFile=${keyfile} ${username}@sage-gacos-transfer.ncl.ac.uk:/${username}/inward<< ! > /dev/null 2>&1
+ftp -inv 8.208.86.83 << ! > /dev/null 2>&1
+user $username $pass
+cd gacos01/inward
 put $systemfile
 put ${systemfile}.finish
 chmod 755 $systemfile
@@ -106,18 +103,25 @@ while true
 do
 if [ -e ${resultfile}.finish ]; then
 
-sftp -oIdentityFile=${keyfile} ${username}@sage-gacos-transfer.ncl.ac.uk:/${username}/outward<<EOT
+ftp -inv 8.208.86.83 <<EOF
+user $username $pass
+cd gacos01/outward
+binary
 get $resultfile
 bye
-EOT
+EOF
 
 break
 fi
+
 sleep 10s
-sftp -oIdentityFile=${keyfile} ${username}@sage-gacos-transfer.ncl.ac.uk:/${username}/outward<< ! > /dev/null 2>&1
+ftp -inv 8.208.86.83 <<! > /dev/null 2>&1
+user $username $pass
+cd gacos01/outward
 get ${resultfile}.finish
 bye
 !
+
 
 done
 

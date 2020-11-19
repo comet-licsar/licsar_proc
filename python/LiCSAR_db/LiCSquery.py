@@ -82,17 +82,27 @@ def do_query(query, commit=False):
     return res_list
 
 def close_db_and_tunnel():
-    try:
-        conn.close()
-    except:
-        print('MySQL connection perhaps already closed?')
-    if tunnel.is_active:
-        tunnel.close()
-        print('ssh tunnel closed')
-        return True
+    if use_tunnel:
+        print('debug - killing connection')
+        try:
+            conn.kill(conn.thread_id())
+        except:
+            print('')
+        print('debug - closing connection')
+        try:
+            conn.close()
+        except:
+            print('MySQL connection perhaps already closed?')
+        print('debug - closing tunnel')
+        if tunnel.is_active:
+            tunnel.close()
+            print('ssh tunnel closed')
+            return True
+        else:
+            #print('there is no ssh tunnel established here')
+            return False
     else:
-        #print('there is no ssh tunnel established here')
-        return False
+        return True
 
 
 def connection_established():

@@ -54,25 +54,9 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
     for pomdate in [masterdate.strftime('%Y%m%d'),slavedate.strftime('%Y%m%d')]:
         if (not is_non_zero_file(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc.par'))) \
             or (not os.path.exists(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc'))):
-            print('Regenerating mosaic for '+pomdate)
-            rslctab=os.path.join(procdir,'tab',
-                             pomdate+'R_tab')
-            filename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
-            logfile = os.path.join(procdir,'log',"mosaic_rslc_{0}.log".format(pomdate))
-            #donno why but there is error here - glob.glob is not found!
-            import glob
-            iwfiles = glob.glob(os.path.join(procdir,'RSLC',pomdate,pomdate+'.IW*.rslc'))
-            swathlist = []
-            for iwfile in iwfiles:
-                swathlist.append(iwfile.split('/')[-1].split('.')[1])
-            swathlist.sort()
-            rc, msg = make_SLC_tab(rslctab,filename,swathlist)
-            if rc > 0:
-                print('Something went wrong creating the slave resampled tab file...')
-                return 1
-            SLC_mosaic_S1_TOPS(rslctab,filename,rglks,azlks,logfile,mastertab)
-            #somehow, the multilooking is not performed!!!
-            os.system('multilookRSLC {} {} {}'.format(str(pomdate),str(gc.rglks), str(gc.azlks)))
+                regenerate_mosaic(pomdate, procdir, rglks, azlks, mastertab)
+    
+    
 ############################################################ Create offsets
     offsetfile = os.path.join(ifgthisdir,pair+'.off')
     masterpar = os.path.join(procdir,'RSLC',
@@ -171,6 +155,47 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
         lq.set_new_coherence_product(job_id, masterpar[:-4], slavepar[:-4], difffile)
 
     return 0
+
+
+def regenerate_mosaic(pomdate, procdir, rglks, azlks, mastertab):
+    print('Regenerating mosaic for '+pomdate)
+    rslctab=os.path.join(procdir,'tab',
+                             pomdate+'R_tab')
+    filename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
+    logfile = os.path.join(procdir,'log',"mosaic_rslc_{0}.log".format(pomdate))
+    #donno why but there is error here - glob.glob is not found!
+    import glob
+    iwfiles = glob.glob(os.path.join(procdir,'RSLC',pomdate,pomdate+'.IW?.rslc'))
+    swathlist = []
+    for iwfile in iwfiles:
+        swathlist.append(iwfile.split('/')[-1].split('.')[1])
+    swathlist.sort()
+    rc, msg = make_SLC_tab(rslctab,filename,swathlist)
+    if rc > 0:
+        print('Something went wrong creating the slave resampled tab file...')
+        return 1
+    SLC_mosaic_S1_TOPS(rslctab,filename,rglks,azlks,logfile,mastertab)
+    #somehow, the multilooking is not performed!!! (but maybe it is just that we have to be in the procdir?)
+    os.system('multilookRSLC {} {} {}'.format(str(pomdate),str(rglks), str(azlks)))
+    return True
+
+
+def regenerate_rslc_tab(pomdate, procdir, is_rslc = True):
+    import glob
+    if is_rslc:
+        strR='R'
+    else:
+        strR=''
+    rslctab=os.path.join(procdir,'tab',
+                             pomdate+strR+'_tab')
+    filename=os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc')
+    iwfiles = glob.glob(os.path.join(procdir,'RSLC',pomdate,pomdate+'.IW?.rslc'))
+    swathlist = []
+    for iwfile in iwfiles:
+        swathlist.append(iwfile.split('/')[-1].split('.')[1])
+    swathlist.sort()
+    rc, msg = make_SLC_tab(rslctab,filename,swathlist)
+
 
 ################################################################################
 #make baselines function

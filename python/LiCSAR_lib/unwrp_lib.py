@@ -14,7 +14,7 @@ import global_config as gc
 from LiCSAR_lib.coreg_lib import get_mli_size
 
 ################################################################################
-# Do unwrapping function
+# Do unwrapping function (lq is needed only if job_id is set...)
 ################################################################################
 def do_unwrapping(origmasterdate,ifg,ifgdir,procdir,lq,job_id):
 ############################################################ Get master mli, length and width

@@ -11,7 +11,7 @@ This script is part of the main LiCSAR processing chain. It requires LiCSAR_03_m
 Changelog
 =========
 May 2017: Original implementation (Karsten Spaans, Uni of Leeds)
-
+2020: added parallelisation etc. (M. Lazecky, Uni of Leeds)
 
 =====
 Usage
@@ -23,6 +23,7 @@ LiCSAR_04_unwrap.py -d </path/to/processing/location>
     -p    polygon file
     -z    zipfile list
     -y    batch mode
+    -n    if set to number of processors (>1), it will attempt to parallelise
     -l <file> file containing a list of interferograms to unwrap in format YYYYMMDD_YYYYMMDD
     -T <file> report file to write to. Defaults to report-unwrap.txt
 """
@@ -46,7 +47,8 @@ from LiCSAR_lib.unwrp_lib import *
 def main(argv=None):
     if argv == None:
         argv = sys.argv
-
+    
+    parallelise = False
     procdir = []
     framename = []
     ifgListFile = None
@@ -54,7 +56,7 @@ def main(argv=None):
     reportfile = None
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhl:f:d:j:y:z:p:T:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "vhl:f:d:j:n:y:z:p:T:", ["version", "help"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
@@ -70,6 +72,9 @@ def main(argv=None):
                 framename = a
             elif o == '-d':
                 procdir = a
+            elif o == '-n':
+                num_processors = int(a)
+                parallelise = True
             elif o == '-j':
                 job_id = int(a)
             elif o == '-y':
@@ -83,7 +88,13 @@ def main(argv=None):
             elif o == '-T':
                 reportfile = a
 
-
+        if parallelise:
+            try:
+                from pathos.multiprocessing import ProcessingPool as Pool
+                #from multiprocessing import Pool
+            except:
+                print('error establishing pathos multiprocessing pool - will work without parallelisation')
+                parallelise=False
         #if not framename:
         #    raise Usage('No frame name given, -f option is not optional!')
         if not procdir:
@@ -162,23 +173,45 @@ def main(argv=None):
     else:
         ifglist = os.listdir(ifgdir)
     success = 0
-    with open(reportfile,'a') as f:
+    if job_id == -1:
+        #print('lq not needed now, closing')
+        try:
+            lq.close_db_and_tunnel()
+        except:
+            print('')
+    def unwrap_this_ifg(ifg, write_output=False):
+        rc = do_unwrapping(masterdatestr,ifg,ifgdir,procdir,lq,job_id)
+        if write_output:
+            with open(reportfile,'a') as f:
+                if rc == 0:
+                    success +=1
+                if rc ==1:
+                    # Filtering
+                    f.write('\Interferogram {0} had a problem during the filtering.'.format(ifg)) 
+                elif rc == 2:
+                    # Unwrapping
+                    f.write('\Interferogram {0} had a problem during the unwrapping.'.format(ifg)) 
+    if parallelise:
+        try:
+            p = Pool(num_processors)
+            p.map(unwrap_this_ifg, ifglist)
+            #p.close()
+            #p.join()
+        except:
+            print('some error in parallelisation - trying without it')
+            for ifg in ifglist:
+                unwrap_this_ifg(ifg, True)
+    else:
         for ifg in ifglist:
-            rc = do_unwrapping(masterdatestr,ifg,ifgdir,procdir,lq,job_id)
-            if rc == 0:
-                success +=1
-            if rc ==1:
-                # Filtering
-                f.write('\Interferogram {0} had a problem during the filtering.'.format(ifg)) 
-            elif rc == 2:
-                # Unwrapping
-                f.write('\Interferogram {0} had a problem during the unwrapping.'.format(ifg)) 
-        print('Elapsed time {0}'.format(starttime - dt.datetime.now()))
+            unwrap_this_ifg(ifg, True)
+    with open(reportfile,'a') as f:
+        print('Elapsed time {0}'.format(dt.datetime.now() - starttime))
         f.write('Unwrapping completed, {0} interferograms unwrapped successfully.'.format(success))
-    try:
-        lq.close_db_and_tunnel()
-    except:
-        print('')
+    if not job_id == -1:
+        try:
+            lq.close_db_and_tunnel()
+        except:
+            print('')
 
 
 if __name__ == "__main__":

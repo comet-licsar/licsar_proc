@@ -11,7 +11,7 @@ This script is part of the main LiCSAR processing chain. It requires LiCSAR_02_c
 Changelog
 =========
 November 2016: Original implementation (Karsten Spaans, Uni of Leeds)
-
+November 2020: added parallelisation etc. (M. Lazecky, Uni of Leeds)
 
 =====
 Usage
@@ -22,6 +22,7 @@ LiCSAR_03_mk_ifgs.py -f <framename> -d </path/to/processing/location>
     -d    Path to the processing location. 
     -j    job id
     -i    ifg list file
+    -n    if set to number of processors (>1), it will attempt to parallelise
     -p    polygon
     -z    sip file
     -y    batch mode
@@ -52,7 +53,8 @@ from LiCSAR_lib.ifg_lib import *
 #Import gamma wrapper and global config
 from gamma_functions import *
 import global_config as gc
-import pdb
+#import pdb
+from LiCSAR_misc import is_non_zero_file
 
 ################################################################################
 #Main function
@@ -68,13 +70,14 @@ def main(argv=None):
     ifgListFile = None
     ziplistfile = None
     cleanLvl = 0
+    parallelise = False
     reportfile = None
     rglks = gc.rglks
     azlks = gc.azlks
 ############################################################ Process Args.
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhi:f:d:j:y:p:z:r:a:c:T:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "vhi:f:d:j:y:p:z:n:r:a:c:T:", ["version", "help"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
@@ -90,6 +93,9 @@ def main(argv=None):
                 framename = a
             elif o == '-r':
                 rglks = int(a)
+            elif o == '-n':
+                num_processors = int(a)
+                parallelise = True
             elif o == '-a':
                 azlks = int(a)
             elif o == '-d':
@@ -109,7 +115,13 @@ def main(argv=None):
             elif o == '-T':
                 reportfile = a
 
-
+        if parallelise:
+            try:
+                from pathos.multiprocessing import ProcessingPool as Pool
+                #from multiprocessing import Pool
+            except:
+                print('error establishing multiprocessing pool - will work without parallelisation')
+                parallelise=False
         if not framename:
             raise Usage('No frame name given, -f option is not optional!')
         if not procdir:
@@ -169,6 +181,9 @@ def main(argv=None):
         print("Could not find master date in geocoding directory {0}.".format(geodir), file=sys.stderr)
         return 1
     
+    mastertab = os.path.join(procdir,'tab',
+                             masterdate.strftime('%Y%m%d')
+                             +'_tab')
 ############################################################ Parse multilook paramters
     masterslcdir = os.path.join(procdir,'SLC',masterdatestr)
     #only updating gc.rglks config in case the parameter has been customized .. (maybe not needed really...)
@@ -198,8 +213,6 @@ def main(argv=None):
     else:
         procslavelist = sorted([s for s in os.listdir(rslcdir) if (os.path.isdir(os.path.join(rslcdir,s)) and len(s) == 8)])
         # procslavelist_dt = [dt.date(int(d[:4]),int(d[4:6]),int(d[6:])) for d in procslavelist if dt.date(int(d[:4]),int(d[4:6]),int(d[6:]))]
-
-
         ##### Calc date pairs (3 either side) from rslc dir
         procslavelist_dt = [dt.datetime.strptime(d,'%Y%m%d') for d in procslavelist]
         procslavelist_dt = sorted(procslavelist_dt,reverse=True)
@@ -230,25 +243,59 @@ def main(argv=None):
         #    elif rc == 3:
         #        f.write('Slave rslc {0} already exists\n'.format(slaveDate))
 
+######################################################## generate mosaics if they do not exist
+    #to make sure.. regenerate mastertab...
+    regenerate_rslc_tab(masterdatestr,procdir, False)    
+    for date_pair in date_pairs:
+        for pomdate in [date_pair[0].strftime('%Y%m%d'),date_pair[1].strftime('%Y%m%d')]:
+            if (not is_non_zero_file(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc.par'))) or (not os.path.exists(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc'))):
+                rc = regenerate_mosaic(pomdate, procdir, rglks, azlks, mastertab)
 ############################################################ Loop through and create interferograms 
-        procDates = []
+    procDates = []
+    if job_id == -1:
+        #in case we run this through ssh tunnel ... we may not need it anymore..
+        try:
+            lq.close_db_and_tunnel()
+        except:
+            print('')
+            
+    def do_ifg_for_date_pair(date_pair, write_output=False):
+        procDate = ''
+        rc = make_interferogram(masterdate,date_pair[0],date_pair[1],procdir, lq,job_id, rglks, azlks)
+        if write_output:
+            with open(reportfile,'a') as f:
+                if rc == 0:
+                    f.write('\nSuccesfully created interferogram between {0}:{1}.'.format(*date_pair))
+                    #procDates += date_pair
+                if rc == 1:
+                    f.write('\nInterferogram {0}:{1} had a problem during the offset file creation.'.format(*date_pair))
+                if rc == 2:
+                    f.write('\nInterferogram {0}:{1} had a problem during the topographic phase estimation.'.format(*date_pair))
+                if rc == 3:
+                    f.write('\nInterferogram {0}:{1}: had a problem during the interferogram formation.'.format(*date_pair))
+                if rc == 4:
+                    f.write('\nInterferogram {0}:{1}: had a problem during the sunraster preview creation.'.format(*date_pair))
+                if rc == 5:
+                    f.write('\nInterferogram {0}:{1}: had a problem during the coherence estimation.'.format(*date_pair))
+        if rc == 0:
+            procDate = date_pair
+        return procdate
+    
+    if parallelise:
+        try:
+            p = Pool(num_processors)
+            procDates = p.map(do_ifg_for_date_pair, date_pairs)
+            #p.close()
+            #p.join()
+        except:
+            print('some error in parallelisation - trying without it')
+            for date_pair in date_pairs:
+                procDates += do_ifg_for_date_pair(date_pair, True)
+    else:
         for date_pair in date_pairs:
-            rc = make_interferogram(masterdate,date_pair[0],date_pair[1],procdir, lq,job_id, rglks, azlks)
-            if rc == 0:
-                f.write('\nSuccesfully created interferogram between {0}:{1}.'.format(*date_pair))
-                procDates += date_pair
-            if rc == 1:
-                f.write('\nInterferogram {0}:{1} had a problem during the offset file creation.'.format(*date_pair))
-            if rc == 2:
-                f.write('\nInterferogram {0}:{1} had a problem during the topographic phase estimation.'.format(*date_pair))
-            if rc == 3:
-                f.write('\nInterferogram {0}:{1}: had a problem during the interferogram formation.'.format(*date_pair))
-            if rc == 4:
-                f.write('\nInterferogram {0}:{1}: had a problem during the sunraster preview creation.'.format(*date_pair))
-            if rc == 5:
-                f.write('\nInterferogram {0}:{1}: had a problem during the coherence estimation.'.format(*date_pair))
-
+            procDates += do_ifg_for_date_pair(date_pair, True)
 ############################################################ Cleanup
+    with open(reportfile,'w') as f:
         procDates = set(procDates)
         if cleanLvl: # if performing a clean
             for date in procDates:

@@ -17,9 +17,6 @@ if { [module-info mode load] || [module-info mode switch2] } {
     if { ![is-loaded snaphu] } {
         module load snaphu
     }
-    if { ![is-loaded doris] } {
-        module load doris
-    }
     if { ![is-loaded anaconda] } {
         module load anaconda
     }
@@ -32,7 +29,6 @@ if { [module-info mode load] || [module-info mode switch2] } {
 }
 
 prereq snaphu
-prereq doris
 prereq gamma
 prereq anaconda
 prereq licsar_db

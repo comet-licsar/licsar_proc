@@ -33,10 +33,10 @@ for geotif in $work_dir/$frame/*.geo.tif; do
    cp -f $geotif $prod_dir/$track/$frame/epochs/$date/.
 done
 
-for jpg in $work_dir/$frame/*.ztd.jpg; do
+#for jpg in $work_dir/$frame/*.ztd.jpg; do
    #date=$(echo $jpg | awk -F"." '{print $1}' | awk -F'/' '{print $12}')
-   date=`basename $jpg | cut -d '.' -f1`
-   cp -f $jpg $prod_dir/$track/$frame/epochs/$date/.
-done
+#   date=`basename $jpg | cut -d '.' -f1`
+#   cp -f $jpg $prod_dir/$track/$frame/epochs/$date/.
+#done
 
 

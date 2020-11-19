@@ -483,6 +483,9 @@ def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True, active = Tru
         print('the frame does not exist in licsinfo!')
         return False
     rc = False
+    #in case this is the dummy event (i.e. should use the current time)
+    #if eqid == 1:
+    #    event.time = dt.datetime.now()
     if postacq:
         post_acq = get_earliest_expected_dt(frame, event.time)
         if not post_acq:
@@ -601,7 +604,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                 f.close()
         if os.path.exists(eventfile):
             #this is to remove duplicities.. i know, should be done better..
-            os.system('sort -u {0} > ~/tmpbardak; mv ~/tmpbardak {0}'.format(eventfile))
+            os.system('sort -u {0} > {0}.tmp; mv {0}.tmp {0}'.format(eventfile))
             print('done. Check this webpage:')
             print(os.path.join(web_path,'EQ',event.id+'.html'))
 
