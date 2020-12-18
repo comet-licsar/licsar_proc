@@ -52,12 +52,23 @@ def do_unwrapping(origmasterdate,ifg,ifgdir,procdir,lq,job_id):
 ############################################################ Unwrap the interferogram
     # ccfile = os.path.join(ifgdirthis,filtfile[:-5]+'.cc')
     coh = np.fromfile(ccfile,dtype=np.float32).byteswap().reshape((int(length),int(width)))
-    ifg_w = np.fromfile(filtfile,dtype=np.complex64).byteswap().reshape((int(length),int(width)))
-    print('Unwrapping...')
-    if not unwrap_ifg(ifg_w, ifg, ifgdir, coh,width,procdir):
-        print('\nERROR:', file=sys.stderr)
-        print('\nSomething went wrong unwrapping interferogram {0}.'.format(ifg), file=sys.stderr)
-        return 2
+    ccthres = gc.coh_unwrap_threshold
+    numoverthres = len(coh[coh>ccthres])
+    numall = len(coh[coh>0])
+    #now let's choose proper ratio to select unwrapper
+    if numall/numoverthres > 2.2:
+        print('the number of selected points is very low. skipping internal routines and using gamma mcf')
+        if not unwrap_ifg_gamma(ifg, ifgdir, width, length, coh):
+            print('\nERROR:', file=sys.stderr)
+            print('\nSomething went wrong unwrapping ifg {0} using gamma mcf'.format(ifg), file=sys.stderr)
+            return 2
+    else:
+        ifg_w = np.fromfile(filtfile,dtype=np.complex64).byteswap().reshape((int(length),int(width)))
+        print('Unwrapping...')
+        if not unwrap_ifg(ifg_w, ifg, ifgdir, coh,width,procdir):
+            print('\nERROR:', file=sys.stderr)
+            print('\nSomething went wrong unwrapping interferogram {0}.'.format(ifg), file=sys.stderr)
+            return 2
     
     #Create a ras file for the unwrapped interferogram
     logfilename = os.path.join(procdir,'log','rasrmg_{0}.log'.format(ifg))
@@ -166,18 +177,49 @@ def get_costs(edges, n_edge, rowix, colix, zeroix):
     return rowcost, colcost
 
 ################################################################################
-# Unwrap interferogram function
+# Unwrap interferogram function(s)
 ################################################################################
+def unwrap_ifg_gamma(date, ifgdir, width, length, coh):
+    #use mcf with coh and mask above threshold
+    ifgfile = os.path.join(ifgdir,date,date+'.filt.diff')
+    ccfile = os.path.join(ifgdir,date,date+'.filt.cc')
+    rc = os.system('rascc_mask {0} - {1} 1 1 0 1 1 {2} 0.1 0.9 1 0.35 1 *.bmp'.format(ccfile, str(width), str(gc.coh_unwrap_threshold)))
+    maskfile = ccfile+'_mask.bmp'
+    if not os.path.exists(maskfile):
+        print('ERROR during generating mask file - maybe not saved as BMP?')
+        return False
+    unwfile = os.path.join(ifgdir,date,date+'.unw')
+    if os.path.exists(unwfile):
+        print('ERROR: actually the unwrapped file seems to exist! not overwriting, cancelling')
+        return False
+    rc = os.system('mcf {0} {1} {2} {3} {4}'.format(ifgfile, ccfile, maskfile, unwfile, str(width)))
+    if not os.path.exists(unwfile):
+        print('ERROR in unwrapping')
+        return False
+    #now just to (really) mask the unw file..
+    unw2 = np.fromfile(unwfile,dtype=np.float32).byteswap().reshape((int(length),int(width)))
+    #maybe not needed, but keeping nans, as in snaphu approach
+    unw[coh <= gc.coh_unwrap_threshold] = np.nan
+    #unw = unw - np.nanmedian(unw)  #actually should be already
+    try:
+        os.remove(unwfile)
+        unw.byteswap().tofile(unwfile)
+    except:
+        print('some error saving masked unw file')
+        return False
+    return True
+
+
 def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
+    #original function, to use snaphu..
 ############################################################ Create a temp dir
     #tmpdir = os.path.join(procdir,'unwrap_tmp')
     tmpdir = os.path.join(ifgdir, date, 'unwrap_tmp')
     if os.path.exists(tmpdir) and os.path.isfile(tmpdir):
         os.remove(tmpdir)
-    
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
-
+    maskfile = os.path.join(tmpdir,'snaphu.mask')
 ############################################################ Unwrap parameters
     #parts of the interferogram with low coherence
     zeroix = coh < gc.coh_unwrap_threshold  #orig value was 0.5
@@ -191,12 +233,13 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
     ithis, jthis = np.where(~zeroix)
     #patch zeroed parts of the IFG?
     ifg = ifg[ithis[gridix],jthis[gridix]].reshape(ifg.shape)
-
+    #prepare mask
+    mask = (coh > gc.coh_unwrap_threshold).astype(np.byte)
+    mask.tofile(maskfile)
 ############################################################ Create Snaphu files
     with open(os.path.join(tmpdir,'snaphu.costinfile'),'w') as f:
         rowcost.tofile(f)
         colcost.tofile(f)
-
     ifg_float = np.zeros((ifg.shape[0],ifg.shape[1]*2),dtype=np.float32)
     ifg_float[:,::2] = ifg.real
     ifg_float[:,1::2] = ifg.imag
@@ -210,14 +253,15 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
         with open(os.path.join(tmpdir,'snaphu.conf'),'w') as f:
             for l in get_snaphu_conf(tmpdir):
                 f.write(l)
-
 ############################################################ Unwrap IFG
     logfilename = os.path.join(tmpdir,'snaphu.log')
     with open(logfilename,'w') as f:
         #new snaphu: parameter -S for optimization within tiling
         #cmdstr = 'snaphu -v -S -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
         #old snaphu (YuM identified significant differences, the older version is preferred)
-        cmdstr = 'snaphu -v -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
+        #cmdstr = 'snaphu -v -d -f {0} {1}'.format(os.path.join(tmpdir,'snaphu.conf'),width)
+        #including coh-based mask
+        cmdstr = 'snaphu -v -d -M {0} -f {1} {2}'.format(maskfile, os.path.join(tmpdir,'snaphu.conf'),width)
         job = subp.Popen(cmdstr,shell=True,stdout=f,stderr=f,stdin=None)
     job.wait()
     try:
@@ -225,7 +269,7 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
     except:
         print('Something went wrong unwrapping the interferogram. Log file {0}'.format(logfilename))
         return False
-    # fully removing (filtered) coh points of < 0.5.. maybe too strict here?
+    # fully removing (filtered) coh points of < coh threshold
     # hmm... keeping it customisable..
     uw[coh < gc.coh_unwrap_threshold] = np.nan
     try:

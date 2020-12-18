@@ -145,6 +145,23 @@ def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/publi
     return True
 
 
+def reset_frame(frame, eventid='us7000ckx5'):
+    try:
+        fid=lq.get_frame_polyid(frame)[0][0]
+    except:
+        print('error getting frame ID')
+        return False
+    try:
+        eqid = lq.get_eqid(eventid)
+    except:
+        print('error getting eq ID')
+        return False
+    lq.update('eq2frame','coifg_status','0','fid={} and eqid={}'.format(fid, eqid))
+    lq.update('eq2frame','frame_status','2','fid={} and eqid={}'.format(fid, eqid))
+    lq.update('eq2frame','postifg_status','0','fid={} and eqid={}'.format(fid, eqid))
+    return True
+
+
 def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv', delete = False):
     """
        This csv will be loaded to the eq responder map

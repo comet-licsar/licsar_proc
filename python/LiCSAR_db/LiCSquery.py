@@ -70,6 +70,8 @@ def do_query(query, commit=False):
             return 'MYSQL ERROR'
         #if type(conn) == tuple:
         #    conn = conn[0]
+        #to reconnect potentially lost connection..
+        rc = conn.ping(reconnect=True)
         with conn.cursor() as c:
             c.execute(query, )
             res_list = c.fetchall()
@@ -81,19 +83,20 @@ def do_query(query, commit=False):
         return []
     return res_list
 
+
 def close_db_and_tunnel():
     if use_tunnel:
-        print('debug - killing connection')
+        #print('debug - killing connection')
         try:
             conn.kill(conn.thread_id())
         except:
             print('')
-        print('debug - closing connection')
+        #print('debug - closing connection')
         try:
             conn.close()
         except:
             print('MySQL connection perhaps already closed?')
-        print('debug - closing tunnel')
+        #print('debug - closing tunnel')
         if tunnel.is_active:
             tunnel.close()
             print('ssh tunnel closed')
@@ -102,6 +105,10 @@ def close_db_and_tunnel():
             #print('there is no ssh tunnel established here')
             return False
     else:
+        try:
+            conn.close()
+        except:
+            print('error closing db connection')
         return True
 
 
@@ -717,7 +724,15 @@ def update_ifg_product_unwrapped(job_id, filename, status=1):
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
     return
-    
+
+
+def update(table='eq2frame', col='coifg_status', value='1', condition='fid=1'):
+    sql_q = "UPDATE {0} SET {1}={2} WHERE {condition};" % (table, col, value, condition)
+    # perform query, get result (should be blank), and then commit the transaction
+    res = do_query(sql_q, True)
+    return
+
+
 def set_new_coherence_product(job_id, rslc_path_1, rslc_path_2, filepath, coh_status=0):
     filename = filepath.split('/')[-1]
     sql_q = "INSERT INTO coherence " \

@@ -279,12 +279,15 @@ def main(argv=None):
                     f.write('\nInterferogram {0}:{1}: had a problem during the coherence estimation.'.format(*date_pair))
         if rc == 0:
             procDate = date_pair
-        return procdate
+        return procDate
     
     if parallelise:
         try:
             p = Pool(num_processors)
             procDates = p.map(do_ifg_for_date_pair, date_pairs)
+            print('debug:')
+            print('type of procDates: {}'.format(str(type(procDates))))
+            print(procDates)
             #p.close()
             #p.join()
         except:
@@ -296,21 +299,24 @@ def main(argv=None):
             procDates += do_ifg_for_date_pair(date_pair, True)
 ############################################################ Cleanup
     with open(reportfile,'w') as f:
-        procDates = set(procDates)
-        if cleanLvl: # if performing a clean
-            for date in procDates:
-                rslcDir = os.path.join(procdir,'RSLC',date.strftime('%Y%m%d'))
-                iwRslcs = glob(rslcDir+'/*.IW[1-3].rslc')
-                rslcPath = os.path.join(rslcDir,date.strftime('%Y%m%d.rslc'))
-                # Remove rslcs if subswathes present
-                if cleanLvl >= 1 and iwRslcs:
-                    os.remove(rslcPath)
-                    f.write('\nRSLC for date {0} removed'.format(date))
-                # Remove subswathes
-                if cleanLvl >= 2:
-                    for iwRslc in iwRslcs:
-                        os.remove(iwRslc)
-                        f.write('\nSubswathe {0} removed'.format(iwRslc))
+        try:
+            procDates = set(procDates)
+            if cleanLvl: # if performing a clean
+                for date in procDates:
+                    rslcDir = os.path.join(procdir,'RSLC',date.strftime('%Y%m%d'))
+                    iwRslcs = glob(rslcDir+'/*.IW[1-3].rslc')
+                    rslcPath = os.path.join(rslcDir,date.strftime('%Y%m%d.rslc'))
+                    # Remove rslcs if subswathes present
+                    if cleanLvl >= 1 and iwRslcs:
+                        os.remove(rslcPath)
+                        f.write('\nRSLC for date {0} removed'.format(date))
+                    # Remove subswathes
+                    if cleanLvl >= 2:
+                        for iwRslc in iwRslcs:
+                            os.remove(iwRslc)
+                            f.write('\nSubswathe {0} removed'.format(iwRslc))
+        except:
+            print('error - check the debug lines')
     try:
         lq.close_db_and_tunnel()
     except:

@@ -459,7 +459,11 @@ def generate_new_frame(bidtanxs,testonly = True):
     #    lons.append(lon)
     sql = 'select polyid from polygs order by polyid desc limit 1;'
     lastpolyid = lq.do_query(sql)
-    polyid = int(lastpolyid[0][0])+1
+    try:
+        polyid = int(lastpolyid[0][0])+1
+    except:
+        print('seems like first frame to ingest - ok')
+        polyid = 1
     inserted = str(dt.datetime.now())
     name_old = 'frame_'+polyid_track[-1]+'_t'+str(int(polyid_track[0:3]))+'_1bidxxxxxx'
     sql = "INSERT INTO polygs VALUES ({0}, '{1}', '{2}', {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, "\
@@ -507,6 +511,11 @@ def generate_new_frame(bidtanxs,testonly = True):
     return polyid_name
 
 
+def generate_frame_from_bursts_kml(inputkml):
+    bursts = load_bursts_from_kml(inputkml)
+    generate_new_frame(bursts, testonly=False)
+
+
 def load_bursts_from_txt(intxt):
     f = open(intxt,'r')
     contents = f.readlines()
@@ -538,6 +547,8 @@ def load_bursts_from_kml(inputkml):
     newbursts = gpd.read_file(inputkml, driver='KML')
     newbursts = newbursts[newbursts.columns[0]].tolist()
     return newbursts
+
+
 
 def export_bidtanxs_to_kml(bidtanxs, outpath = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/test', projname = 'track', merge = False):
     #kmlout name will be auto_completed

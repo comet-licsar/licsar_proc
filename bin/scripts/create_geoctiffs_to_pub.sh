@@ -31,8 +31,10 @@ UNFILT=0
 FULL=0
 mask=0
 
-while getopts ":ubmUCFHIML" option; do
+while getopts ":uabmUCFHIML" option; do
  case "${option}" in
+  a) MLIDO=0; echo "auto-regime - doing all except of MLIs";
+     ;;
   b) UNFILT=0; IFGDO=0; COHDO=0; UNWDO=0; MLIDO=0; echo "bypassing other (fast fix)";
      ;;
   u) UNFILT=1; echo "unfiltered ifg will be geocoded";
@@ -45,7 +47,7 @@ while getopts ":ubmUCFHIML" option; do
      ;;
   I) COHDO=0; UNWDO=0; MLIDO=0; IFGDO=1; echo "you do ONLY ifg geo now..";
      ;;
-  M) COHDO=0; UNWDO=0; IFGDO=0; echo "you do ONLY MLIs geo now..";
+  M) COHDO=0; UNWDO=0; MLIDO=1; IFGDO=0; echo "you do ONLY MLIs geo now..";
      ;;
   F) FULL=1; echo "previews will be generated in full resolution";
      ;;

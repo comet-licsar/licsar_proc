@@ -32,6 +32,7 @@ def Conn_db():
                                db=sqldb)
 
         cur = conn.cursor()
+        rc = conn.ping(reconnect=True) 
         cur.execute('SELECT VERSION();')
         res = cur.fetchone()
         if not res:
@@ -101,7 +102,7 @@ def Conn_tunnel_db():
         #             passwd=sql_password,
         #             database=sql_live_database,
         #             port=tunnel.local_bind_port)
-    
+    rc = conn.ping(reconnect=True)
     cur = conn.cursor()
     cur.execute('SELECT VERSION();')
     res = cur.fetchone()
