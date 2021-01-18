@@ -167,6 +167,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
        This csv will be loaded to the eq responder map
        WARNING - would read all event frames from database and only add them to the csv file if it is not there yet
     """
+    dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected']
     if os.path.exists(csvfile+'.lock'):
         print('file lock detected, waiting 10 minutes - should be enough for ARC to finish')
         time.sleep(10*60)
@@ -215,15 +216,28 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
             if str(e2f.at[i, 'the_geom'])[0] == 'b':
                 e2f.at[i, 'the_geom'] = e2f.at[i, 'the_geom'].hex().upper()
         downlink = "<a href='{0}/{1}/{2}/' target='_blank'>Link</a>".format(web_path, f['track'], f['frame'])
+        #f.download = downlink
+        e2f.at[i, 'download'] = downlink
+        strincsv = e2f[dbcols].loc[i].to_csv(sep = ';', index = False, header=False).replace('\n',';').replace('"','')[:-1]
+        #minimal string to see if there is related line (to be deleted then)
+        minstrincsv = f.frame+';'+f.usgsid
+        greppedstr = misc.grep1line(minstrincsv, csvfile)
+        if greppedstr:
+            if greppedstr == strincsv:
+                #so this line exists i csvfile, so skipping it..
+                e2f = e2f.drop(index=i)
+            else:
+                #we will need to update this line..
+                rc = os.system("sed -i '/{0}/d' {1}".format(minstrincsv, csvfile))
         #if we do not have this combination of frame and event id, include it
-        if not misc.grep1line(f['frame']+';'+eventid, csvfile):
-            e2f.at[i, 'download'] = downlink
-        else:
-            e2f.at[i, 'download'] = ''
+        #if not misc.grep1line(f['frame']+';'+eventid, csvfile):
+        #    e2f.at[i, 'download'] = downlink
+        #else:
+        #    e2f.at[i, 'download'] = ''
     #e2f['download'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/{0}/{1} target='_blank'>Link<a>".format(track, framename)
     #dbcols = ['the_geom','frame','usgsid','download', 'location','next_possible', 'next_expected']
-    dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected']
-    e2f[dbcols].query('download != ""').to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
+    e2f[dbcols].to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
+    #e2f[dbcols].query('download != ""').to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
     return True
 
 

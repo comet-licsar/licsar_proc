@@ -56,7 +56,10 @@ def do_unwrapping(origmasterdate,ifg,ifgdir,procdir,lq,job_id):
     numoverthres = len(coh[coh>ccthres])
     numall = len(coh[coh>0])
     #now let's choose proper ratio to select unwrapper
-    if numall/numoverthres > 2.2:
+    if numall == 0 or numoverthres == 0:
+        print('\n no points above coh threshold to unwrap! cancelling as error', file=sys.stderr)
+        return 1
+    elif numall/numoverthres > 2.2:
         print('the number of selected points is very low. skipping internal routines and using gamma mcf')
         if not unwrap_ifg_gamma(ifg, ifgdir, width, length, coh):
             print('\nERROR:', file=sys.stderr)

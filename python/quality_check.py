@@ -204,7 +204,11 @@ def get_stats(path, ifg):
         num = np.where((abs(data)>0.0))
         Nproc = np.size(num)/2
         Frac = Nproc/Ntotal
-    Mean = np.mean(data)
+    try:
+        Mean = np.mean(data)
+    except:
+        print('some error with data read')
+        return False
     Std = np.std(data)
     Min = np.amin(data)
     Max = np.amax(data)

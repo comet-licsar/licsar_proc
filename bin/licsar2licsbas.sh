@@ -34,7 +34,13 @@ done
 ln -s $metadir/baselines
 
 source $metadir/metadata.txt #this will bring 'master=' info
-ln -s $indir/$master/$master.geo.mli.tif
+if [ -f $epochdir/$master/$master.geo.mli.tif ]; then
+ ln -s $epochdir/$master/$master.geo.mli.tif
+else
+ echo "warning, primary epoch not in public dir. trying to use other, expect possible size issues.."
+ firstimg=`ls $epochdir | head -n1`
+ ln -s $epochdir/$firstimg/$firstimg.geo.mli.tif
+fi
 
 for epoch in `ls $epochdir`; do
   if [ $epoch -ge $startdate ] && [ $epoch -lt $enddate ]; then

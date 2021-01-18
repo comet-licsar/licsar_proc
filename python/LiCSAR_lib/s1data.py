@@ -25,7 +25,6 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         enddate = dt.datetime.strptime(enddate,'%Y%m%d').date()
     #one extra date needed for scihub:
     enddate = enddate + dt.timedelta(days=1)
-    scihub_user, scihub_pass, scihub_url = get_scihub_creds()
     #sensType = 'IW'
     nmax = 100
     footprint = lq.get_wkt_boundaries(frameName)
@@ -34,10 +33,22 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     if ascdesc == 'A': ascdesc = 'ASCENDING'
     track = int(frameName[0:3])
     #startdate = dt.datetime.strptime(startdate,'%Y%m%d').date()
-    scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
-    result = scihub.query(footprint, date = (startdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d')), \
+    try:
+        scihub_user, scihub_pass, scihub_url = get_scihub_creds()
+        scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
+        result = scihub.query(footprint, date = (startdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d')), \
                      platformname = 'Sentinel-1', producttype = 'SLC', \
                      relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
+    except:
+        print('error in scihub search, trying CEDA elastic search')
+        #TODO!!
+        #from elasticsearch import Elasticsearch
+        #query = {
+        #    "query": {"match_all": {}}
+        #    }
+        #es = Elasticsearch(["https://elasticsearch.ceda.ac.uk"])
+        #es.search(index="ceda-eo", body=query)
+        #result = es.indices.get_mapping(index="ceda-eo")
     #scihub.to_geodataframe(result)
     if result:
         if outAspd:
