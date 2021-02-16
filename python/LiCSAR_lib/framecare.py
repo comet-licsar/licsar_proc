@@ -575,15 +575,22 @@ def export_bidtanxs_to_kml(bidtanxs, outpath = '/gws/nopw/j04/nceo_geohazards_vo
     if merge == False:
         print('done. please edit the kmls - delete not wanted bursts, save and return')
 
-def export_frame_to_kml(frame, outpath = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/insar_temp/frames_redef/kmls'):
+def export_frame_to_kml(frame, outpath = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/insar_temp/frames_redef/kmls', merge=False):
     if not os.path.exists(outpath):
         os.mkdir(outpath)
     ai = lq.get_bursts_in_frame(frame)
     bidtanxs = lq.sqlout2list(ai)
-    export_bidtanxs_to_kml(bidtanxs, outpath, projname = frame)
+    export_bidtanxs_to_kml(bidtanxs, outpath, projname = frame, merge=merge)
 
 
-def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/'):
+def export_all_frames_to_framecsv(outcsv = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/frames.csv', store_zero = False):
+    asc_gpd, desc_gpd = get_all_frames()
+    rc = export_frames_to_licsar_csv(asc_gpd, outcsv, store_zero)
+    rc = export_frames_to_licsar_csv(desc_gpd, outcsv, store_zero)
+    return rc
+
+
+def get_all_frames():
     asc_gpd = gpd.geodataframe.GeoDataFrame()
     desc_gpd = gpd.geodataframe.GeoDataFrame()
     for i in range(1,175+1):
@@ -602,7 +609,11 @@ def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/p
             a = frame2geopandas(frame)
             if type(a) != type(None):
                 asc_gpd = asc_gpd.append(a)
-    
+    return asc_gpd, desc_gpd
+
+
+def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/'):
+    asc_gpd, desc_gpd = get_all_frames()
     if os.path.exists(os.path.join(kmldirpath,'ascending.kml')):
         os.remove(os.path.join(kmldirpath,'ascending.kml'))
     if os.path.exists(os.path.join(kmldirpath,'descending.kml')):
@@ -614,30 +625,36 @@ def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/p
 
 
 def delete_frame(frame):
-    print('cannot use this anymore, in CentOS7 - please contact admin to delete frame '+frame)
-    return False
+    #print('cannot use this anymore, in CentOS7 - please contact admin to delete frame '+frame)
+    #return False
     polyid = lq.get_frame_polyid(frame)[0][0]
     if not polyid:
         print('error - is it correct frame??')
         return
-    cmd_mysql='mysql -h 130.246.129.155 -u earmla -pT34mLiCS licsar_batch'
+    #cmd_mysql='mysql -h ..... licsar_batch ' # see lics_mysql.sh
     os.system('setFrameInactive.py {0}'.format(frame))
     track=str(int(frame[0:3]))
     os.system('rm -rf $LiCSAR_procdir/{0}/{1} $LiCSAR_public/{0}/{1}'.format(track,frame))
     os.system("sed -i '/{}/d' /gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/frames.csv".format(frame))
-    polyid = lq.get_frame_polyid(frame)[0][0]
-    sql = "delete from polygs2master where polyid={};".format(polyid)
-    os.system(cmd_mysql+' -e "{}"'.format(sql))
+    os.system("sed -i '/{}/d' /gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv".format(frame))
+    #polyid = lq.get_frame_polyid(frame)[0][0]
+    sql = "delete from licsar_batch.polygs2master where polyid={};".format(polyid)
+    rc = lq.do_query(sql, 1)
+    #os.system(cmd_mysql+' -e "{}"'.format(sql))
     sql = "delete from polygs2bursts where polyid={};".format(polyid)
-    os.system(cmd_mysql+' -e "{}"'.format(sql))
+    rc = lq.do_query(sql, 1)
+    #os.system(cmd_mysql+' -e "{}"'.format(sql))
     frame_workaround = frame.replace('A','X')
     frame_workaround = frame_workaround.replace('D','X')
     sql = "update polygs set polyid_name='{0}' where polyid_name='{1}';".format(frame_workaround, frame)
-    os.system(cmd_mysql+' -e "{}"'.format(sql))
+    rc = lq.do_query(sql, 1)
+    #os.system(cmd_mysql+' -e "{}"'.format(sql))
     sql = "delete from polygs where polygs.polyid_name='{}';".format(frame_workaround)
-    rc = os.system(cmd_mysql+' -e "{}" 2>/dev/null'.format(sql))
-    if rc != 0:
-        print('WARNING: the frame was only partially removed. But it should not appear in processing')
+    rc = lq.do_query(sql, 1)
+    #rc = os.system(cmd_mysql+' -e "{}" 2>/dev/null'.format(sql))
+    #if rc != 0:
+    #    print('WARNING: the frame was only partially removed. But it should not appear in processing')
+    print('the frame {} has been removed, associated files purged'.format(frame))
 
 
 def delete_frame_commands(frame):

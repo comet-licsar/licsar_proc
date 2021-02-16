@@ -159,7 +159,7 @@ def main(argv=None):
     #refarea = []
     refarea_geo = []
     maskfile = []
-
+    cliparea_geo = []
 
     #%% Read options
     try:

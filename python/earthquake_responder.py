@@ -553,12 +553,22 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False):
             print('some issue with event '+event.id)
 
 
-def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False):
+def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False):
     event =  get_event_by_id(eventid)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
     if not radius:
-        print('the event is below threshold. setting minimal radius')
-        radius = 0.18
+        if skipchecks:
+            print('the event is below threshold. setting minimal radius')
+            radius = 0.18
+        else:
+            print('the event is below threshold. cancelling')
+            return
+    if not skipchecks:
+        #check if the event is not blacklisted..
+        blacklistfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eq_blacklist.txt'
+        if misc.grep1line(eventid,blacklistfile):
+            print('the event is blacklisted. cancelling')
+            return
     eventfile = os.path.join(public_path,'EQ',event.id+'.html')
     if not os.path.exists(eventfile):
         f=open(eventfile, "w")

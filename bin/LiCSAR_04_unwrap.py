@@ -180,6 +180,7 @@ def main(argv=None):
         except:
             print('')
     def unwrap_this_ifg(ifg, write_output=False):
+        success = 0
         rc = do_unwrapping(masterdatestr,ifg,ifgdir,procdir,lq,job_id)
         if write_output:
             with open(reportfile,'a') as f:
@@ -191,6 +192,7 @@ def main(argv=None):
                 elif rc == 2:
                     # Unwrapping
                     f.write('\Interferogram {0} had a problem during the unwrapping.'.format(ifg)) 
+        #return success
     if parallelise:
         try:
             p = Pool(num_processors)
@@ -206,7 +208,7 @@ def main(argv=None):
             unwrap_this_ifg(ifg, True)
     with open(reportfile,'a') as f:
         print('Elapsed time {0}'.format(dt.datetime.now() - starttime))
-        f.write('Unwrapping completed, {0} interferograms unwrapped successfully.'.format(success))
+        f.write('Unwrapping job completed')
     if not job_id == -1:
         try:
             lq.close_db_and_tunnel()

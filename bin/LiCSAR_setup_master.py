@@ -109,7 +109,8 @@ def main(argv=None):
     masterdate=[]
     job_id = -1
     automaster = 0
-    days_limit = 22
+    days_limit = 150
+    days_limit_POD = 22
     customdem = ''
 
 ############################################################ Parse argument list
@@ -146,7 +147,7 @@ def main(argv=None):
             elif p == '-o':
                 gc.outres = float(a)
             elif p == '-e':
-                days_limit = 0
+                days_limit_POD = 0
 
         if not (framename or polygonfile or burstidfile):
             raise Usage('No frame given, please define the -f option!')
@@ -198,7 +199,7 @@ def main(argv=None):
             return 1
     else:
         print('checking for S1 data not ingested to licsinfo db')
-        todown = s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=90)))
+        todown = s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=days_limit)))
         print(todown)
         try:
             burstlist, filelist, dates = check_bursts(framename,dt.date(2015,10,0o1),dt.date.today(),lq)
@@ -211,9 +212,9 @@ def main(argv=None):
             #rc will be changed to 0 if a proper master is found and checked
             rc = 1
             for m in sorted(list(dates)):
-                #master should be from files with POD (<3 weeks) and available (>90 days)
+                #master should be from files with POD (<3 weeks) and available (>90 days... or just 'days_limit')
                 #but if we focus on earthquake response, we may use the latest ones also for master - so lets try
-                if m > (dt.date.today() - timedelta(days=90)) and m < (dt.date.today() - timedelta(days=days_limit)) and rc == 1:
+                if m > (dt.date.today() - timedelta(days=days_limit)) and m < (dt.date.today() - timedelta(days=days_limit_POD)) and rc == 1:
                     a = m.strftime('%Y%m%d')
                     masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
                     print('Checking {0} date as master'.format(masterdate))

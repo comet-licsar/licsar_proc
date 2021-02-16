@@ -31,7 +31,7 @@ cat << __EOFHD
             dem_par, dem parameter file of cropped DEM 
         lookuptable, look-up table from geo to radar coordinates
               width, width of the interferograms
-             length, length of the interferograms
+             length, length of the interferograms              
 
   EXAMPLE:
 
@@ -52,7 +52,7 @@ length=$4              # Length of the interferogram
 
 ###########################################################################
 # Swap back for Andy
-master_date=`ls ../geo/*.hgt | awk '{if(NR==1) print substr($1,5,8)}'`
+master_date=`ls ./geo/*.hgt | awk '{if(NR==1) print substr($1,7,8)}'`
 
 # Extract geocoding information to generate the lon and lat matrices
 lat=`awk '$1 == "corner_lat:" {print $2}' ${dem_par_file}`
@@ -68,9 +68,9 @@ lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 
 # From geocoded coordinates to radar coordinates
 # Longitude file
-grdmath -R${lon}/${lon1}/${lat1}/${lat} -I${width_dem}+/${length_dem}+ X = geo.grd
-grd2xyz geo.grd -ZTLf > geo.raw
-swap_bytes geo.raw geolon.raw 4
+grdmath -R${lon}/${lon1}/${lat1}/${lat} -I${width_dem}+/${length_dem}+ X = geo.grd	#make the lon grid
+grd2xyz geo.grd -ZTLf > geo.raw # take lons
+swap_bytes geo.raw geolon.raw 4 # set lons to 4-byte floats
 #rashgt geolon.raw - $width_dem - - - 5 5 0.05 - - - lon_dem.ras # To check results
 echo "geocode ${input_lookuptable} geolon.raw ${width_dem} geo/${master_date}.lon ${width} ${length} 2 0 "
 geocode ${input_lookuptable} geolon.raw ${width_dem} geo/${master_date}.lon ${width} ${length} 2 0 
@@ -81,6 +81,7 @@ swap_bytes geo/${master_date}.lon geo/${master_date}.lon.raw 4
 grdmath -R${lon}/${lon1}/${lat1}/${lat} -I${width_dem}+/${length_dem}+ Y = geo.grd  
 grd2xyz geo.grd -ZTLf > geo.raw
 swap_bytes geo.raw geolat.raw 4
+#rashgt geolat.raw - $width_dem - - - 5 5 0.05 - - - lat_dem.ras # To check results
 echo "geocode ${input_lookuptable} geolat.raw ${width_dem} geo/${master_date}.lat ${width} ${length} 2 0 "
 geocode ${input_lookuptable} geolat.raw ${width_dem} geo/${master_date}.lat ${width} ${length} 2 0 
 swap_bytes geo/${master_date}.lat geo/${master_date}.lat.raw 4

@@ -78,9 +78,9 @@ else
  echo "Generating land mask (would remove heights below 0 m)"
  landmask=$curdir/$tr/$frame/geo/landmask
  hgtgeo=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
- gmt grdlandmask -G$landmask.grd -R$hgtgeo -Df -N0/1/1/1/1
- gmt grdconvert $landmask.grd $landmask.tif
- rm $landmask.grd
+ gmt grdlandmask -G$landmask.tif=gd:GTiff -R$hgtgeo -Df -N0/1/0/1/0
+ #gmt grdconvert $landmask.grd $landmask.tif
+ #rm $landmask.grd
  cp $landmask.tif $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
 
 #but this is wrong..so fixing.. ugly fast way:

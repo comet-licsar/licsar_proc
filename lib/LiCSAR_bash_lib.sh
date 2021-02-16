@@ -5,16 +5,17 @@
 #########################################################
 #
 # Author: Pablo J. Gonzalez <p.j.gonzalez@leeds.ac.uk>
-# Contributions by: Emma Hatton and Richard Walters
+# Contributions by: Emma Hatton and Richard Walters, and Milan Lazecky
 #
-# Copyright 2015-2016
+# Copyright 2015-2020
 # Released under the current GPL version.
 #
 # Description:
 #   This is a shell script library. It contains functions 
 #   that can be called by programs that include (source)
 #    the LiCSAR InSAR software system. 
-#
+# Updates:
+#    01/2021: add functions to do solid Earth tides correction
 # By simply sourcing this library, you can use all available functions as 
 # documented on the project page [to be done!].
 #
@@ -26,6 +27,207 @@ if [ -z $a ]; then
  echo "setting bsub2slurm"
  alias bsub=bsub2slurm.sh
 fi
+
+
+function create_LOS_tide() {
+  if [ "$#" == "2" ]; then
+    local frame=$1
+    local date1=$2
+    #fix for input with yyyymmdd
+    datem1=`date -d $date1 +%Y-%m-%d`
+    track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+    #get center time
+    epochpath=$LiCSAR_public/$track/$frame/epochs/$date1
+    if [ -f $epochpath/$date1'.tide.geo.tif' ]; then
+      echo "tide file for "$date1" already exists"
+      return 0
+    fi
+    echo "generating solid Earth tide in LOS for date "$date1
+    source $LiCSAR_public/$track/$frame/metadata/metadata.txt
+    U=$LiCSAR_public/$track/$frame/metadata/$frame.geo.U.tif
+    E=$LiCSAR_public/$track/$frame/metadata/$frame.geo.E.tif
+    N=$LiCSAR_public/$track/$frame/metadata/$frame.geo.N.tif
+    mkdir -p $epochpath
+    gmt earthtide -T$datem1'T'$center_time -G$epochpath/tmp_tides.%s.nc -R$U -Cv,e,n 2>/dev/null
+    gmt grdmath $U $epochpath/tmp_tides.v.nc MUL $E $epochpath/tmp_tides.e.nc MUL ADD $N $epochpath/tmp_tides.n.nc MUL ADD = $epochpath/$date1'.tide.geo.tif'=gd:GTiff
+    rm $epochpath/tmp_tides.*.nc
+  else
+    echo "Usage: create_LOS_tide frame_id date"
+    echo "(date must be yyyymmdd)"
+    return 0
+  fi
+};
+
+function create_preview_unwrapped() {
+  if [ "$#" == "1" ]; then
+    local unwfile=$1
+    #local RESIZE=30
+    outfile=`echo $unwfile | rev | cut -c 4- | rev`png
+
+   minmaxcolour=`gmt grdinfo -T+a0.1+s $unwfile`
+   minmaxreal=`gmt grdinfo -T+a0.0 $unwfile`
+   scalebar_bmp=$outfile.tmp.scale.png
+   gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.tmp.cpt
+
+    gmt grdimage $unwfile -C$outfile.tmp.cpt -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+    #in such case we should be ok with 255 colour palette
+    convert $outfile.tt.png PNG8:$outfile
+    rm $outfile.tt.png $outfile.tmp.cpt
+
+  #need to prepare a colorbar based on these values!!!!
+  #you know... the rounding here is not really important... just a colourbar.. or not?
+  mincol=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
+  maxcol=`echo $minmaxcolour | cut -d '/' -f2 `
+  #expecting sentinel
+  minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
+  maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
+  #add also real min and max values
+  minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
+  maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
+  minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
+  maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
+  #burn them to the scalebar
+  minvalsize=`echo $minval | wc -m `
+  if [ $minvalsize -gt 4 ]; then
+   xsize=20
+  elif [ $minvalsize -eq 4 ]; then
+   xsize=40
+  elif [ $minvalsize -eq 3 ]; then
+   xsize=60
+  else
+   xsize=80
+  fi
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png $scalebar_bmp.temp.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" $scalebar_bmp.temp.png $scalebar_bmp
+  mv $scalebar_bmp $scalebar_bmp.temp.png
+  #add real values
+  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
+  mv $scalebar_bmp $scalebar_bmp.temp.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
+  #merge them
+  convert $outfile -resize 680x \( $scalebar_bmp -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
+  #save only the small preview..
+  mv $outfile.sm.png $outfile
+  rm $unwcpt $scalebar_bmp.temp.png $scalebar_bmp 2>/dev/null
+
+
+  else
+    echo "Usage: create_preview_unwrapped unwrapped_ifg"
+    echo "(can be either geotiff or nc/grd)"
+    return 0
+  fi
+};
+
+
+function create_preview_wrapped() {
+  if [ "$#" == "1" ]; then
+    local ifgfile=$1
+    local RESIZE=30
+    outfile=`echo $ifgfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
+    gmt grdimage $ifgfile -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
+    #to flatten it (and fix transparency...sometimes needed..):
+    convert $outfile.temp.png -transparent black -resize $RESIZE'%' PNG8:$outfile
+    rm $outfile.temp.png
+  else
+    echo "Usage: create_preview_wrapped wrapped_ifg"
+    echo "(can be either geotiff or nc/grd)"
+    return 0
+  fi
+};
+
+function track_from_frame() {
+ #input is $frame
+ echo $1 | cut -c -3 | sed 's/^0//' | sed 's/^0//'
+};
+
+
+function correct_ifg_gacos_public() {
+  if [ "$#" == "3" ]; then
+    local frame=$1
+    local ifg=$2
+    local ext=$3
+    track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+    ifgpath=$LiCSAR_public/$track/$frame/interferograms/$ifg
+    infile=$ifgpath/$ifg.geo.$ext.tif
+    date1=`echo $ifg | cut -d '_' -f1`
+    date2=`echo $ifg | cut -d '_' -f2`
+    gacos1=$LiCSAR_public/$track/$frame/epochs/$date1/$date1'.sltd.geo.tif'
+    gacos2=$LiCSAR_public/$track/$frame/epochs/$date2/$date2'.sltd.geo.tif'
+    if [ ! -f $infile ]; then
+      echo "interferogram does not exist"
+      return 0
+    fi
+    for gacosf in $gacos1 $gacos2; do
+     if [ ! -f $gacosf ]; then
+      echo "gacos file "$gacosf" does not exist"
+      return 0
+     fi
+    done
+    #U=$LiCSAR_public/$track/$frame/metadata/$frame.geo.U.tif
+    outfile=$ifgpath/$ifg.geo.$ext.gacos.tif
+    #wavelength of Sentinel-1
+    #wavelength=0.055465763
+    #mcoef=4*PI/$wavelength
+    #mcoef=226.56
+    echo "correcting the interferogram to "$outfile
+    #sltd are already in radians
+    gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB SUB WRAP = $outfile'=gd:Gtiff'
+    #gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB 226.56 MUL 0 NAN $U DIV SUB WRAP = $outfile'=gd:Gtiff'
+    create_preview_wrapped $outfile
+  else
+    echo "Usage: correct_ifg_gacos_public frame_id ifg ext"
+    echo "(ifg must be yyyymmdd_yyyymmdd)"
+    echo "(ext should be either diff_pha or diff_unfiltered_pha)"
+    return 0
+  fi
+};
+
+
+function correct_ifg_tides_public() {
+  if [ "$#" == "3" ]; then
+    local frame=$1
+    local ifg=$2
+    local ext=$3
+    track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+    ifgpath=$LiCSAR_public/$track/$frame/interferograms/$ifg
+    infile=$ifgpath/$ifg.geo.$ext.tif
+    if [ ! -f $infile ]; then
+      echo "interferogram does not exist"
+      return 0
+    fi
+    outfile=$ifgpath/$ifg.geo.$ext.notides.tif
+    if [ -f $outfile ]; then
+      echo "tide corrected ifg "$ifg" already exists"
+      return 0
+    fi
+    date1=`echo $ifg | cut -d '_' -f1`
+    date2=`echo $ifg | cut -d '_' -f2`
+    create_LOS_tide $frame $date1
+    create_LOS_tide $frame $date2
+    tided1=$LiCSAR_public/$track/$frame/epochs/$date1/$date1'.tide.geo.tif'
+    tided2=$LiCSAR_public/$track/$frame/epochs/$date2/$date2'.tide.geo.tif'
+    #wavelength of Sentinel-1
+    #wavelength=0.055465763
+    #mcoef=-4*PI/$wavelength
+    #mcoef=-226.56
+    echo "correcting the interferogram to "$outfile
+    gmt grdmath $tided2 $tided1 SUB -226.56 MUL = $outfile.onlytide.nc
+    if [ $ext == "unw" ]; then
+     gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB = $outfile.nc #'=gd:Gtiff'
+     gmt grdmath $outfile.nc $outfile.nc MEDIAN SUB = $outfile=gd:Gtiff
+     #demedian_unw.py $outfile'=gd:Gtiff'
+     #create_preview_unwrapped $outfile
+    else
+     gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB WRAP = $outfile'=gd:Gtiff'
+     create_preview_wrapped $outfile
+    fi
+  else
+    echo "Usage: correct_ifg_tides_public frame_id ifg ext"
+    echo "(ifg must be yyyymmdd_yyyymmdd)"
+    echo "(ext should be either diff_pha or diff_unfiltered_pha)"
+    return 0
+  fi
+};
 
 
 function init_LiCSAR(){

@@ -126,7 +126,9 @@ if [ ! -z $maskfile ]; then
  maskmin=`gdalinfo -stats $maskfile 2>/dev/null | grep ICS_MINIMUM | cut -d '=' -f2`
  if [ $maskmin -eq 0 ]; then
   #resample to the AOI (fix for the missing bursts etc.)
-  gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
+  #gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
+  #not working well! skipping
+  gmt grdconvert $maskfile tempmask.nc
   #gmt grdcut -N -R$unw_tif -Gtempmask.nc $maskfile 2>/dev/null
   if [ -f tempmask.nc ]; then
    echo "will apply landmask"
@@ -214,7 +216,7 @@ for topic in $todo; do
   rm tempmasked.nc 2>/dev/null
   gmt grdclip $infile -Gtempinfile1.nc -SrNaN/0
   gmt grdsample tempinfile1.nc -Gtempinfile2.nc -R$masknc -nn+t0.1 2>/dev/null
-  gmt grdmath tempinfile2.nc $masknc MUL = temp2.nc
+  gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
   gmt grdclip temp2.nc -Gtempmasked.nc -Sr0/NaN
   rm temp2.nc 2>/dev/null
   if [ ! -f tempmasked.nc ]; then

@@ -12,7 +12,7 @@ from skimage import morphology
 from osgeo import osr, gdal
 import datetime
 import subprocess as subp
-
+from osgeo import gdal
 
 #try:
 #    wrap=sys.argv[1]
@@ -40,8 +40,8 @@ def qc1(a,image,bound):
     ####### Hough line detection
     rho = 1  # distance resolution in pixels of the Hough grid
     theta = np.pi / 180  # angular resolution in radians of the Hough grid
-    threshold = 10 # minimum number of votes (intersections in Hough grid cell)
-    min_line_length = 80  # minimum number of pixels making up a line
+    threshold = 150 # minimum number of votes (intersections in Hough grid cell) 10
+    min_line_length = 100  # minimum number of pixels making up a line 80
     max_line_gap = 5  # maximum gap in pixels between connectable line segments
     line_image = np.copy(image) * 0  # creating a blank to draw lines on
     # Run Hough on edge detected image
@@ -51,6 +51,7 @@ def qc1(a,image,bound):
     if lines is None:
         return(0)
     return (len(lines))
+
 
 
 def check_dimensions(tiffile1, tiffile2):
@@ -68,11 +69,23 @@ def check_dimensions(tiffile1, tiffile2):
     return flag
 
 
-def check_lines(png):
-    img = Image.open(png)
-    data = np.array( img, dtype='uint8')
-    image = cv2.imread(png)
-    aa= cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+def check_lines(infile, type='png'):
+    if type == 'png':
+        img = Image.open(infile)
+        data = np.array( img, dtype='uint8')
+        image = cv2.imread(infile)
+        aa= cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    elif type == 'gdal':
+        print('using gdal - for geotiffs. not tested well')
+        img = gdal.Open(infile, gdal.GA_ReadOnly)
+        band = dataset.GetRasterBand(1)
+        image = band.ReadAsArray()
+        aa=np.abs(image)
+        #not sure this would work afterwards.. so perhaps keep pngs here
+        data = image
+    else:
+        print('wrong data type')
+        return
     try:
         a=data[:,:,3]
     except:
@@ -96,6 +109,51 @@ def check_lines(png):
         flag = 1
     else:
         flag = 0
+    return flag
+
+
+def check_lines_ifg_and_unw(wrap, unwrap):
+    #use paths to geotiff files here..
+    dataset = gdal.Open(wrap, gdal.GA_ReadOnly)
+    band = dataset.GetRasterBand(1)
+    imagew = band.ReadAsArray()
+    
+    dataset = gdal.Open(unwrap, gdal.GA_ReadOnly)
+    band = dataset.GetRasterBand(1)
+    imageunw = band.ReadAsArray()
+    row=np.shape(imageunw)[0]
+    col=np.shape(imageunw)[1]
+    
+    flag=0
+    
+    a=np.zeros((row,col),dtype=np.uint8)
+    a[imageunw<256]=255
+    a_inv=255-a
+    
+    try:
+        aa=np.abs(imagew)
+    except:
+        print('probably error in the wrapped file, marking as bad')
+        flag = 1
+        return flag
+    thresh = cv2.threshold(aa, 0, 255, cv2.THRESH_BINARY)[1]
+    kernel=cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
+    mask = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+    mask_dil = cv2.morphologyEx(mask, cv2.MORPH_DILATE, kernel)
+    mask_erd = cv2.morphologyEx(mask, cv2.MORPH_ERODE, kernel)
+    bound = mask_dil - mask_erd
+    bound = cv2.morphologyEx(bound, cv2.MORPH_DILATE, kernel)
+    bound=np.uint8(bound/255)
+    bound = 1 - bound
+    
+    im1=qc1(thresh,imageunw,bound) # better for boundary extraction
+    im2=qc1(255-thresh,imageunw,bound)  
+    im3=qc1(a,imageunw,bound)
+    n_lines=im1+im2+im3
+    
+    if (n_lines>3):
+        flag=1
+    
     return flag
 
 
@@ -161,6 +219,7 @@ def check_timescan(check_coh_file, thres1 = 0.01):
         print('error - the coh stat file {} does not exist'.format(check_coh_file))
         return []
     return badifgs_timescan
+
 
 def duration(tmaster, tslave):
     t1 = datetime.datetime.strptime(tmaster, "%Y%m%d")
@@ -267,15 +326,18 @@ def main():
     for ifg in os.listdir(ifgdir):
         #check the lines in wrapped imgs
         #check only wrapped imgs:
-        wrap = os.path.join(ifgdir,ifg,ifg+'.geo.diff.png')
-        unwrap = os.path.join(ifgdir,ifg,ifg+'.geo.unw.png')
+        #wrap = os.path.join(ifgdir,ifg,ifg+'.geo.diff.png')
+        #unwrap = os.path.join(ifgdir,ifg,ifg+'.geo.unw.png')
+        wrap = os.path.join(ifgdir,ifg,ifg+'.geo.diff_pha.tif')
+        unwrap = os.path.join(ifgdir,ifg,ifg+'.geo.unw.tif')
         cctif = os.path.join(ifgdir,ifg,ifg+'.geo.cc.tif')
         if not basic_check(os.path.join(ifgdir,ifg)):
             #if (not os.path.exists(wrap)) or (not os.path.exists(unwrap)) or (not os.path.exists(cctif)):
             flag = 1
         else:
-            flag = check_lines(wrap) #, unwrap)
-        
+            # older way checking just the png files...
+            #flag = check_lines(wrap) #, unwrap)
+            flag = check_lines_ifg_and_unw(wrap, unwrap)
         if flag == 0:
             #check 
             stats = get_stats(os.path.join(ifgdir,ifg), ifg) 

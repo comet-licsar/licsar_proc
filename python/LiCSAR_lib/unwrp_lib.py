@@ -318,3 +318,13 @@ def get_snaphu_conf_tiled(tmpdir):
             'COLOVRLP 200\n',
             'NPROC 16\n',
             'RMTMPTILE TRUE\n')
+
+
+def demedian_unw(filename):
+    #this is to reduce the unw by a median
+    a = np.fromfile(filename,dtype=np.float32)
+    print('reducing by median')
+    a = a - np.nanmedian(a)
+    os.remove(filename)
+    a.tofile(filename)
+

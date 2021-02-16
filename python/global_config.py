@@ -2,6 +2,8 @@ import os
 import sys
 import subprocess as subp
 
+#max ifg combinations
+ifg_connections = 4
 
 #rglks and azlks values for TOPS mode S-1 images (dest. resolution: ~100x100 m)
 rglks = 20
