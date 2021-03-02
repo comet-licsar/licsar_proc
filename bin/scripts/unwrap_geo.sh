@@ -7,6 +7,7 @@ cohthr=10
 
 if [ -z $2 ]; then
  echo "parameters: frame ifg"
+ echo "(if you run it from directory with GEOC/\$ifg, it will use the local files rather than LiCSAR_public)"
  exit
 fi
 frame=$1
@@ -14,27 +15,40 @@ ifgid=$2
 
 track=`track_from_frame $frame`
 heredir=`pwd`
+
+if [ -d GEOC/$ifgid ]; then
+ echo "using local data in GEOC folder"
+ ifgdir=$heredir/GEOC/$ifgid
+else
+ ifgdir=$LiCSAR_public/$track/$frame/interferograms/$ifgid
+fi
+
 #this script will unwrap geocoded data...
 #just set those files:
 maskfile=$LiCSAR_public/$track/$frame/metadata/$frame.geo.landmask.tif
-ifg=$LiCSAR_public/$track/$frame/interferograms/$ifgid/$ifgid.geo.diff_pha.tif
-coh=$LiCSAR_public/$track/$frame/interferograms/$ifgid/$ifgid.geo.cc.tif
-outunw=$LiCSAR_public/$track/$frame/interferograms/$ifgid/$ifgid.geo.unw.tif
+ifg=$ifgdir/$ifgid.geo.diff_pha.tif
+coh=$ifgdir/$ifgid.geo.cc.tif
+outunw=$ifgdir/$ifgid.geo.unw.tif
 
-cd $LiCSAR_public/$track/$frame/interferograms/$ifgid
+cd $ifgdir
 mkdir temp 2>/dev/null
 
 width=`gmt grdinfo $ifg | grep n_columns | rev | gawk {'print $1'} | rev`
 
 #preparing mask.nc
 echo "preparing masks"
-gmt grdcut -N1 $maskfile -Gtemp/mask.landmask.nc -R$ifg  #grid reg
-gmt grdedit temp/mask.landmask.nc -T -R$ifg   #to pixel reg
 gmt grdmath $coh 0 NAN 0 GT 0 DENAN = temp/mask.outarea.nc
 gmt grdmath $coh 0 NAN $cohthr GT 1 DENAN = temp/mask.inarea.nc #pixel reg!!!! 
 #gmt grdedit temp/mask.inarea.nc -T -R$ifg   #to pixel reg
-gmt grdmath -N temp/mask.inarea.nc temp/mask.landmask.nc MUL = temp/mask.fullin.nc
-gmt grdmath -N temp/mask.outarea.nc temp/mask.fullin.nc MUL = temp/mask.nc
+if [ -f $maskfile ]; then
+ gmt grdcut -N1 $maskfile -Gtemp/mask.landmask.nc -R$ifg  #grid reg
+ gmt grdedit temp/mask.landmask.nc -T -R$ifg   #to pixel reg
+ gmt grdmath -N temp/mask.inarea.nc temp/mask.landmask.nc MUL = temp/mask.fullin.nc
+ gmt grdmath -N temp/mask.outarea.nc temp/mask.fullin.nc MUL = temp/mask.nc
+else
+ cp temp/mask.inarea.nc temp/mask.fullin.nc
+ cp temp/mask.outarea.nc temp/mask.nc
+fi
 
 #gapfilling masked areas
 echo "gapfilling masked areas"

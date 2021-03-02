@@ -43,6 +43,7 @@ print('{}/{} ifgs with errors'.format(len(ixs_err), len(errors)))
 
 errors_to_delete = [1, 2, 3, 7]
 errors_to_delete = [7]
+errors_to_delete = [1, 2, 3, 4, 6, 7]
 epochs = set()
 print('removing those of errors {}'.format(errors_to_delete))
 for error in errors_to_delete:

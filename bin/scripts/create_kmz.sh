@@ -2,6 +2,8 @@
 #this will force regenerate full previews
 overwrite=0
 update_previews=0
+source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+
 
 if [ $overwrite -eq 1 ]; then
  update_previews=1
@@ -49,14 +51,14 @@ tr=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
 echo "(frame "$frame " )"
 
 if [ $opt == 0 ]; then
- outfile=$frame'_'$pair
+ outfilee=$frame'_'$pair
  opt=$frame
 else
- outfile=$opt'_'$pair
+ outfilee=$opt'_'$pair
 fi
 
 if [ $overwrite -eq 0 ]; then
- if [ -f $outfile ]; then
+ if [ -f $outfilee.kmz ]; then
   echo "the kmz already exists, not overwriting (change it by adding extra parameter)"
   exit
  fi
@@ -67,75 +69,6 @@ if [ -f $pair.geo.diff_unfiltered_pha.tif ]; then
  do_ifgu=1
 else
  do_ifgu=0
-fi
-
-#need for hillshade
-hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
-hillshadefile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hillshade.nc
-if [ ! -f $hgtfile ]; then
-  mkdir -p ../../geo
-  hgtfile=../../geo/$frame.geo.hgt.tif
-  if [ ! -f $hgtfile ]; then
-   #try for the last time, download it..
-   wget --no-check-certificate -O $hgtfile https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.hgt.tif 2>/dev/null
-  fi
-  if [ ! -f $hgtfile ]; then
-   echo "warning, no hgt tiff file found. there will be no hillshade"
-  fi
-fi
-
-if [ ! -f $hillshadefile ]; then
- if [ ! -d $LiCSAR_public/$tr/$frame/metadata ]; then
-  #in such case do it only locally
-  hillshadefile='hillshade.nc'
- fi
-fi
-
-if [ ! -f $hillshadefile ]; then
-   #do hillshade to unw..
-   echo "(generating hillshade)"
-   if [ -f $hgtfile ]; then
-    opass=`echo $frame | cut -c 4`
-    if [ $opass == 'A' ]; then
-      deg=258
-    else
-      deg=102
-    fi
-    #gmt grdsample $hgtfile -Gtemphgt.nc -R$unw_tif 2>/dev/null
-    gmt grdgradient -A$deg -Nt1 -G$hillshadefile $hgtfile
-   fi
-fi
-
-
-
-
-
-echo "applying landmask if needed"
-#check and/or regenerate landmask
-if [ -f $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif ]; then
-   maskfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
-elif [ -f $frame.geo.landmask.tif ]; then
-   maskfile=$frame.geo.landmask.tif
-else 
-   wget --no-check-certificate -O $frame.geo.landmask.tif https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
-   if [ -f $frame.geo.landmask.tif ]; then maskfile=$frame.geo.landmask.tif; else maskfile=''; fi
-fi
-
-landmask=0
-if [ ! -z $maskfile ]; then
- maskmin=`gdalinfo -stats $maskfile 2>/dev/null | grep ICS_MINIMUM | cut -d '=' -f2`
- if [ $maskmin -eq 0 ]; then
-  #resample to the AOI (fix for the missing bursts etc.)
-  #gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
-  #not working well! skipping
-  gmt grdconvert $maskfile tempmask.nc
-  #gmt grdcut -N -R$unw_tif -Gtempmask.nc $maskfile 2>/dev/null
-  if [ -f tempmask.nc ]; then
-   echo "will apply landmask"
-   masknc=tempmask.nc 
-   landmask=1
-  fi
- fi
 fi
 
 #we will do a parsed kml file
@@ -184,6 +117,7 @@ for topic in $todo; do
   extracmd=''
   tododirs=$tododirs" "$keyword
   visible=0
+  maskit=0
  elif [ $topic == "diff_pha" ]; then
   keyword="filtered_ifg"
   cpt=$LiCSARpath/misc/pha.cpt
@@ -191,6 +125,7 @@ for topic in $todo; do
   extracmd=''
   tododirs=$tododirs" "$keyword
   visible=0
+  maskit=1
  elif [ $topic == "diff_unfiltered_pha" ]; then
   keyword="unfiltered_ifg"
   cpt=$LiCSARpath/misc/pha.cpt
@@ -198,116 +133,36 @@ for topic in $todo; do
   extracmd=''
   tododirs=$tododirs" "$keyword
   visible=0
+  maskit=0
  elif [ $topic == "unw" ]; then
   keyword="unwrapped_ifg"
-  #i needed to do hillshade resample later on... so only:
-  extracmd=''
-#  extracmd=$hillshadecmd
-  #have to generate the unw cpt..
-  cpt=''
+  create_preview_unwrapped $unw_tif $frame 1
+  #cpt=unw.cpt
+  scalebarfile=scalebar_unwrapped.png
   tododirs=$tododirs" "$keyword
   visible=1
+  maskit=0
  fi
  
- echo "picturing "$keyword
  infile=$pair.geo.$topic.tif
- if [ $landmask -eq 1 ]; then
-  #should apply landmask  -  file $maskfile
-  rm tempmasked.nc 2>/dev/null
-  gmt grdclip $infile -Gtempinfile1.nc -SrNaN/0
-  gmt grdsample tempinfile1.nc -Gtempinfile2.nc -R$masknc -nn+t0.1 2>/dev/null
-  gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
-  gmt grdclip temp2.nc -Gtempmasked.nc -Sr0/NaN
-  rm temp2.nc 2>/dev/null
-  if [ ! -f tempmasked.nc ]; then
-   echo "problem with landmasking, keeping without mask"
-  else
-   infile=tempmasked.nc
-  fi
- fi
- 
- #sometimes this does not work.. so we need to just.. change 0 for NaNs..
- if [ ! $infile == "tempmasked.nc" ]; then
-  rm temp.nc 2>/dev/null
-  gmt grdclip $infile -Gtemp.nc -Sr0/NaN
-  if [ -f temp.nc ]; then
-   infile=temp.nc
-  fi
- fi
- 
-
- if [ $topic == "unw" ]; then
-  #for unwrapped data, i need to fix by the median:
-  gmt grdmath $infile $infile MEDIAN SUB = temp3.nc
-  mv temp3.nc temp.nc
-  if [ -f temp.nc ]; then
-   infile=temp.nc
-  fi
-  
-  #resample hillshade for unw data only
-  hillshadecmd=''
-  if [ -f $hillshadefile ]; then
-      hillshadenc='temphillshade.nc'
-      rm $hillshadenc 2>/dev/null
-      gmt grdsample $hillshadefile -G$hillshadenc -R$infile -nn+t0.1 2>/dev/null
-  fi
-  if [ -f $hillshadenc ]; then
-      hillshadecmd="-I"$hillshadenc
-      extracmd=$hillshadecmd
-  else
-      echo "error with hillshade - skipping it"
-      extracmd=''
-  fi
-  #create cpt - trim 1% off from both sides of histogram
-  minmaxcolour=`gmt grdinfo -T+a1+s $infile`
-  gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >unw.cpt
-  cpt='unw.cpt'
-  
-  #create legend
-  #need to prepare a colorbar based on these values!!!!
-  #you know... the rounding here is not really important... just a colourbar.. or not?
-  mincol=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
-  maxcol=`echo $minmaxcolour | cut -d '/' -f2 `
-  #expecting sentinel
-  minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
-  maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
-  #add also real min and max values
-  minmaxreal=`gmt grdinfo -T $infile`
-  minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
-  maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
-  minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
-  maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
-  #burn them to the scalebar
-  minvalsize=`echo $minval | wc -m `
-  if [ $minvalsize -gt 4 ]; then
-   xsize=20
-  elif [ $minvalsize -eq 4 ]; then
-   xsize=40
-  elif [ $minvalsize -eq 3 ]; then
-   xsize=60
-  else
-   xsize=80
-  fi
-  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png temp_scale_unw.png
-  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" temp_scale_unw.png scalebar_unwrapped.png
-  mv scalebar_unwrapped.png temp_scale_unw.png
-  #add real values
-  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" temp_scale_unw.png scalebar_unwrapped.png
-  mv scalebar_unwrapped.png temp_scale_unw.png
-  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" temp_scale_unw.png scalebar_unwrapped.png
-  
-  scalebarfile='scalebar_unwrapped.png'
-  
- fi
- 
  #now generating kml from it
- gmt grd2kml -Ag -C$cpt -nn+t0.1 -T$keyword -N$keyword $extracmd $infile 2>/dev/null
+ 
+ #gmt grd2kml -Ag -C$cpt -nn+t0.1 -T$keyword -N$keyword $extracmd $infile 2>/dev/null
  if [ ! -f $keyword/$keyword.kml ]; then
-  echo "some error - perhaps with hillshade.."
-  rm -r $keyword
-  gmt grd2kml -Ag -C$cpt -nn+t0.1 -T$keyword -N$keyword $infile 2>/dev/null
+  #echo "some error - perhaps with hillshade.."
+  echo "preparing kml layer for "$keyword
+  rm -r $keyword 2>/dev/null
+  if [ $maskit -eq 1 ]; then 
+   maskedf=`prepare_landmask $infile $frame`
+   if [ ! -z $maskedf ]; then infile=$maskedf; fi
+  fi
+  #this is necessary for tif, but not for maskedf.. but why not
+  gmt grdclip $infile -Gtokml.nc -Sr0/NaN
+  gmt grd2kml -Ag -C$cpt -nn+t0.1 -T$keyword -N$keyword tokml.nc 2>/dev/null
+  rm tokml.nc $maskedf 2>/dev/null
  fi
  #compressing to PNG8
+ #for x in `ls $keyword/*/*png`; do mv $x tt.png; convert tt.png -transparent black PNG8:$x; done; rm tt.png
  for x in `ls $keyword/*/*png`; do mv $x tt.png; convert tt.png PNG8:$x; done; rm tt.png
 
  
@@ -396,9 +251,9 @@ cat << EOF >> $kmlfile
 </kml>
 EOF
 
-7za a $outfile.zip logos $tododirs $kmlfile >/dev/null 2>/dev/null
-mv $outfile.zip $outfile.kmz
+7za a $outfilee.zip logos $tododirs $kmlfile >/dev/null 2>/dev/null
+mv $outfilee.zip $outfilee.kmz
 
 
 #cleaning
-rm -r $tododirs logos gmt.history temp*nc temp_scale_unw.png scalebar_unwrapped.png unw.cpt $kmlfile 2>/dev/null
+rm -r $tododirs logos gmt.history scalebar_unwrapped.png unw.cpt $kmlfile 2>/dev/null

@@ -33,6 +33,7 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     if ascdesc == 'A': ascdesc = 'ASCENDING'
     track = int(frameName[0:3])
     #startdate = dt.datetime.strptime(startdate,'%Y%m%d').date()
+    result = None
     try:
         scihub_user, scihub_pass, scihub_url = get_scihub_creds()
         scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
@@ -40,7 +41,7 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
                      platformname = 'Sentinel-1', producttype = 'SLC', \
                      relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
     except:
-        print('error in scihub search, trying CEDA elastic search')
+        print('error in scihub search, should try CEDA elastic search (no option for detailed search, not using it now..)')
         #TODO!!
         #from elasticsearch import Elasticsearch
         #query = {

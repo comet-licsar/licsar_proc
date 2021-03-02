@@ -95,7 +95,8 @@ def main():
         if os.path.exists(os.path.join(public_path,track,frame)):
             indate = get_indate(frame)
             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
-            os.system('licsar_make_frame.sh -S -P -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate),str(offdate.date())))
+            # we used -P before, now -R for comet_ ...responder
+            os.system('licsar_make_frame.sh -S -R -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate),str(offdate.date())))
 
 if __name__ == '__main__':
     main()

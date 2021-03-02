@@ -29,6 +29,17 @@ if [ -z $a ]; then
 fi
 
 
+function slurm_get_running_jobs() {
+  for jobid in `bjobs | grep ' R ' | gawk {'print $1'}`; do
+   slurm_get_jobname $jobid
+  done
+}
+
+function slurm_get_jobname() {
+    jobid=$1
+    scontrol show jobid $jobid | grep JobName | cut -d '=' -f3
+}
+
 function create_LOS_tide() {
   if [ "$#" == "2" ]; then
     local frame=$1
@@ -58,22 +69,114 @@ function create_LOS_tide() {
   fi
 };
 
-function create_preview_unwrapped() {
-  if [ "$#" == "1" ]; then
-    local unwfile=$1
-    #local RESIZE=30
-    outfile=`echo $unwfile | rev | cut -c 4- | rev`png
 
-   minmaxcolour=`gmt grdinfo -T+a0.1+s $unwfile`
-   minmaxreal=`gmt grdinfo -T+a0.0 $unwfile`
-   scalebar_bmp=$outfile.tmp.scale.png
-   gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.tmp.cpt
+function prepare_landmask() {
+    infile=$1
+    frame=$2
+    tr=`track_from_frame $frame`
+    if [ -f $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif ]; then
+   maskfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+elif [ -f $frame.geo.landmask.tif ]; then
+   maskfile=$frame.geo.landmask.tif
+else 
+   wget --no-check-certificate -O $frame.geo.landmask.tif https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
+   if [ -f $frame.geo.landmask.tif ]; then
+    if [ `ls -l $frame.geo.landmask.tif | gawk {'print $5'}` -eq 0 ]; then
+     rm $frame.geo.landmask.tif; maskfile='';
+    else
+      maskfile=$frame.geo.landmask.tif;
+    fi;
+   else maskfile=''; fi
+fi
+landmask=0
+if [ ! -z $maskfile ]; then
+ maskmin=`gdalinfo -stats $maskfile 2>/dev/null | grep ICS_MINIMUM | cut -d '=' -f2`
+ if [ $maskmin -eq 0 ]; then
+  #resample to the AOI (fix for the missing bursts etc.)
+  #gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
+  #not working well! skipping
+  gmt grdconvert $maskfile tempmask.nc
+  #gmt grdcut -N -R$unw_tif -Gtempmask.nc $maskfile 2>/dev/null
+  if [ -f tempmask.nc ]; then
+   #echo "will apply landmask"
+   masknc=tempmask.nc 
+   landmask=1
+  fi
+ fi
+fi
+if [ $landmask -eq 1 ]; then
+  #should apply landmask  -  file $maskfile
+  rm tempmasked.nc 2>/dev/null
+  gmt grdclip $infile -Gtempinfile1.nc -SrNaN/0
+  #gmt grdsample tempinfile1.nc -Gtempinfile2.nc -R$masknc -nn+t0.1 2>/dev/null
+  #gmt grdcut -N1 tempinfile1.nc -Gtempinfile2.nc -R$infile
+  gmt grdcut -N1 $masknc -Gtempmask2.nc -Rtempinfile1.nc #$infile
+  gmt grdmath -N tempinfile1.nc tempmask2.nc MUL = temp2.nc
+  #gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
+  gmt grdclip temp2.nc -Gtempmasked.nc -Sr0/NaN
+  ls tempmasked.nc
+  rm temp2.nc tempinfile1.nc tempmask2.nc tempmask.nc
+fi
+}
 
-    gmt grdimage $unwfile -C$outfile.tmp.cpt -JM1 -Q -nn+t0.1 -A$outfile.tt.png
-    #in such case we should be ok with 255 colour palette
-    convert $outfile.tt.png PNG8:$outfile
-    rm $outfile.tt.png $outfile.tmp.cpt
 
+function prepare_hillshade() {
+    infile=$1
+    frame=$2
+    tr=`track_from_frame $frame`
+    hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+hillshadefile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hillshade.nc
+if [ ! -f $hgtfile ]; then
+  mkdir -p ../../geo
+  hgtfile=../../geo/$frame.geo.hgt.tif
+  if [ ! -f $hgtfile ]; then
+   #try for the last time, download it..
+   wget --no-check-certificate -O $hgtfile https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.hgt.tif 2>/dev/null
+  fi
+  #if [ ! -f $hgtfile ]; then
+  # echo "warning, no hgt tiff file found. there will be no hillshade"
+  #fi
+fi
+
+if [ ! -f $hillshadefile ]; then
+ if [ ! -d $LiCSAR_public/$tr/$frame/metadata ]; then
+  #in such case do it only locally
+  hillshadefile='hillshade.nc'
+ fi
+fi
+
+if [ ! -f $hillshadefile ]; then
+   #do hillshade to unw..
+   #echo "(generating hillshade)"
+   if [ -f $hgtfile ]; then
+    opass=`echo $frame | cut -c 4`
+    if [ $opass == 'A' ]; then
+      deg=258
+    else
+      deg=102
+    fi
+    #gmt grdsample $hgtfile -Gtemphgt.nc -R$unw_tif 2>/dev/null
+    gmt grdgradient -A$deg -Nt1 -G$hillshadefile $hgtfile
+   fi
+fi
+
+if [ -f $hillshadefile ]; then
+      hillshadenc='temphillshade.nc'
+      rm $hillshadenc 2>/dev/null
+      gmt grdsample $hillshadefile -G$hillshadenc.tmp -R$infile -nn+t0.1 2>/dev/null
+      gmt grdcut -N1 $hillshadenc.tmp -G$hillshadenc -R$infile
+      rm $hillshadenc.tmp
+  fi
+  if [ -f $hillshadenc ]; then
+    echo $hillshadenc
+  fi
+}
+
+
+function create_colourbar_unw() {
+    infile=$1
+  minmaxcolour=`gmt grdinfo -T+a1+s $infile`
+  #create legend
   #need to prepare a colorbar based on these values!!!!
   #you know... the rounding here is not really important... just a colourbar.. or not?
   mincol=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
@@ -82,6 +185,7 @@ function create_preview_unwrapped() {
   minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
   maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
   #add also real min and max values
+  minmaxreal=`gmt grdinfo -T $infile`
   minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
   maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
   minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
@@ -97,40 +201,97 @@ function create_preview_unwrapped() {
   else
    xsize=80
   fi
-  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png $scalebar_bmp.temp.png
-  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" $scalebar_bmp.temp.png $scalebar_bmp
-  mv $scalebar_bmp $scalebar_bmp.temp.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png temp_scale_unw.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" temp_scale_unw.png scalebar_unwrapped.png
+  mv scalebar_unwrapped.png temp_scale_unw.png
   #add real values
-  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
-  mv $scalebar_bmp $scalebar_bmp.temp.png
-  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
-  #merge them
-  convert $outfile -resize 680x \( $scalebar_bmp -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
-  #save only the small preview..
-  mv $outfile.sm.png $outfile
-  rm $unwcpt $scalebar_bmp.temp.png $scalebar_bmp 2>/dev/null
+  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" temp_scale_unw.png scalebar_unwrapped.png
+  mv scalebar_unwrapped.png temp_scale_unw.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" temp_scale_unw.png scalebar_unwrapped.png
+  rm temp_scale_unw.png
+  
+  scalebarfile='scalebar_unwrapped.png'
+  echo $scalebarfile
+}
 
-
+function create_preview_unwrapped() {
+  if [ ! -z $1 ]; then
+    local unwfile=$1
+    echo "generating preview for "$unwfile
+    #local RESIZE=30
+    outfile=`echo $unwfile | rev | cut -c 4- | rev`png
+  extracmd=''
+  if [ ! -z $2 ]; then
+   frame=$2
+   tr=`track_from_frame $frame`
+   #echo "trying mask and include hillshade"
+   maskedfile=`prepare_landmask $unwfile $frame`
+   if [ ! -z $maskedfile ]; then
+    unwfile=$maskedfile
+   fi
+   hillshade=`prepare_hillshade $unwfile $frame`
+   if [ ! -z $hillshade ]; then
+    extracmd='-I'$hillshade
+   fi
+  fi
+  
+  barpng=`create_colourbar_unw $unwfile`
+  minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
+  gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >unw.cpt
+  if [ -z $3 ]; then
+   gmt grdimage $unwfile -Cunw.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+   convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
+   convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
+   #save only the small preview..
+   mv $outfile.sm.png $outfile
+   rm $barpng unw.cpt
   else
-    echo "Usage: create_preview_unwrapped unwrapped_ifg"
-    echo "(can be either geotiff or nc/grd)"
+   #echo "preparing kml"
+   gmt grd2kml -Ag -Cunw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd $unwfile 2>/dev/null
+  fi
+  rm tempmasked.nc temphillshade.nc 2>/dev/null
+  else
+    echo "Usage: create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
+    echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
     return 0
   fi
 };
 
 
+function create_preview_coh() {
+  if [ ! -z $1 ]; then
+    local cohfile=$1
+    extracmd_convert=''
+    if [ ! -z $2 ]; then
+     extracmd_convert='-resize 30%'
+    fi
+    outfile=`echo $cohfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
+    gmt grdimage $cohfile -C$LiCSARpath/misc/cc.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
+    #to flatten it (and fix transparency...sometimes needed..):
+    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
+    rm $outfile.temp.png
+  else
+    echo "Usage: create_preview_coh cohfile [hires?]"
+    echo "(can be either geotiff or nc/grd; if hires=1, it will keep hires)"
+    return 0
+  fi
+}
+
 function create_preview_wrapped() {
-  if [ "$#" == "1" ]; then
+  if [ ! -z $1 ]; then
     local ifgfile=$1
-    local RESIZE=30
+    extracmd_convert=''
+    if [ ! -z $2 ]; then
+     extracmd_convert='-resize 30%'
+    fi
     outfile=`echo $ifgfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
     gmt grdimage $ifgfile -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
     #to flatten it (and fix transparency...sometimes needed..):
-    convert $outfile.temp.png -transparent black -resize $RESIZE'%' PNG8:$outfile
+    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
     rm $outfile.temp.png
   else
-    echo "Usage: create_preview_wrapped wrapped_ifg"
-    echo "(can be either geotiff or nc/grd)"
+    echo "Usage: create_preview_wrapped ifgfile [hires?]"
+    echo "(can be either geotiff or nc/grd; if hires=1, it will keep hires)"
     return 0
   fi
 };

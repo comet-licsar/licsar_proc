@@ -46,7 +46,7 @@ set USER $::env(USER)
 #Setup LiCSAR enviroment variables
 setenv LiCSAR_configpath "$configpath"
 setenv LiCSARpath "$LiCSARpath"
-setenv LiCSAR_temp "/work/scratch-nopw/$USER/LiCSAR_temp/"
+setenv LiCSAR_temp "/work/scratch-pw/$USER/LiCSAR_temp/"
 
 setenv ORB_DIR "$grouppath/orbits/"
 setenv dems_dir "$grouppath/DEMs/"

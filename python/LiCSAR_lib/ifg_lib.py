@@ -110,7 +110,16 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
         print('\nTry yourself: rasmph_pwr '+difffile+' '+mastermli[:-4]+' '+str(width))
         shutil.rmtree(ifgthisdir)
         return 4
-
+############################################################ Filter using an adaptive filter algorithm 
+    difffile = os.path.join(ifgdirthis,ifg+'.diff')
+    filtfile = os.path.join(ifgdirthis,ifg+'.filt.diff')
+    ccfile = os.path.join(ifgdirthis,ifg+'.filt.cc')
+    logfilename = os.path.join(procdir,'log','adf_{0}.log'.format(pair))
+    print('Filtering...')
+    if not adf(difffile,filtfile,ccfile,str(width),str(gc.adf_alpha),str(gc.adf_window),logfilename):
+        print('\nERROR:', file=sys.stderr)
+        print('\nSomething went wrong filtering interferogram{0}.'.format(ifg), file=sys.stderr)
+        return 1
 ############################################################ Log IFG to Database
     if job_id != -1:
         print('About to insert new IFG product with job_id: %d' % job_id)

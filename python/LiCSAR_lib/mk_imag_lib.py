@@ -440,7 +440,8 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         for f in filelist:
             fullname=f[1]
             if licsQuery.get_ipf(fullname)=='002.36':
-                print('Correcting for old IPF version data')
+                #print('we would normally correct for old IPF version data here', file=sys.stdout)
+                print('Correcting for old IPF version data', file=sys.stdout)
                 shortname=fullname.split( '_' )[5]
                 SLC_tmp = os.path.join( imdir, '{0}.{1}.tmp.slc'.format(shortname, 'IW1'))
                 SLC_ok = os.path.join( imdir, '{0}.{1}.slc'.format(shortname, 'IW1'))
@@ -453,6 +454,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     return 3
                 os.remove(SLC_tmp)
                 os.remove(SLC_tmp + '.par')
+            
         if acqMode == 'iw':
             if len( filelist ) > 1:
                 # bursts are in 2 or more file, copy necessary bursts and merge
@@ -688,6 +690,9 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     for parFile in glob(imdir+"/*.sl*.par"):
                         print("applying orbit correction to {0}".format(parFile))
                         S1_OPOD_vec(parFile,slcOrbit,logfilename)
+                else:
+                    print('ERROR: no orbit files available, cancelling')
+                    return 2
             else:
     ############################################################ Special case of singular file
                 # bursts are in only 1 file, just copy necessary

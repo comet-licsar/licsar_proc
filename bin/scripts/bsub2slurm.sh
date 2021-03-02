@@ -40,8 +40,12 @@ while true; do
     case "$1" in
         -q)
             cmd=$cmd' -p '"$2"
-            if [ $2 == 'cpom-comet' ]; then
-             cmd=$cmd' --account=cpom-comet'
+            if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ]; then
+#             cmd=$cmd' --account=cpom-comet'
+             cmd=$cmd' --account=comet --partition=comet'
+            fi
+            if [ $2 == 'comet_responder' ]; then
+             cmd=$cmd' --account=comet --partition=comet_responder'
             fi
             shift 2
             ;;

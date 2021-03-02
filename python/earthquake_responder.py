@@ -537,20 +537,33 @@ def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True, active = Tru
     return True
 
 
+def is_blacklisted(eventid, blacklistfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eq_blacklist.txt'):
+    if os.path.exists(blacklistfile):
+        if misc.grep1line(eventid,blacklistfile):
+            print('the event {} is blacklisted'.format(eventid))
+            return True
+        else:
+            return False
+    else:
+        print('WARNING: no blacklist file exists')
+        return False
+
+
 def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False):
     eventlist = get_eq_events(minmag, pastdays)
     print('identified {} events to process'.format(len(eventlist)))
     for event in eventlist:
-        print(event.id)
-        #keep them active if these are some late eqs..
-        if event.time > dt.datetime.now()-timedelta(days=10):
-            makeactive = True
-        else:
-            makeactive = False
-        try:
-            process_eq(event.id, step, overwrite, makeactive)
-        except:
-            print('some issue with event '+event.id)
+        if not is_blacklisted(event.id):
+            print(event.id)
+            #keep them active if these are some late eqs..
+            if event.time > dt.datetime.now()-timedelta(days=10):
+                makeactive = True
+            else:
+                makeactive = False
+            try:
+                process_eq(event.id, step, overwrite, makeactive)
+            except:
+                print('some issue with event '+event.id)
 
 
 def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False):

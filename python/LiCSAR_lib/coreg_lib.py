@@ -427,8 +427,9 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
 
 #########################################################################
 
-def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id):
+def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181):
     """ Coregister and resample slave to master geometry
+    masterdate is of type dt.datetime.date...
     """
     print('\nCoregistering slave {0}...'.format(slavedate.date()))
     #get/create slave slc directory paths
@@ -504,6 +505,15 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             slave3date = '' #don't use aux slave.
             print("no aux slave used")
             cond = False
+    #check to limit max btemp
+    if not slave3date:
+        tocheck = masterdate
+    else:
+        tocheck = slave3date.date()
+    if abs(tocheck-slavedate.date()).days > maxdays_sd:
+        print('time difference between RSLCs exceed max Btemp allowed for SD estimation = '+str(maxdays_sd)+' days')
+        print('skipping')
+        return 1
     #Get sorted list of swaths
     swathlist = [x[0].split('_')[1] for x in masterbursts]
     swathlist = set(swathlist)
