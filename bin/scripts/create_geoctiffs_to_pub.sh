@@ -3,10 +3,10 @@ if [ -z $2 ]; then
  echo "inputs are: create_geoctiffs_to_pub.sh procdir ifg, e.g. \`pwd\` 20160101_20160202";
  echo "optional parameters:"
  echo "-u .... geocode also unfiltered wrapped interferogram"
- echo "-F .... do full resolution previews (needed for KML) - this will use different colour bar"
+ echo "-F .... do full resolution previews" # (needed for KML) - this will use different colour bar"
  echo "-L .... do low resolution geotiffs (500x500 m)"
  echo "-H .... do full resolution geotiffs (50x50 m)"
- echo "-m .... use land mask if available"
+ echo "-m .... use land mask if available (we turn this on by default now)"
  echo "some more parameters:"
  echo "-U .... geocode only unwrapped interferogram"
  echo "-I .... geocode only wrapped interferogram"
@@ -29,7 +29,7 @@ HIRES=0
 LORES=0
 UNFILT=0
 FULL=0
-mask=0
+mask=1
 
 while getopts ":uabmUCFHIML" option; do
  case "${option}" in
@@ -131,21 +131,21 @@ lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 # Frequency = (C / Wavelength), Where: Frequency: Frequency of the wave in hertz (hz). C: Speed of light (29,979,245,800 cm/sec (3 x 10^10 approx))
 lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`;
 
-echo " Running doGeocoding step for unwrapped"
+#echo "Running doGeocoding step" #" for unwrapped"
 #this is for the case if we start the geotiff generation within or outside of licsar_make_frame:
 if [ -d ${procdir}/LOGS ]; then
  logfile=${procdir}/LOGS/13_doGeocoding_$ifg.log
 else
  logfile=${procdir}/13_doGeocoding_$ifg.log
 fi
-echo "   check "$logfile" if something goes wrong "
+#echo "check "$logfile" if something goes wrong "
 #rm -f $logfile
 
 #mdate=`echo $ifg | awk '{print $2}'`;
 #sdate=`echo $ifg | awk '{print $3}'`;
 #if [ -d "${procdir}/GEOC/${ifg}" ]; then rm -rf ${procdir}/GEOC/${ifg}; fi
 if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
-echo "   Geocoding results for inteferogram: ${ifg}" ;
+#echo "   Geocoding results for inteferogram: ${ifg}" ;
 
 if [ $UNWDO -eq 1 ]; then
 # Unwrapped interferogram
@@ -172,7 +172,7 @@ if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
 #  fi
   # Convert to geotiff
   if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif ]; then 
-   echo "Converting to GeoTIFF"
+   echo "Converting to GeoTIFF"  
    data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif 0.0  >> $logfile 2>/dev/null
    #shifting by median
    nctempfile=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.nc
@@ -184,83 +184,91 @@ if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
    
 #   data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
    echo "Generating preview PNG"
-   unw_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.png
-   scalebar_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.scale.png
-   unwcpt=${procdir}/$GEOCDIR/${ifg}/unw.cpt
-   gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$unwcpt
-   frame=`echo ${procdir} | rev | cut -d '/' -f1 | rev`
-   tr=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
-   hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
-   hillshadecmd=''
-   hillshadefile=''
-   if [ -f $hgtfile ]; then
-     hillshadefile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hillshade.nc
-    if [ ! -f $hillshadefile ]; then
-      hillshadefile=${procdir}/$GEOCDIR/${ifg}/hillshade.nc
-      echo "generating hillshade"
-    opass=`echo $frame | cut -c 4`
-    if [ $opass == 'A' ]; then
-      deg=258
-    else
-      deg=102
-    fi
-    gmt grdgradient -A$deg -Nt1 -G$hillshadefile $hgtfile
-    fi
-   else
-     echo "hgt geofile not found. will skip generating hillshade"
-   fi
-  if [ -f $hillshadefile ]; then
-    hillshadecmd="-I"$hillshadefile
-  fi
-  
-  gmt grdimage $nctempfile -C$unwcpt -JM1 -Q -nn+t0.1 $hillshadecmd -A$unw_bmp 2>/dev/null
-  if [ ! -f $unw_bmp ]; then
-    echo "some error, perhaps with hillshade.. skipping it"
-    gmt grdimage $nctempfile -C$unwcpt -JM1 -Q -nn+t0.1 -A$unw_bmp.tt.png
-    #in such case we should be ok with 255 colour palette
-    convert $unw_bmp.tt.png PNG8:$unw_bmp
-    rm $unw_bmp.tt.png
-  fi
-
-  #need to prepare a colorbar based on these values!!!!
-  #you know... the rounding here is not really important... just a colourbar.. or not?
-  mincol=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
-  maxcol=`echo $minmaxcolour | cut -d '/' -f2 `
-  #expecting sentinel
-  minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
-  maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
-  #add also real min and max values
-  minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
-  maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
-  minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
-  maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
-  #burn them to the scalebar
-  minvalsize=`echo $minval | wc -m `
-  if [ $minvalsize -gt 4 ]; then
-   xsize=20
-  elif [ $minvalsize -eq 4 ]; then
-   xsize=40
-  elif [ $minvalsize -eq 3 ]; then
-   xsize=60
+  if [ $mask -eq 1 ]; then
+    echo "testing - include landmask (should work if procdir ends by frame name)"
+    #exit
+    frame=`basename $procdir`
+    source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+    create_preview_unwrapped ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif $frame
   else
-   xsize=80
-  fi
-  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png $scalebar_bmp.temp.png
-  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" $scalebar_bmp.temp.png $scalebar_bmp
-  mv $scalebar_bmp $scalebar_bmp.temp.png
-  #add real values
-  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
-  mv $scalebar_bmp $scalebar_bmp.temp.png
-  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
+       unw_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.png
+       scalebar_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.scale.png
+       unwcpt=${procdir}/$GEOCDIR/${ifg}/unw.cpt
+       gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$unwcpt
+       frame=`echo ${procdir} | rev | cut -d '/' -f1 | rev`
+       tr=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+       hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+       hillshadecmd=''
+       hillshadefile=''
+       if [ -f $hgtfile ]; then
+         hillshadefile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hillshade.nc
+        if [ ! -f $hillshadefile ]; then
+          hillshadefile=${procdir}/$GEOCDIR/${ifg}/hillshade.nc
+          echo "generating hillshade"
+        opass=`echo $frame | cut -c 4`
+        if [ $opass == 'A' ]; then
+          deg=258
+        else
+          deg=102
+        fi
+        gmt grdgradient -A$deg -Nt1 -G$hillshadefile $hgtfile
+        fi
+       else
+         echo "hgt geofile not found. will skip generating hillshade"
+       fi
+       if [ -f $hillshadefile ]; then
+        hillshadecmd="-I"$hillshadefile
+       fi
+      
+       gmt grdimage $nctempfile -C$unwcpt -JM1 -Q -nn+t0.1 $hillshadecmd -A$unw_bmp 2>/dev/null
+       if [ ! -f $unw_bmp ]; then
+        echo "some error, perhaps with hillshade.. skipping it"
+        gmt grdimage $nctempfile -C$unwcpt -JM1 -Q -nn+t0.1 -A$unw_bmp.tt.png
+        #in such case we should be ok with 255 colour palette
+        convert $unw_bmp.tt.png PNG8:$unw_bmp
+        rm $unw_bmp.tt.png
+       fi
 
-  convert $unw_bmp -resize 680x \( $scalebar_bmp -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $unw_bmp.sm.png
-  if [ $FULL -eq 1 ]; then
-   mv $unw_bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.full.png
+      #need to prepare a colorbar based on these values!!!!
+      #you know... the rounding here is not really important... just a colourbar.. or not?
+      mincol=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
+      maxcol=`echo $minmaxcolour | cut -d '/' -f2 `
+      #expecting sentinel
+      minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
+      maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
+      #add also real min and max values
+      minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
+      maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
+      minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
+      maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
+      #burn them to the scalebar
+      minvalsize=`echo $minval | wc -m `
+      if [ $minvalsize -gt 4 ]; then
+       xsize=20
+      elif [ $minvalsize -eq 4 ]; then
+       xsize=40
+      elif [ $minvalsize -eq 3 ]; then
+       xsize=60
+      else
+       xsize=80
+      fi
+      convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png $scalebar_bmp.temp.png
+      convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" $scalebar_bmp.temp.png $scalebar_bmp
+      mv $scalebar_bmp $scalebar_bmp.temp.png
+      #add real values
+      convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
+      mv $scalebar_bmp $scalebar_bmp.temp.png
+      convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" $scalebar_bmp.temp.png  $scalebar_bmp
+
+      convert $unw_bmp -resize 680x \( $scalebar_bmp -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $unw_bmp.sm.png
+      if [ $FULL -eq 1 ]; then
+       mv $unw_bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.full.png
+      fi
+      mv $unw_bmp.sm.png $unw_bmp
+      
+      rm $unwcpt $nctempfile $scalebar_bmp.temp.png ${procdir}/$GEOCDIR/${ifg}/hillshade.nc 2>/dev/null
+      rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif $scalebar_bmp 2>/dev/null
   fi
-  mv $unw_bmp.sm.png $unw_bmp
-  
-  rm $unwcpt $nctempfile $scalebar_bmp.temp.png ${procdir}/$GEOCDIR/${ifg}/hillshade.nc 2>/dev/null
-  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif $scalebar_bmp 2>/dev/null
 fi
 
 
@@ -450,9 +458,12 @@ rm gmt.history 2>/dev/null
 
 echo "done"
 
+
+exit
+
+
 if [ $mask -eq 1 ]; then
-  echo "not ready yet"
-  exit
+  #exit
   frame=`basename $procdir`
   tr=`echo $frame | sed 's/^0//' | sed 's/^0//'`
   if [ -f $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif ]; then

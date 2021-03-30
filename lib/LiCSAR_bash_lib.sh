@@ -73,55 +73,59 @@ function create_LOS_tide() {
 function prepare_landmask() {
     infile=$1
     frame=$2
+    filedir=`dirname $infile`
     tr=`track_from_frame $frame`
     if [ -f $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif ]; then
-   maskfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
-elif [ -f $frame.geo.landmask.tif ]; then
-   maskfile=$frame.geo.landmask.tif
-else 
-   wget --no-check-certificate -O $frame.geo.landmask.tif https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
-   if [ -f $frame.geo.landmask.tif ]; then
-    if [ `ls -l $frame.geo.landmask.tif | gawk {'print $5'}` -eq 0 ]; then
-     rm $frame.geo.landmask.tif; maskfile='';
-    else
-      maskfile=$frame.geo.landmask.tif;
-    fi;
-   else maskfile=''; fi
-fi
-landmask=0
-if [ ! -z $maskfile ]; then
- maskmin=`gdalinfo -stats $maskfile 2>/dev/null | grep ICS_MINIMUM | cut -d '=' -f2`
- if [ $maskmin -eq 0 ]; then
-  #resample to the AOI (fix for the missing bursts etc.)
-  #gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
-  #not working well! skipping
-  gmt grdconvert $maskfile tempmask.nc
-  #gmt grdcut -N -R$unw_tif -Gtempmask.nc $maskfile 2>/dev/null
-  if [ -f tempmask.nc ]; then
-   #echo "will apply landmask"
-   masknc=tempmask.nc 
-   landmask=1
-  fi
- fi
-fi
-if [ $landmask -eq 1 ]; then
-  #should apply landmask  -  file $maskfile
-  rm tempmasked.nc 2>/dev/null
-  gmt grdclip $infile -Gtempinfile1.nc -SrNaN/0
-  #gmt grdsample tempinfile1.nc -Gtempinfile2.nc -R$masknc -nn+t0.1 2>/dev/null
-  #gmt grdcut -N1 tempinfile1.nc -Gtempinfile2.nc -R$infile
-  gmt grdcut -N1 $masknc -Gtempmask2.nc -Rtempinfile1.nc #$infile
-  gmt grdmath -N tempinfile1.nc tempmask2.nc MUL = temp2.nc
-  #gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
-  gmt grdclip temp2.nc -Gtempmasked.nc -Sr0/NaN
-  ls tempmasked.nc
-  rm temp2.nc tempinfile1.nc tempmask2.nc tempmask.nc
-fi
+        maskfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+    elif [ -f $frame.geo.landmask.tif ]; then
+        maskfile=$frame.geo.landmask.tif
+    elif [ -f $filedir/$frame.geo.landmask.tif ]; then
+        maskfile=$filedir/$frame.geo.landmask.tif
+    else 
+        wget --no-check-certificate -O $filedir/$frame.geo.landmask.tif https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
+        if [ -f $filedir/$frame.geo.landmask.tif ]; then
+            if [ `ls -l $filedir/$frame.geo.landmask.tif | gawk {'print $5'}` -eq 0 ]; then
+                rm $filedir/$frame.geo.landmask.tif; maskfile='';
+            else
+                maskfile=$filedir/$frame.geo.landmask.tif;
+            fi;
+        else maskfile=''; fi
+    fi
+    landmask=0
+    if [ ! -z $maskfile ]; then
+        maskmin=`gdalinfo -stats $maskfile 2>/dev/null | grep ICS_MINIMUM | cut -d '=' -f2`
+        if [ $maskmin -eq 0 ]; then
+            #resample to the AOI (fix for the missing bursts etc.)
+            #gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
+            #not working well! skipping
+            gmt grdconvert $maskfile $filedir/tempmask.nc
+            #gmt grdcut -N -R$unw_tif -Gtempmask.nc $maskfile 2>/dev/null
+            if [ -f $filedir/tempmask.nc ]; then
+                #echo "will apply landmask"
+                masknc=$filedir/tempmask.nc 
+                landmask=1
+            fi
+        fi
+    fi
+    if [ $landmask -eq 1 ]; then
+        #should apply landmask  -  file $maskfile
+        rm $filedir/tempmasked.nc 2>/dev/null
+        gmt grdclip $infile -G$filedir/tempinfile1.nc -SrNaN/0
+        #gmt grdsample tempinfile1.nc -Gtempinfile2.nc -R$masknc -nn+t0.1 2>/dev/null
+        #gmt grdcut -N1 tempinfile1.nc -Gtempinfile2.nc -R$infile
+        gmt grdcut -N1 $masknc -G$filedir/tempmask2.nc -R$filedir/tempinfile1.nc #$infile
+        gmt grdmath -N $filedir/tempinfile1.nc $filedir/tempmask2.nc MUL = $filedir/temp2.nc
+        #gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
+        gmt grdclip $filedir/temp2.nc -G$filedir/tempmasked.nc -Sr0/NaN
+        ls $filedir/tempmasked.nc
+        rm $filedir/temp2.nc $filedir/tempinfile1.nc $filedir/tempmask2.nc $filedir/tempmask.nc 2>/dev/null
+    fi
 }
 
 
 function prepare_hillshade() {
     infile=$1
+    filedir=`dirname $infile`
     frame=$2
     tr=`track_from_frame $frame`
     hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
@@ -141,7 +145,7 @@ fi
 if [ ! -f $hillshadefile ]; then
  if [ ! -d $LiCSAR_public/$tr/$frame/metadata ]; then
   #in such case do it only locally
-  hillshadefile='hillshade.nc'
+  hillshadefile=$filedir/hillshade.nc
  fi
 fi
 
@@ -161,7 +165,7 @@ if [ ! -f $hillshadefile ]; then
 fi
 
 if [ -f $hillshadefile ]; then
-      hillshadenc='temphillshade.nc'
+      hillshadenc=$filedir/temphillshade.nc
       rm $hillshadenc 2>/dev/null
       gmt grdsample $hillshadefile -G$hillshadenc.tmp -R$infile -nn+t0.1 2>/dev/null
       gmt grdcut -N1 $hillshadenc.tmp -G$hillshadenc -R$infile
@@ -234,7 +238,6 @@ function create_preview_unwrapped() {
     extracmd='-I'$hillshade
    fi
   fi
-  
   barpng=`create_colourbar_unw $unwfile`
   minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
   gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >unw.cpt

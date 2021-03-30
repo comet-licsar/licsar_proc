@@ -691,8 +691,8 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                         print("applying orbit correction to {0}".format(parFile))
                         S1_OPOD_vec(parFile,slcOrbit,logfilename)
                 else:
-                    print('ERROR: no orbit files available, cancelling')
-                    return 2
+                    print('ERROR: no orbit files available, continuing using only predicted orbits')
+                    #return 2
             else:
     ############################################################ Special case of singular file
                 # bursts are in only 1 file, just copy necessary
@@ -819,20 +819,29 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 logger.setLevel(logging.DEBUG)
                 print('Updating orbit files...')
                 for zipFile in glob(imdir+'/*.zip'):
-                    # Loop through zip files and make sure we have a valid orbit file for each
+                    #Loop through zipfiles and get valis orbit file
                     print("Updating orbit for {0}".format(zipFile))
                     mtch = re.search('.*(S1[AB]).*',zipFile)
                     sat = mtch.groups()[0]
                     localOrbDir = get_orb_dir(sat)
                     orbit = getValidOrbFile(localOrbDir,zipFile)
-                    slcOrbit = imdir+"/"+os.path.basename(orbit)
-                    if not os.path.lexists(imdir+"/"+os.path.basename(orbit)):
-                        #Syslink as files might be on different disks
-                        os.symlink(orbit,slcOrbit)
+                    if orbit:
+                        orbdone = True
+                        slcOrbit = imdir+"/"+os.path.basename(orbit)
+                        if not os.path.lexists(imdir+"/"+os.path.basename(orbit)):
+                            #symlink as not always on same physical device
+                            os.symlink(orbit,slcOrbit)
+                    else:
+                        print('error during getting orbit file')
+                        orbdone = False
                 logger.removeHandler(fileHan)
-                for parFile in glob(imdir+"/*.sl*.par"):
-                    print("applying orbit correction to {0}".format(parFile))
-                    S1_OPOD_vec(parFile,slcOrbit,logfilename)
+                if orbdone:
+                    for parFile in glob(imdir+"/*.sl*.par"):
+                        print("applying orbit correction to {0}".format(parFile))
+                        S1_OPOD_vec(parFile,slcOrbit,logfilename)
+                else:
+                    print('ERROR: no orbit files available, continuing using only predicted orbits')
+                    #return 2
         else:
             logfilename = os.path.join( procdir, 'log', 
                     '????.log'.format( date.strftime( '%Y%m%d' ) )
@@ -847,20 +856,29 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             logger.setLevel(logging.DEBUG)
             print('Updating orbit files...')
             for zipFile in glob(imdir+'/*.zip'):
-                # Loop through zip files and make sure we have a valid orbit file for each
+                #Loop through zipfiles and get valis orbit file
                 print("Updating orbit for {0}".format(zipFile))
                 mtch = re.search('.*(S1[AB]).*',zipFile)
                 sat = mtch.groups()[0]
                 localOrbDir = get_orb_dir(sat)
-                orbit = getValidOrbFile(localOrbDir,zipFile)
-                slcOrbit = imdir+"/"+os.path.basename(orbit)
-                if not os.path.lexists(imdir+"/"+os.path.basename(orbit)):
-                    #Syslink as files might be on different disks
-                    os.symlink(orbit,slcOrbit)
+                try:
+                    orbit = getValidOrbFile(localOrbDir,zipFile)
+                    orbdone = True
+                    slcOrbit = imdir+"/"+os.path.basename(orbit)
+                    if not os.path.lexists(imdir+"/"+os.path.basename(orbit)):
+                        #symlink as not always on same physical device
+                        os.symlink(orbit,slcOrbit)
+                except:
+                    print('error during getting orbit file')
+                    orbdone = False
             logger.removeHandler(fileHan)
-            for parFile in glob(imdir+"/*.sl*.par"):
-                print("applying orbit correction to {0}".format(parFile))
-                S1_OPOD_vec(parFile,slcOrbit,logfilename)
+            if orbdone:
+                for parFile in glob(imdir+"/*.sl*.par"):
+                    print("applying orbit correction to {0}".format(parFile))
+                    S1_OPOD_vec(parFile,slcOrbit,logfilename)
+            else:
+                print('ERROR: no orbit files available, continuing using only predicted orbits')
+                #return 2
     else:
 ############################################################ Failed to process this date
         # One of the read files failed, continue with next date

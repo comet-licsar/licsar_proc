@@ -22,7 +22,7 @@ from osgeo import gdal
 #    exit()
 
 def qc1(a,image,bound):
-    thresh = cv2.threshold(a, 10, 1, cv2.THRESH_BINARY)[1]  #  1 was 255
+    thresh = cv2.threshold(a, 1, 1, cv2.THRESH_BINARY)[1]  #  1 was 255
     kernel=cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
     thresh=thresh.astype(bool)
@@ -127,7 +127,8 @@ def check_lines_ifg_and_unw(wrap, unwrap):
     flag=0
     
     a=np.zeros((row,col),dtype=np.uint8)
-    a[imageunw<256]=255
+    a = imageunw
+    a[imageunw == 0]=np.nan
     a_inv=255-a
     
     try:

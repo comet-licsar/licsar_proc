@@ -9,6 +9,8 @@ import datetime as dt
 import os
 import logging
 
+from eof.download import download_eofs
+
 
 ################################################################################
 # Setup logger
@@ -100,6 +102,26 @@ def strpStrtEndTimes(filename):
 
     return (startTime,endTime)
 
+
+# get orbit files using eof (they should update once it gets into the new Copernicus cloud... 03/2021)
+def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
+    zipFile = os.path.basename(zipFile)
+    try:
+        orbFiles = download_eofs(sentinel_file=zipFile, save_dir='.')
+    except:
+        return False
+    if not orbFiles:
+        return False
+    for orbF in orbFiles:
+        a = os.path.basename(orbF)
+        sensor = a.split('_')[0]
+        orbType = a.split('_')[3]
+        wheresavePath = os.path.join(orbdir, sensor, orbType, a)
+        os.rename(a, wheresavePath)
+    #should be anyway just one orbit file...
+    return a
+
+
 ################################################################################
 # Get Orbit Url
 ################################################################################
@@ -110,7 +132,8 @@ def getOrbUrl(sat,prodType,startTime,endTime):
     start and end times - note should be date time objects
     """
 
-    baseUrl = 'https://qc.sentinel1.eo.esa.int/api/v1/?'
+    #baseUrl = 'https://qc.sentinel1.eo.esa.int/api/v1/?'
+    baseUrl = 'https://qc.sentinel1.copernicus.eu/api/v1/?'
 
     satDict = {'S1A':'S1A',
             'S1B':'S1B'}
@@ -237,6 +260,8 @@ def getValidOrbFile(localOrbDir,prodFile):
     (startTime,endTime) = strpStrtEndTimes(prodFile)
 
     #Sub function which searches locally and remotely for a valid orbit
+
+        
     def getOrbFile(orbType):
         baseDir = localOrbDir+'/'+orbType+'/'
         localOrb = findValidOrbFile(baseDir,sat,startTime,endTime)
@@ -244,20 +269,31 @@ def getValidOrbFile(localOrbDir,prodFile):
             logger.info("Found local {1} type orbit file - {0}".format(localOrb,orbType))
             return baseDir+localOrb
         else:
-            logger.info("Couldn't find local {0} type orbit file, locing for url...".format(orbType))
-            orbUrl = getOrbUrl(sat,orbType,startTime,endTime)
-            logger.info("Found URL {0}".format(orbUrl))
-            localOrb = downloadOrbit(orbUrl,baseDir)
-            logger.info("Downloaded {0} type orbit file - {1}".format(orbType,localOrb))
-            return baseDir+localOrb
-
-    try:
-        logger.info("Looking for precise orbit file")
-        return getOrbFile('POEORB')
-    except orbUrlNotFnd:
+            return None
+            #logger.info("Couldn't find local {0} type orbit file, locing for url...".format(orbType))
+            #orbUrl = getOrbUrl(sat,orbType,startTime,endTime)
+            #logger.info("Found URL {0}".format(orbUrl))
+            #localOrb = downloadOrbit(orbUrl,baseDir)
+            #logger.info("Downloaded {0} type orbit file - {1}".format(orbType,localOrb))
+            #return baseDir+localOrb
+    
+    logger.info("Looking for precise orbit file")
+    a = getOrbFile('POEORB')
+    if a:
+        logger.info('found it')
+        return a
+    else:
         logger.info("Could not find precise orbit, trying restituted orbit...")
-        try:
-            return getOrbFile('RESORB')
-        except orbUrlNotFnd:
-            logger.warning("could not find restituted orbit either.")
-            raise orbUrlNotFnd
+        a = getOrbFile('RESORB')
+        if a:
+            logger.info('found it')
+            return a
+        else:
+            logger.info("trying to download the files")
+            a =  updateOrbForZipfile(prodFile)
+            if a:
+                logger.info('got them')
+                return a
+            else:
+                logger.warning("not downloaded")
+                return None

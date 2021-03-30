@@ -399,6 +399,14 @@ def get_files_from_burst(burstid):
     return do_query(sql_q)
 
 
+def get_filenames_from_burst(burstid):
+    sql_q = "select distinct files.name from bursts " \
+        "inner join files2bursts on files2bursts.bid=bursts.bid "\
+        "inner join files on files2bursts.fid=files.fid "\
+        "where bursts.bid_tanx = '{0}';".format(burstid)
+    return do_query(sql_q)
+
+
 def get_orbit_from_bidtanx(bidtanx):
     #e.g. bidtanx = '127_IW1_20509'
     sql_q = "select f.orb_dir from files f inner join files2bursts fb " \
@@ -727,7 +735,7 @@ def update_ifg_product_unwrapped(job_id, filename, status=1):
 
 
 def update(table='eq2frame', col='coifg_status', value='1', condition='fid=1'):
-    sql_q = "UPDATE {0} SET {1}={2} WHERE {condition};" % (table, col, value, condition)
+    sql_q = "UPDATE {0} SET {1}={2} WHERE {3};".format(table, col, value, condition)
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
     return
@@ -767,6 +775,16 @@ def set_new_coherence_product(job_id, rslc_path_1, rslc_path_2, filepath, coh_st
 
 def get_eqid(eventid):
     sql_q = "select eqid from eq where USGS_ID='{0}';".format(eventid)
+    res = do_query(sql_q)
+    if res:
+        res = res[0][0]
+    else:
+        res = None
+    return res
+
+
+def get_usgsid(eqid):
+    sql_q = "select USGS_ID from eq where eqid={0};".format(eqid)
     res = do_query(sql_q)
     if res:
         res = res[0][0]

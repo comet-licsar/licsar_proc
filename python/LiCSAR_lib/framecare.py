@@ -6,6 +6,7 @@ import os, glob
 import LiCSquery as lq
 import datetime as dt
 import fiona
+import pandas as pd
 import geopandas as gpd
 from shapely.wkt import loads
 from shapely.geometry import Polygon
@@ -588,6 +589,20 @@ def export_all_frames_to_framecsv(outcsv = '/gws/nopw/j04/nceo_geohazards_vol1/p
     rc = export_frames_to_licsar_csv(asc_gpd, outcsv, store_zero)
     rc = export_frames_to_licsar_csv(desc_gpd, outcsv, store_zero)
     return rc
+
+
+def get_satids_of_burst(burstid, expected = ['S1A','S1B']):
+    a = lq.get_filenames_from_burst(burstid)
+    a = lq.sqlout2list(a)
+    b = pd.DataFrame(expected)
+    b['count'] = 0
+    for x in a:
+        satid=x[:3]
+        if satid in expected:
+            i=b[b[0] == satid]['count'].index[0]
+            b.loc[i,'count'] =b.loc[i,'count']+1
+    b = b.rename(columns={0: "sat_id"})
+    return b
 
 
 def get_all_frames():

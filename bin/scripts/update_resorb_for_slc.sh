@@ -18,7 +18,8 @@ SAB=`echo $FILENAME | cut -d '_' -f1`
 
 #     https://qc.sentinel1.eo.esa.int/api/v1/?product_type=AUX_RESORB
 #echo https://qc.sentinel1.eo.esa.int/api/v1/?product_type=AUX_RESORB\&validity_stop__gt=2017-10-01T00:38:58&validity_start__lt=2017-10-01T00:39:25&ordering=-creation_date&page_size=10
-wget -O temp_resorb.txt https://qc.sentinel1.eo.esa.int/api/v1/?product_type=AUX_RESORB\&validity_stop__gt=${DATUM_STOP}T${TIME_STOP}\&validity_start__lt=${DATUM_START}T${TIME_START}\&ordering=-creation_date\&page_size=10 2>/dev/null
+#wget -O temp_resorb.txt https://qc.sentinel1.eo.esa.int/api/v1/?product_type=AUX_RESORB\&validity_stop__gt=${DATUM_STOP}T${TIME_STOP}\&validity_start__lt=${DATUM_START}T${TIME_START}\&ordering=-creation_date\&page_size=10 2>/dev/null
+wget -O temp_resorb.txt https://qc.sentinel1.copernicus.eu/api/v1/?product_type=AUX_RESORB\&validity_stop__gt=${DATUM_STOP}T${TIME_STOP}\&validity_start__lt=${DATUM_START}T${TIME_START}\&ordering=-creation_date\&page_size=10 2>/dev/null
 
 for x in `python -mjson.tool temp_resorb.txt | grep remote_url | cut -d '"' -f4`; do 
  wget -nc -O $ORB_DIR/$SAB/RESORB/`basename $x` $x 2>/dev/null

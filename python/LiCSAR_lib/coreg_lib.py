@@ -300,7 +300,7 @@ def get_mli_size(mlifile):
 # Co-register slave function
 ################################################################################
 #def coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id):
-def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,crop = False):
+def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,crop = False, eidp = False):
     # so far we were using same procedure as original GAMMA's S1_coreg_TOPS
     # the only introduced difference was using intensity cross correlation, but this seems not needed
     # so in order to keep the processing GAMMA-compatible also for future, let's use their original script
@@ -416,10 +416,13 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     rc = os.system(cmd)
     total_daztmp = grep1('azimuth_offset_polynomial:',gamma_off)
     total_daz = float(total_daztmp.split()[1])
-    #if this is 0, it means an error in ESD estimation and should be cancelled
+    #if this is 0, it means an error in ESD estimation and should be cancelled - but keeping it 'bad' for NRT..
     if (total_daz == 0):
         print('daz was estimated as 0.0 px - this means for GAMMA that it failed J')
-        return 2
+        if eidp:
+            print('keeping it now, for the responder')
+        else:
+            return 2
     with open(qualityfile, "a") as myfile:
             rc = myfile.write("Total azimuth offset (w.r.t. LUT): {} (daz in SLC pixel)\n".format(total_daz))
             rc = myfile.write("(if the last iteration led to |daz| < 0.0005 px then this iteration was ignored)\n")
@@ -427,7 +430,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
 
 #########################################################################
 
-def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181):
+def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181, eidp = False):
     """ Coregister and resample slave to master geometry
     masterdate is of type dt.datetime.date...
     """
@@ -512,8 +515,10 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         tocheck = slave3date.date()
     if abs(tocheck-slavedate.date()).days > maxdays_sd:
         print('time difference between RSLCs exceed max Btemp allowed for SD estimation = '+str(maxdays_sd)+' days')
-        print('skipping')
-        return 1
+        if not eidp:
+            print('skipping')
+            os.remove(slaveLockFile)
+            return 1
     #Get sorted list of swaths
     swathlist = [x[0].split('_')[1] for x in masterbursts]
     swathlist = set(swathlist)
@@ -576,7 +581,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     if 1==1:        #print('All bursts available, no recropping of master necessary...')
         print('debug place 1')
         #coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id)
-        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile)
+        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile, eidp = eidp)
         if rc != 0:
             print("\nError:", file=sys.stderr)
             print("Something went wrong during coregistration", file=sys.stderr)
@@ -645,7 +650,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         rc = os.system(cmd)
         if os.listdir(slaverslcdir):
             #so this went ok... now let's just use it for processing
-            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaverslcdir,slaverslcdir,slave_croptab,slaverfilename,slave3tab,qualityfile)
+            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaverslcdir,slaverslcdir,slave_croptab,slaverfilename,slave3tab,qualityfile, eidp=eidp)
             if rc != 0:
                 print("\nError:", file=sys.stderr)
                 print("Something went wrong during coregistration", file=sys.stderr)
@@ -807,7 +812,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             rc = geocode_dem(masterrslcdir,geocropdir,demdir,
                     procdir,masterdate.strftime('%Y%m%d')+croptext,gc.outres)
         #finally the coregistration itself
-            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3_croptab,qualityfile,True)
+            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3_croptab,qualityfile,True, eidp = eidp)
             if rc != 0:
                 print("\nError:", file=sys.stderr)
                 print("Something went wrong during coregistration", file=sys.stderr)

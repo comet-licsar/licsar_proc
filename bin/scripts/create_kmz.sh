@@ -141,6 +141,7 @@ for topic in $todo; do
   scalebarfile=scalebar_unwrapped.png
   tododirs=$tododirs" "$keyword
   visible=1
+  #maskit is 0 here because it was already done by create_preview_unwrapped...
   maskit=0
  fi
  

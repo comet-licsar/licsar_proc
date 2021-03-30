@@ -35,6 +35,7 @@ LiCSAR_02_coreg.py -f <framename> -d </path/to/processing/location> -m <masterda
     -T <file> report file to use. Defaults to FRAME-coreg-report.txt
     -R    Force clean recreation of rslcs - by default if it finds an existing lookup table
           it will use this instead
+    (-E   little tweaks for eq responder)
 
 guys.. if you work with existing LiCSAR frame, please use -i to prevent re-geocoding
 
@@ -81,10 +82,11 @@ def main(argv=None):
     removeSSRslc = False
     reportfile = None
     forceRecreate = False
+    eidp = False
 ############################################################ Parse arguments
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhkiCcRl:f:d:m:j:y:z:p:T:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "vhkiCcREl:f:d:m:j:y:z:p:T:", ["version", "help"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
@@ -102,6 +104,8 @@ def main(argv=None):
                 procdir = a
             elif o == '-i':
                 ignrMstr = True
+            elif o == '-E':
+                eidp = True
             elif o == '-m':
                 masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
             elif o == '-j':
@@ -307,7 +311,7 @@ def main(argv=None):
                 elif rc == 7:
                     f.write('\nAcquisition {0} does not have a lookup table'.format(sd))
         else:
-            rc = coreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id)
+            rc = coreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, eidp = eidp)
             with open(reportfile,'a') as f:
                 if rc == 0:
                     f.write('\nAcquisition {0} has been coregistered correctly.'.format(sd))

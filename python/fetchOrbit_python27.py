@@ -14,7 +14,7 @@ requests.packages.urllib3.disable_warnings()
 # Old files seem not be found with this script
 
 maxpages = 10 #will search through a maximum of 10 pages (if more expected, up this number)
-server = 'https://qc.sentinel1.eo.esa.int/'
+server = 'https://qc.sentinel1.copernicus.eu/'
 orbitMap = [('precise','aux_poeorb'),('restituted','aux_resorb')]
 datefmt = "%Y%m%dT%H%M%S"
 queryfmt = "%Y-%m-%d"
