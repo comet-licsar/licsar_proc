@@ -287,6 +287,15 @@ def unwrap_ifg(ifg, date, ifgdir, coh, width, procdir):
         shutil.rmtree(tmpdir)
     return True
 
+def unwrap_geo(procdir, frame, pair):
+    rc = os.system('cd {0}; unwrap_geo.sh {1} {2}'.format(procdir, frame, pair))
+    if os.path.exists(os.path.join(procdir,'GEOC',pair,pair+'.geo.unw.tif')):
+        rc = 0
+    else:
+        rc = 1
+    return rc
+
+
 ################################################################################
 # Get snaphu conf
 ################################################################################

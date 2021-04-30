@@ -5,6 +5,8 @@ import os
 import datetime as dt
 from sentinelsat.sentinel import SentinelAPI
 import re
+import pandas as pd
+import requests
 #import arch2DB
 #here is the nostdout function:
 from LiCSAR_misc import *
@@ -15,8 +17,29 @@ def download(uuid, slcdir):
     rc = scihub.download(uuid, slcdir)
     return rc
 
+
+def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
+    print('performing data discovery using ASF server')
+    track = int(frame[0:3])
+    trackpre=abs(track-1)
+    trackpost=track+1
+    strtrack = str(trackpre)+'-'+str(trackpost)
+    ascdesc = frame[3]
+    if ascdesc == 'D': ascdesc = 'DESCENDING'
+    if ascdesc == 'A': ascdesc = 'ASCENDING'
+    url = 'https://api.daac.asf.alaska.edu/services/search/param?platform=S1&processingLevel=SLC&output=JSON'
+    url = url+'&relativeOrbit='+strtrack
+    url = url+'&beamMode='+sensType
+    url = url+'&start={0}&end={1}'.format(startdate.strftime('%Y-%m-%d'),enddate.strftime('%Y-%m-%d'))
+    url = url + '&flightDirection='+ascdesc
+    url = url + '&intersectsWith='+footprint
+    r = requests.get(url)
+    df = pd.DataFrame.from_dict(r.json()[0])
+    return df
+
+
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
-             enddate = dt.date.today(), sensType = 'IW', outAspd = False):
+             enddate = dt.date.today(), sensType = 'IW', outAspd = False, asf = True):
     #startdate and enddate should be of type datetime.date (but datetime may also work)
     # problem is that only full days are selected, no search by time
     if str(type(startdate)).split("'")[1] == 'str':
@@ -25,8 +48,11 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         enddate = dt.datetime.strptime(enddate,'%Y%m%d').date()
     #one extra date needed for scihub:
     enddate = enddate + dt.timedelta(days=1)
+    if enddate > (dt.date.today() - dt.timedelta(days=1)):
+        asf = False
+        print('checking the latest data - using only scihub')
     #sensType = 'IW'
-    nmax = 100
+    #nmax = 100
     footprint = lq.get_wkt_boundaries(frameName)
     ascdesc = frameName[3]
     if ascdesc == 'D': ascdesc = 'DESCENDING'
@@ -34,14 +60,39 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     track = int(frameName[0:3])
     #startdate = dt.datetime.strptime(startdate,'%Y%m%d').date()
     result = None
-    try:
-        scihub_user, scihub_pass, scihub_url = get_scihub_creds()
-        scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
-        result = scihub.query(footprint, date = (startdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d')), \
-                     platformname = 'Sentinel-1', producttype = 'SLC', \
-                     relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
-    except:
-        print('error in scihub search, should try CEDA elastic search (no option for detailed search, not using it now..)')
+    images = None
+    if outAspd or not asf:
+        #print('warning, we use outAspd only for EIDP')
+        #print('to avoid complications, the search will be performed only through scihub')
+        try:
+            scihub_user, scihub_pass, scihub_url = get_scihub_creds()
+            scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
+            result = scihub.query(footprint, date = (startdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d')), \
+                         platformname = 'Sentinel-1', producttype = 'SLC', \
+                         relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
+            if outAspd:
+                images = scihub.to_dataframe(result)
+            else:
+                df = scihub.to_dataframe(result)
+                images = df['title'].values.tolist()
+        except:
+            print('error in scihub search')
+    else:
+        try:
+            df = search_alaska(frameName, footprint, startdate, enddate, sensType)
+            images = df['granuleName'].values.tolist()
+        except:
+            print('error searching through ASF, trying scihub')
+            try:
+                scihub_user, scihub_pass, scihub_url = get_scihub_creds()
+                scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
+                result = scihub.query(footprint, date = (startdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d')), \
+                             platformname = 'Sentinel-1', producttype = 'SLC', \
+                             relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
+                df = scihub.to_dataframe(result)
+                images = df['title'].values.tolist()
+            except:
+                print('error in scihub search, should try CEDA elastic search (no option for detailed search, not using it now..)')
         #TODO!!
         #from elasticsearch import Elasticsearch
         #query = {
@@ -51,14 +102,8 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         #es.search(index="ceda-eo", body=query)
         #result = es.indices.get_mapping(index="ceda-eo")
     #scihub.to_geodataframe(result)
-    if result:
-        if outAspd:
-            images = scihub.to_dataframe(result)
-        else:
-            images = scihub.to_dataframe(result)['title'].values.tolist()
-    else:
-        images = None
     return images
+
 
 def get_scihub_creds():
     scihub_url = "https://scihub.copernicus.eu/dhus"
@@ -68,6 +113,7 @@ def get_scihub_creds():
     scihub_pass = re.sub('\W+','',f.readline().split('=')[1])
     f.close()
     return scihub_user, scihub_pass, scihub_url
+
 
 def get_neodc_path_images(images):
     #should work for both one image or image_list

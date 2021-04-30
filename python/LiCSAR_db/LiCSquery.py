@@ -21,7 +21,7 @@ import global_config as gc
 #get tunnel or not
 parser = ConfigParser()
 parser.read(gc.configfile)
-parser.get('sqlinfo','use_tunnel')
+#parser.get('sqlinfo','use_tunnel')
 use_tunnel = bool(int(parser.get('sqlinfo','use_tunnel')))
 if use_tunnel:
     from dbfunctions import Conn_tunnel_db as Conn_db
@@ -48,6 +48,24 @@ def rename_frame(frameold, framenew):
     #return True
     return res
 
+
+def rename_burst(bold, bnew):
+    print('WARNING, the operation of burst rename may cause inconsistencies (not tested deeply)')
+    bid_old = get_bid_frombidtanx(bold)
+    bid_new = get_bid_frombidtanx(bnew)
+    #
+    #change the burst in files2bursts
+    sql = "update files2bursts set bid={0} where bid={1};".format(bid_new, bid_old)
+    res = do_query(sql, True)
+    #change the burst in frame definitions
+    sql = "update polygs2bursts set bid={0} where bid={1};".format(bid_new, bid_old)
+    res = do_query(sql, True)
+    #remove bid_old from bursts
+    sql = "delete from bursts where bid={0};".format(bid_old)
+    res = do_query(sql, True)
+    return res
+
+
 def do_pd_query(query):
     if use_tunnel:
         global conn
@@ -57,6 +75,7 @@ def do_pd_query(query):
     #    conn = conn[0]
     df = pd.read_sql_query(query, conn)
     return df
+
 
 def do_query(query, commit=False):
     # execute MySQL query and return result
@@ -287,6 +306,11 @@ def get_framename_from_fid(fid):
     sql_q = "select distinct polyid_name from polygs where polyid={0};".format(str(fid))
     return do_query(sql_q)
 
+def get_bid_frombidtanx(bidtanx):
+    sql_q = "select distinct bid from bursts where bid_tanx='{0}';".format(bidtanx)
+    return do_query(sql_q)[0][0]
+
+
 def get_ipf(filename):
     # filename should be e.g. S1A_IW_SLC__1SSV_20141222T210739_20141222T210809_003837_00496E_C84D
     sql_q = "select distinct proc_vers from files where name='{0}';".format(filename)
@@ -307,6 +331,7 @@ def get_burst_no(frame,date):
         "order by files.acq_date;".format(frame,date)
     return do_query(sql_q)
 
+
 def get_frame_bursts_on_date(frame,date):
     # takes frame and datetime.date object and bursts id and center coords
     # for all all bursts within the frame that were acquired on that date
@@ -325,6 +350,7 @@ def get_frame_bursts_on_date(frame,date):
             "and files.pol='VV'"\
             "and date(files.acq_date)='{1}';".format(frame,date)
         return do_query(sql_q)
+
 
 def get_bursts_in_polygon_old(lon1,lon2,lat1,lat2,relorb = None, swath = None):
     #swath can be provided, e.g. as 'S6'

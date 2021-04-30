@@ -69,12 +69,17 @@ gmt grdmath -N $ifg 0 NAN 10 DENAN temp/mask.fullin.georeg.nc MUL 0 NAN = temp/i
 #gmt grdmath -N $ifg temp/mask.georeg.nc MUL 0 NAN = temp/ifg.masked.nc
 #time gmt grdfill temp/ifg.masked.nc -An -Gtemp/pha1.nc
 
-#echo "normally we would do sometimes looong NN filling using:"
-#echo "gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc"
-#echo "but now we just put zeroes, as snaphu seems ok with it"
-#gmt grdfill temp/ifg.masked.tofill.nc -Ac0 -Gtemp/pha1.filled.nc
+echo "normally we would do sometimes looong NN filling using:"
+echo "gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc"
+echo "but now we just put zeroes, as snaphu seems ok with it"
+gmt grdfill temp/ifg.masked.tofill.nc -Ac0 -Gtemp/pha1.filled.nc
 
-gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc
+#it sometimes fails with memory.. why???
+if [ ! -f temp/pha1.filled.nc ]; then
+ gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc
+fi
+
+#gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc
 gmt grdmath temp/pha1.filled.nc 10 NAN 0 NAN 0 DENAN = temp/pha1.nc
 
 #make binaries for snaphu:

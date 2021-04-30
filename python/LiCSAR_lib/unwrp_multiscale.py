@@ -441,22 +441,24 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss'):
 
 
 def process_frame(frame, ml = 10):
+    #the best to run in directory named by the frame id
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms')
     for pair in os.listdir(geoifgdir):
         if os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
-            print('processing pair '+pair)
-            ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, fillby = 'gauss')
-            #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
-            #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
-            np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).tofile(pair+'/'+pair+'.unw')
-            #or use gauss here?
-            np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
-            width = len(ifg_ml.lon)
-            create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
-            os.system('rm '+pair+'/'+pair+'.unw.ras')
-            os.system('rm -r '+pair+'/'+'temp_'+str(ml))
+            if not os.path.exists(os.path.join(pair,pair+'.unw')):
+                print('processing pair '+pair)
+                ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, fillby = 'gauss')
+                #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
+                #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
+                np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).tofile(pair+'/'+pair+'.unw')
+                #or use gauss here?
+                np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
+                width = len(ifg_ml.lon)
+                create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
+                os.system('rm '+pair+'/'+pair+'.unw.ras')
+                os.system('rm -r '+pair+'/'+'temp_'+str(ml))
 
 
 def multilook_by_gauss(ifg, ml = 10):

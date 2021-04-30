@@ -113,7 +113,13 @@ function prepare_landmask() {
         gmt grdclip $infile -G$filedir/tempinfile1.nc -SrNaN/0
         #gmt grdsample tempinfile1.nc -Gtempinfile2.nc -R$masknc -nn+t0.1 2>/dev/null
         #gmt grdcut -N1 tempinfile1.nc -Gtempinfile2.nc -R$infile
+        #just convert mask to pixel registration..
+        gmt grdedit $masknc -G$masknc.nc -T -R$filedir/tempinfile1.nc
+        mv $masknc.nc $masknc
         gmt grdcut -N1 $masknc -G$filedir/tempmask2.nc -R$filedir/tempinfile1.nc #$infile
+        #just convert to pixel registration..
+        gmt grdedit $filedir/tempinfile1.nc -G$filedir/tempinfile1.nc.nc -T -R$filedir/tempinfile1.nc
+        mv $filedir/tempinfile1.nc.nc $filedir/tempmask2.nc
         gmt grdmath -N $filedir/tempinfile1.nc $filedir/tempmask2.nc MUL = $filedir/temp2.nc
         #gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
         gmt grdclip $filedir/temp2.nc -G$filedir/tempmasked.nc -Sr0/NaN

@@ -15,7 +15,7 @@ import global_config as gc
 ################################################################################
 #Make interferograms functions
 ################################################################################
-def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks):
+def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks, geo = True):
     """
     Makes a singular interferogram between the SLC on given master and slave dates.
     """
@@ -159,12 +159,23 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
         print('\nERROR:', file=sys.stderr)
         print('\nSomething went wrong filtering interferogram{0}.'.format(ifg), file=sys.stderr)
         return 1
-
+############################################################ geocoding..
+    if not os.path.exists(os.path.join(procdir, 'GEOC')):
+        os.mkdir(os.path.join(procdir, 'GEOC'))
+    if not os.path.exists(os.path.join(procdir, 'GEOC', pair)):
+        rc = geocode_ifg(procdir, pair)
 ############################################################ Log coherence to database
     if job_id != -1:
         lq.set_new_coherence_product(job_id, masterpar[:-4], slavepar[:-4], difffile)
-
     return 0
+
+
+def geocode_ifg(procdir, pair, extraparam = ''):
+    print('geocoding pair '+pair)
+    rc = os.system('create_geoctiffs_to_pub.sh -C {0} {1} {2}'.format(extraparam, procdir, pair))
+    rc = os.system('create_geoctiffs_to_pub.sh -I {0} {1} {2}'.format(extraparam, procdir, pair))
+    rc = os.system('rm {0}/GEOC/{1}/*.diff {0}/GEOC/{1}/*.cc {0}/GEOC/{1}/*.diff_pha'.format(procdir, pair))
+    return rc
 
 
 def regenerate_mosaic(pomdate, procdir, rglks, azlks, mastertab):

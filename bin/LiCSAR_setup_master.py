@@ -51,6 +51,7 @@ from LiCSAR_lib.coreg_lib import link_master_rslc, geocode_dem
 from LiCSAR_lib.LiCSAR_misc import Usage,cd
 from LiCSAR_lib import s1data
 import framecare as fc
+import pandas as pd
 
 ################################################################################
 # Master job started function
@@ -211,6 +212,8 @@ def main(argv=None):
             print('doing automatic selection of master')
             #rc will be changed to 0 if a proper master is found and checked
             rc = 1
+            frameburstlist = lq.get_bursts_in_frame(framename)
+            framebursts = pd.DataFrame.from_records(frameburstlist)[0].to_list()
             for m in sorted(list(dates)):
                 #master should be from files with POD (<3 weeks) and available (>90 days... or just 'days_limit')
                 #but if we focus on earthquake response, we may use the latest ones also for master - so lets try
@@ -219,8 +222,21 @@ def main(argv=None):
                     masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
                     print('Checking {0} date as master'.format(masterdate))
                     filelist = lq.get_frame_files_period(framename,masterdate,masterdate)
-                    burstlist = lq.get_bursts_in_frame(framename)
-                    rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq)
+                    rc = check_master_bursts(framename,frameburstlist,masterdate,[masterdate],lq)
+                    if rc == 1:
+                        masterfiles = s1data.get_images_for_frame(framename, masterdate-timedelta(days=1), masterdate+timedelta(days=1))
+                        if len(masterfiles) > len(filelist):
+                            print('checking for possible cross-relorb problem')
+                            filelist_pd = pd.DataFrame.from_records(filelist)
+                            for mfile in masterfiles:
+                                if mfile not in filelist_pd[2].to_list():
+                                    print('file {} was skipped - checking it'.format(mfile))
+                                    mfile_bursts = lq.sqlout2list(lq.get_bursts_in_file(mfile))
+                                    for mburst in mfile_bursts:
+                                        if not mburst in framebursts:
+                                            print('checking burst {}'.format(mburst))
+                                            if fc.check_and_fix_burst(mburst, framebursts):
+                                                print('IMPORTANT - burst definitions changed. please rerun the init script (if the fails)')
             if rc == 0:
                 print('\nContinuing with the selected date {0} as master'.format(masterdate))
             else:

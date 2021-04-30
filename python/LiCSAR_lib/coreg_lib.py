@@ -251,6 +251,8 @@ def mosaic_rslc(procdir,slavedate,masterdate,rglks,azlks,swathlist):
         return 1
     logfile = os.path.join(procdir,'log',"mosaic_rslc_{0}.log".format(slavedate.strftime('%Y%m%d')))
     if SLC_mosaic_S1_TOPS(slaverslctab,slavefilename,rglks,azlks,logfile,mastertab=masterslctab):
+        # coreg was done ok, mosaicked ok, so geocode it now...
+        rc = os.system('create_geoctiffs_to_pub.sh -M {0} {1}'.format(procdir, slavedate.strftime('%Y%m%d')))
         return 0
     else:
         return 1

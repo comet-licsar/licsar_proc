@@ -11,7 +11,9 @@ frame=sys.argv[1]
 startdate=sys.argv[2]
 enddate=sys.argv[3]
 
-files = s1data.get_images_for_frame(frame, str(startdate), str(enddate))
+asf = True
+
+files = s1data.get_images_for_frame(frame, str(startdate), str(enddate), asf = asf)
 
 dates = []
 for a in files:

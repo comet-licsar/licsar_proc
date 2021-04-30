@@ -104,13 +104,30 @@ if [ $LORES == 1 ]; then
 fi
 
 master=`ls $procdir/$geodir/*[0-9].hgt | rev | cut -d '/' -f1 | rev | cut -d '.' -f1 | head -n1`
+#make sure we use abs paths...
+procdir=`realpath $procdir`
+
+#this is just to check if master is properly in RSLCs...:
+if [ ! -e ${procdir}/RSLC/$master/$master.rslc.mli ]; then 
+ if [ -e ${procdir}/SLC/$master/$master.slc.mli ]; then 
+  echo "correcting bad links for master file"; 
+  rm -r ${procdir}/RSLC/$master
+  mkdir ${procdir}/RSLC/$master
+  cd ${procdir}/RSLC/$master
+  for x in `ls ${procdir}/SLC/$master/* -d`; do
+    ln -s $x `basename $x | sed 's/\.slc\./\.rslc\./'`
+  done
+  chmod -R 777 ${procdir}/RSLC/$master
+ fi
+fi
+
 
 echo "Processing dir: $procdir"
 echo "Master image: $master"
 echo "Interferogram: $ifg"
 
-width=`awk '$1 == "range_samples:" {print $2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`; #echo $width
-length=`awk '$1 == "azimuth_lines:" {print $2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`; #echo $length
+width=`awk '$1 == "range_samples:" {print $2}' ${procdir}/SLC/$master/$master.slc.mli.par`; #echo $width
+length=`awk '$1 == "azimuth_lines:" {print $2}' ${procdir}/SLC/$master/$master.slc.mli.par`; #echo $length
 reducfac=`echo $width | awk '{if(int($1/16000) > 1) print int($1/16000); else print 1}'`
 
 #if [ -d "${procdir}/GEOC" ]; then rm -rf ${procdir}/GEOC; fi
@@ -129,7 +146,7 @@ latstep=`awk '$1 == "post_lat:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f", $2}' ${procdir}/$geodir/EQA.dem_par`
 # Because no wavelength is reported in master.rmli.par file, we calculated here according to the radar frequency (IN CENTIMETERS)
 # Frequency = (C / Wavelength), Where: Frequency: Frequency of the wave in hertz (hz). C: Speed of light (29,979,245,800 cm/sec (3 x 10^10 approx))
-lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/RSLC/$master/$master.rslc.mli.par`;
+lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/SLC/$master/$master.slc.mli.par`;
 
 #echo "Running doGeocoding step" #" for unwrapped"
 #this is for the case if we start the geotiff generation within or outside of licsar_make_frame:
@@ -144,10 +161,11 @@ fi
 #mdate=`echo $ifg | awk '{print $2}'`;
 #sdate=`echo $ifg | awk '{print $3}'`;
 #if [ -d "${procdir}/GEOC/${ifg}" ]; then rm -rf ${procdir}/GEOC/${ifg}; fi
-if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
+
 #echo "   Geocoding results for inteferogram: ${ifg}" ;
 
 if [ $UNWDO -eq 1 ]; then
+if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
 # Unwrapped interferogram
 if [ -f ${procdir}/IFG/${ifg}/${ifg}.unw ]; then
   # Geocode all the data
@@ -324,6 +342,7 @@ fi  #end of unwdo
 #echo "bagr"
 
 if [ $IFGDO -eq 1 ]; then
+if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
 ifgext="filt.diff"
 ifgtext="filtered"
 ifgout="diff"
@@ -398,6 +417,7 @@ fi
 
 
 if [ $COHDO -eq 1 ]; then
+if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
 # Unfiltered coherence
 if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif ]; then
   echo "Creating unfiltered coherence tiffs"

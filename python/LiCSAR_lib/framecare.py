@@ -17,6 +17,31 @@ gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 pubdir = os.environ['LiCSAR_public']
 procdir = os.environ['LiCSAR_procdir']
 
+def check_and_fix_burst(mburst, framebursts):
+    # to get mbursts of a zip file, e.g.:
+    # frame = '...'
+    # filename = 'S1A_IW_SLC__1SDV_20210429T114802_20210429T114829_037665_047199_F24F.zip'
+    # mbursts = fc.lq.sqlout2list(fc.lq.get_bursts_in_file(filename))
+    # framebursts = fc.lq.sqlout2list(fc.lq.get_bidtanxs_in_frame(frame))
+    # for mburst in mbursts: fc.check_and_fix_burst(mburst, framebursts)
+    changed = False
+    if mburst in framebursts:
+        return changed
+    tr=int(mburst.split('_')[0])
+    iw=mburst.split('_')[1]
+    tanx=int(mburst.split('_')[2])
+    #
+    for fburst in framebursts:
+        iwf=fburst.split('_')[1]
+        if iwf == iw:
+            tanxf=int(fburst.split('_')[2])
+            if tanx > tanxf-4 and tanx < tanxf+4:
+                print('we probably found a cross-defined burst. fixing/merging to one')
+                print(mburst+' -> '+fburst)
+                lq.rename_burst(mburst, fburst)
+                changed = True
+    return changed
+
 
 def get_bidtanxs_from_xy(intxt, relorb = None):
     if not os.path.exists(intxt):

@@ -6,10 +6,15 @@
 import requests
 import re
 import datetime as dt
-import os
+import os, shutil
 import logging
+import pandas as pd
 
-from eof.download import download_eofs
+from sentinelsat.sentinel import SentinelAPI
+try:
+    from eof.download import download_eofs
+except:
+    print('warning, you do not have sentineleof python library installed. expect problems with orbits (but maybe fixed now..)')
 
 
 ################################################################################
@@ -103,23 +108,76 @@ def strpStrtEndTimes(filename):
     return (startTime,endTime)
 
 
+
+def downloadOrbits_CopCloud(startdate, enddate, producttype):
+    scihub = SentinelAPI('gnssguest', 'gnssguest','https://scihub.copernicus.eu/gnss')
+    result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))
+    result = scihub.to_dataframe(result)
+    for id, row in result.iterrows():
+        outfile= os.path.join(os.environ['ORB_DIR'],'S1'+row['platformnumber'],producttype,row['filename'])
+        if not os.path.exists(outfile):
+            #download it here....
+            downurl = row.link.replace('https://','https://gnssguest:gnssguest@')
+            try:
+                print('downloading orbit file '+row.filename)
+                r = requests.get(downurl, allow_redirects=True)
+                f = open(outfile, 'wb')
+                f.write(r.content)
+                f.close()
+            except:
+                print('error downloading orbit file '+row.filename)
+                print('trying from ASF - using wget')
+                try:
+                    downurl = 'https://s1qc.asf.alaska.edu/aux_'+producttype.lower()+'/'+row.filename
+                    #i know... this is sooo bad in security...
+                    #asfuser='licsar_user1'
+                    #asfpassword='DoNut.001'
+                    command = 'wget --user licsar_user1 --password DoNut.001 -O '+outfile+' '+downurl+' 2>/dev/null'
+                    rc = os.system(command)
+                    #r = requests.get(downurl, allow_redirects=True, auth=HTTPBasicAuth(asfuser, asfpassword))
+                    #if r.status_code == 200:
+                    #    f = open(outfile, 'wb')
+                    #    f.write(r.content)
+                    #    f.close()
+                    if os.path.exists(outfile):
+                        print('(probably) ok')
+                    else:
+                        print('failed also from ASF using wget, sorry')
+                        #' - status: '+str(r.status_code))
+                except:
+                    print('failed also from ASF, sorry')
+
+
 # get orbit files using eof (they should update once it gets into the new Copernicus cloud... 03/2021)
 def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
     zipFile = os.path.basename(zipFile)
+    orbFiles = ''
+    #try:
+    #    orbFiles = download_eofs(sentinel_file=zipFile, save_dir='.')
+    #except:
+    #    print('orbits not found using sentineleof. using custom (raw) approach')
     try:
-        orbFiles = download_eofs(sentinel_file=zipFile, save_dir='.')
+        (startdate, enddate) = strpStrtEndTimes(zipFile)
+        startdate = startdate - pd.Timedelta('1 day')
+        enddate = enddate + pd.Timedelta('1 day')
+        downloadOrbits_CopCloud(startdate, enddate, 'POEORB')
+        downloadOrbits_CopCloud(startdate, enddate, 'RESORB')
+        return True
     except:
+        print('not succeeded')
         return False
     if not orbFiles:
+        print('orbits not found')
         return False
     for orbF in orbFiles:
         a = os.path.basename(orbF)
         sensor = a.split('_')[0]
         orbType = a.split('_')[3]
         wheresavePath = os.path.join(orbdir, sensor, orbType, a)
-        os.rename(a, wheresavePath)
+        shutil.move(a, wheresavePath)
     #should be anyway just one orbit file...
-    return a
+    #return a
+    return wheresavePath
 
 
 ################################################################################
@@ -178,6 +236,7 @@ def getOrbUrl(sat,prodType,startTime,endTime):
         return resp_json['results'][0]['remote_url']
     else:
         raise orbUrlNotFnd(prodType,startTime,endTime)
+
 
 ################################################################################
 # Download the orbit file to directory
@@ -291,6 +350,11 @@ def getValidOrbFile(localOrbDir,prodFile):
         else:
             logger.info("trying to download the files")
             a =  updateOrbForZipfile(prodFile)
+            if a == True:
+                print('direct downloader was used, checking again')
+                a = getOrbFile('POEORB')
+                if not a:
+                    a = getOrbFile('RESORB')
             if a:
                 logger.info('got them')
                 return a

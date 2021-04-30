@@ -1,0 +1,428 @@
+function [data,cmap_mixed,cmap_mag,cmap_phase] = ...
+  mph(mag,phase,exp_in,scale_in,cmap_phase_in);
+% MPH -- magnitude/phase transparant overlay display.
+%
+%   This function displays the phase as a transparant layer
+%   over the magnitude. Algorithm basically assigns a unique
+%   color q to each combination of magnitude/phase, and then
+%   computes the colormap accordingly (of size ncolphase*ncolmag):
+%     1) Rescale magnitude to integers [0:ncolorsmag-1]
+%        Rescale phase data to integers [0:ncolorsphase-1]
+%     2) Data = ncolorsphase.*mag + phase;%  asign unique number
+%     3) Compute color lookup table for unique numbers
+%        This table is a repeated table for the phase cmpa,
+%        but scaled by a factor for each magnitude level.
+%
+%   The magnitude is plotted for areas where phase contains NaNs.
+%   Commment this out in the code if this is not desired.
+%
+%   To obtain the magnitude back from the rescaled data, use:
+%     m = floor(data./ncolorsphase);
+%   To obtain the phase from the rescaled data, use:
+%     p = mod(data,ncolorsphase);
+%   Defaults: 16 layers for magnitude and 16 for phase (ph(16) map).
+%
+%
+%   MPH by itself is a demo.
+%
+%   MPH(cpxdata) computes phase and magnitude from complex input.
+%     the magnitude is rescaled by taking log10.
+%
+%   MPH(mag,phase) draws in figures (10011) (10012) (10013). 
+%
+%   MPH(mag,phase,EXP)        first converts mag=mag.^EXP;
+%     EXP=0.3 is working ok for complex interferograms.
+%   MPH(mag,phase,exp,SCALE)  set converted data to mean magnitude = 150,
+%     then scale this by SCALE, then thresholds all values m>255 and v<16.
+%     a SCALE larger than 1 obviously thresholds more data at the top end,
+%     which will result in a brighter picture. SCALE<1 makes picture darker.
+%     A few percent of the top values should be thresholded for best results.
+%   MPH(cpxdata,exp)          first converts mag=mag.^exp;
+%   MPH(cpxdata,exp,scale)    thresholds converted mag to maximum level.
+%
+%   MPH(cpxdata,..,CMAP) uses CMAP as colormap for phase. CMAP can be used
+%   anywhere, i.e., as 2nd, 3rd, 4th, 5th argument.
+%   Only for exp/scale the convention is that the exponent is the
+%   input argument before the scale.
+%
+%   [DATA,CMAP_MIX] = MPH(mag,phase) returns rescaled data and corresponding
+%     colormap to overlay phase over magnitude. Can be plotted with:
+%       imagesc(DATA); colormap(CMAP_MIX);
+%
+%   [DATA,CMAP_MIX,CMAP_MAG,CMAP_PHA] = MPH(..) returns colormaps to
+%     plot rescaled data array as phase/magnitude with:
+%       figure(1); imagesc(DATA); colormap(CMAP_MIX);
+%       figure(2); imagesc(DATA); colormap(CMAP_PHA);
+%       figure(3); imagesc(DATA); colormap(CMAP_MAG);
+%
+%   If the variable CMAP_MAG_MPH exists in the workspace (capitals),
+%   then this colormap will be used for the magnitude.
+%   (for now only the number of magnitude levels is set, not cmap)
+%
+%   Examples:
+%     To plot clown as magnitude, phase cone as transparant overlay,
+%     using a 64 entry cool colormap:
+%       load clown; c=X.*exp(complex(0,25*cone(200,320)));
+%       map=cool(64);
+%       mph(c,map);
+%
+%     To use more colors for the phase, offer a colormap as input.
+%     To use more colors for the magnitude, change the variable in
+%     the code (which mph), or use the variable CMAP_MAG_MPH.
+%       global CMAP_MAG_MPH;
+%       CMAP_MAG_MPH = gray(32);% use 32 levels for magnitude
+%       mph;
+%
+%     To plot clown as magnitude, phase cone as transparant overlay:
+%       load clown;
+%       mag        = log10(X); 
+%       phase      = wrap(4*2*pi*cone(size(mag,1),size(mag,2)));
+%       [data,map2,map1,map3] = mph(mag,phase);
+%       figure; imagesc(data); colormap(map2);
+%       title('clcik left, middle, right mousebutton to swap cmap');
+%       figure(gcf); oldB=0;
+%       for ii=1:1000
+%         [X,Y,B]=ginput(1);% B either 1,2,3 (4,5)
+%         if (B~=oldB&B>0&B<4)
+%           eval(['colormap(map',num2str(B),');']); oldB=B;
+%         end;
+%       end;
+%
+%   Bugs:
+%     If a lot of phasecolors are used, this might display badly on the
+%     screen. save as epsc will display better. (in gv).
+%
+%   See also: PH, DEOS, COLORBAR, 
+%
+
+global CMAP_MAG_MPH;%	use this if also global in workspace...
+
+% seems to be a jump of pi compared showphase<->showmixed
+%// $Revision: 1.4 $  $Date: 2001/09/28 14:24:32 $
+%// BK 03-Apr-2001
+% With a little help from my friends...
+% Ramon Hanssen, Allesandro Ferretti, Rens Swart.
+%
+
+%%% Handle input.
+%wrong = 1;% assume the worst
+wrong = 0;% assume correct input
+exp   = 0.3;% default, used if not specified in input exp_in
+scale = 1;% default, used if not specified in input scale_in
+% colors per magnitude level, normally for phase display:
+numcolorsphase = 16;% default;
+%phasecolors   = hsv(numcolorsphase);
+%phasecolors   = hot(numcolorsphase);
+phasecolors    = ph(numcolorsphase);
+%phasecolors   = deos(numcolorsphase);
+%
+switch (nargin)
+  %%% DEMO
+  case 0
+    str = input('Press key for demo; h for help; q to quit.\n','s');
+    if (isempty(str))
+      load clown;
+      mag   = log10(X);
+      phase = wrap(4*2*pi*cone(size(mag,1),size(mag,2)));
+    elseif (str=='h')
+      wrong = 2;
+    elseif (str=='q')
+      exit;
+    end;
+  %%% CPX image
+  case 1
+    if (isreal(mag)) wrong=1; end;
+    disp('assuming complex interferogram as input');
+    wrong = 0;%		also allowed, cpx input
+    phase = angle(mag);
+    %phase(find(phase<0))=phase+2pi
+    mag   = abs(mag);
+  %%% Either mag/phase, cpx/exponent, or cpx/cmap
+  case 2
+    if (isreal(mag))
+      if (~isreal(phase))
+	wrong = 1;
+      end;
+    else% assume CPX/exp
+      if (prod(size(phase))==1)
+        exp         = phase;
+      elseif (size(phase,2)==3) %assume cmap
+	phasecolors = phase;%	better check this...
+      else
+	wrong = 1;
+      end;
+      phase = angle(mag);
+      if (exp~=1) mag = abs(mag).^exp;
+      else        mag = abs(mag); end;
+    end;
+  %%% Either mag/phase/exponent or cpxdata/exp/scale
+  %%% or mag/phase/cmap or cpxdata/exp/cmap or cpxdata/cmap/exp
+  case 3
+    if (isreal(mag))
+      if (isreal(phase) & prod(size(exp_in))==1)
+	exp         = exp_in;
+      elseif (size(exp_in,2)==3) %assume cmap
+	phasecolors = exp_in;%	better check this...
+      else
+	wrong = 1;
+      end;
+      if (exp~=1) mag = mag.^exp; end;
+    else% cpxdata/e/s OR cpx/e/cmap OR cpx/cmap/e
+      if (prod(size(phase))==1 & prod(size(exp_in))==1)% exp/scale
+	scale       = exp_in;
+	exp         = phase;
+      elseif (prod(size(phase))==1 & size(exp_in,2)==3) %exp/cmap
+	phasecolors = exp_in;%	better check this...
+	exp         = phase;
+      elseif (size(phase,2)==3 & prod(size(exp_in,2))==1) %cmap/exp
+	phasecolors = phase;%	better check this...
+	exp         = exp_in;
+      else
+        wrong = 1;
+      end;
+      phase = angle(mag);
+      if (exp~=1) mag = abs(mag).^exp;
+      else        mag = abs(mag); end;
+    end;
+  %%% mag/phase/exponent/scale expected
+  case 4
+    if (isreal(mag))% mag/phase/exp/cmap OR m/p/cmap/exp OR mag/phase/exp/sc
+      if (prod(size(exp_in))==1 & prod(size(scale_in))==1)
+        exp          = exp_in;
+        scale        = scale_in;
+      elseif (prod(size(exp_in))==1 & size(scale_in,2)==3)% exp/cmap
+        exp          = exp_in;
+        phasecolors  = scale_in;
+      elseif (size(exp_in,2)==3 & prod(size(scale_in))==1)% cmap/exp
+        exp          = scale_in;
+        phasecolors  = exp_in;
+      else
+        wrong = 1;
+      end;
+      if (exp~=1) mag = mag.^exp; end;
+    else % cpx/cmap/exp/sc OR cpx/exp/sc/cmap OR cpx/exp/cmap/sc
+      if (size(phase,2)==3)        phasecolors = phase;
+      elseif (size(exp_in,2)==3)   phasecolors = exp_in;
+      elseif (size(scale_in,2)==3) phasecolors = scale_in;
+      else wrong=1; end;
+      if (prod(size(phase))==1 & prod(size(exp_in))==1)
+        exp          = phase;
+        scale        = exp_in;
+      elseif (prod(size(phase))==1 & prod(size(scale_in))==1)
+        exp          = phase;
+        scale        = scale_in;
+      elseif (prod(size(exp_in))==1 & prod(size(scale_in))==1)
+        exp          = exp_in;
+        scale        = scale_in;
+      else
+        wrong = 1;
+      end;
+      phase = angle(mag);
+      if (exp~=1) mag = abs(mag).^exp;
+      else        mag = abs(mag); end;
+    end
+  %%% mag/phase/exp/scale/cmap OR m/p/exp/cmap/sc OR mag/phase/cmap/exp/sc
+  case 5
+    if (isreal(mag) & isreal(phase))
+      if (size(exp_in,2)==3)            phasecolors = exp_in;
+      elseif (size(scale_in,2)==3)      phasecolors = scale_in;
+      elseif (size(cmap_phase_in,2)==3) phasecolors = cmap_phase_in;
+      else wrong=1; end;
+      if (prod(size(exp_in))==1 & prod(size(scale_in))==1)
+        exp          = exp_in;
+        scale        = scale_in;
+      elseif (prod(size(exp_in))==1 & prod(size(cmap_phase_in))==1)
+        exp          = exp_in;
+        scale        = cmap_phase_in;
+      elseif (prod(size(scale_in))==1 & prod(size(cmap_phase_in))==1)
+        exp          = scale_in;
+        scale        = cmap_phase_in;
+      else
+        wrong = 1;
+      end;
+    else
+      wrong = 1;
+    end
+    if (exp~=1) mag = mag.^exp; end;
+  %%% More input than I can handle.
+  otherwise
+    wrong = 1;
+end;
+if (wrong~=0) helphelp; end;
+
+
+%%% Internal variables.
+numcolorsphase = size(phasecolors,1);
+numcolorsmag   = 16;%		or input variable?
+if (size(CMAP_MAG_MPH,2)==3)
+  disp('Using global variable CMAP_MAG_MPH for magnitude');
+  numcolorsmag=size(CMAP_MAG_MPH,1);
+end;
+disp(['number of colors for phase/mag: ',int2str(numcolorsphase), ...
+      ' ',int2str(numcolorsmag), ' (', ...
+      int2str(numcolorsphase*numcolorsmag),')']);
+
+
+%%% After input handling magnitude data is: mag.^exp
+%%% Rescale data as: scale*150./mean(mag.^exp)
+meanmag = mean(mag(:));% or approximate value for this
+
+% should threshold top 3% or so.
+%%% This seems to work fine, fixed threshold, scale influences number
+%%% of pixels that are thresholded.
+%%mag     = mag./meanmag;%	normalize around one.
+%%mag     = 150.*mag;%		around 0:150:1000
+%%mag     = scale.*mag;%	around scale*[0:150:1000]
+%%mag(find(mag<16))  = 16;%	lower threshold
+%%mag(find(mag>255)) = 255;%	and upper threshold
+mag     = (150.*scale./meanmag).*mag;% i.e. rescale
+q1      = find(mag<16);%	lower threshold
+q2      = find(mag>255);%	and upper threshold
+mag(q1) = 16;
+mag(q2) = 255;
+disp(['scale: ',num2str(scale),' --> thresholding bottom: ', ...
+       num2str(100.*length(q1)./prod(size(mag))),'%']);
+disp(['scale: ',num2str(scale),' --> thresholding top:    ', ...
+       num2str(100.*length(q2)./prod(size(mag))),'%']);
+%%% Now bin mag in integers [0:numcolorsmag-1].
+%mag = floor(mag./(255./numcolorsmag));% i.e. 1:16?
+mag = floor(mag./(256./numcolorsmag));% i.e. 1:15
+
+%
+if (1==2)% --COMMENTED OUT--
+%maxmag  = max(mag(:));%	or an approximate value for max
+%minmag  = min(mag(:));%	or an approximate value for min
+threshi = meanmag*thresh
+%threslo = meanmag/thresh
+threslo = 0
+q1  =find(mag>threshi);
+%q2 =find(mag<threslo);
+%length(q1)
+disp(['threshold: ',num2str(threshi), ...
+       ' --> thresholding top:    ', ...
+       num2str(100.*length(q1)./prod(size(mag))),'%']);
+%disp(['thresholding bottom: ',num2str(100.*length(q2)./prod(size(mag))),'%']);
+mag(q1)=threshi;
+%mag(q2)=threslo;
+%%% Rescale mag [0:numcolorsmag-1], threslo=black, threshi=white
+mag = floor((mag-threslo)./((threshi-threslo)./numcolorsmag));
+%max(mag(:))
+%min(mag(:))
+%mean(mag(:))
+%figure; hist(mag(:))
+end
+
+
+%%% Rescale phase to integers [0:ncolorspha-1].
+%%% Make sure data is in this interval.
+%%% First convert phase to integers 0:15 (floats 0:15.999, floor them)
+%%% Be sure minphase and maxphase are the correct values,
+%%% otherwise check values later on with find<0, find>max.
+maxphase = max(phase(:));%	or an approximate value for max
+minphase = min(phase(:));%	or an approximate value for min
+phasenan = isnan(phase);
+phase(phasenan) = 0;%	restore later, but else NaN -> computation wrong
+phase    = floor((phase-minphase)./((maxphase-minphase+0.001)./(numcolorsphase)));
+%phase   = int8((phase-minphase) ./((maxphase-minphase)./(numcolorsphase)));
+%phase(find(phase>numcolorsphase-1))=numcolorsphase-1;  
+%phase(find(phase<0))=0;  
+
+%%% Rescale magnitude to integers [0:ncolmag-1]. (floats 0:ncol, floor this)
+%%% Make sure data is in this interval.
+%mag = int8((mag-minmag) ./ ((maxmag-minmag)./(numcolorsmag)));
+%mag = floor((mag-minmag) ./ ((maxmag-minmag)./(numcolorsmag)));
+%mag(find(mag>numcolorsmag-1))=numcolorsmag-1;  
+%mag(find(mag<0))=0;  
+
+%%% Now create new data array with correct entries in 
+%%% data = 16*mag + phase == e[0:255] (uchar)
+%%% Make sure data is in this interval.
+%%% colormap [0:255]eN, colorindex = 16*I + H
+%%% for sure colorbar lookup exact, otherwise not garantueed
+%%% or use: caxis([0 255]);
+data      = numcolorsphase.*mag + phase;%	transformation formula
+data(1,1) = 0;
+data(1,2) = numcolorsphase*numcolorsmag-1;%
+
+%%% Create colormap, entries r,g,b, all e[0,1]
+cmap_mixed = [];
+cmap_phase = [];
+cmap_mag   = [];
+whitemap   = ones(size(phasecolors));
+%
+for magnitudelevel = 0:numcolorsmag-1
+  % Level scales colormap RGB for phase (shade)
+  % Adapt level, leave all black out.
+  %q1    = numcolorsmag/2;% control whiteness min. ampl.
+  %q2    = numcolorsmag/4;% control whiteness max. ampl.
+  q1         = 0;
+  q2         = 0;
+  level      = (magnitudelevel+q1)./(numcolorsmag-1+q1+q2);
+  cmap_mag   = [cmap_mag;   level.*whitemap];
+  cmap_phase = [cmap_phase; phasecolors];%	simply repmat...
+  cmap_mixed = [cmap_mixed; level.*phasecolors];
+end
+
+%%% Display magnitude where phase is NaN.
+%%% Comment this out if undesired.
+if (1==1)% do put magnitude where phase has NaN.
+if (~isempty(phasenan))
+  disp('% Setting phase NaN area to magnitude.');
+  %%% change cmap, use lowest level of magnitude for this (excluded: mag>=16)
+  if (numcolorsmag>numcolorsphase)
+    warning('more mag colors than phasecolors, might give trouble.');
+  end
+  map_x       = gray(numcolorsmag);
+  cmap_mixed(1:numcolorsmag,:) = map_x;%	extended with gray for mag.
+  mag_scaled  = floor(data(phasenan)./numcolorsphase);% get rescaled amplitude [0:15];
+  data(phasenan) = mag_scaled;%                        [-1,-16]
+end
+else
+  phase(phasenan) = NaN;%restore later, but else NaN -> computation wrong
+end
+
+%%% Output.
+if (nargout==0)
+  %%% Plot for now
+  %figure(1);
+  %  imagesc(phase); colormap(phasecolors); colorbar
+  %figure(2);
+  %  imagesc(mag); colormap(gray(numcolorsmag)); colorbar
+  figure(10011);
+    imagesc(data,[0 numcolorsmag*numcolorsphase-1]);
+    colormap(cmap_mixed);
+    colorbar;
+    title('rescaled data: mix magnitude,phase');
+    if (exist('pixval'))
+      set(10011,'units','pixels')
+      pixval;
+    end; %images toolbox
+    %caxis([0 size(cmap_mixed,1)-1]);
+    %caxis([0 numcolorsmag*numcolorsphase-1]);
+  figure(10012);
+    imagesc(data); colormap(cmap_phase); colorbar
+    title('rescaled data: phase');
+    if (exist('pixval'))
+      set(10012,'units','pixels')
+      pixval;
+    end; %images toolbox
+  figure(10013);
+    imagesc(data); colormap(cmap_mag); colorbar
+    title('rescaled data: magnitude');
+    if (exist('pixval'))
+      set(10013,'units','pixels')
+      pixval;
+    end; %images toolbox
+  clear data cmap_mixed cmap_mag cmap_phase
+end;
+if (nargout==1)
+  clear cmap_mixed cmap_mag cmap_phase
+end
+if (nargout==2)
+  clear cmap_mag cmap_phase
+end
+if (nargout==3)
+  clear cmap_phase
+end
+
+%%% EOF.

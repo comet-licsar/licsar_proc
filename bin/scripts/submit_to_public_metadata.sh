@@ -15,3 +15,37 @@ echo "master="$master > $outfile
 time=`grep center_time $LiCSAR_procdir/$track/$frame/SLC/$master/$master.slc.par | gawk {'print $2'}`
 time_hours=`python -c "import datetime as dt; time=dt.timedelta(seconds="$time"); print(str(time))"`
 echo "center_time="$time_hours >> $outfile
+
+#write heading - e.g. for evaluation of SD values
+#hfile=`ls $track/$frame/geo/*.heading.grd 2>/dev/null`
+hfile=`ls $LiCSAR_procdir/$track/$frame/geo/*.geo.deg.heading 2>/dev/null`
+if [ -z $hfile ]; then 
+ echo "frame "$frame" has no heading file";
+else
+ heading=`python3 -c "import numpy as np; a = np.fromfile('"$hfile"', dtype=np.float32); print(a.byteswap().mean())"`
+ #heading=`gmt grdinfo -L2 $hfile | grep mean | gawk {'print $3'}`
+ echo "heading="$heading >> $outfile
+fi
+
+#write incidence angle
+inc_angle=`grep incidence_angle $LiCSAR_procdir/$track/$frame/SLC/$master/$master.slc.par | gawk {'print $2'}`
+echo "avg_incidence_angle="$inc_angle >> $outfile
+
+#write resolution in azimuth, and range
+valuee=`grep azimuth_pixel_spacing $LiCSAR_procdir/$track/$frame/SLC/$master/$master.slc.par | gawk {'print $2'}`
+echo "azimuth_resolution="$valuee >> $outfile
+valuee=`grep range_pixel_spacing $LiCSAR_procdir/$track/$frame/SLC/$master/$master.slc.par | gawk {'print $2'}`
+echo "range_resolution="$valuee >> $outfile
+
+#write center_range_slc
+valuee=`grep center_range_slc $LiCSAR_procdir/$track/$frame/SLC/$master/$master.slc.par | gawk {'print $2'}`
+echo "centre_range_m="$valuee >> $outfile
+
+#write average height:
+heifile=`ls $LiCSAR_procdir/$track/$frame/geo/20??????.hgt 2>/dev/null`
+if [ -z $heifile ]; then 
+ echo "frame "$frame" has no height file";
+else
+ hei=`python3 -c "import numpy as np; a = np.fromfile('"$heifile"', dtype=np.float32); print(a.byteswap().mean())"`
+ echo "avg_height="$hei >> $outfile
+fi

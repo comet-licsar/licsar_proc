@@ -89,7 +89,7 @@ gdalwarp -multi --config GDAL_CACHEMAX 1000 -wm 1000 -overwrite -of GTiff `ls *.
 gdal_calc.py -A ${LiCSAR_temp}/${tmpnm}.tif --calc='(A==0)*32000+(A!=0)*A' --outfile=${output}.tif --NoDataValue=-32768 >/dev/null 2>/dev/null
 rm ${LiCSAR_temp}/${tmpnm}.tif
 
-srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 0 -
+srtm2dem ${output}.tif ${output}.dem ${output}.dem_par 2 -
 wid=`grep "width:" $output.dem_par | gawk {'print $2'}`
 replace_values ${output}.dem 32000 0.01 bagr $wid 0 2
 mv bagr ${output}.dem
