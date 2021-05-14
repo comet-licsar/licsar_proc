@@ -21,7 +21,7 @@ from osgeo import gdal
 #    print('please provide parameters: wrap_ifg_file unwrap_ifg_file')
 #    exit()
 
-def qc1(a,image,bound):
+def qc1_old(a,image,bound):
     thresh = cv2.threshold(a, 1, 1, cv2.THRESH_BINARY)[1]  #  1 was 255
     kernel=cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
@@ -52,6 +52,34 @@ def qc1(a,image,bound):
         return(0)
     return (len(lines))
 
+
+def qc1(a, bound):
+    thresh = cv2.threshold(a, 1, 1, cv2.THRESH_BINARY)[1]  #  1 was 255
+    kernel=cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+    thresh=thresh.astype(bool)
+    thresh = morphology.remove_small_holes(thresh, 200)
+    thresh = morphology.remove_small_objects(thresh, 200)
+    thresh=np.uint8(1*thresh) # convert bol into int # was 255 instead of 1
+    ###### line detection
+    low_threshold = 0.2 # was 50
+    high_threshold = 0.58 # was 150
+    kernel=5
+    edges = cv2.Canny(thresh, low_threshold, high_threshold,kernel)
+    edges = np.multiply(bound, edges)
+    ####### Hough line detection
+    rho = 1  # distance resolution in pixels of the Hough grid
+    theta = np.pi / 180  # angular resolution in radians of the Hough grid
+    threshold = 150 # minimum number of votes (intersections in Hough grid cell) 10
+    min_line_length = 100  # minimum number of pixels making up a line 80
+    max_line_gap = 5  # maximum gap in pixels between connectable line segments
+    # Run Hough on edge detected image
+    # Output "lines" is an array containing endpoints of detected line segments
+    lines = cv2.HoughLinesP(edges, rho, theta, threshold, np.array([]),
+                        min_line_length, max_line_gap)
+    if lines is None:
+        return(0)
+    return (len(lines))
 
 
 def check_dimensions(tiffile1, tiffile2):
@@ -102,8 +130,10 @@ def check_lines(infile, type='png'):
     bound=np.uint8(bound/255)
     bound = 1 - bound
     
-    im1=qc1(a,image,bound) # better for boundary extraction
-    im2=qc1(a_inv,image,bound)
+    #im1=qc1(a,image,bound) # better for boundary extraction
+    #im2=qc1(a_inv,image,bound)
+    im1=qc1(a, bound)
+    im2=qc1(a_inv ,bound)
     n_lines=im1+im2
     if (n_lines>3):
         flag = 1
@@ -137,6 +167,8 @@ def check_lines_ifg_and_unw(wrap, unwrap):
         print('probably error in the wrapped file, marking as bad')
         flag = 1
         return flag
+    
+    ################################ finding the boundary image using the master epoch ##############
     thresh = cv2.threshold(aa, 0, 255, cv2.THRESH_BINARY)[1]
     kernel=cv2.getStructuringElement(cv2.MORPH_RECT,(15,15))
     mask = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
@@ -147,10 +179,16 @@ def check_lines_ifg_and_unw(wrap, unwrap):
     bound=np.uint8(bound/255)
     bound = 1 - bound
     
-    im1=qc1(thresh,imageunw,bound) # better for boundary extraction
-    im2=qc1(255-thresh,imageunw,bound)  
-    im3=qc1(a,imageunw,bound)
-    n_lines=im1+im2+im3
+    ################## running the line detection function qc1 ####################
+    #im1=qc1(thresh,imageunw,bound) # better for boundary extraction
+    #im2=qc1(255-thresh,imageunw,bound)  
+    #im3=qc1(a,imageunw,bound)
+    #n_lines=im1+im2+im3
+    
+    # update 05/2021 - new qualcheck version, using only ifg and unw / no cc
+    im1=qc1(imagew,bound)
+    im2=qc1(imageunw,bound)  
+    n_lines=im1+im2
     
     if (n_lines>3):
         flag=1
@@ -287,21 +325,101 @@ def get_stats(path, ifg):
     return stats
 
 
-def basic_check(ifgdir):
+def reprocess(infile):
+    print('trying to fix '+infile)
+    reprocessed = False
+    ext = infile.split('.')[-1]
+    extype = infile.split('.')[-2]
+    reprocessed = False
+    ifgdir = os.path.dirname(infile)
+    ifg = ifgdir.split('/')[-1]
+    frame = ifgdir.split('/')[-3]
+    if ext == 'png':
+        if extype == 'cc':
+            infiletif = ifg+'.geo.cc.tif'
+            cmdpreview = 'create_preview_coh'
+            frame = ''
+        elif extype == 'diff':
+            infiletif = ifg+'.geo.diff_pha.tif'
+            cmdpreview = 'create_preview_wrapped'
+            frame = ''
+        elif extype == 'unw':
+            infiletif = ifg+'.geo.unw.tif'
+            cmdpreview = 'create_preview_unwrapped'
+        else:
+            print('wrong type to reprocess')
+            return False
+        if os.path.exists(infiletif): 
+            print('regenerating previews')
+            sourcelib = os.path.join(os.environ['LiCSARpath'],'lib','LiCSAR_bash_lib.sh')
+            cmd='source {0}; cd {1}; rm {2}; {3} {4} {5}'.format(sourcelib, ifgdir, infile, cmdpreview, infiletif, frame)
+            os.system(cmd)
+        if os.path.exists(infile):
+            if os.path.getsize(infile) == 0:
+                try:
+                    os.remove(infile)
+                except:
+                    print('cannot remove file {} - probably writing rights'.format(infile))
+                reprocessed = False
+            else:
+                reprocessed = True
+    elif ext == 'tif':
+        print('not tested well yet')
+        if extype == 'cc':
+            param = 'C'
+        elif extype == 'diff_pha':
+            param = 'I'
+        elif extype == 'unw':
+            param = 'U'
+        else:
+            print('wrong type to reprocess')
+            return False
+        cedadir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'IFG', ifg)
+        if os.path.exists(os.path.join(cedadir, ifg+'.'+extype.split('_')[0])):
+            print('regenerating geotiff')
+            cmd='create_geoctiffs_to_pub.sh -{0} {1} {2}'.format(param, os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame), ifg)
+            os.system(cmd)
+            procgeodir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'GEOC', ifg)
+            if os.path.exists(os.path.join(procgeodir, infile.split('/')[-1])):
+                os.system('mv {0}/* {1}/.; rmdir {0}'.format(procgeodir, ifgdir))
+                reprocessed = True
+            else:
+                reprocessed = False
+        return False
+    else:
+        reprocessed = False
+    return reprocessed
+
+
+
+def basic_check(ifgdir, reprocessing = True):
     #returns True for 'ifg files are ok'
     output = True
     #types = ['cc','di']'
-    needed_files_ext = [ 'cc.png', 'cc.tif', 'diff_pha.tif', 'diff.png', 'unw.png', 'unw.tif']
+    #needed_files_ext = [ 'cc.png', 'cc.tif', 'diff_pha.tif', 'diff.png', 'unw.png', 'unw.tif']
+    pngexts = ['cc.png', 'diff.png', 'unw.png']
+    tifexts = ['cc.tif','diff_pha.tif','unw.tif']
     ifg = os.path.basename(ifgdir)
-    for ext in needed_files_ext:
-        if not os.path.exists(os.path.join(ifgdir,ifg+'.geo.'+ext)):
-            return False
-        else:
-            a = subp.run(['gdalinfo', os.path.join(ifgdir,ifg+'.geo.'+ext)], capture_output=True)
-            if 'ERROR' in a.stderr.decode():
-                return False
-            elif os.path.getsize(os.path.join(ifgdir,ifg+'.geo.'+ext)) == 0:
-                return False
+    #for needed_files_ext in [tifexts, pngexts]:
+    for needed_files_ext in [tifexts, pngexts]:
+        for ext in needed_files_ext:
+            if not os.path.exists(os.path.join(ifgdir,ifg+'.geo.'+ext)):
+                if reprocessing:
+                    return reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
+                else:
+                    return False
+            else:
+                a = subp.run(['gdalinfo', os.path.join(ifgdir,ifg+'.geo.'+ext)], capture_output=True)
+                if 'ERROR' in a.stderr.decode():
+                    if reprocessing:
+                        return reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
+                    else:
+                        return False
+                elif os.path.getsize(os.path.join(ifgdir,ifg+'.geo.'+ext)) == 0:
+                    if reprocessing:
+                        return reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
+                    else:
+                        return False
     return output
 
 

@@ -140,6 +140,9 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
                     #    f.write(r.content)
                     #    f.close()
                     if os.path.exists(outfile):
+                        if os.stat(outfile).st_size < 500:
+                            os.remove(outfile)
+                    if os.path.exists(outfile):
                         print('(probably) ok')
                     else:
                         print('failed also from ASF using wget, sorry')

@@ -2,7 +2,8 @@
 #Imports
 ################################################################################
 import numpy as np
-import os
+import os, glob
+import gdal
 import subprocess
 import xarray as xr
 import cv2
@@ -11,6 +12,7 @@ from scipy import ndimage
 import time
 import matplotlib.pyplot as plt
 xr.set_options(keep_attrs=True)
+from LiCSAR_lib.LiCSAR_misc import *
 
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage import generic_filter
@@ -445,20 +447,58 @@ def process_frame(frame, ml = 10):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms')
+    hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
+    raster = gdal.Open(hgtfile)
+    framewid = raster.RasterXSize
+    framelen = raster.RasterYSize
     for pair in os.listdir(geoifgdir):
         if os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
+            #check its dimensions..
+            raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
+            if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
+                #use tolerance of max pixels
+                maxpixels = 4
+                if (abs(framewid - raster.RasterXSize) > maxpixels) or abs(framewid - raster.RasterXSize) > maxpixels)):
+                    print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                    continue
+                print('ERROR - the file {} has unexpected dimensions, trying to fix'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                for tif in glob.glob(os.path.join(geoifgdir, pair, pair+'.geo.*.tif')):
+                    outfile = tif+'.tmp.tif'
+                    try:
+                        filedone = reproject_to_match(tif, hgtfile, outfile)
+                        if os.path.exists(outfile):
+                            shutil.move(outfile, tif)
+                    except:
+                        print('something wrong during reprojection, skipping')
+                        continue
+                    #os.system('gmt grdsample {0} -G{1}')
+            try:
+                raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
+                if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
+                    print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                    continue
+            except:
+                print('some error processing file {}'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                continue
             if not os.path.exists(os.path.join(pair,pair+'.unw')):
                 print('processing pair '+pair)
-                ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, fillby = 'gauss')
-                #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
-                #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
-                np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).tofile(pair+'/'+pair+'.unw')
-                #or use gauss here?
-                np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
-                width = len(ifg_ml.lon)
-                create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
-                os.system('rm '+pair+'/'+pair+'.unw.ras')
-                os.system('rm -r '+pair+'/'+'temp_'+str(ml))
+                try:
+                    ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, fillby = 'gauss')
+                    #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
+                    #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
+                    np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).tofile(pair+'/'+pair+'.unw')
+                    #or use gauss here?
+                    np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
+                    width = len(ifg_ml.lon)
+                    create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
+                    os.system('rm '+pair+'/'+pair+'.unw.ras')
+                    os.system('rm -r '+pair+'/'+'temp_'+str(ml))
+                except:
+                    print('ERROR processing of pair '+pair)
+                    os.system('rm -r '+pair)
+            if not os.path.exists(os.path.join(pair,pair+'.unw')):
+                print('some error occured and the unw was not processed')
+                os.system('rm -r '+pair)
 
 
 def multilook_by_gauss(ifg, ml = 10):

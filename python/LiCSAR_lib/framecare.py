@@ -43,6 +43,50 @@ def check_and_fix_burst(mburst, framebursts):
     return changed
 
 
+def check_and_fix_all_bursts_in_frame(frame):
+    t1 = '2014-10-01'
+    t2 = dt.datetime.now().date()
+    framefiles = lq.get_frame_files_period(frame,t1,t2)
+    framebursts = lq.sqlout2list(lq.get_bidtanxs_in_frame(frame))
+    fdates = []
+    noch = 0
+    for framefile in framefiles:
+        filename=framefile[2]+'.zip'
+        print('checking '+filename)
+        mbursts = lq.sqlout2list(lq.get_bursts_in_file(filename))
+        for mburst in mbursts:
+            changed = check_and_fix_burst(mburst, framebursts)
+            if changed:
+                noch = noch + 1
+                fdate = filename[17:25]
+                fdates.append(fdate)
+    fdates = list(set(fdates))
+    print('additionally checking only burst ids of similar tracks')
+    #trackid = frame[:4]
+    #for fburst in framebursts:
+    track = int(frame[:3]) #int(fburst.split('_')[0])
+    for cant in [str(track-1), str(track), str(track+1)]:
+        if len(cant) == 1:
+            cant = '00'+cant
+        if len(cant) == 2:
+            cant = '0'+cant
+        trackid = cant+frame[3]
+        #canfburst = str(cant)+'_'+fburst.split('_')[1]+'_'+fburst.split('_')[2]
+        canfbursts = lq.get_bidtanxs_in_track(trackid)
+        try:
+            canfbursts = lq.sqlout2list(canfbursts)
+            for canfburst in canfbursts:
+                changed = check_and_fix_burst(canfburst, framebursts)
+                if changed:
+                    noch = noch + 1
+        except:
+            print('no bursts in the trackid '+trackid)
+    print(str(noch)+' burst definitions changed to fit the frame burst IDs')
+    print('you may want to check and probably remove following epochs (but maybe more!), using:')
+    for fdate in fdates:
+        print('remove_from_lics.sh {0} {1}'.format(frame, fdate))
+
+
 def get_bidtanxs_from_xy(intxt, relorb = None):
     if not os.path.exists(intxt):
         print('ERROR, the file does not exist')

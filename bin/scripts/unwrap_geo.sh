@@ -71,11 +71,13 @@ gmt grdmath -N $ifg 0 NAN 10 DENAN temp/mask.fullin.georeg.nc MUL 0 NAN = temp/i
 
 echo "normally we would do sometimes looong NN filling using:"
 echo "gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc"
-echo "but now we just put zeroes, as snaphu seems ok with it"
-gmt grdfill temp/ifg.masked.tofill.nc -Ac0 -Gtemp/pha1.filled.nc
+echo "but now we just put zeroes, as (the new) snaphu seems ok with it"
+#gmt grdfill temp/ifg.masked.tofill.nc -Ac0 -Gtemp/pha1.filled.nc
+gmt grdmath -N temp/ifg.masked.tofill.nc 0 DENAN = temp/pha1.filled.nc
 
 #it sometimes fails with memory.. why???
 if [ ! -f temp/pha1.filled.nc ]; then
+ echo "fill nans by zeroes failed - using that long NN filling"
  gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc
 fi
 

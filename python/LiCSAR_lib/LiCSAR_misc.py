@@ -4,6 +4,7 @@ import subprocess as subp
 import re
 import zipfile
 import sys, traceback
+from osgeo import gdal, gdalconst
 
 class nostdout(object):
     def __enter__(self):
@@ -182,3 +183,32 @@ def get_colat10(lat):
     else:
         colat = 90*100 - lat
     return colat
+
+
+def reproject_to_match(src_filename, match_filename, dst_filename):
+    src = gdal.Open(src_filename, gdalconst.GA_ReadOnly)
+    src_proj = src.GetProjection()
+    src_geotrans = src.GetGeoTransform()
+    srcdatatype = src.GetRasterBand(1).DataType
+    #srcdatatype = gdal.GetDataTypeName(srcdatatype)
+    nodatav = src.GetRasterBand(1).GetNoDataValue()
+    
+    # We want a section of source that matches this:
+    match_ds = gdal.Open(match_filename, gdalconst.GA_ReadOnly)
+    match_proj = match_ds.GetProjection()
+    match_geotrans = match_ds.GetGeoTransform()
+    wide = match_ds.RasterXSize
+    high = match_ds.RasterYSize
+    
+    # Output / destination
+    dst = gdal.GetDriverByName('GTiff').Create(dst_filename, wide, high, 1, srcdatatype) # not working: ['COMPRESS=LZW'])
+    dst.SetGeoTransform( match_geotrans )
+    dst.SetProjection( match_proj)
+    band = dst.GetRasterBand(1)
+    band.SetNoDataValue(nodatav)
+    
+    # Do the work
+    gdal.ReprojectImage(src, dst, src_proj, match_proj, gdalconst.GRA_NearestNeighbour)
+    del dst # Flush
+    return dst_filename
+

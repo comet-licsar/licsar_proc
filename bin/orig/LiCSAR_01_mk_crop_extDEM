@@ -101,8 +101,14 @@ function mk_dem(){
     #mk_gdem2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
     mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
   else
-    echo "USE make_srtm2insar [some files might not exist. It could not be a problem...]"
+    echo "USE make_srtm2insar [some files might not exist. It may not be a problem...]"
     mk_srtm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
+    echo mk_srtm2insar $dem $lonmin $lonmax $latmin $latmax
+    if [ ! -f $dem ]; then
+     echo "no DEM generated... trying to use tdmx instead"
+     echo mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax
+     mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
+    fi
   fi
   
   if [ ${plotme} == "1" ]; then
