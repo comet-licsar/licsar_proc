@@ -133,7 +133,7 @@ python3 unw2nc.py
 create_preview_unwrapped unw1.nc $frame
 gmt grdconvert -G$outunw=gd:GTiff unw1.nc
 mv unw1png `echo $outunw | rev | cut -c 4- | rev`png
-cd ..; rm -r temp
+cd ..; #rm -r temp
 cd $heredir
 #echo "now take a look:"
 #echo "display unw1.png"

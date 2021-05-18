@@ -13,6 +13,8 @@ from osgeo import osr, gdal
 import datetime
 import subprocess as subp
 from osgeo import gdal
+import warnings
+warnings.filterwarnings('ignore')
 
 #try:
 #    wrap=sys.argv[1]
@@ -330,7 +332,6 @@ def reprocess(infile):
     reprocessed = False
     ext = infile.split('.')[-1]
     extype = infile.split('.')[-2]
-    reprocessed = False
     ifgdir = os.path.dirname(infile)
     ifg = ifgdir.split('/')[-1]
     frame = ifgdir.split('/')[-3]
@@ -349,10 +350,10 @@ def reprocess(infile):
         else:
             print('wrong type to reprocess')
             return False
-        if os.path.exists(infiletif): 
+        if os.path.exists(os.path.join(ifgdir, infiletif)): 
             print('regenerating previews')
             sourcelib = os.path.join(os.environ['LiCSARpath'],'lib','LiCSAR_bash_lib.sh')
-            cmd='source {0}; cd {1}; rm {2}; {3} {4} {5}'.format(sourcelib, ifgdir, infile, cmdpreview, infiletif, frame)
+            cmd='source {0}; cd {1}; rm {2} 2>/dev/null; {3} {4} {5} 2>/dev/null'.format(sourcelib, ifgdir, infile, cmdpreview, infiletif, frame)
             os.system(cmd)
         if os.path.exists(infile):
             if os.path.getsize(infile) == 0:
@@ -377,7 +378,7 @@ def reprocess(infile):
         cedadir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'IFG', ifg)
         if os.path.exists(os.path.join(cedadir, ifg+'.'+extype.split('_')[0])):
             print('regenerating geotiff')
-            cmd='create_geoctiffs_to_pub.sh -{0} {1} {2}'.format(param, os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame), ifg)
+            cmd='create_geoctiffs_to_pub.sh -{0} {1} {2} 2>/dev/null'.format(param, os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame), ifg)
             os.system(cmd)
             procgeodir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'GEOC', ifg)
             if os.path.exists(os.path.join(procgeodir, infile.split('/')[-1])):
@@ -405,21 +406,23 @@ def basic_check(ifgdir, reprocessing = True):
         for ext in needed_files_ext:
             if not os.path.exists(os.path.join(ifgdir,ifg+'.geo.'+ext)):
                 if reprocessing:
-                    return reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
+                    rc = reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
+                    if not os.path.exists(os.path.join(ifgdir,ifg+'.geo.'+ext)):
+                        output = False
                 else:
-                    return False
+                    output = False
             else:
                 a = subp.run(['gdalinfo', os.path.join(ifgdir,ifg+'.geo.'+ext)], capture_output=True)
                 if 'ERROR' in a.stderr.decode():
                     if reprocessing:
-                        return reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
+                        rc = reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
                     else:
-                        return False
+                        output =  False
                 elif os.path.getsize(os.path.join(ifgdir,ifg+'.geo.'+ext)) == 0:
                     if reprocessing:
-                        return reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
+                        rc = reprocess(os.path.join(ifgdir,ifg+'.geo.'+ext))
                     else:
-                        return False
+                        output =  False
     return output
 
 

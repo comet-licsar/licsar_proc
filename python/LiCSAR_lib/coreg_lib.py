@@ -469,6 +469,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         masterbursts = slavebursts
         #i may do some more check here... like in arc_licsar.sh
 ############################################################ Find nearest (date) coregestered slave (already processed slave) to use as auxiliary
+    rslc3override = ''
     cond = True
     while cond: #sweep through processed slaves till an appropriate aux is found, or till no processed slave available
         if procslavediff: # other slaves have been processed
@@ -478,6 +479,8 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 slave3ix = np.argsort(np.abs(procslavediff))[0]
                 slave3date = dt.datetime.strptime(procslavelist[slave3ix],'%Y%m%d')
                 print("found potential aux slave date {0}".format(slave3date))
+                if rslc3override == '':
+                    rslc3override = slave3date
                 slave3rslcdir = os.path.join(rslcdir,slave3date.strftime('%Y%m%d'))
                 #print(slavebursts)
                 #print(masterbursts)
@@ -517,10 +520,14 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         tocheck = slave3date.date()
     if abs(tocheck-slavedate.date()).days > maxdays_sd:
         print('time difference between RSLCs exceed max Btemp allowed for SD estimation = '+str(maxdays_sd)+' days')
-        if not eidp:
-            print('skipping')
-            os.remove(slaveLockFile)
-            return 1
+        if not rslc3override == '':
+            print('trying to override the bursts check - but expect problems..')
+            slave3date = rslc3override
+        else:
+            if not eidp:
+                print('skipping')
+                os.remove(slaveLockFile)
+                return 1
     #Get sorted list of swaths
     swathlist = [x[0].split('_')[1] for x in masterbursts]
     swathlist = set(swathlist)
