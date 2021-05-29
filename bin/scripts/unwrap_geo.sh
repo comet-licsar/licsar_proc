@@ -49,10 +49,14 @@ if [ -f $maskfile ]; then
  gmt grdcut -N1 $maskfile -Gtemp/mask.landmask.nc -R$ifg  #grid reg
  gmt grdedit temp/mask.landmask.nc -T -R$ifg   #to pixel reg
  gmt grdmath -N temp/mask.inarea.nc temp/mask.landmask.nc MUL = temp/mask.fullin.nc
+ #for final masking
  gmt grdmath -N temp/mask.outarea.nc temp/mask.fullin.nc MUL = temp/mask.nc
+ #for snaphu only - as we get segmentation faults in decorrelated ('grainy masked') areas..
+ gmt grdmath -N temp/mask.outarea.nc temp/mask.landmask.nc MUL = temp/mask_snaphu.nc
 else
  cp temp/mask.inarea.nc temp/mask.fullin.nc
  cp temp/mask.outarea.nc temp/mask.nc
+ cp temp/mask.outarea.nc temp/mask_snaphu.nc
 fi
 
 #gapfilling masked areas
@@ -93,7 +97,7 @@ gmt grd2xyz -ZTLf -bof temp/pha1.02pi.nc > temp/pha1
 gmt grdmath $coh 255 DIV = temp/coh.nc
 gmt grd2xyz -ZTLf -bof temp/coh.nc > temp/coh1
 #export mask to 0,1 binary - using only the landmask now..
-gmt grd2xyz -ZTLc -bof temp/mask.nc > temp/mask1
+gmt grd2xyz -ZTLc -bof temp/mask_snaphu.nc > temp/mask1
 
 
 #unwrap:
@@ -133,7 +137,7 @@ python3 unw2nc.py
 create_preview_unwrapped unw1.nc $frame
 gmt grdconvert -G$outunw=gd:GTiff unw1.nc
 mv unw1png `echo $outunw | rev | cut -c 4- | rev`png
-cd ..; #rm -r temp
+cd ..; rm -r temp
 cd $heredir
 #echo "now take a look:"
 #echo "display unw1.png"

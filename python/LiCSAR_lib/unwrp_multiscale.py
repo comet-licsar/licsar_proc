@@ -458,7 +458,7 @@ def process_frame(frame, ml = 10):
             if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
                 #use tolerance of max pixels
                 maxpixels = 4
-                if (abs(framewid - raster.RasterXSize) > maxpixels) or abs(framewid - raster.RasterXSize) > maxpixels)):
+                if ((abs(framewid - raster.RasterXSize) > maxpixels) or (abs(framelen - raster.RasterYSize) > maxpixels)):
                     print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
                     continue
                 print('ERROR - the file {} has unexpected dimensions, trying to fix'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))

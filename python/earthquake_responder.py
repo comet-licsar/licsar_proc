@@ -528,7 +528,7 @@ def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True, active = Tru
             print('error inserting to database')
     else:
         try:
-            rc = lq.insert_new_eq2frame(eqid, fid)
+            rc = lq.insert_new_eq2frame(eqid, fid, active = active)
         except:
             print('error inserting to database')
     if not rc:

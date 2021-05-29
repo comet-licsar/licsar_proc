@@ -9,6 +9,8 @@ import datetime as dt
 import os, shutil
 import logging
 import pandas as pd
+from configparser import ConfigParser
+import global_config as gc
 
 from sentinelsat.sentinel import SentinelAPI
 try:
@@ -128,11 +130,12 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
                 print('error downloading orbit file '+row.filename)
                 print('trying from ASF - using wget')
                 try:
+                    parser = ConfigParser()
+                    parser.read(gc.configfile)
+                    asfuser = parser.get('asf', 'asfuser')
+                    asfpass = parser.get('asf', 'asfpass')
                     downurl = 'https://s1qc.asf.alaska.edu/aux_'+producttype.lower()+'/'+row.filename
-                    #i know... this is sooo bad in security...
-                    #asfuser='licsar_user1'
-                    #asfpassword='DoNut.001'
-                    command = 'wget --user licsar_user1 --password DoNut.001 -O '+outfile+' '+downurl+' 2>/dev/null'
+                    command = 'wget --user '+ asfuser +' --password '+asfpass+' -O '+outfile+' '+downurl+' 2>/dev/null'
                     rc = os.system(command)
                     #r = requests.get(downurl, allow_redirects=True, auth=HTTPBasicAuth(asfuser, asfpassword))
                     #if r.status_code == 200:

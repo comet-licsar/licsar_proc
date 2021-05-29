@@ -117,9 +117,11 @@ function prepare_landmask() {
         gmt grdedit $masknc -G$masknc.nc -T -R$filedir/tempinfile1.nc
         mv $masknc.nc $masknc
         gmt grdcut -N1 $masknc -G$filedir/tempmask2.nc -R$filedir/tempinfile1.nc #$infile
-        #just convert to pixel registration..
-        gmt grdedit $filedir/tempinfile1.nc -G$filedir/tempinfile1.nc.nc -T -R$filedir/tempinfile1.nc
-        mv $filedir/tempinfile1.nc.nc $filedir/tempmask2.nc
+        if [ ! `gmt grdinfo $filedir/tempmask2.nc | grep "node registration used" | gawk {'print $2'}` == 'Pixel' ]; then
+         #just convert to pixel registration..
+         gmt grdedit $filedir/tempinfile1.nc -G$filedir/tempinfile1.nc.nc -T -R$filedir/tempinfile1.nc
+         mv $filedir/tempinfile1.nc.nc $filedir/tempmask2.nc
+        fi
         gmt grdmath -N $filedir/tempinfile1.nc $filedir/tempmask2.nc MUL = $filedir/temp2.nc
         #gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
         gmt grdclip $filedir/temp2.nc -G$filedir/tempmasked.nc -Sr0/NaN

@@ -15,6 +15,8 @@ import subprocess as subp
 from osgeo import gdal
 import warnings
 warnings.filterwarnings('ignore')
+import framecare as fc
+from pathlib import Path
 
 #try:
 #    wrap=sys.argv[1]
@@ -146,29 +148,60 @@ def check_lines(infile, type='png'):
 
 def check_lines_ifg_and_unw(wrap, unwrap):
     #use paths to geotiff files here..
-    dataset = gdal.Open(wrap, gdal.GA_ReadOnly)
-    band = dataset.GetRasterBand(1)
-    imagew = band.ReadAsArray()
+    try:
+        dataset = gdal.Open(wrap, gdal.GA_ReadOnly)
+        band = dataset.GetRasterBand(1)
+        imagew = band.ReadAsArray()
+    except:
+        print('probably error in the wrapped file, marking as bad')
+        return 1
+    try:
+        dataset = gdal.Open(unwrap, gdal.GA_ReadOnly)
+        band = dataset.GetRasterBand(1)
+        imageunw = band.ReadAsArray()
+    except:
+        print('probably error in the unwrapped file, marking as bad')
+        return 1
     
-    dataset = gdal.Open(unwrap, gdal.GA_ReadOnly)
-    band = dataset.GetRasterBand(1)
-    imageunw = band.ReadAsArray()
-    row=np.shape(imageunw)[0]
-    col=np.shape(imageunw)[1]
+    try:
+        row=np.shape(imageunw)[0]
+        col=np.shape(imageunw)[1]
+    except:
+        print('probably error in the unwrapped file, marking as bad')
+        return 1
     
     flag=0
     
-    a=np.zeros((row,col),dtype=np.uint8)
-    a = imageunw
-    a[imageunw == 0]=np.nan
-    a_inv=255-a
+    #using master epoch file to get threshold boundaries
+    frame = wrap.split('/')[-4]
+    track = str(int(frame[:3]))
+    master=fc.get_master(frame) # The master epoch will be used to calculate the boundary of the frame
+    procdir = os.path.join(os.environ['LiCSAR_procdir'], track, frame)
+    outdir = os.path.join(os.environ['LiCSAR_public'], track, frame, 'epochs', master)
+    epoch_path = Path(outdir + '/' + master +  '.geo.mli.tif')
+    epoch=os.path.join(os.environ['LiCSAR_public'], track, frame, 'epochs',  master, master + '.geo.mli.tif')
     
-    try:
-        aa=np.abs(imagew)
-    except:
-        print('probably error in the wrapped file, marking as bad')
-        flag = 1
-        return flag
+    if not epoch_path.is_file():
+        cmd='cd {0}; create_geoctiffs_to_pub.sh -M {0} {1}; mkdir -p {2}; cp GEOC.MLI/{1}/* {2}/.'.format(procdir,master,outdir)
+        os.system(cmd)
+    
+    if not epoch_path.is_file():
+        print('problem generating master epoch geotiff..using the original (old..notsogood..) approach')
+        a=np.zeros((row,col),dtype=np.uint8)
+        a = imageunw
+        a[imageunw == 0]=np.nan
+        a_inv=255-a
+        
+        try:
+            aa=np.abs(imagew)
+        except:
+            print('probably error in the wrapped file, marking as bad')
+            flag = 1
+            return flag
+    else:
+        dataset = gdal.Open(epoch, gdal.GA_ReadOnly)
+        band = dataset.GetRasterBand(1)#
+        aa = band.ReadAsArray()
     
     ################################ finding the boundary image using the master epoch ##############
     thresh = cv2.threshold(aa, 0, 255, cv2.THRESH_BINARY)[1]
@@ -296,7 +329,11 @@ def get_stats(path, ifg):
     if test==None:
         #corrupted_file
         return False
-    data = gtif.ReadAsArray()
+    try:
+        data = gtif.ReadAsArray()
+    except:
+        #corrupted file
+        return False
     Ntotal = np.size(data)
     if Ntotal<2:
         Frac=0
@@ -313,8 +350,12 @@ def get_stats(path, ifg):
     Min = np.amin(data)
     Max = np.amax(data)
     
-    gtif2 = gdal.Open(unwtif)
-    data2 = gtif2.ReadAsArray()
+    try:
+        gtif2 = gdal.Open(unwtif)
+        data2 = gtif2.ReadAsArray()
+    except:
+        #corrupted file
+        return False
     Ntotal = np.size(data2)
     if Ntotal<2:
         Frac2=0
@@ -438,13 +479,15 @@ def main():
         exit()
     print('this is using both line detection and timescan approaches')
     print('bad interferograms: ')
-    badifgs = []
+    #badifgs = []
     check_coh_file = os.path.join(ifgdir, 'check_coherence.txt')
     if os.path.exists(check_coh_file):
         os.remove(check_coh_file)
     coh_threshold = 0.01
     
-    
+    badifgs_basic = []
+    badifgs_stats = []
+    badifgs_lines = []
     for ifg in os.listdir(ifgdir):
         #check the lines in wrapped imgs
         #check only wrapped imgs:
@@ -456,23 +499,38 @@ def main():
         if not basic_check(os.path.join(ifgdir,ifg)):
             #if (not os.path.exists(wrap)) or (not os.path.exists(unwrap)) or (not os.path.exists(cctif)):
             flag = 1
+            badifgs_basic.append(ifg)
         else:
             # older way checking just the png files...
             #flag = check_lines(wrap) #, unwrap)
             flag = check_lines_ifg_and_unw(wrap, unwrap)
+            if flag == 1:
+                badifgs_lines.append(ifg)
         if flag == 0:
             #check 
             stats = get_stats(os.path.join(ifgdir,ifg), ifg) 
             if not stats:
                 flag = 1
+                badifgs_stats.append(ifg)
             else:
                 fid = open(check_coh_file, 'a')
                 fid.write(stats)
                 fid.close()
-        if flag == 1:
-            badifgs.append(ifg)
+        #if flag == 1:
+        #    if flagtype == 'basic':
+        #        badifgs_basic.append(ifg)
+        #    if flagtype == 'basic':
+        #    badifgs_stats
+        #    badifgs.append(ifg)
     #just print the bad ifgs now
-    for ifg in badifgs:
+    print('errors by basic check:')
+    for ifg in badifgs_basic:
+        print(ifg)
+    print('errors by lines check:')
+    for ifg in badifgs_lines:
+        print(ifg)
+    print('errors by stats_check:')
+    for ifg in badifgs_stats:
         print(ifg)
     badifgs = check_timescan(check_coh_file, coh_threshold)
     for ifg in badifgs:

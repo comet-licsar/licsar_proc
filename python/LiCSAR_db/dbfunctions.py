@@ -83,25 +83,17 @@ def Conn_tunnel_db():
     except:
         print('WARNING! Error connecting to LiCSAR db - trying Leeds back up')
         tunnel.stop()
-        sql_hostname = 'foe-db.leeds.ac.uk'
-        sql_live_database = 'licsar'
-        sql_username = 'licsadmin'
-        sql_password = 'KtmBuCpP2vVK'
-        conn = pymysql.connect(host=sql_hostname,
-                               user=sql_username,
-                               password=sql_password,
-                               db=sql_live_database)
-        #ssh_host = 'see-gw-01.leeds.ac.uk'
-        #ssh_host = 'foe-linux.leeds.ac.uk'
-        #tunnel = sshtunnel.SSHTunnelForwarder((ssh_host, ssh_port),
-        #        ssh_username=ssh_username, ssh_pkey=ssh_pkey,
-        #        remote_bind_address=(sql_hostname, sql_port))
-        #tunnel.start()
-        #conn = pymysql.connect(host='127.0.0.1',
-        #             user=sql_username,
-        #             passwd=sql_password,
-        #             database=sql_live_database,
-        #             port=tunnel.local_bind_port)
+        parser = ConfigParser()
+        parser.read(gc.configfile)
+        sqlhost = parser.get('sqlinfo', 'host_bck')
+        sqldb = parser.get('sqlinfo', 'dbname_bck')
+        sqluser = parser.get('sqlinfo', 'dbuser_bck')
+        sqlpass = parser.get('sqlinfo', 'dbpass_bck')
+
+        conn = pymysql.connect(host=sqlhost,
+                               user=sqluser,
+                               password=sqlpass,
+                               db=sqldb)
     rc = conn.ping(reconnect=True)
     cur = conn.cursor()
     cur.execute('SELECT VERSION();')
