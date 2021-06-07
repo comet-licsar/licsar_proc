@@ -62,6 +62,7 @@ def check_and_fix_all_bursts_in_frame(frame):
                 fdates.append(fdate)
     fdates = list(set(fdates))
     print('additionally checking only burst ids of similar tracks')
+    print('(same orbit pass direction, relorb+-1)')
     #trackid = frame[:4]
     #for fburst in framebursts:
     track = int(frame[:3]) #int(fburst.split('_')[0])

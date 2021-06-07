@@ -101,18 +101,18 @@ def main(argv=None):
     if argv == None:
         argv = sys.argv
     # Parameter initialisation and checking
-    framename=[]
-    burstidfile = []
-    polygonfile = []
-    procdir=[]
-    startdate=[]
-    enddate=[]
-    masterdate=[]
-    job_id = -1
-    automaster = 0
-    days_limit = 150
-    days_limit_POD = 22
-    customdem = ''
+framename=[]
+burstidfile = []
+polygonfile = []
+procdir=[]
+startdate=[]
+enddate=[]
+masterdate=[]
+job_id = -1
+automaster = 0
+days_limit = 150
+days_limit_POD = 22
+customdem = ''
 
 ############################################################ Parse argument list
     try:
@@ -230,13 +230,13 @@ def main(argv=None):
                             filelist_pd = pd.DataFrame.from_records(filelist)
                             for mfile in masterfiles:
                                 if mfile not in filelist_pd[2].to_list():
-                                    print('file {} was skipped - checking it'.format(mfile))
+                                    print('new file {} identified using ASF - checking it'.format(mfile))
                                     mfile_bursts = lq.sqlout2list(lq.get_bursts_in_file(mfile))
                                     for mburst in mfile_bursts:
                                         if not mburst in framebursts:
-                                            print('checking burst {}'.format(mburst))
+                                            #print('checking burst {}'.format(mburst))
                                             if fc.check_and_fix_burst(mburst, framebursts):
-                                                print('IMPORTANT - burst definitions changed. please rerun the init script (if the fails)')
+                                                print('WARNING - burst definitions changed. if the init script fails, please rerun it')
             if rc == 0:
                 print('\nContinuing with the selected date {0} as master'.format(masterdate))
             else:

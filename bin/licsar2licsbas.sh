@@ -137,7 +137,9 @@ if [ $run_jasmin -eq 1 ]; then
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  #include generation of outputs
  echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel.filt.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel.filt -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vstd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
  cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W 14:00 -q comet ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
