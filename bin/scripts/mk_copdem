@@ -15,7 +15,7 @@ north=`python -c "from math import floor; print(floor($north+1.25))" | awk '{pri
 
 AWK=awk
 # Location of the GDEM files
-DEMsDIR=${dems_dir}/tdx
+DEMsDIR=${dems_dir}/COP30/COP30_hh
 #srtm/srtm_1arcsec_filled_voids
 
 # Cp srtm to working directory
@@ -45,12 +45,15 @@ for ((long=$west; long <= $east; long++)); do
    long1s=`echo $long1 | ${AWK} '{printf ("%03d",$1)}'`
    lat1s=`echo $lat1 | ${AWK} '{printf ("%02d",$1)}'`
    file=''
-   file=`ls $DEMsDIR/${latstr}*${lat1s}/${lonstr}*/*${long1s}_DEM.tif 2>/dev/null`
+   file=`ls $DEMsDIR/Copernicus_DSM_COG_10_${latstr}${lat1s}'_00_'${lonstr}${long1s}'_00_DEM.tif' 2>/dev/null`
+   #
+   #file=`ls $DEMsDIR/${latstr}*${lat1s}/${lonstr}*/*${long1s}_DEM.tif 2>/dev/null`
    
    if [ -z $file ]; then
        let long2=$long1-1
        long2s=`echo $long2 | ${AWK} '{printf ("%03d",$1)}'`
-       file=`ls $DEMsDIR/${latstr}*${lat1s}/${lonstr}*/*${long2s}_DEM.tif 2>/dev/null`
+       #file=`ls $DEMsDIR/${latstr}*${lat1s}/${lonstr}*/*${long2s}_DEM.tif 2>/dev/null`
+       file=`ls $DEMsDIR/Copernicus_DSM_COG_10_${latstr}${lat1s}'_00_'${lonstr}${long2s}'_00_DEM.tif' 2>/dev/null`
    fi
 
 
@@ -98,9 +101,10 @@ gdal_merge.py -of GTiff -o ${output}.tif `ls *_DEM.tif`
   # http://geographiclib.sourceforge.net/1.28/index.html
   #geoid_height=0
   #srtm2dem ${output}.tif ${output}.dem ${output}.dem_par $geoid_height
-  dem_import ${output}.tif ${output}.dem ${output}.dem_par 0 1
+  # 06/2021: importing DEM using dem_import, Copernicus DEM needs conversion from EGM2008 to WGS-84 ellipsoid heights, so..:
+  dem_import ${output}.tif ${output}.dem ${output}.dem_par 0 1 $DIFF_HOME/scripts/egm2008-5.dem $DIFF_HOME/scripts/egm2008-5.dem_par 0
 #fi
 
 #rm -f ASTGTM*.tif
-rm TDM*
-rm srtm2dem.log ${output}.tif 
+rm Cop*tif
+rm srtm2dem.log ${output}.tif dem_import.log 2>/dev/null

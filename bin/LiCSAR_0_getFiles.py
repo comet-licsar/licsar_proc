@@ -88,7 +88,6 @@ def main(argv=None):
             print(reqInfo['requests'])
             if not userEmail:
                 userEmail = reqInfo['email']
-
             label = frameName + ': ' + fileSeries.index[0].strftime('%Y-%m-%d') + ' -> ' + fileSeries.index[-1].strftime('%Y-%m-%d')
             print('Requesting: '+label)
             nla.make_request( files = list( fileSeries ),
@@ -96,7 +95,6 @@ def main(argv=None):
                     retention=retentionDate)
             print('nla requested')
             reqInfo = nla.list_requests()
-
             postReqs = set([req['id'] for req in reqInfo['requests']])
             curReq = postReqs-priorReqs
             if len(curReq) != 0:
@@ -229,6 +227,7 @@ def main(argv=None):
     print('checking for files existing on Tape')
     filesDF['onTape'] = filesDF['files'].map(check_nla)
     fileSeries = filesDF.loc[filesDF['onTape'],'files']
+    fileSeries = fileSeries.sort_index()
     print('There are {0} files to be requested'.format(str(len(fileSeries))))
     existing = len(filesDF['files'])-len(fileSeries)
     if existing > 0:

@@ -94,7 +94,7 @@ else
 fi
 
 #using GACOS only if there is at least for half of the files
-numf=`ls | wc -l`
+numf=`ls | cut -d '_' -f1 | sort -u | wc -l`
 let half=$numf/2
 if [ `ls ../GACOS | wc -l` -lt $half ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
 

@@ -19,6 +19,8 @@ dem=$1
 recreate=$2
 customdem=$3
 
+copernicusdem=1
+
 function mainfunc(){
   local dem=$1
   local recreate=$2
@@ -53,6 +55,8 @@ function mainfunc(){
 
 function mk_dem(){
   local dem=$1
+  copernicusdem=1
+  
   if [ -z "$2" ]; then plotme=0; else plotme=$2; fi 
 
   echo "File DEM/dem_crop does not exist."
@@ -95,12 +99,26 @@ function mk_dem(){
   #if [ ${latmin} -lt "60.0" || ${latmax} -lt "-56.0" ]; then # #if [ ${latmin} > "60.0" ]; then #
   #strange... this was here:
   #if [ `echo $latmin'<'60.0 | bc -l` == 0 ]; then
-  if [ `echo $latmax'<'60.0 | bc -l` == 0 ] || [ `echo $latmin'>'-56.0 | bc -l` == 0 ]; then
+  
+  if [ $copernicusdem -eq 1 ]; then
+    # check for availability - Armenia and Azerbaijan not covered
+    # https://spacedata.copernicus.eu/web/cscda/dataset-details?articleId=394198
+    if [ `echo $latmax'<'38.0 | bc -l` == 0 ] && [ `echo $latmin'>'41.0 | bc -l` == 0 ]; then
+     if [ `echo $lonmax'<'43.0 | bc -l` == 0 ] && [ `echo $lonmin'>'50.0 | bc -l` == 0 ]; then
+      echo "the area is not covered by Copernicus DEM - license.. using TanDEM-X 90m"
+      mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax
+     fi
+    else
+      echo "using Copernicus DEM 30m"
+      mk_copdem $dem $lonmin $lonmax $latmin $latmax
+    fi
+  else
+   if [ `echo $latmax'<'60.0 | bc -l` == 0 ] || [ `echo $latmin'>'-56.0 | bc -l` == 0 ]; then
     #echo "USE make_gdem2insar [some files might not exist. It could not be a problem...]"
     echo "USE make_tdm2insar"
     #mk_gdem2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
     mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
-  else
+   else
     echo "USE make_srtm2insar [some files might not exist. It may not be a problem...]"
     mk_srtm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
     echo mk_srtm2insar $dem $lonmin $lonmax $latmin $latmax
@@ -109,8 +127,8 @@ function mk_dem(){
      echo mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax
      mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax #> /dev/null 2>&1
     fi
+   fi
   fi
-  
   if [ ${plotme} == "1" ]; then
     wdem=`awk '$1 ~ /width:/ {print $2}' ${dem}.dem_par`
     rashgt ${dem}.dem - ${wdem} - - - 5 5 500 > /dev/null 2>&1

@@ -29,7 +29,7 @@ awk '{print $1,$2"_"$3,$4,$5,$6,$7,$8,$9}' bperp_file > bperp_file1
 
 rm ifgs_done.list 2>/dev/null
 #ls IFG/*/*unw.ras | sed 's/\// /g' | awk '{print $2}' > ifgs_done.list
-ls IFG/*/*.unw | sed 's/\// /g' | awk '{print $2}' > ifgs_done.list
+ls GEOC/*/*.unw.tif | sed 's/\// /g' | awk '{print $2}' > ifgs_done.list
 
 touch ${frame}_bp.list
 touch temp

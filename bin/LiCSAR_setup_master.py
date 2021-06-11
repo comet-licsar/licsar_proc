@@ -101,18 +101,18 @@ def main(argv=None):
     if argv == None:
         argv = sys.argv
     # Parameter initialisation and checking
-framename=[]
-burstidfile = []
-polygonfile = []
-procdir=[]
-startdate=[]
-enddate=[]
-masterdate=[]
-job_id = -1
-automaster = 0
-days_limit = 150
-days_limit_POD = 22
-customdem = ''
+    framename=[]
+    burstidfile = []
+    polygonfile = []
+    procdir=[]
+    startdate=[]
+    enddate=[]
+    masterdate=[]
+    job_id = -1
+    automaster = 0
+    days_limit = 150
+    days_limit_POD = 22
+    customdem = ''
 
 ############################################################ Parse argument list
     try:
