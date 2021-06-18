@@ -113,18 +113,27 @@ def strpStrtEndTimes(filename):
 
 def downloadOrbits_CopCloud(startdate, enddate, producttype):
     scihub = SentinelAPI('gnssguest', 'gnssguest','https://scihub.copernicus.eu/gnss')
-    result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))
+    # for ONLY orbit files reprocessed in 2021
+    result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate), ingestionDate='[2021-01-01T00:00:00.000Z TO NOW]')
+    # for 'any' orbit files
+    #result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))    
     result = scihub.to_dataframe(result)
     for id, row in result.iterrows():
         outfile= os.path.join(os.environ['ORB_DIR'],'S1'+row['platformnumber'],producttype,row['filename'])
         if not os.path.exists(outfile):
+            lockfile = outfile+'.lock'
+            if os.path.exists(lockfile):
+                print('orbit file locked - perhaps another orb download process running')
+                continue
+            else:
+                f = open(lockfile, 'wb').close()
             #download it here....
             downurl = row.link.replace('https://','https://gnssguest:gnssguest@')
             try:
                 print('downloading orbit file '+row.filename)
                 r = requests.get(downurl, allow_redirects=True)
                 f = open(outfile, 'wb')
-                f.write(r.content)
+                fsize = f.write(r.content)
                 f.close()
             except:
                 print('error downloading orbit file '+row.filename)
@@ -152,6 +161,7 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
                         #' - status: '+str(r.status_code))
                 except:
                     print('failed also from ASF, sorry')
+            os.remove(lockfile)
 
 
 # get orbit files using eof (they should update once it gets into the new Copernicus cloud... 03/2021)
@@ -172,6 +182,9 @@ def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
     except:
         print('not succeeded')
         return False
+    #
+    #
+    # old unused lines
     if not orbFiles:
         print('orbits not found')
         return False
@@ -348,22 +361,19 @@ def getValidOrbFile(localOrbDir,prodFile):
         logger.info('found it')
         return a
     else:
-        logger.info("Could not find precise orbit, trying restituted orbit...")
-        a = getOrbFile('RESORB')
+        logger.info("trying to download the files")
+        rc =  updateOrbForZipfile(prodFile)
+        a = getOrbFile('POEORB')
         if a:
-            logger.info('found it')
+            logger.info('found POEORB')
             return a
         else:
-            logger.info("trying to download the files")
-            a =  updateOrbForZipfile(prodFile)
-            if a == True:
-                print('direct downloader was used, checking again')
-                a = getOrbFile('POEORB')
-                if not a:
-                    a = getOrbFile('RESORB')
+            logger.info("Could not find precise orbit, trying restituted orbit...")
+            a = getOrbFile('RESORB')
             if a:
-                logger.info('got them')
+                logger.info('found it')
                 return a
             else:
                 logger.warning("not downloaded")
                 return None
+

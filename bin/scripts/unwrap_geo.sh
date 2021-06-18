@@ -39,6 +39,8 @@ cd $ifgdir
 mkdir temp 2>/dev/null
 
 width=`gmt grdinfo $ifg | grep n_columns | rev | gawk {'print $1'} | rev`
+gmt grdedit -T $ifg -Gtemp/ifg.nc ##JW
+gmt grdedit $maskfile -T -R$ifg -Gtemp/mask.nc ##JW
 
 #preparing mask.nc
 echo "preparing masks"
@@ -46,8 +48,9 @@ gmt grdmath $coh 0 NAN 0 GT 0 DENAN = temp/mask.outarea.nc
 gmt grdmath $coh 0 NAN $cohthr GT 1 DENAN = temp/mask.inarea.nc #pixel reg!!!! 
 #gmt grdedit temp/mask.inarea.nc -T -R$ifg   #to pixel reg
 if [ -f $maskfile ]; then
- gmt grdcut -N1 $maskfile -Gtemp/mask.landmask.nc -R$ifg  #grid reg
- gmt grdedit temp/mask.landmask.nc -T -R$ifg   #to pixel reg
+ #gmt grdcut -N1 $maskfile -Gtemp/mask.landmask.nc -R$ifg  #grid reg
+ #gmt grdedit temp/mask.landmask.nc -T -R$ifg   #to pixel reg
+ gmt grdcut -N1 temp/mask.nc -Gtemp/mask.landmask.nc -R$ifg
  gmt grdmath -N temp/mask.inarea.nc temp/mask.landmask.nc MUL = temp/mask.fullin.nc
  #for final masking
  gmt grdmath -N temp/mask.outarea.nc temp/mask.fullin.nc MUL = temp/mask.nc
@@ -66,9 +69,11 @@ echo "gapfilling masked areas"
 # ok, masking only the internal parts..
 cp temp/mask.fullin.nc temp/mask.fullin.georeg.nc
 #gmt grdedit temp/mask.georeg.nc -T -R$ifg   #to pixel reg
-gmt grdedit temp/mask.fullin.georeg.nc -T -R$ifg   #to pixel reg
+#gmt grdedit temp/mask.fullin.georeg.nc -T -R$ifg   #to pixel reg
 #gmt grdmath -N $ifg temp/mask.fullin.georeg.nc MUL 0 NAN = temp/ifg.fullin.tofill.nc
-gmt grdmath -N $ifg 0 NAN 10 DENAN temp/mask.fullin.georeg.nc MUL 0 NAN = temp/ifg.masked.tofill.nc
+#gmt grdmath -N $ifg 0 NAN 10 DENAN temp/mask.fullin.georeg.nc MUL 0 NAN = temp/ifg.masked.tofill.nc
+gmt grdmath -N temp/ifg.nc 0 NAN 10 DENAN temp/mask.fullin.georeg.nc MUL 0 NAN = temp/ifg.masked.tofill.nc ##JW
+
 
 #gmt grdmath -N $ifg temp/mask.georeg.nc MUL 0 NAN = temp/ifg.masked.nc
 #time gmt grdfill temp/ifg.masked.nc -An -Gtemp/pha1.nc

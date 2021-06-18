@@ -39,6 +39,15 @@ def delete_frame_only(frame):
     print(sql)
     #res = do_query(sql, True)
     return True
+
+def delete_frame_files(frame):
+    #e.g. in case of messed up bursts, this should help:
+    sql="SET FOREIGN_KEY_CHECKS=0; delete fb,f from files f inner join files2bursts fb on fb.fid=f.fid inner join polygs2bursts pb on fb.bid=pb.bid inner join polygs p on pb.polyid=p.polyid where p.polyid_name='{}';SET FOREIGN_KEY_CHECKS=1;".format(frame)
+    #sql = "delete from polygs where polygs.polyid_name='{}';".format(frame)
+    #print(sql)
+    res = do_query(sql, True)
+    return True
+
     #return res
 
 def rename_frame(frameold, framenew):
@@ -274,6 +283,7 @@ def get_frame_files_period(frame,t1,t2):
         "and files.pol='VV' "\
         "order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
     return do_query(sql_q)
+
 
 def get_frame_files_date(frame,date):
     # takes frame and one datetime.date object and returns

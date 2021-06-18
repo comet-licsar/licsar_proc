@@ -144,6 +144,10 @@ def get_orb_dir( sat ):
     Out:
         path to orbit directory
     """
+    return os.path.join(os.environ['ORB_DIR'], sat)
+
+
+def get_orb_dir_old( sat ):
     parser = SafeConfigParser()
     try:
         parser.read( os.environ[ 'LiCSARconfig' ] )
@@ -687,6 +691,10 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                         orbdone = False
                 logger.removeHandler(fileHan)
                 if orbdone:
+                    logfilename = os.path.join( procdir, 'log', 
+                        's1_opod_vec_{0}.log'.format( date.strftime( '%Y%m%d' ) 
+                            ) 
+                        )
                     for parFile in glob(imdir+"/*.sl*.par"):
                         print("applying orbit correction to {0}".format(parFile))
                         S1_OPOD_vec(parFile,slcOrbit,logfilename)

@@ -379,7 +379,7 @@ def main(argv=None):
     fc.export_frames_to_licsar_csv(gpan, store_zero = True)
 ############################################################ fix potential cross-bursts
     print('performing check/fix of potential cross-track burst definitions')
-    fc.check_and_fix_all_bursts_in_frame(frame)
+    fc.check_and_fix_all_bursts_in_frame(framename)
 ############################################################ Update job database
     # Write to DB output the time the processing has finished and update its status.
     master_job_finished_clean(job_id, masterdate)
