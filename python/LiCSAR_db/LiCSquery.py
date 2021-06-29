@@ -819,6 +819,28 @@ def get_eqid(eventid):
     return res
 
 
+def get_daz(polyid, epoch):
+    sql_q = "select daz from esd where polyid={} and epoch='{}';".format(polyid,epoch)
+    res = do_query(sql_q)
+    try:
+        daz = sqlout2list(res)[0]
+        return daz
+    except:
+        return False
+
+
+
+def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb):
+    polyid = sqlout2list(get_frame_polyid(frame))[0]
+    if get_daz(polyid, epoch):
+        #clean it first
+        sql_q = "delete from esd where polyid={} and epoch='{}';".format(polyid, epoch)
+        res = do_query(sql_q, 1)
+    #the DATE in MySQL is pretty flexible... so using just the values directly:
+    sql_q = "insert into esd values ({}, '{}', '{}', '{}', {}, {}, {})".format(polyid, epoch, rslc3, orb, daz, ccazi, ccrg)
+    res = do_query(sql_q, 1)
+
+
 def get_usgsid(eqid):
     sql_q = "select USGS_ID from eq where eqid={0};".format(eqid)
     res = do_query(sql_q)

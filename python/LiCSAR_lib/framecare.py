@@ -728,6 +728,11 @@ def delete_frame(frame):
     #os.system(cmd_mysql+' -e "{}"'.format(sql))
     sql = "delete from polygs2bursts where polyid={};".format(polyid)
     rc = lq.do_query(sql, 1)
+    try:
+        sql = "delete from esd where polyid={};".format(polyid)
+        rc = lq.do_query(sql, 1)
+    except:
+        print('error in deleting from esd table')
     #os.system(cmd_mysql+' -e "{}"'.format(sql))
     frame_workaround = frame.replace('A','X')
     frame_workaround = frame_workaround.replace('D','X')

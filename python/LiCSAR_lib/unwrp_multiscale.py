@@ -278,10 +278,10 @@ def coh_from_cpxbin(cpxbin, cohbin, width):
 
 
 
-def main_unwrap(cpxbin, cohbin, maskbin, outunwbin, width, est = None):
+def main_unwrap(cpxbin, cohbin, maskbin, outunwbin, width, est = None, defomax = 1.2):
     print('processing by snaphu')
     prefix = os.path.dirname(cpxbin)+'/'
-    snaphuconffile = make_snaphu_conf(prefix)
+    snaphuconffile = make_snaphu_conf(prefix, defomax)
     extracmd = ''
     if est:
         extracmd = "-e {}".format(est)
@@ -321,12 +321,13 @@ def bin2nc(binfile, masknc, outnc, dtype = np.float32):
     a.to_netcdf(outnc)
 
 
-def make_snaphu_conf(sdir):
+def make_snaphu_conf(sdir, defomax = 1.2):
     snaphuconf = ('STATCOSTMODE  DEFO\n',
             'INFILEFORMAT  COMPLEX_DATA\n',
             'CORRFILEFORMAT  FLOAT_DATA\n'
             'OUTFILEFORMAT FLOAT_DATA\n',
             'ESTFILEFORMAT FLOAT_DATA\n',
+            'DEFOMAX_CYCLE '+str(defomax)+'\n',
             'RMTMPTILE TRUE\n')
     snaphuconffile = os.path.join(sdir,'snaphu.conf')
     with open(snaphuconffile,'w') as f:
@@ -335,29 +336,33 @@ def make_snaphu_conf(sdir):
     return snaphuconffile
 
 
-def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss'):
+def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', prevest = None):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms',pair)
     tmpdir = os.path.join(procdir,pair,'temp_'+str(ml))
+    tmpgendir = os.path.join(procdir,pair,'temp_gen')
     if not os.path.exists(os.path.join(procdir,pair)):
         os.mkdir(os.path.join(procdir,pair))
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
+    if not os.path.exists(tmpgendir):
+        os.mkdir(tmpgendir)
     #orig files
     ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
     coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
     landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     #orig file ncs
-    origphanc = os.path.join(tmpdir,'origpha.nc')
-    origcohnc = os.path.join(tmpdir,'origcoh.nc')
-    landmasknc = os.path.join(procdir,'landmask.nc')
+    origphanc = os.path.join(tmpgendir,'origpha.nc')
+    origcohnc = os.path.join(tmpgendir,'origcoh.nc')
+    landmasknc = os.path.join(tmpgendir,'landmask.nc')
     # prepare input dataset and load
-    convert_tif2nc(ifg_pha_file,origphanc)
-    #this one is tricky - would cause issues if will try to multiprocess..
+    if not os.path.exists(origphanc):
+        convert_tif2nc(ifg_pha_file,origphanc)
     if not os.path.exists(landmasknc):
         convert_tif2nc(landmask_file,landmasknc)
-    convert_tif2nc(coh_file,origcohnc, coh = True)
+    if not os.path.exists(origcohnc):
+        convert_tif2nc(coh_file,origcohnc, coh = True)
     #use orig ifg and coh
     inpha = xr.open_dataset(origphanc)
     incoh = xr.open_dataset(origcohnc)
@@ -373,6 +378,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss'):
     ifg = ifg.rename({'z':'pha'})
     ifg['coh'] = ifg.pha
     ifg['mask'] = ifg.pha
+    #ifg['origpha'] = ifg.pha
     ifg['coh'].values = incoh.z.values
     ifg['mask'].values = inmask.z.values
     inpha = ''
@@ -382,30 +388,45 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss'):
     #make complex from coh and pha
     ifg['cpx'] = ifg.coh.copy()
     ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
-    ifg_ml = multilook_by_gauss(ifg, ml)
+    #ifg_ml = multilook_by_gauss(ifg, ml)
+    # result more or less same, but much more economic way in memory..
+    ifg_ml = multilook_normalised(ifg, ml)
     #mask it ... this worked ok here:
     #thres = 0.5
     #gmmm.... it works better if i use the 'trick on gauss of normalised ifg....'
     thres = 0.35
     ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).fillna(0)
+    ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     #try without modal filter..
     #ifg_ml = filter_mask_modal(ifg_ml, 'mask_coh', 'mask_coh', 8)
     print('interpolate coh-based masked areas of gauss pha')
-    tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
+    #tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
     if fillby == 'gauss':
         #trying astropy approach now:
         print('filling through Gaussian kernel')
         kernel = Gaussian2DKernel(x_stddev=2)
         # create a "fixed" image with NaNs replaced by interpolated values
-        ifg_ml['pha'].values = interpolate_replace_nans(tofillpha.values, kernel)
+        tempar_mag1 = np.ones_like(ifg_ml.pha)
+        cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values)
+        ifg_ml['cpx_tofill'] = ifg['cpx']
+        ifg_ml['cpx_tofill'].values = cpxarr
+        tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
+        tofillR = np.real(tofill)
+        tofillI = np.imag(tofill)
+        filledR = interpolate_replace_nans(tofillR.values, kernel)
+        filledI = interpolate_replace_nans(tofillI.values, kernel)
+        ifg_ml['pha'].values = np.angle(filledR + 1j*filledI)
+        #ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
+        #ifg_ml['pha'].values = interpolate_replace_nans(tofillpha.values, kernel)
     else:
         print('filling by nearest neighbours')
+        tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         ifg_ml['pha'].values = interpolate_nans(tofillpha.values, method='nearest')
         #ifg_ml['gauss_pha'] = ifg_ml['gauss_pha'].fillna(0)
     #exporting for snaphu
     #normalise mag from the final pha
     tempar_mag1 = np.ones_like(ifg_ml.pha)
-    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values)
+    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values) #no need to fillna, but just in case...
     ifg_ml['gauss_cpx'].values = cpxarr
     print('unwrapping by snaphu')
     binmask= os.path.join(tmpdir,'gaussmask.bin')
@@ -422,8 +443,25 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss'):
     i = np.imag(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values.tofile(binI)
     RI2cpx(binR, binI, binCPX)
     width = len(ifg_ml.lon)
+    length = len(ifg_ml.lat)
     #unwrapping itself
-    main_unwrap(binCPX, bincoh, binmask, outunwbin, width)
+    if type(prevest) != type(None):
+        #resizing previous ML step and using to unwrap
+        bin_pre = os.path.join(tmpdir,'prevest.bin')
+        bin_est = os.path.join(tmpdir,'prevest.rescaled.bin')
+        #binI_pre = os.path.join(tmpdir,'prevest.I.bin')
+        
+        kernel = Gaussian2DKernel(x_stddev=2)
+        prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
+        #prevest.values = interpolate_replace_nans(prevest.values, kernel)
+        prevest.astype(np.float32).fillna(0).values.tofile(bin_pre)
+        width_pre = len(prevest.lon)
+        length_pre = len(prevest.lat)
+        #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_CUBIC)
+        resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est)
+    else:
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width)
     print('importing snaphu result to ifg_ml')
     binfile = outunwbin
     #toxr = ifg_ml
@@ -439,10 +477,41 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss'):
     #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
     ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
     ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
+    print('unwrap also residuals from the filtered cpx, and add to the final unw - mask only waters..')
+    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.origpha.fillna(0).where(ifg_ml.mask == 1).values)
+    ifg_ml['origcpx'] = ifg_ml['gauss_cpx']
+    ifg_ml['origcpx'].values = cpxarr
+    ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate()
+    incpx = 'resid_cpx'
+    binR = os.path.join(tmpdir,incpx+'.R.bin')
+    binI = os.path.join(tmpdir,incpx+'.I.bin')
+    binCPX = os.path.join(tmpdir,incpx+'.cpx.bin')
+    outunwbin = os.path.join(tmpdir,incpx+'.unw.bin')
+    binfile = outunwbin
+    daname = incpx+'.unw'
+    
+    r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binR)
+    i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binI)
+    RI2cpx(binR, binI, binCPX)
+    main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 1.4)
+    unw1 = np.fromfile(binfile,dtype=dtype)
+    unw1 = unw1.reshape(ifg_ml.pha.shape)
+    ifg_ml[daname] = ifg_ml['pha'].copy()
+    ifg_ml[daname].values = unw1
+    ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
+    ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
+    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
+    #ifg_ml['resid_'].plot()
+    #now the unw will have the residual phase added back
+    ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml[daname]
+    
     return ifg_ml
 
 
-def process_frame(frame, ml = 10):
+def process_frame(frame, ml = 10, cascade=False):
+    if cascade and ml>1:
+        print('error - the cascade approach is ready only for ML1')
+        return False
     #the best to run in directory named by the frame id
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
@@ -483,7 +552,13 @@ def process_frame(frame, ml = 10):
             if not os.path.exists(os.path.join(pair,pair+'.unw')):
                 print('processing pair '+pair)
                 try:
-                    ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, fillby = 'gauss')
+                    if cascade:
+                        ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd())
+                    else:
+                        ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, fillby = 'gauss')
+                    #else:
+                    #    print('ML set to 1 == will try running the cascade (multiscale) unwrapping')
+                    #    ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd())
                     #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
                     #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
                     np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).tofile(pair+'/'+pair+'.unw')
@@ -503,8 +578,8 @@ def process_frame(frame, ml = 10):
 
 def multilook_by_gauss(ifg, ml = 10):
     kernel = Gaussian2DKernel(x_stddev=ml)
-    resultR = convolve_fft(np.real(ifg['cpx'].values), kernel)
-    resultI = convolve_fft(np.imag(ifg['cpx'].values), kernel)
+    resultR = convolve_fft(np.real(ifg['cpx'].values), kernel, allow_huge=True)
+    resultI = convolve_fft(np.imag(ifg['cpx'].values), kernel, allow_huge=True)
     ifg['gauss_pha'] = ifg['pha'].copy()
     ifg['gauss_pha'].values = np.angle(resultR + 1j*resultI)
     #only now multilook... using coh as mag
@@ -566,15 +641,21 @@ def make_gauss_coh_good(ifg, ml = 10):
 
 def multilook_normalised(ifg, ml = 10):
     #landmask it and multilook it
-    bagcpx = ifg[['cpx']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
-    ifg_ml = bagcpx.sum() / bagcpx.count()
+    if ml > 1:
+        bagcpx = ifg[['cpx']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
+        ifg_ml = bagcpx.sum() / bagcpx.count()
+    else:
+        ifg_ml = ifg[['cpx']].where(ifg.mask>0)
     ifg_ml['pha'] = ifg_ml.cpx.copy()
     ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
     #have the orig coh here:
     ifg_ml['coh'] = ifg_ml['pha']
     ifg_ml.coh.values = np.abs(ifg_ml.cpx)
     #downsample mask
-    ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max()
+    if ml > 1:
+        ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max()
+    else:
+        ifg_ml['mask'] = ifg.mask
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
     cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
@@ -588,3 +669,24 @@ def multilook_normalised(ifg, ml = 10):
     ifg_ml['gauss_coh'].values = np.abs(ifg_ml.gauss_cpx.values)
     return ifg_ml
 
+
+import time
+
+def cascade_unwrap(frame, pair, procdir = os.getcwd()):
+    print('performing cascade unwrapping')
+    starttime = time.time()
+    ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss')
+    #elapsed_time10 = time.time()-starttime
+    ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prevest = ifg_ml10['unw'])
+    ifg_ml3 = process_ifg(frame, pair, procdir = procdir, ml = 3, fillby = 'gauss', prevest = ifg_ml5['unw'])
+    ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml3['unw'])
+    elapsed_time = time.time()-starttime
+    hour = int(elapsed_time/3600)
+    minite = int(np.mod((elapsed_time/60),60))
+    sec = int(np.mod(elapsed_time,60))
+    print("\nTotal elapsed time: {0:02}h {1:02}m {2:02}s".format(hour,minite,sec))
+    return ifg_ml1
+
+#print('preparing nc and png')
+#bin2nc(outunwbin, mask_full, outunwnc, dtype = np.float32)
+#create_preview(outunwnc, ftype = 'unwrapped')

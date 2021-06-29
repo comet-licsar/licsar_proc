@@ -98,6 +98,11 @@ else
 # rm $lm.temp
 
  
+ echo "Generating master MLI geotiff"
+ create_geoctiffs_to_pub.sh -M `pwd` $m
+ mkdir -p $LiCSAR_public/$tr/$frame/epochs 2>/dev/null
+ mv GEOC.MLI/$m $LiCSAR_public/$tr/$frame/epochs/.
+ rmdir GEOC.MLI
  
  echo "Generating public metadata file"
  submit_to_public_metadata.sh $frame

@@ -72,6 +72,17 @@ def grep1(arg,filename):
     file.close()
     return res
 
+
+def grep_full(arg,filename):
+    file = open(filename, "r")
+    res=[]
+    for line in file:
+        if re.search(arg, line):
+            res.append(line)
+    file.close()
+    return res
+
+
 def grep1line(arg,filename):
     file = open(filename, "r")
     res=''

@@ -31,9 +31,10 @@ frame2=099A_05416_131313
 frame1=099A_05615_131313
 
 #try mosaicing through SLC_copy
+# SHITTY OUTPUT!!!!!
 for d in $epoch1 $epoch2; do
  for frame in $frame1 $frame2; do
-  #SLC_copy $path_frame/$frame/RSLC/$d/$d.rslc $path_frame/$frame/RSLC/$d/$d.rslc.par $path_frame/$frame/RSLC/$d/$d.rslc.scomplex $path_frame/$frame/RSLC/$d/$d.rslc.scomplex.par 3
+  SLC_copy $path_frame/$frame/RSLC/$d/$d.rslc $path_frame/$frame/RSLC/$d/$d.rslc.par $path_frame/$frame/RSLC/$d/$d.rslc.scomplex $path_frame/$frame/RSLC/$d/$d.rslc.scomplex.par 3
  done
 MLI_cat $path_frame/$frame1/RSLC/$d/$d.rslc.scomplex $path_frame/$frame2/RSLC/$d/$d.rslc.scomplex $path_frame/$frame1/RSLC/$d/$d.rslc.scomplex.par $path_frame/$frame2/RSLC/$d/$d.rslc.scomplex.par RSLC/$d/$d.rslc RSLC/$d/$d.rslc.par 1 0 0 0
 done
@@ -56,13 +57,23 @@ widthoff=`grep range_samples $epoch1'_'$epoch2.fullpix.off | awk '{print $2}'`
 cpx_to_real $epoch1'_'$epoch2.disp_map $epoch1'_'$epoch2.disp_map.rng $widthoff 0
 swap_bytes $epoch1'_'$epoch2.disp_map.rng $epoch1'_'$epoch2.disp_map.rng.swapped 4
 
-cpxfiddle -w $widthoff -o sunraster -c jet -q normal -f r4 -M5/1 -r-100/100 $epoch1'_'$epoch2.disp_map.rng.swapped > $epoch1'_'$epoch2.disp_map.rng.ras
-display $epoch1'_'$epoch2.disp_map.rng.ras
+#now geocode it
+
+
+#and make preview
+cpxfiddle -w $widthoff -o sunraster -c jet -q normal -f r4 -M5/1 -r-2.5/2.5 $epoch1'_'$epoch2.disp_map.rng.swapped > $epoch1'_'$epoch2.disp_map.rng.ras
+#display $epoch1'_'$epoch2.disp_map.rng.ras
 
 
 
+cd $x
+swap_bytes IFG/$epoch1'_'$epoch2/$epoch1'_'$epoch2.cc IFG/$epoch1'_'$epoch2/$epoch1'_'$epoch2.cc.swapped 4
+swap_bytes IFG/$epoch1'_'$epoch2/$epoch1'_'$epoch2.filt.diff IFG/$epoch1'_'$epoch2/$epoch1'_'$epoch2.filt.diff.swapped 4
+cd ..
 
-
+3401
+4622
+for x in 106D_05447_131313  106D_05646_131313; do mkdir -p pokus/$x/IFG/$epoch1'_'$epoch2; cp $x/IFG/$epoch1'_'$epoch2/$epoch1'_'$epoch2.*swapped pokus/$x/IFG/$epoch1'_'$epoch2/.; cp $x/$epoch1'_'$epoch2.disp_map.rng.swapped pokus/$x/.; widthoff=`grep range_samples $x/$epoch1'_'$epoch2.fullpix.off | awk '{print $2}'`; echo $widthoff > pokus/$x/width.txt; done
 
 
 #this is not needed anymore:

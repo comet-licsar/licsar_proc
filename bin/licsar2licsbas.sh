@@ -7,6 +7,7 @@ if [ -z $1 ]; then
  echo "e.g. 155D_02611_050400 20141001 20200205"
  echo "parameters:"
  echo "-M 10 .... this will do extra (Gaussian-improved) multilooking and reunwrapping"
+ echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
  exit
 fi
 
@@ -136,12 +137,17 @@ if [ $run_jasmin -eq 1 ]; then
  echo "module load LiCSBAS" >> jasmin_run.sh
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  #include generation of outputs
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel.filt.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.mskd.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel.filt -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vel -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"/results/vstd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
- cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W 14:00 -q comet ./jasmin_run.sh"
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vstd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
+ hours=14
+ if [ $multi -eq 1 ]; then
+  hours=23
+ fi
+ cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W "$hours":00 -q comet ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
  chmod 777 jasmin_run.sh
  chmod 777 jasmin_run_cmd.sh
