@@ -520,14 +520,15 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         tocheck = slave3date.date()
     if abs(tocheck-slavedate.date()).days > maxdays_sd:
         print('time difference between RSLCs exceed max Btemp allowed for SD estimation = '+str(maxdays_sd)+' days')
-        if not rslc3override == '':
-            print('trying to override the bursts check - but expect problems..')
-            slave3date = rslc3override
+        if not eidp:
+            print('skipping')
+            os.remove(slaveLockFile)
+            return 1
         else:
-            if not eidp:
-                print('skipping')
-                os.remove(slaveLockFile)
-                return 1
+            if not rslc3override == '':
+                print('trying to override the bursts check - but expect problems..')
+                slave3date = rslc3override
+    
     #Get sorted list of swaths
     swathlist = [x[0].split('_')[1] for x in masterbursts]
     swathlist = set(swathlist)

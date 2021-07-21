@@ -96,18 +96,27 @@ function prepare_landmask() {
         maskmin=`gdalinfo -stats $maskfile 2>/dev/null | grep ICS_MINIMUM | cut -d '=' -f2`
         if [ $maskmin -eq 0 ]; then
             #resample to the AOI (fix for the missing bursts etc.)
+            tmpfile1=$infile.temp.nc
+            gmt grdedit -T $infile -G$tmpfile1
+            gmt grdedit -T -R$tmpfile1 $maskfile -G$filedir/tempmask.nc
             #gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
             #not working well! skipping
-            gmt grdconvert $maskfile $filedir/tempmask.nc
+            #gmt grdconvert $maskfile $filedir/tempmask.nc
             #gmt grdcut -N -R$unw_tif -Gtempmask.nc $maskfile 2>/dev/null
             if [ -f $filedir/tempmask.nc ]; then
                 #echo "will apply landmask"
                 masknc=$filedir/tempmask.nc 
                 landmask=1
             fi
+            
         fi
     fi
     if [ $landmask -eq 1 ]; then
+      gmt grdmath $tmpfile1 $masknc MUL 0 NAN = $filedir/tempmasked.nc
+      ls $filedir/tempmasked.nc
+      rm $masknc 2>/dev/null
+    fi
+    if [ $landmask -eq 2 ]; then
         #should apply landmask  -  file $maskfile
         rm $filedir/tempmasked.nc 2>/dev/null
         gmt grdclip $infile -G$filedir/tempinfile1.nc -SrNaN/0
@@ -128,9 +137,12 @@ function prepare_landmask() {
         ls $filedir/tempmasked.nc
         rm $filedir/temp2.nc $filedir/tempinfile1.nc $filedir/tempmask2.nc $filedir/tempmask.nc 2>/dev/null
     fi
+    if [ ! -z $tmpfile1 ]; then
+       rm $tmpfile1 2>/dev/null
+    fi
 }
 
-
+ 
 function prepare_hillshade() {
     infile=$1
     filedir=`dirname $infile`
@@ -248,19 +260,20 @@ function create_preview_unwrapped() {
   fi
   barpng=`create_colourbar_unw $unwfile`
   minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
-  gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >unw.cpt
+  gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.unw.cpt
   if [ -z $3 ]; then
-   gmt grdimage $unwfile -Cunw.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+   gmt grdimage $unwfile -C$outfile.unw.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
    convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
    convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
    #save only the small preview..
    mv $outfile.sm.png $outfile
-   rm $barpng unw.cpt
+   rm $barpng $outfile.unw.cpt
   else
    #echo "preparing kml"
-   gmt grd2kml -Ag -Cunw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd $unwfile 2>/dev/null
+   gmt grd2kml -Ag -C$outfile.unw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd $unwfile 2>/dev/null
   fi
-  rm tempmasked.nc temphillshade.nc 2>/dev/null
+  rm $maskedfile $hillshade $outfile.unw.cpt 2>/dev/null
+  rm gmt.history 2>/dev/null
   else
     echo "Usage: create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
     echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
@@ -399,6 +412,23 @@ function correct_ifg_tides_public() {
     echo "(ext should be either diff_pha or diff_unfiltered_pha)"
     return 0
   fi
+};
+
+
+function get_master(){
+ #this should be run from a frame folder
+ if [ ! -d geo ]; then
+  #echo "please use get_master function only in frame folder, with geo"
+  return 0
+ else
+  m=`ls geo/20??????.hgt 2>/dev/null| cut -d '/' -f2 | cut -d '.' -f1`
+  if [ -z $m ]; then
+   #echo "error - missing hgt file in geo folder"
+   return 0
+  else
+   echo $m
+  fi
+ fi
 };
 
 

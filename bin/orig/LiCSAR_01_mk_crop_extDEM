@@ -103,11 +103,9 @@ function mk_dem(){
   if [ $copernicusdem -eq 1 ]; then
     # check for availability - Armenia and Azerbaijan not covered
     # https://spacedata.copernicus.eu/web/cscda/dataset-details?articleId=394198
-    if [ `echo $latmax'<'38.0 | bc -l` == 0 ] && [ `echo $latmin'>'41.0 | bc -l` == 0 ]; then
-     if [ `echo $lonmax'<'43.0 | bc -l` == 0 ] && [ `echo $lonmin'>'50.0 | bc -l` == 0 ]; then
+    if [ `echo $latmax'<'38.0 | bc -l` == 0 ] && [ `echo $latmin'>'41.0 | bc -l` == 0 ] && [ `echo $lonmax'<'43.0 | bc -l` == 0 ] && [ `echo $lonmin'>'50.0 | bc -l` == 0 ]; then
       echo "the area is not covered by Copernicus DEM - license.. using TanDEM-X 90m"
       mk_tdm2insar $dem $lonmin $lonmax $latmin $latmax
-     fi
     else
       echo "using Copernicus DEM 30m"
       mk_copdem $dem $lonmin $lonmax $latmin $latmax

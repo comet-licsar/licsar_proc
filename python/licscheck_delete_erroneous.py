@@ -44,15 +44,28 @@ print('{}/{} ifgs with errors'.format(len(ixs_err), len(errors)))
 errors_to_delete = [1, 2, 3, 7]
 errors_to_delete = [7]
 errors_to_delete = [1, 2, 3, 4, 6, 7]
-epochs = set()
+
+
+epochs = []
+#epochstodel = []
 print('removing those of errors {}'.format(errors_to_delete))
 for error in errors_to_delete:
     ixs_err = np.where(errors==error)[0]
     for ix_err in ixs_err:
         print(dates[ix_err])
         for epoch in dates[ix_err].split('_'):
-            epochs.add(epoch)
+            epochs.append(epoch)
+        #delete ifgs
         os.system('remove_from_lics.sh {0} {1}'.format(frame,dates[ix_err]))
+
+#delete only those that appear at least..3 times
+#epochstodel.sort()
+for epoch in set(epochs):
+    if epochs.count(epoch) > 2:
+        print('removing epoch '+epoch)
+        os.system('remove_from_lics.sh {0} {1}'.format(frame,epoch))
+
+exit()
 
 procdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current'
 tr=str(int(frame[:3]))

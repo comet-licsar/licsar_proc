@@ -336,7 +336,7 @@ def make_snaphu_conf(sdir, defomax = 1.2):
     return snaphuconffile
 
 
-def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', prevest = None):
+def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', thres = 0.35, prevest = None, outtif = None):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms',pair)
@@ -394,7 +394,6 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', p
     #mask it ... this worked ok here:
     #thres = 0.5
     #gmmm.... it works better if i use the 'trick on gauss of normalised ifg....'
-    thres = 0.35
     ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).fillna(0)
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     #try without modal filter..
@@ -504,7 +503,14 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', p
     #ifg_ml['resid_'].plot()
     #now the unw will have the residual phase added back
     ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml[daname]
-    
+    if outtif:
+        ifg_ml['unw'].to_netcdf(outtif+'.nc')
+        rc = os.system('gmt grdconvert -G{0}=gd:GTiff -R{1} {0}.nc'.format(outtif, ifg_pha_file))
+        rc = os.system('source {0}/lib/LiCSAR_bash_lib.sh; create_preview_unwrapped {1} {2}'.format(os.environ['LiCSARpath'], outtif, frame))
+        try:
+            os.remove(outtif+'.nc')
+        except:
+            print('ERROR removing the nc file - something wrong with export')
     return ifg_ml
 
 

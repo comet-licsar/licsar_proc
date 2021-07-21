@@ -83,7 +83,7 @@ echo "gmt grdfill temp/ifg.masked.tofill.nc -An -Gtemp/pha1.filled.nc"
 echo "but now we just put zeroes, as (the new) snaphu seems ok with it"
 #gmt grdfill temp/ifg.masked.tofill.nc -Ac0 -Gtemp/pha1.filled.nc
 gmt grdmath -N temp/ifg.masked.tofill.nc 0 DENAN = temp/pha1.filled.nc
-
+ 
 #it sometimes fails with memory.. why???
 if [ ! -f temp/pha1.filled.nc ]; then
  echo "fill nans by zeroes failed - using that long NN filling"
@@ -138,10 +138,12 @@ EOF
 
 python3 unw2nc.py 
 
-#make preview
-create_preview_unwrapped unw1.nc $frame
-gmt grdconvert -G$outunw=gd:GTiff unw1.nc
-mv unw1png `echo $outunw | rev | cut -c 4- | rev`png
+#save and make preview
+#create_preview_unwrapped unw1.nc $frame
+gmt grdedit -T -R$ifg unw1.nc # to get same extents in geo coordinates
+gmt grdconvert -G$outunw=gd:GTiff -R$ifg unw1.nc # to convert to geotiff (ye, the -R is perhaps not necessary)
+create_preview_unwrapped $outunw $frame
+#mv unw1png `echo $outunw | rev | cut -c 4- | rev`png
 cd ..; rm -r temp
 cd $heredir
 #echo "now take a look:"
