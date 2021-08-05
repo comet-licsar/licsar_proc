@@ -336,7 +336,27 @@ def make_snaphu_conf(sdir, defomax = 1.2):
     return snaphuconffile
 
 
-def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', thres = 0.35, prevest = None, outtif = None):
+def make_gacos_ifg(frame, pair, outnc):
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    for epoch in pair.split('_'):
+        epochgacos = os.path.join(geoframedir,'epochs',epoch,epoch+'.sltd.geo.tif')
+        if not os.path.exists(epochgacos):
+            return False
+    epoch1 = pair.split('_')[0]
+    epoch2 = pair.split('_')[1]
+    gacos1 = os.path.join(geoframedir,'epochs',epoch1,epoch1+'.sltd.geo.tif')
+    gacos2 = os.path.join(geoframedir,'epochs',epoch2,epoch2+'.sltd.geo.tif')
+    cmd = 'gmt grdmath {0} {1} SUB = {2}'.format(gacos2, gacos1, outnc)
+    print(cmd)
+    rc = os.system(cmd)
+    if os.path.exists(outnc):
+        return outnc
+    else:
+        print('error in GACOS processing of pair '+pair)
+        return False
+
+def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', thres = 0.35, prevest = None, remove_pha = None, gacoscorr = False, outtif = None, defomax = 1.0, add_resid = True):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms',pair)
@@ -356,6 +376,21 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', t
     origphanc = os.path.join(tmpgendir,'origpha.nc')
     origcohnc = os.path.join(tmpgendir,'origcoh.nc')
     landmasknc = os.path.join(tmpgendir,'landmask.nc')
+    # do gacos if exists
+    if gacoscorr:
+        gacoscorrfile = os.path.join(tmpgendir,'gacos.nc')
+        try:
+            gacoscorrfile = make_gacos_ifg(frame, pair, gacoscorrfile)
+        except:
+            print('error processing gacos data for pair '+pair)
+            gacoscorrfile = False
+    else:
+        gacoscorrfile = False
+    if gacoscorrfile:
+        print('GACOS data found, using to improve unwrapping')
+        ingacos = xr.open_dataset(gacoscorrfile)
+    else:
+        gacoscorr = False
     # prepare input dataset and load
     if not os.path.exists(origphanc):
         convert_tif2nc(ifg_pha_file,origphanc)
@@ -381,15 +416,20 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', t
     #ifg['origpha'] = ifg.pha
     ifg['coh'].values = incoh.z.values
     ifg['mask'].values = inmask.z.values
+    if gacoscorr:
+        ifg['gacos'] = ifg.pha
+        ifg['gacos'].values = ingacos.z.values
     inpha = ''
     incoh = ''
     inmask = ''
+    ingacos = ''
     # now doing multilooking, using coh as mag...
     #make complex from coh and pha
     ifg['cpx'] = ifg.coh.copy()
     ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
     #ifg_ml = multilook_by_gauss(ifg, ml)
     # result more or less same, but much more economic way in memory..
+    #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW!
     ifg_ml = multilook_normalised(ifg, ml)
     #mask it ... this worked ok here:
     #thres = 0.5
@@ -453,14 +493,15 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', t
         kernel = Gaussian2DKernel(x_stddev=2)
         prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
         #prevest.values = interpolate_replace_nans(prevest.values, kernel)
+        #filling other nans to 0 - this can happen if null regions are too large (larger than the kernel accepts)
         prevest.astype(np.float32).fillna(0).values.tofile(bin_pre)
         width_pre = len(prevest.lon)
         length_pre = len(prevest.lat)
         #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_CUBIC)
         resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est)
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, defomax = defomax)
     else:
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width)
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax)
     print('importing snaphu result to ifg_ml')
     binfile = outunwbin
     #toxr = ifg_ml
@@ -473,37 +514,49 @@ def process_ifg(frame, pair, procdir = os.getcwd(), ml = 10, fillby = 'gauss', t
     ifg_ml[daname].values = unw1
     #ok, so the gauss-based coh mask is not the best to do... so exporting 'all pixels'
     ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
+    #print('20210722 - testing now - using gauss-based coh mask, ignore the next message:')
     #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
     ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
-    ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
-    print('unwrap also residuals from the filtered cpx, and add to the final unw - mask only waters..')
+    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
+    ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask
+    #print('unwrap also residuals from the filtered cpx, and add to the final unw - mask only waters..')
     cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.origpha.fillna(0).where(ifg_ml.mask == 1).values)
     ifg_ml['origcpx'] = ifg_ml['gauss_cpx']
     ifg_ml['origcpx'].values = cpxarr
-    ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate()
-    incpx = 'resid_cpx'
-    binR = os.path.join(tmpdir,incpx+'.R.bin')
-    binI = os.path.join(tmpdir,incpx+'.I.bin')
-    binCPX = os.path.join(tmpdir,incpx+'.cpx.bin')
-    outunwbin = os.path.join(tmpdir,incpx+'.unw.bin')
-    binfile = outunwbin
-    daname = incpx+'.unw'
-    
-    r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binR)
-    i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binI)
-    RI2cpx(binR, binI, binCPX)
-    main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 1.4)
-    unw1 = np.fromfile(binfile,dtype=dtype)
-    unw1 = unw1.reshape(ifg_ml.pha.shape)
-    ifg_ml[daname] = ifg_ml['pha'].copy()
-    ifg_ml[daname].values = unw1
-    ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
-    ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
-    #ifg_ml['resid_'].plot()
-    #now the unw will have the residual phase added back
-    ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml[daname]
+    if add_resid:
+        print('unwrapping residuals and adding back to the final unw output')
+        ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate()
+        incpx = 'resid_cpx'
+        binR = os.path.join(tmpdir,incpx+'.R.bin')
+        binI = os.path.join(tmpdir,incpx+'.I.bin')
+        binCPX = os.path.join(tmpdir,incpx+'.cpx.bin')
+        outunwbin = os.path.join(tmpdir,incpx+'.unw.bin')
+        binfile = outunwbin
+        daname = incpx+'.unw'
+        #
+        r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binR)
+        i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binI)
+        RI2cpx(binR, binI, binCPX)
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 1.2)
+        unw1 = np.fromfile(binfile,dtype=dtype)
+        unw1 = unw1.reshape(ifg_ml.pha.shape)
+        ifg_ml[daname] = ifg_ml['pha'].copy()
+        ifg_ml[daname].values = unw1
+        ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
+        print('debug - avoiding median correction now')
+        #ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
+        print('again, masking the final product by gauss coh threshold')
+        ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
+        #ifg_ml['resid_'].plot()
+        #now the unw will have the residual phase added back
+        ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml[daname]
+    if gacoscorr:
+        #we have removed GACOS estimate from unw, now time to add it back!
+        ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml['gacos']
+        ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['unw'].median()
     if outtif:
+        #ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
+        #ifg_ml['unw'].to_netcdf(outtif+'.nc')
         ifg_ml['unw'].to_netcdf(outtif+'.nc')
         rc = os.system('gmt grdconvert -G{0}=gd:GTiff -R{1} {0}.nc'.format(outtif, ifg_pha_file))
         rc = os.system('source {0}/lib/LiCSAR_bash_lib.sh; create_preview_unwrapped {1} {2}'.format(os.environ['LiCSARpath'], outtif, frame))
@@ -660,8 +713,17 @@ def multilook_normalised(ifg, ml = 10):
     #downsample mask
     if ml > 1:
         ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max()
+        if 'gacos' in ifg.variables:
+            ifg_ml['gacos'] = ifg.gacos.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()
     else:
         ifg_ml['mask'] = ifg.mask
+        if 'gacos' in ifg.variables:
+            ifg_ml['gacos'] = ifg.gacos
+    #here removing gacos, prior to further filtering
+    if 'gacos' in ifg_ml.variables:
+        ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
+        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+        ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
     cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
@@ -676,16 +738,21 @@ def multilook_normalised(ifg, ml = 10):
     return ifg_ml
 
 
+def wrap2phase(A):
+    return np.angle(np.exp(1j*A))
+
+
 import time
 
-def cascade_unwrap(frame, pair, procdir = os.getcwd()):
+def cascade_unwrap(frame, pair, procdir = os.getcwd(), outtif = None):
     print('performing cascade unwrapping')
     starttime = time.time()
-    ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss')
+    ifg_ml20 = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False)
+    ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prevest = ifg_ml20['unw'], defomax = 0.5, add_resid = False)
     #elapsed_time10 = time.time()-starttime
-    ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prevest = ifg_ml10['unw'])
-    ifg_ml3 = process_ifg(frame, pair, procdir = procdir, ml = 3, fillby = 'gauss', prevest = ifg_ml5['unw'])
-    ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml3['unw'])
+    ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = False)
+    ifg_ml3 = process_ifg(frame, pair, procdir = procdir, ml = 3, fillby = 'gauss', prevest = ifg_ml5['unw'], defomax = 0.6, add_resid = False)
+    ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml3['unw'], defomax = 1.0, add_resid = True, outtif=outtif)
     elapsed_time = time.time()-starttime
     hour = int(elapsed_time/3600)
     minite = int(np.mod((elapsed_time/60),60))

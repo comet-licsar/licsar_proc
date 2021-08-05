@@ -3,6 +3,7 @@
 #module load licsar_proc #or _testing
 curdir=$LiCSAR_procdir
 
+dryrun=0; lastdays=365
 setupmasterextra=''
 outres=0.001
 r=20
@@ -17,14 +18,19 @@ then
  echo "parameters:"
  echo " -H - do master in highest resolution (r=1, a=1)"
  echo " -D /path/to/dem.tif - use custom DEM - you may want to use gdal_merge.py -a_nodata -32768 .."
+ echo " -V 365 would only output possible master epoch candidates..for last 365 days"
  exit
 fi
 
-while getopts ":H:D" option; do
+while getopts ":H:D:V" option; do
  case "${option}" in
   H) a=1; r=1; outres=0.0001; echo "high resolution option enabled"
      ;;
   D) setupmasterextra="-D "$2;
+     shift
+     ;;
+  V) dryrun=1;
+     lastdays=$2;
      shift
      ;;
  esac
@@ -59,6 +65,13 @@ if [ $a == 1 ]; then
      echo "rglks = 1" > local_config.py
      echo "azlks = 1" >> local_config.py
      echo "outres = 0.0001" >> local_config.py
+fi
+
+if [ $dryrun -gt 0 ]; then
+ #lastdays=365
+ echo "Finding master candidates in last "$lastdays" days."
+ LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -V $lastdays -r $r -a $a -o $outres $setupmasterextra
+ exit
 fi
 
 echo "Setting the master image and DEM for frame "$frame

@@ -587,10 +587,15 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
         f=open(eventfile, "w")
         newline = "<a href='{0}'>USGS info on {1}</a> <br /> \n".format(event.url, event.id)
         f.write(newline)
-        newline = "<a href='{0}'>USGS kml file</a> <br /> \n".format(event.getDetailURL().replace('geojson','kml'))
-        f.write(newline)
+        try:
+            newline = "<a href='{0}'>USGS kml file</a> <br /> \n".format(event.getDetailURL().replace('geojson','kml'))
+            f.write(newline)
+        except:
+            print('no KML exists for this event')
         f.close()
     frames = get_frames_in_event(event, radius)
+    print('selected frames are:')
+    print(frames)
     if len(frames) == 0:
         print('No frames are available for the event {0}'.format(event.id))
         return False

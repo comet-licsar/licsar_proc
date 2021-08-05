@@ -28,6 +28,7 @@ Display the version
 
 LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -D <path to custom DEM (tif)> -A]
   (parameter -A or --automaster : will attempt to get a master date automatically)
+  (parameter -V XXX would perform a dryrun, i.e. only check for possible appropriate masters, from the dataset since last XXX days)
   (parameter -e would mean allowing also latest images to become master - useful for earthquake responder)
   (parameter -D for custom DEM in tif format - e.g. download ALOS World 3D tiles and merge them by gdal_merge.py -o out.tif -of GTiff -a_nodata -32768 *.tif)
 """
@@ -113,11 +114,13 @@ def main(argv=None):
     days_limit = 150
     days_limit_POD = 22
     customdem = ''
-
+    dryrun = False
+    autodownload = False
+    
 ############################################################ Parse argument list
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhf:d:j:m:a:r:o:A:D:e:", ["version", "help","automaster"])
+            opts, args = getopt.getopt(argv[1:], "vhf:V:d:j:m:a:r:o:A:D:e:", ["version", "help","automaster"])
         except getopt.error as msg:
             raise Usage(msg)
         for p, a in opts:
@@ -135,10 +138,14 @@ def main(argv=None):
                 procdir = a
             elif p == '-D':
                 customdem = a
+            elif p == '-V':
+                days_limit = int(a)
+                dryrun = True
             elif p == '-j':
                 job_id = int(a)
             elif p == '-m':
                 masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
+                autodownload = True
             elif p == '-A' or p == '--automaster':
                 automaster = 1
             elif p == '-a':
@@ -174,7 +181,8 @@ def main(argv=None):
 
 ############################################################ Make sure processing directory exists
     if not os.path.exists(procdir):
-        os.mkdir(procdir)
+        if not dryrun:
+            os.mkdir(procdir)
 
 ############################################################ Check frame exists
     if framename:
@@ -214,6 +222,7 @@ def main(argv=None):
             rc = 1
             frameburstlist = lq.get_bursts_in_frame(framename)
             framebursts = pd.DataFrame.from_records(frameburstlist)[0].to_list()
+            cands = []
             for m in sorted(list(dates)):
                 #master should be from files with POD (<3 weeks) and available (>90 days... or just 'days_limit')
                 #but if we focus on earthquake response, we may use the latest ones also for master - so lets try
@@ -223,7 +232,11 @@ def main(argv=None):
                     print('Checking {0} date as master'.format(masterdate))
                     filelist = lq.get_frame_files_period(framename,masterdate,masterdate)
                     rc = check_master_bursts(framename,frameburstlist,masterdate,[masterdate],lq)
-                    if rc == 1:
+                    if dryrun == True and rc == 0:
+                        cands.append(str(masterdate))
+                        #print('master candidates: '+str(masterdate))
+                        rc = 1
+                    if rc == 1 and not dryrun:
                         masterfiles = s1data.get_images_for_frame(framename, masterdate-timedelta(days=1), masterdate+timedelta(days=1))
                         if len(masterfiles) > len(filelist):
                             print('checking for possible cross-relorb problem')
@@ -237,10 +250,15 @@ def main(argv=None):
                                             #print('checking burst {}'.format(mburst))
                                             if fc.check_and_fix_burst(mburst, framebursts):
                                                 print('WARNING - burst definitions changed. if the init script fails, please rerun it')
+            if dryrun:
+                print('master candidates: ')
+                print(cands)
+                return 1
             if rc == 0:
                 print('\nContinuing with the selected date {0} as master'.format(masterdate))
             else:
-                print('\nAutomatic selection of master failed')
+                if not dryrun:
+                    print('\nAutomatic selection of master failed')
                 return 1
         else:
             print('\nNo master date given. Please use the -m option to define one of these choices for the master:\n{0}'.format(', '.join([m.strftime('%Y%m%d') for m in sorted(list(dates)) if m != masterdate])), file=sys.stderr)
@@ -253,8 +271,11 @@ def main(argv=None):
 ############################################################ Get Frame image
     print('\nUnzipping, converting and merging image files for master {0}...'.format(masterdate))
     imburstlist = lq.get_frame_bursts_on_date(framename,masterdate)
-    rc = make_frame_image(masterdate,framename,imburstlist,procdir, lq,job_id)
-
+    rc = make_frame_image(masterdate,framename,imburstlist,procdir, lq,job_id, autodownload = autodownload)
+    if rc != 0:
+        print('error initialising frame reference')
+        return 1
+    
     reportfile = os.path.join(procdir,'{0}-setup_master-report.txt'.format(framename))
     starttime = dt.datetime.now()
 
@@ -322,7 +343,7 @@ def main(argv=None):
     demdir = os.path.join(procdir,'DEM')
     masterslcdir = os.path.join(slcdir,masterdate.strftime('%Y%m%d'))
     rslcdir = os.path.join(procdir,'RSLC')
-
+    
 ############################################################ Geocode the master
     print('\n\n')
     rc = geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,gc.outres)

@@ -17,6 +17,15 @@ def download(uuid, slcdir):
     rc = scihub.download(uuid, slcdir)
     return rc
 
+def download_asf(filename, slcdir = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC', ingest = False):
+    # slcdir = os.environ['LiCSAR_SLC']
+    wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_alaska'
+    cmd = 'cd {0}; {1} {2}'.format(slcdir, wgetpath, filename)
+    rc = os.system(cmd)
+    if ingest:
+        filepath = os.path.join(slcdir,filename)
+        os.system('arch2DB.py -f '+filepath)
+    return rc
 
 def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     print('performing data discovery using ASF server')

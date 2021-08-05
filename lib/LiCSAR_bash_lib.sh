@@ -142,6 +142,28 @@ function prepare_landmask() {
     fi
 }
 
+function prepare_geo_56m() {
+   if [ ! -z $1 ]; then
+    framepath=$1
+    frame=`basename $framepath`
+    #this will work for outres=0.0005
+    #e.g. framepath=/home/home02/earmla/licsar/eq/frames/$frame
+    demdir=$framepath/DEM
+    geodir=$framepath/geo
+    master=`ls $geodir/20??????.hgt | rev | cut -d '/' -f1 | rev | cut -d '.' -f1`
+    masterdir=$framepath/RSLC/$master
+    mv $geodir $geodir'.backup_lowres'
+    mkdir $geodir
+    python3 -c "import datetime as dt; from LiCSAR_lib.coreg_lib import geocode_dem; a='"$master"'; masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8])); \
+geocode_dem('"$masterdir"','"$geodir"','"$demdir"','"$procdir"',masterdate,0.0005)"
+   else
+    echo "Usage: prepare_geo_56m full_path_to_framedir"
+    echo "e.g. $LiCSAR_public/51/051x_..."
+    echo "this function will just generate geo folder that will have 56m resolution lookup tables for geocoding to that resolution.."
+    return 0
+  fi
+}
+
  
 function prepare_hillshade() {
     infile=$1
@@ -264,7 +286,8 @@ function create_preview_unwrapped() {
   if [ -z $3 ]; then
    gmt grdimage $unwfile -C$outfile.unw.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
    convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
-   convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity southwest -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
+   if [ `echo $frame | cut -c 4` == 'A' ]; then grav='southeast'; else grav='southwest'; fi
+   convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
    #save only the small preview..
    mv $outfile.sm.png $outfile
    rm $barpng $outfile.unw.cpt

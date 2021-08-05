@@ -102,7 +102,9 @@ gdal_merge.py -of GTiff -o ${output}.tif `ls *_DEM.tif`
   #geoid_height=0
   #srtm2dem ${output}.tif ${output}.dem ${output}.dem_par $geoid_height
   # 06/2021: importing DEM using dem_import, Copernicus DEM needs conversion from EGM2008 to WGS-84 ellipsoid heights, so..:
-  dem_import ${output}.tif ${output}.dem ${output}.dem_par 0 1 $DIFF_HOME/scripts/egm2008-5.dem $DIFF_HOME/scripts/egm2008-5.dem_par 0
+  #dem_import ${output}.tif ${output}.dem ${output}.dem_par 0 1 $DIFF_HOME/scripts/egm2008-5.dem $DIFF_HOME/scripts/egm2008-5.dem_par 0
+  #07/2021: using higher resolution egm2008 correction - as found by Scott Watson in: http://download.agisoft.com/geoids/egm2008-1.tif
+  dem_import ${output}.tif ${output}.dem ${output}.dem_par 0 1 ${dems_dir}/egm2008-1.dem ${dems_dir}/egm2008-1.dem_par 0
 #fi
 
 #rm -f ASTGTM*.tif

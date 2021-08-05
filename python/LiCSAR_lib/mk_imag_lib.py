@@ -12,6 +12,7 @@ import shutil
 import sys
 import datetime as dt
 import numpy as np
+import s1data as s1
 # import datetime as dt
 import subprocess as subp
 from glob import glob
@@ -356,7 +357,7 @@ def check_missing_bursts( burstlist, missingbursts ):
 #Make frame image function
 ################################################################################
 def make_frame_image( date, framename, burstlist, procdir, licsQuery,
-        job_id=-1, acqMode='iw' ):
+        job_id=-1, acqMode='iw', autodownload = False ):
     """ 
     Process the files for the given date
     In:
@@ -427,6 +428,27 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             return 2
         filelist = filelist2
     #raise Usage("DEBUG")
+    if autodownload:
+        outdir=os.environ['LiCSAR_SLC']
+        i = -1
+        #somebody likes tuples.. i dont. at least convert to list of lists
+        flist = []
+        for f in filelist:
+            flist.append(list(f))
+        filelist = flist
+        for f in filelist:
+            i = i+1
+            if not os.path.exists(f[2]):
+                print('downloading '+f[1])
+                filename=f[1]+'.zip'
+                rc = s1.download_asf(filename, slcdir = os.environ['LiCSAR_SLC'], ingest = True)
+                newpath = os.path.join(os.environ['LiCSAR_SLC'], filename)
+                if not os.path.exists(newpath):
+                    print('ERROR downloading file needed for initialisation, cancelling')
+                    return 2
+                # change the record in the filelist ... as list... NOT as tuples..
+                filelist[i][2] = newpath
+    
 ############################################################ Build Frame
     if read_files( filelist, slcdir, date, procdir, licsQuery, job_id, acqMode ):
         # Only do if read_files does not return False, i.e. hits
