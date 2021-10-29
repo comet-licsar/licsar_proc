@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import LiCSquery as lq
 import os
 import datetime as dt
 from sentinelsat.sentinel import SentinelAPI
@@ -11,11 +10,24 @@ import requests
 #here is the nostdout function:
 from LiCSAR_misc import *
 
+def get_info_pd(fileid = 'S1A_IW_SLC__1SDV_20210908T235238_20210908T235305_039597_04AE3C_4CA7', returncol = None):
+    filename = fileid+'.SAFE'
+    scihub_user, scihub_pass, scihub_url = get_scihub_creds()
+    scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
+    info = scihub.query(filename = filename)
+    info = scihub.to_dataframe(info)
+    if not returncol:
+        return info
+    else:
+        return info[returncol]
+
+
 def download(uuid, slcdir):
     scihub_user, scihub_pass, scihub_url = get_scihub_creds()
     scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
     rc = scihub.download(uuid, slcdir)
     return rc
+
 
 def download_asf(filename, slcdir = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC', ingest = False):
     # slcdir = os.environ['LiCSAR_SLC']
@@ -60,8 +72,13 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     if enddate > (dt.date.today() - dt.timedelta(days=1)):
         asf = False
         print('checking the latest data - using only scihub')
-    #sensType = 'IW'
+    #check/update sensType
+    if sensType == 'IW':
+        if frameName.split('_')[1]=='SM':
+            print('the frame is a stripmap')
+            sensType = 'SM'
     #nmax = 100
+    import LiCSquery as lq
     footprint = lq.get_wkt_boundaries(frameName)
     ascdesc = frameName[3]
     if ascdesc == 'D': ascdesc = 'DESCENDING'
@@ -70,15 +87,23 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     #startdate = dt.datetime.strptime(startdate,'%Y%m%d').date()
     result = None
     images = None
+    track1=track-1
+    track2=track+1
+    if track2 == 176:
+        track2 = 1
+    if track1 == 0:
+        track1 = 175
     if outAspd or not asf:
         #print('warning, we use outAspd only for EIDP')
         #print('to avoid complications, the search will be performed only through scihub')
         try:
+            #use also +-1 track
+
             scihub_user, scihub_pass, scihub_url = get_scihub_creds()
             scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
             result = scihub.query(footprint, date = (startdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d')), \
                          platformname = 'Sentinel-1', producttype = 'SLC', \
-                         relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
+                         relativeorbitnumber = {track1, track, track2}, sensoroperationalmode = sensType, orbitdirection = ascdesc)
             if outAspd:
                 images = scihub.to_dataframe(result)
             else:
@@ -97,7 +122,7 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
                 scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
                 result = scihub.query(footprint, date = (startdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d')), \
                              platformname = 'Sentinel-1', producttype = 'SLC', \
-                             relativeorbitnumber = str(track), sensoroperationalmode = sensType, orbitdirection = ascdesc)
+                             relativeorbitnumber = {track1, track, track2}, sensoroperationalmode = sensType, orbitdirection = ascdesc)
                 df = scihub.to_dataframe(result)
                 images = df['title'].values.tolist()
             except:
@@ -124,8 +149,10 @@ def get_scihub_creds():
     return scihub_user, scihub_pass, scihub_url
 
 
-def get_neodc_path_images(images):
-    #should work for both one image or image_list
+def get_neodc_path_images(images, file_or_meta = False):
+    '''
+    work for both one image or image_list
+    '''
     imlist = images
     neodc_paths = []
     if str(type(images)).split("'")[1] == 'str':
@@ -140,13 +167,23 @@ def get_neodc_path_images(images):
             sensType='SM'
         else:
             sensType='IW'
-        if dt.datetime.strptime(year+mon+day,'%Y%m%d') >= dt.datetime.strptime('20190625','%Y%m%d'):
-            vers='3'
-        else:
-            vers='2'
+        name = image.split('.')[0]
+        try:
+            import LiCSquery as lq
+            ipf = lq.get_ipf(name)
+            vers = str(int(ipf.split('.')[0]))
+        except:
+            if dt.datetime.strptime(year+mon+day,'%Y%m%d') >= dt.datetime.strptime('20190625','%Y%m%d'):
+                vers='3'
+            else:
+                vers='2'
         neodcpath = os.path.join('/neodc/sentinel1'+AorB,'data',sensType,'L1_SLC/IPF_v'+vers,year,mon,day,image+'.zip')
+        if file_or_meta:
+            if not os.path.exists(neodcpath):
+                neodcpath = neodcpath.replace('.zip','.metadata_only.zip')
         neodc_paths.append(neodcpath)
     return neodc_paths
+
 
 def import_to_licsinfo(images, meta = True):
     #output is list of files to be downloaded
@@ -175,7 +212,8 @@ def import_to_licsinfo(images, meta = True):
                 todown.append(os.path.basename(imagepath))
     return todown
 
-def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), meta = True):
+
+def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), meta = True, reingest = False):
     print('Checking S1 images available on /neodc and importing them to licsinfo database')
     if frameName.split('_')[1] == 'SM':
         sensType = 'SM'
@@ -189,6 +227,10 @@ def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20
         return None
     print('Checking and importing to LiCSInfo database')
     #with nostdout():
+    if reingest:
+        import framecare as fc
+        for fileid in images:
+            fc.reingest_file(fileid)
     todown = import_to_licsinfo(images, meta)
     if len(todown)>0:
         print('Summary: There are '+str(len(todown))+' images that were physically acquired but do not exist in CEDA Archive')

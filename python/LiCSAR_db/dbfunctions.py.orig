@@ -35,8 +35,6 @@ def Conn_db():
         rc = conn.ping(reconnect=True) 
         cur.execute('SELECT VERSION();')
         res = cur.fetchone()
-        # 09/2021: closing the connection, will always reconnect in scripts..
-        conn.close()
         if not res:
             print("Error in database communication")
             return 'MYSQL ERROR'
@@ -100,7 +98,6 @@ def Conn_tunnel_db():
     cur = conn.cursor()
     cur.execute('SELECT VERSION();')
     res = cur.fetchone()
-    conn.close()  # careful here - not tested well but this should be proper way
     if not res:
         print("Error in database communication")
         return 'MYSQL ERROR'

@@ -85,7 +85,7 @@ echo finished >> ${systemfile}.finish
 
 ftp -inv 8.208.86.83 << ! > /dev/null 2>&1
 user $username $pass
-cd gacos01/inward
+cd inward
 put $systemfile
 put ${systemfile}.finish
 chmod 755 $systemfile
@@ -105,7 +105,7 @@ if [ -e ${resultfile}.finish ]; then
 
 ftp -inv 8.208.86.83 <<EOF
 user $username $pass
-cd gacos01/outward
+cd outward
 binary
 get $resultfile
 bye
@@ -117,7 +117,7 @@ fi
 sleep 10s
 ftp -inv 8.208.86.83 <<! > /dev/null 2>&1
 user $username $pass
-cd gacos01/outward
+cd outward
 get ${resultfile}.finish
 bye
 !

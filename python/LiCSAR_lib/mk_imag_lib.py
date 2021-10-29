@@ -285,6 +285,9 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='i
                     os.path.join( safedir, 'annotation', 'calibration',
                         'noise-s1*-slc-vv-*.xml')
                     )
+            # 10/2021: noise in SM files causes error in par_S1_SLC!!! we didn't check the reason, just avoiding it
+            noise = ['-']
+            print('CAREFUL - we have removed correction of thermal noise from Stripmap data, as this was causing errors')
             slcthis = os.path.join( imdirthis,
                     imdate.strftime( '%Y%m%d' ) + '.slc' )
             logfile  = os.path.join( logdir,
@@ -353,6 +356,27 @@ def check_missing_bursts( burstlist, missingbursts ):
             result = False
     return result
 
+
+def check_bursts_file(burstlist, filelist, lq):
+    blist = []
+    filelist2 = []
+    for b in burstlist:
+        blist.append(b[0])
+    for filee in filelist:
+        fid=filee[1]
+        brsts = lq.get_bursts_in_file(fid)
+        brsts = lq.sqlout2list(brsts)
+        isok = False
+        for b in brsts:
+            if b in blist:
+                isok = True
+        if isok:
+            filelist2.append(filee)
+        else:
+            print('Warning - a file seems not overlap with bursts. Removing')
+    return filelist2
+
+
 ################################################################################
 #Make frame image function
 ################################################################################
@@ -390,6 +414,9 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     imdir = os.path.join( slcdir, date.strftime( '%Y%m%d' ) )
     # Get all files containing frame bursts on current date
     filelist = licsQuery.get_frame_files_date( framename, date )
+    # check if they have correct bursts?
+    # not working.... because licsQuery is batchDBquery...yikes
+    #filelist = check_bursts_file(burstlist, filelist, licsQuery)
     # if abs_filepath has a metadataonly zip file, modify the filepath to remove
     # this part of the string to point at where the abs_filepath should actually
     # be.

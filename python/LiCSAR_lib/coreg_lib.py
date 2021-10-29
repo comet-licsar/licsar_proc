@@ -216,6 +216,46 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres
         return 6
     return 0
 
+
+def get_nomissing_rslcs(rslcCache, mstrDate, builtRslcs):
+    if type(builtRslcs) == type([]):
+        builtRslcs = pd.DataFrame(builtRslcs)
+    builtRslcs_nomissing = pd.DataFrame()
+    try:
+        masterstr = mstrDate.strftime('%Y%m%d')
+    except:
+        #in case it is already masterstr
+        masterstr = mstrDate
+    master_rslc = os.path.join(rslcCache, masterstr, masterstr+'.rslc')
+    #if os.path.exists(master_rslc):
+        #size_master = os.path.getsize(master_rslc)
+    size_master_rslcs = 0
+    for iwrslc in glob(os.path.join(rslcCache, masterstr, masterstr+'.IW?.rslc')):
+        size_iwrslc = os.path.getsize(iwrslc)
+        size_master_rslcs = size_master_rslcs + size_iwrslc
+    for i,rslcdate in builtRslcs.iterrows():
+        try:
+            rslcdate_str = pd.Timestamp(rslcdate.values[0]).strftime('%Y%m%d')
+        except:
+            #to make it work for list of epoch strings
+            rslcdate_str = rslcdate.values[0]
+        rslcfile = os.path.join(rslcCache, rslcdate_str, rslcdate_str+'.rslc')
+        #if os.path.exists(rslcfile):
+        #    size_rslc = os.path.getsize(rslcfile)
+        #    if size_rslc == size_master:
+        #        builtRslcs_nomissing = builtRslcs_nomissing.append(rslcdate)
+        size_rslcs = 0
+        # let's check sizes if there is no mosaic - e.g. if we unzipped the file from LiCSAR_procdir
+        for iwrslc in glob(os.path.join(rslcCache, rslcdate_str, rslcdate_str+'.IW?.rslc')):
+            size_iwrslc = os.path.getsize(iwrslc)
+            size_rslcs = size_rslcs + size_iwrslc
+        if size_rslcs == size_master_rslcs:
+            builtRslcs_nomissing = builtRslcs_nomissing.append(rslcdate)
+    #else:
+    #    print('ERROR - master RSLC mosaic does not exist!')
+    return builtRslcs_nomissing
+
+
 ################################################################################
 #Get DEM size function
 ################################################################################
@@ -309,8 +349,8 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     # 
     # the original script is however updated - following changes were done:
     # - the generation of interferogram has been removed
-    # - max 2 iterations for intensity matching
-    # - azimuth correction/SD is towards 0.001 and not to 0.0005
+    # - max 2 iterations for intensity matching (up to 0.01 px)
+    # - SD correction is to 0.0005 px
     # but otherwise everything is kept same and saved to S1_coreg_TOPS_noifg
     # export OMP_NUM_THREADS=1
     if not crop:
@@ -377,7 +417,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     extracmd = ' '
     if slave3datestr:
         extracmd = '--RSLC3_tab {0} --RSLC3_ID {1}'.format(slave3tab, slave3datestr)
-    cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
+    cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --no_int --no_cleaning --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
     print(cmd)
     #now this may take some 80 minutes
     rc = os.system(cmd)
@@ -385,17 +425,26 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     gamma_qual = os.path.join(procdir, masterdatestr+'_'+slavedatestr+'.coreg_quality')
     gamma_lut = os.path.join(procdir, slavedatestr+'.mli.lt')
     gamma_off = os.path.join(procdir, masterdatestr+'_'+slavedatestr+'.off')
-    pom = 0
+    gamma_coreg_results = os.path.join(procdir, masterdatestr+'_'+slavedatestr+'.results')
+    pom = 1
+    if os.path.exists(gamma_coreg_results):
+        resfile = os.path.join(procdir,'RSLC',slavedate.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.results')
+        rc = shutil.copyfile(gamma_coreg_results, resfile)
+    else:
+        print('error - the results wile does not exist: '+gamma_coreg_results)
+        #pom = 1
+    #else:
+    #    pom = 0
     if os.path.exists(gamma_off):
         offfile = os.path.join(procdir,'RSLC',slavedate.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.off')
         rc = shutil.copyfile(gamma_off,offfile)
-        pom = 1
+        #pom = 1
     else:
         pom = 0
     if os.path.exists(gamma_lut):
         lutfile = os.path.join(procdir,'RSLC',slavedate.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
         rc = shutil.copyfile(gamma_lut,lutfile)
-        pom = 1
+        #pom = 1
     else:
         print('output lut file was not generated. this happens often when SD is wrongly estimated')
         pom = 0
@@ -455,19 +504,25 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     #create slave diff list
     procslavelist = [s for s in os.listdir(rslcdir) if 
             s != masterdate.strftime( '%Y%m%d') and s != slavedate.strftime('%Y%m%d')]
-    print("Found slaves ... {0}".format(procslavelist))
+    procslavelist = get_nomissing_rslcs(rslcdir, masterdate, procslavelist)
+    if not procslavelist.empty:
+        procslavelist = procslavelist.values.transpose().tolist()[0]
+    else:
+        procslavelist = []
+    print("Found existing RSLCs with probably no missing bursts: ... {0}".format(procslavelist))
     procslavediff = [dt.datetime.strptime(s,'%Y%m%d')-slavedate for s in
                                                                     procslavelist]
     # print "proc slave diffs {0}".format(procslavediff)
     #get slave bursts
     slavebursts = lq.get_frame_bursts_on_date(framename,slavedate)
-    #get master bursts
-    try:
-        masterbursts = lq.get_frame_bursts_on_date(framename,masterdate)
-    except:
-        print('warning, cannot get list of master bursts. assuming same bursts as the secondary img..')
-        masterbursts = slavebursts
-        #i may do some more check here... like in arc_licsar.sh
+    #get master bursts - should be same as for frame!
+    masterbursts = lq.get_bursts_in_frame(framename)
+    #try:
+    #    masterbursts = lq.get_frame_bursts_on_date(framename,masterdate)
+    #except:
+    #    print('warning, cannot get list of master bursts. assuming same bursts as the secondary img..')
+    #    masterbursts = slavebursts
+    #    #i may do some more check here... like in arc_licsar.sh
 ############################################################ Find nearest (date) coregestered slave (already processed slave) to use as auxiliary
     rslc3override = ''
     cond = True
@@ -484,10 +539,10 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 slave3rslcdir = os.path.join(rslcdir,slave3date.strftime('%Y%m%d'))
                 #print(slavebursts)
                 #print(masterbursts)
-                try:
-                    slave3bursts = lq.get_frame_bursts_on_date(framename,slave3date)
-                except:
+                slave3bursts = lq.get_frame_bursts_on_date(framename,slave3date)
+                if len(slave3bursts) == 0:
                     print('warning, cannot get list of RSLC3 bursts. assuming same burst as master..')
+                    print('THIS ACTUALLY IS CONSIDERED A BUG, SO CAREFUL!')
                     slave3bursts = masterbursts
                 if os.path.exists(slave3rslcdir+slave3date.strftime('/%Y%m%d.lock')):
                         print("found lock {0}, not using date".format(slave3date))
@@ -499,9 +554,13 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 else:
                     missing = True
                 if missing: # Remove missing burst slave from list and try again
-                    procslavelist.pop(slave3ix)
-                    procslavediff.pop(slave3ix)
                     print("not valid as aux slave")
+                    if len(procslavelist)>1:
+                        procslavelist.pop(slave3ix)
+                        procslavediff.pop(slave3ix)
+                    else:
+                        cond = False
+                        print("but it is the last available - trying to keep this one, see what happens (inform Milan if it fails)")
                 else: # Accept slave
                     print("using aux slave {0}".format(slave3date))
                     cond = False
@@ -958,6 +1017,8 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
     slavebursts = lq.get_frame_bursts_on_date(framename,slavedate)
     #get master bursts
     masterbursts = lq.get_frame_bursts_on_date(framename,masterdate)
+    if not masterbursts:
+        masterbursts = lq.get_bursts_in_frame(framename)
     #Get sorted list of swaths
     swathlist = [x[0].split('_')[1] for x in masterbursts]
     swathlist = set(swathlist)

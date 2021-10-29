@@ -3,6 +3,7 @@
 # Mar 2020 - Milan Lazecky
 
 import os, glob
+import subprocess as subp
 import LiCSquery as lq
 import datetime as dt
 import fiona
@@ -12,6 +13,7 @@ from shapely.wkt import loads
 from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
 import LiCSAR_lib.LiCSAR_misc as misc
+import s1data as s1
 gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 
 pubdir = os.environ['LiCSAR_public']
@@ -35,12 +37,20 @@ def check_and_fix_burst(mburst, framebursts):
         iwf=fburst.split('_')[1]
         if iwf == iw:
             tanxf=int(fburst.split('_')[2])
-            if tanx > tanxf-4 and tanx < tanxf+4:
-                print('we probably found a cross-defined burst. fixing/merging to one')
-                print(mburst+' -> '+fburst)
-                lq.rename_burst(mburst, fburst)
-                changed = True
+            # checking in a 'relaxed' tolerance
+            if abs(tanx - tanxf) < 8:
+                # just to make sure they are both of the same pass..
+                if lq.get_orbit_from_bidtanx(fburst) == lq.get_orbit_from_bidtanx(mburst):
+                    # check if their geometries overlap
+                    fb_gpd = bursts2geopandas([fburst])
+                    mb_gpd = bursts2geopandas([mburst])
+                    if fb_gpd.overlaps(mb_gpd).values[0]:
+                        print('we (very) probably found a cross-defined burst. fixing/merging to one')
+                        print(mburst+' -> '+fburst)
+                        lq.rename_burst(mburst, fburst)
+                        changed = True
     return changed
+
 
 
 def check_and_fix_all_bursts_in_frame(frame):
@@ -54,6 +64,14 @@ def check_and_fix_all_bursts_in_frame(frame):
         filename=framefile[2]+'.zip'
         print('checking '+filename)
         mbursts = lq.sqlout2list(lq.get_bursts_in_file(filename))
+        # visual check
+        # from matplotlib import pyplot as plt
+        # bursts_gpd = bursts2geopandas(mbursts)
+        # frame_gpd = bursts2geopandas(framebursts)
+        # bursts_gpd.plot()
+        # frame_gpd.plot()
+        # plt.show()
+
         for mburst in mbursts:
             changed = check_and_fix_burst(mburst, framebursts)
             if changed:
@@ -67,6 +85,10 @@ def check_and_fix_all_bursts_in_frame(frame):
     #for fburst in framebursts:
     track = int(frame[:3]) #int(fburst.split('_')[0])
     for cant in [str(track-1), str(track), str(track+1)]:
+        if cant == '176':
+            cant = '001'
+        if cant == '0':
+            cant = '175'
         if len(cant) == 1:
             cant = '00'+cant
         if len(cant) == 2:
@@ -83,12 +105,365 @@ def check_and_fix_all_bursts_in_frame(frame):
         except:
             print('no bursts in the trackid '+trackid)
     print(str(noch)+' burst definitions changed to fit the frame burst IDs')
-    print('you may want to check and probably remove following epochs (but maybe more!), using:')
-    for fdate in fdates:
-        print('remove_from_lics.sh {0} {1}'.format(frame, fdate))
+    if noch > 0:
+        print('you may want to check following epochs:')
+        for fdate in fdates:
+            print('frame {0}: {1}'.format(frame, fdate))
+            #print('remove_from_lics.sh {0} {1}'.format(frame, fdate))
+
+'''
+check these frames:
+['149D_05278_131313', '150D_05107_131313', '150D_05306_131313', '151D_05241_131313']
+['149D_05425_060707', '150D_05306_131313', '150D_05505_131313', '151D_05440_131313']
+['149D_05278_131313', '150D_05107_131313', '150D_05306_131313', '151D_05241_131313']
+
+'''
+
+def check_and_fix_all_files_in_frame(frame):
+    t1 = '2014-10-01'
+    t2 = dt.datetime.now().date()
+    files = lq.get_frame_files_period(frame, t1, t2, only_file_title = True)
+    files = lq.sqlout2list(files)
+    i = 0
+    lenf = len(files)
+    for f in files:
+        i = i+1
+        print('['+str(i)+'/'+str(lenf)+'] checking file '+f)
+        check_bursts_in_file(f)
 
 
-def get_bidtanxs_from_xy(intxt, relorb = None):
+def check_and_fix_burst_supershifts_in_frame(frame, viewerror = True):
+    frame_wkt = lq.geom_from_polygs2geom(frame)
+    framepoly = loads(frame_wkt)
+    framepoly_gpd = gpd.GeoSeries(framepoly)
+    frame_bursts = lq.sqlout2list(lq.get_bidtanxs_in_frame(frame))
+    fgpd = bursts2geopandas(frame_bursts)
+    #b1 = fgpd.iloc[0]
+    # 4.5 degrees in WGS-84 are approx 500 km - that should be enough to compare from the frame polygon centroid
+    cluster1 = fgpd[fgpd.geometry.centroid.distance(framepoly.centroid) <= 4.5]
+    cluster2 = fgpd[fgpd.geometry.centroid.distance(framepoly.centroid) > 4.5]
+    #polyid = lq.sqlout2list(lq.get_frame_polyid(frame))[0]
+    if not cluster2.empty:
+        print('here we are - two burst clusters!')
+        # checking for the overlap anyways
+        if not framepoly.overlaps(cluster1.unary_union):
+            badbursts_gpd = cluster1
+            goodbursts_gpd = cluster2
+        elif not framepoly.overlaps(cluster2.unary_union):
+            badbursts_gpd = cluster2
+            goodbursts_gpd = cluster1
+        if viewerror:
+            print('this is how the frame should look like:')
+            framepoly_gpd.plot()
+            plt.show()
+            print('and this is how it looks with the current burst definitions')
+            vis_frame(frame)
+        #print('trying to solve it - first find one file that has the burst as bad one')
+        check_and_fix_all_files_in_frame(frame)
+        '''
+        for bid in badbursts_gpd.burstID.values:
+            filewithbidasbad = ''
+            repeat = True
+            filescheck = files.copy()
+            while repeat:
+                filewithbidasbad = ''
+                for fileid in filescheck:
+                    print(fileid)
+                    is_bid_bad_there = check_bursts_in_file(fileid, badburstfind = bid)
+                    if is_bid_bad_there == 'yes':
+                        #now check if the file has some of the good bids, i.e. if it really is part of the frame
+                        filebursts = lq.sqlout2list(lq.get_bursts_in_file(fileid))
+                        for fbur in filebursts:
+                            if fbur in goodbursts_gpd.burstID.values:
+                                filewithbidasbad = fileid
+                                break
+                        if filewithbidasbad:
+                            break
+                if not filewithbidasbad:
+                    print('no file with this burst as bad one, skipping')
+                    repeat = False
+                    continue
+                #check_bursts_in_file(filewithbidasbad)
+                lq.delete_file_from_db(filewithbidasbad, 'name')
+                #print('debug')
+                #print(filewithbidasbad)
+                filepath = s1.get_neodc_path_images(filewithbidasbad, file_or_meta = True)[0]
+                #this should regenerate the missing burst
+                outchars = ingest_file_to_licsinfo(filepath)
+                if outchars:
+                    if outchars<200:
+                        print('did not help')
+                        filescheck.remove(filewithbidasbad)
+                        repeat = True
+                    else:
+                        print('YESSS, the reingested image created new bursts!!!!!')
+                        repeat = False
+        '''
+        # now all the missing bursts probably exist, so let's try getting them in the frame overlap + check colat and exchange bids
+        minlon, minlat, maxlon, maxlat = framepoly.bounds
+        track = int(frame[:3])
+        burstcands = []
+        for relorb in [track-1, track, track+1]:
+            if relorb == 0: relorb = 175
+            if relorb == 176: relorb = 1
+            burstcandsT = lq.sqlout2list(lq.get_bursts_in_polygon(minlon, maxlon, minlat, maxlat, relorb))
+            for b in burstcandsT:
+                burstcands.append(b)
+        # now check their number etc.
+        #and if all ok, use them instead of the bad ones - replace them
+        frame_bursts_to_change = []
+        for b in frame_bursts:
+            if not b in burstcands:
+                frame_bursts_to_change.append(b)
+            else:
+                burstcands.remove(b)
+        if len(frame_bursts_to_change)>len(burstcands):
+            print('ERROR - not enough burst candidates - cannot exchange all bursts, cancelling')
+            return False
+        else:
+            #for swath in [1,2,3]:
+            frame_bursts_to_change_out = frame_bursts_to_change.copy()
+            for fb in frame_bursts_to_change:
+                print('checking burst '+fb)
+                sw = fb.split('_')[1]
+                tanx = fb.split('_')[2]
+                for bc in burstcands:
+                    if sw == bc.split('_')[1]:
+                        if abs(int(bc.split('_')[2])-int(tanx)) < 10:
+                            print('exchanging {0} -> {1}'.format(fb,bc))
+                            lq.replace_bidtanx_in_frame(frame, fb, bc)
+                            frame_bursts_to_change_out.remove(fb)
+                            burstcands.remove(bc)
+                            break
+            if len(frame_bursts_to_change_out) > 0:
+                print('ERROR - not all frame bursts were replaced - the problematic bursts are returned:')
+                print(frame_bursts_to_change_out)
+                print('potential burst candidates were:')
+                print(burstcands)
+                return [frame_bursts_to_change_out, burstcands]
+            else:
+                print('the frame was corrected properly!')
+                if viewerror:
+                    print('see yourself')
+                    vis_frame(frame)
+            #return burstcands, frame_bursts_to_change
+    else:
+        print('bursts of this frame are ok')
+        return True
+
+# to get all files that are not participating in any frame
+#sql = "select f.name from files f where f.fid not in ( select fb.fid from files2bursts fb inner join polygs2bursts pb on fb.bid=pb.bid );"
+
+import time
+def process_all_frames():
+    badtracks = []
+    for relorb in range(1,175): #,175): #   86 need to do: 97-99
+        try:
+            print('preparing track '+str(relorb+1))
+            allframes = lq.sqlout2list(lq.get_frames_in_orbit(relorb+1))
+        except:
+            print('error in relorb '+str(relorb+1))
+            badtracks.append(relorb+1)
+            continue
+        for frame in allframes:
+            print(frame)
+            time.sleep(45)
+            #just change the function here
+            try:
+                #rc = check_and_fix_burst_supershifts_in_frame(frame, viewerror = False)
+                # to process ALL FILES! (that are related to some any frame)
+                rc = check_and_fix_burst_supershifts_in_frame_files(frame, viewerror = False)
+            except:
+                print('some error during processing frame '+frame)
+    return badtracks
+
+
+'''
+#to get files that are NOT in any frames - we have now over 250k of such files!
+sql = "select f.name from files f where f.fid not in ( select fb.fid from files2bursts fb inner join polygs2bursts pb on fb.bid=pb.bid );"
+nopolyfiles = lq.do_pd_query(sql)
+i=0
+filez = nopolyfiles.name.unique()
+lenn = len(filez)
+for fileid in filez:
+    i=i+1
+    print('['+str(i)+'/'+str(lenn)+']'+fileid)
+    lq.delete_file_from_db(fileid, col = 'name')
+    filepath = s1.get_neodc_path_images(fileid, file_or_meta = True)[0]
+    chars = ingest_file_to_licsinfo(filepath)
+    print(chars)
+    #time.sleep(2)
+    #if not check_bursts_in_file(fileid):
+    #    print('error in file '+fileid)
+'''
+
+def check_and_fix_burst_supershifts_in_frame_files(frame, viewerror = False, force_reingest = True):
+    #first get all files in frame and check them one by one:
+    t1 = '2014-10-01'
+    t2 = dt.datetime.now().date()
+    files = lq.get_frame_files_period(frame, t1, t2, only_file_title = True)
+    files = lq.sqlout2list(files)
+    for fileid in files:
+        if force_reingest:
+            print('reingesting '+fileid)
+            reingest_file(fileid)
+        else:
+            if not check_bursts_in_file(fileid):
+                print('error in file '+fileid)
+                if viewerror:
+                    print('see yourself the current situation')
+                    bursts = lq.sqlout2list(lq.get_bursts_in_file(fileid))
+                    vis_bidtanxs(bursts)
+
+'''
+frame='158A_04407_191919'
+frame='070A_04843_111111''
+t1 = '2014-10-01'
+t2 = fc.dt.datetime.now().date()
+
+files = fc.lq.get_frame_files_period(frame, t1, t2, only_file_title = True)
+files = fc.lq.sqlout2list(files)
+
+for fileid in files:
+    fc.reingest_file(fileid)
+
+'''
+
+def vis_file(fileid):
+    fbursts = lq.get_bursts_in_file(fileid)
+    fbursts = lq.sqlout2list(fbursts)
+    #filegpd = bursts2geopandas(fbursts)
+    vis_bidtanxs(fbursts)
+
+
+def check_bursts_in_file(fileid = 'S1A_IW_SLC__1SDV_20210908T235238_20210908T235305_039597_04AE3C_4CA7', badburstfind = None, autocorrect = True):
+    fbursts = lq.get_bursts_in_file(fileid)
+    fbursts = lq.sqlout2list(fbursts)
+    if not fbursts:
+        print('no bursts found for this file. trying to reingest it')
+        ingest_file_to_licsinfo(fileid, False)
+        return False
+    filegpd = bursts2geopandas(fbursts)
+    b1 = filegpd.iloc[0]
+    # not perfect solution - there can be more than 2 clusters!!!!!!
+    # but now, just removing and reingesting the file should help, anyway
+    # 4.5 degrees in WGS-84 are approx 500 km - that should be enough..
+    cluster1 = filegpd[filegpd.geometry.centroid.distance(b1.geometry.centroid) <= 4.5]
+    cluster2 = filegpd[filegpd.geometry.centroid.distance(b1.geometry.centroid) > 4.5]
+    if not cluster2.empty:
+        print('here we are - two burst clusters!')
+        info = s1.get_info_pd(fileid)
+        try:
+            filepoly = loads(info.footprint.values[0])
+        except:
+            print('some error loading footprint from scihub')
+            print('(making sure things work fine - reingesting this file)')
+            filepath = s1.get_neodc_path_images(fileid, file_or_meta = True)[0]
+            chars = ingest_file_to_licsinfo(filepath)
+            return True
+        if not filepoly.overlaps(cluster1.unary_union):
+            badbursts_gpd = cluster1
+        elif not filepoly.overlaps(cluster2.unary_union):
+            badbursts_gpd = cluster2
+        else:
+            print('weird - both clusters overlap with the original file')
+            print('(making sure things work fine - reingesting this file)')
+            filepath = s1.get_neodc_path_images(fileid, file_or_meta = True)[0]
+            chars = ingest_file_to_licsinfo(filepath)
+            return False
+        if badburstfind:
+            if badburstfind in badbursts_gpd.burstID.values:
+                print('this burst is indeed in badbursts')
+                return 'yes'
+            else:
+                return 'no'
+        if not autocorrect:
+            return badbursts_gpd
+        else:
+            allremoved = True
+            for bid in badbursts_gpd.burstID.values:
+                frames = lq.sqlout2list(lq.get_frames_with_burst(bid))
+                print('checking '+bid)
+                #print(frames)
+                if len(frames) == 0:
+                    print('no frame is using this burst ID. as it is a bad burst, will remove it now, including files that use it')
+                    files2remove = lq.sqlout2list(lq.get_filenames_from_burst(bid))
+                    print('removing and reingesting file {}'.format(str(len(files2remove))))
+                    for ff in files2remove:
+                        lq.delete_file_from_db(ff, col = 'name')
+                        filepath = s1.get_neodc_path_images(ff, file_or_meta = True)[0]
+                        chars = ingest_file_to_licsinfo(filepath)
+                    print('removing the bad burst '+bid)
+                    rc = lq.delete_burst_from_db(bid)
+                else:
+                    #print('this burst is used in following frame(s):')
+                    #print(frames)
+                    allremoved = False
+                    # ye.. or better append and remove dup. but who cares..
+                    badframes = frames
+            if allremoved:
+                print('bad bursts are cleaned! reingesting the file')
+            else:
+                print('not all bad bursts removed from the database - but reingesting the file to fix it')
+                print('SOME of frames still using a bad burst:')
+                print(badframes)
+            lq.delete_file_from_db(fileid, col = 'name')
+            filepath = s1.get_neodc_path_images(fileid, file_or_meta = True)[0]
+            chars = ingest_file_to_licsinfo(filepath)
+            return True
+    else:
+        print('bursts of this file are ok')
+        return True
+
+'''
+filez=filez[4514:]
+lenn = len(filez)
+i=0
+badones = []
+for fileid in filez.name.values:
+    i=i+1
+    print('['+str(i)+'/'+str(lenn)+'] '+fileid)
+    if 'IW' in fileid:
+        try:
+            reingest_file(fileid)
+        except:
+            print('error with '+fileid)
+            badones.append(fileid)
+        
+        
+    time.sleep(5)
+    if not check_bursts_in_file(fileid):
+        print('error in file '+fileid)
+
+'''
+
+def reingest_file(fileid):
+    rc = lq.delete_file_from_db(fileid, col = 'name')
+    chars = ingest_file_to_licsinfo(fileid, False)
+    return chars
+
+
+def ingest_file_to_licsinfo(filepath, isfullpath = True):
+    if not isfullpath:
+        filepath = s1.get_neodc_path_images(filepath, file_or_meta = True)[0]
+    if not os.path.exists(filepath):
+        print('ERROR - this file does not exist')
+        return False
+    else:
+        #cmd = 'arch2DB.py -f {} >/dev/null 2>/dev/null'.format(filepath)
+        #cmd = 'arch2DB.py -f {}'.format(filepath)
+        #rc = os.system(cmd)
+        aaaa = subp.check_output(['arch2DB.py','-f',filepath])
+        return len(aaaa)
+
+
+def get_bidtanxs_from_xy(lon,lat,relorb=None,swath=None, tol=0.05):
+    bursts = lq.get_bursts_in_xy(lon,lat,relorb,swath,tol)
+    bursts = lq.sqlout2list(bursts)
+    return bursts
+
+
+def get_bidtanxs_from_xy_file(intxt, relorb = None):
     if not os.path.exists(intxt):
         print('ERROR, the file does not exist')
         return False
@@ -143,12 +518,14 @@ def vis_aoi(aoi):
     plt.xlim([bounds.minx.min()-2, bounds.maxx.max()+2])
     plt.ylim([bounds.miny.min()-2, bounds.maxy.max()+2])
     plt.grid(color='grey', linestyle='-', linewidth=0.2)
+    plt.show()
 
 def vis_bidtanxs(bidtanxs):
     tovis = []
     for bid in bidtanxs:
         tovis.append(lq.get_polygon_from_bidtanx(bid))
     vis_aoi(tovis)
+
 
 def vis_frame(frame):
     ai = lq.get_bursts_in_frame(frame)
@@ -161,6 +538,7 @@ def extract_bursts_by_track(bidtanxs, track):
         if bidtanx.split('_')[0] == str(track):
             newbids.append(bidtanx)
     return newbids
+
 
 def bursts2geopandas(bidtanxs, merge = False):
     # in order to export to KML:
@@ -697,6 +1075,27 @@ def get_all_frames():
     return asc_gpd, desc_gpd
 
 
+def manual_check_master_files(frame, master):
+    if type(master) == type('str'):
+        masterdate=dt.datetime.strptime(master,'%Y%m%d')
+    else:
+        masterdate=master
+    filelist = lq.get_frame_files_date(frame,masterdate)
+    print(len(filelist))
+    for filee in filelist:
+        fid=filee[1]
+        brsts = lq.get_bursts_in_file(fid)
+        brsts = lq.sqlout2list(brsts)
+        b=bursts2geopandas(brsts)
+        print(filee[2])
+        b.plot()
+        plt.show()
+    print('to fix the bad ones:')
+    print('fullpath = ....')
+    print('lq.delete_file_from_db(fullpath)')
+    print("os.system('arch2DB.py -f {} >/dev/null 2>/dev/null'.format(fullpath))")
+
+
 def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/frames/'):
     asc_gpd, desc_gpd = get_all_frames()
     if os.path.exists(os.path.join(kmldirpath,'ascending.kml')):
@@ -734,8 +1133,8 @@ def delete_frame(frame):
     except:
         print('error in deleting from esd table')
     #os.system(cmd_mysql+' -e "{}"'.format(sql))
-    frame_workaround = frame.replace('A','X')
-    frame_workaround = frame_workaround.replace('D','X')
+    frame_workaround = frame.replace('A','Y')
+    frame_workaround = frame_workaround.replace('D','Y')
     sql = "update polygs set polyid_name='{0}' where polyid_name='{1}';".format(frame_workaround, frame)
     rc = lq.do_query(sql, 1)
     #os.system(cmd_mysql+' -e "{}"'.format(sql))

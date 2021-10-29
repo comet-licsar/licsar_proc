@@ -58,6 +58,20 @@ else
    exit 1
 fi
 
+ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f1 > $frame.inp.tmp
+ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f2 >> $frame.inp.tmp
+sort -u $frame.inp.tmp >$frame.inp.tmp2
+for epoch in `cat $frame.inp.tmp2`; do
+    if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.ztd.geo.tif ]; then
+     echo $epoch >> $frame.inp
+    fi
+done
+rm $frame.inp.tmp $frame.inp.tmp2
+
+exit
+
+
+
 if [ -f $prod_dir/$track/$frame/metadata/baselines ]; then
    for epoch in `awk '{print $2}' $prod_dir/$track/$frame/metadata/baselines`; do
     if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.ztd.geo.tif ]; then

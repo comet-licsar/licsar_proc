@@ -7,6 +7,8 @@ import requests
 import LiCSquery as lq
 from datetime import datetime, timedelta
 from batchEnvLib import get_rslc_list
+import glob
+import pandas as pd
 
 public_path = os.environ['LiCSAR_public']
 framelistfile = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/active_frames.txt'
@@ -51,6 +53,29 @@ def get_frames_from_kml(filename = 'WeeklyVolcanoGE-Reports.kml'):
                 frames_set.add(frame)
     return list(frames_set)
 
+def update_framelist_fabien(volcdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/list_database'):
+    volcfiles = glob.glob(os.path.join(volcdir,'*volcano*txt'))
+    framefiles = []
+    for volc in volcfiles:
+        framef = volc.replace('volcano','frame')
+        print('updating '+framef)
+        framefiles.append(framef)
+        if os.path.exists(framef):
+            os.remove(framef)
+        volcs = pd.read_csv(volc,sep=r'\s+',header=None)
+        allframes = []
+        for i,v in volcs.iterrows():
+            lat=v[1]
+            lon=v[2]
+            frames = lq.get_frames_in_lonlat(lon,lat)
+            frames = lq.sqlout2list(frames)
+            for frame in frames:
+                allframes.append(frame)
+        allframes=list(set(allframes))
+        for frame in allframes:
+            rc = os.system('echo {0} >> {1}'.format(frame,framef))
+
+
 def get_indate(frame, numepochs = 3):
     #this is to get indate for licsar_make_frame - either 90 days ago
     #or day before the last three existing RSLCs
@@ -90,13 +115,30 @@ def main():
     for frame in frames:
         track = str(int(frame[0:3]))
         if not os.path.exists(os.path.join(public_path,track,frame)):
-            print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
-            os.system('licsar_initiate_new_frame.sh {0}'.format(frame))
+            print('Frame '+frame+' was (probably) not initiated. please try init it first using:') #, trying to do it automatically')
+            cmd = 'licsar_initiate_new_frame.sh {0}'.format(frame)
+            print(cmd)
+            #os.system(cmd)
         if os.path.exists(os.path.join(public_path,track,frame)):
             indate = get_indate(frame)
             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
             # we used -P before, now -R for comet_ ...responder
-            os.system('licsar_make_frame.sh -S -R -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate),str(offdate.date())))
+            cmd = 'licsar_make_frame.sh -S -R -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate),str(offdate.date()))
+            print(cmd)
+            os.system(cmd)
+    #first update the frame lists - only once per month...:
+    nowis = datetime.now()
+    if nowis.day == 1:
+        print('updating frame list first')
+        update_framelist_fabien()
+    # but update also tifs for volc portal, using Fabien's script, every 10 days
+    #if nowis.day in [1,8,15,22,29]:
+    if nowis.day in [1,11,21]:
+        print('done. now updating the png files - Fabien script')
+        cmd = 'cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/python_script/FINAL_scripts; sbatch run_LiCSAR_volcano_makefigure_final_withGACOS.sh'
+        os.system(cmd)
+    print('ok, everything finished')
+
 
 if __name__ == '__main__':
     main()

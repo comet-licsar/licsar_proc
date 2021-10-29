@@ -55,11 +55,9 @@ def get_param_par(mlipar, field):
 #%%
 def make_geotiff(data, length, width, latn, lonw, dlat, dlon, outfile, compress_option):
     nodata = np.nan  ## or 0?
-    
     ## Grid registration to pixel registration by shifing half pixel
     latn_p = latn - dlat/2
     lonw_p = lonw - dlon/2
-
     driver = gdal.GetDriverByName('GTiff')
     outRaster = driver.Create(outfile, width, length, 1, gdal.GDT_Float32, options=compress_option)
     outRaster.SetGeoTransform((lonw_p, dlon, 0, latn_p, 0, dlat))
@@ -71,7 +69,6 @@ def make_geotiff(data, length, width, latn, lonw, dlat, dlon, outfile, compress_
     outRasterSRS.ImportFromEPSG(4326)
     outRaster.SetProjection(outRasterSRS.ExportToWkt())
     outband.FlushCache()
-
     return
 
 #%%
@@ -94,7 +91,6 @@ def make_png(data, pngfile, cmap, title, vmin=None, vmax=None, cbar=True):
     ax.set_yticklabels([])
     ax.set_title(title)
     if cbar: fig.colorbar(im)
-
     plt.savefig(pngfile)
     plt.close()
     
@@ -185,16 +181,30 @@ def main(argv=None):
 
 
     #%% Make hdr file of ztd
-    strings = ["NROWS          {}".format(length_ztd),
-               "NCOLS          {}".format(width_ztd),
-               "NBITS          32",
-               "PIXELTYPE      FLOAT",
-               "BYTEORDER      I",
-               "LAYOUT         BIL",
-               "ULXMAP         {}".format(lonw_ztd),
-               "ULYMAP         {}".format(latn_ztd),
-               "XDIM           {}".format(dlon_ztd),
-               "YDIM           {}".format(np.abs(dlat_ztd))]
+    #strings = ["NROWS          {}".format(length_ztd),
+    #           "NCOLS          {}".format(width_ztd),
+    #           "NBITS          32",
+    #           "PIXELTYPE      FLOAT",
+    #           "BYTEORDER      I",
+    #           "LAYOUT         BIL",
+    #           "ULXMAP         {}".format(lonw_ztd),
+    #           "ULYMAP         {}".format(latn_ztd),
+    #           "XDIM           {}".format(dlon_ztd),
+    #           "YDIM           {}".format(np.abs(dlat_ztd))]
+    # 09/2021 - updated to use ENVI Standard header, as the ESRI sometimes does not recognize the file!
+    strings = [ "ENVI",
+                "samples = {}".format(width_ztd),
+                "lines = {}".format(length_ztd),
+                "bands = 1",
+                "header offset = 0",
+                "file type=ENVI Standard",
+                "data type=4",
+                "interleave=bil",
+                "byte order=0",
+                "pixel size = {"+str(dlon_ztd)+", "+str(np.abs(dlat_ztd))+"}",
+                "map info = {Geographic Lat/Lon, 1, 1, "+str(lonw_ztd)+", "+str(latn_ztd)+", "+str(dlon_ztd)+", "+str(np.abs(dlat_ztd))+", WGS-84, units=Degrees}",
+                ""]
+
     hdrfile = inztdfile+'.hdr'
     with open(hdrfile, "w") as f:
         f.write("\n".join(strings))
@@ -209,6 +219,7 @@ def main(argv=None):
     print('\nCut and resapmle ztd...', flush=True)
     try:
         ztd_geo = gdal.Warp("", bilfile, format='MEM', outputBounds=(lonw_geo, lats_geo, lone_geo, latn_geo), width=width_geo, height=length_geo, resampleAlg=resampleAlg, srcNodata=0).ReadAsArray()
+        #ztd_geo = gdal.Warp("", bilfile, format='MEM', outputBounds=(lonw_geo, lats_geo, lone_geo, latn_geo), width=width_ztd, height=length_ztd, resampleAlg=resampleAlg, srcNodata=0).ReadAsArray()
         ztd_geo = ztd_geo*m2r_coef ## meter -> rad
     except:
         print('an error occurred. exiting')

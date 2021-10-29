@@ -8,6 +8,8 @@ setupmasterextra=''
 outres=0.001
 r=20
 a=4
+dolocal=0
+tienshan=0
 
 if [ -z $1 ];
 then
@@ -17,21 +19,27 @@ then
  echo "(to include custom downloaded master files, don't forget to arch2DB.py them first)"
  echo "parameters:"
  echo " -H - do master in highest resolution (r=1, a=1)"
+ echo " -M - do master in medium resolution (towards 56 m outputs)"
  echo " -D /path/to/dem.tif - use custom DEM - you may want to use gdal_merge.py -a_nodata -32768 .."
  echo " -V 365 would only output possible master epoch candidates..for last 365 days"
+ echo " -T - would include some extra Tien Shan related tuning"
  exit
 fi
 
-while getopts ":H:D:V" option; do
+#improved getopts, finally
+while getopts ":HMTD:V:" option; do
  case "${option}" in
-  H) a=1; r=1; outres=0.0001; echo "high resolution option enabled"
+  H) a=1; r=1; outres=0.0001; dolocal=1; echo "high resolution option enabled"
      ;;
-  D) setupmasterextra="-D "$2;
-     shift
+  M) outres=0.0005; dolocal=1; echo "medium (56 m) resolution option enabled"
+     ;;
+  D) setupmasterextra="-D "$OPTARG;
+     #shift
+     ;;
+  T) tienshan=1; outres=0.0005; dolocal=1
      ;;
   V) dryrun=1;
-     lastdays=$2;
-     shift
+     lastdays=$OPTARG;
      ;;
  esac
 done
@@ -61,17 +69,22 @@ fi
 
 mkdir -p $curdir/$tr/$frame
 cd $curdir/$tr/$frame
-if [ $a == 1 ]; then
-     echo "rglks = 1" > local_config.py
-     echo "azlks = 1" >> local_config.py
-     echo "outres = 0.0001" >> local_config.py
-fi
+
 
 if [ $dryrun -gt 0 ]; then
  #lastdays=365
  echo "Finding master candidates in last "$lastdays" days."
  LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -V $lastdays -r $r -a $a -o $outres $setupmasterextra
  exit
+fi
+
+if [ $dolocal == 1 ]; then
+     echo "rglks = "$r > local_config.py
+     echo "azlks = "$a >> local_config.py
+     echo "outres = "$outres >> local_config.py
+fi
+if [ $tienshan == 1 ]; then
+    echo "tienshan = "1 >> local_config.py
 fi
 
 echo "Setting the master image and DEM for frame "$frame

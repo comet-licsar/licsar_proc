@@ -21,7 +21,7 @@ fi
 for rsc in $work_dir/$frame/*.ztd; do 
   if [ `ls -al $rsc | gawk {'print $5'}` -lt 100 ]; then rm $rsc; else
    if [ ! -f $rsc.geo.tif ]; then
-    LiCSAR_ztd2geotiff.py -z $rsc -u $frame/$frame.geo.U.tif
+    LiCSAR_ztd2geotiff.py -z $rsc -u $work_dir/$frame/$frame.geo.U.tif
    fi
   fi
 done

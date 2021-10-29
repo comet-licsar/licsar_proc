@@ -7,6 +7,8 @@ if [ -z $1 ]; then
  echo "e.g. 155D_02611_050400 20141001 20200205"
  echo "parameters:"
  echo "-M 10 .... this will do extra (Gaussian-improved) multilooking and reunwrapping"
+ echo "-H 1 .... this will use hgt to support unwrapping"
+ echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
  exit
 fi
@@ -14,15 +16,27 @@ fi
 multi=0
 run_jasmin=1
 #dogacos=0
+hgts=0
+clip=0
 
-while getopts ":M" option; do
+while getopts ":MHG" option; do
  case "${option}" in
   M) multi=$2;
+     shift
+     ;;
+  H) hgts=$2;
+     shift
+     ;;
+  G) aoi=$2;
+     clip=1;
+     echo "warning - the clipping will affect only LiCSBAS for now, so in case of ML, the clip will be done only AFTER all reunwrapping"
      shift
      ;;
  esac
 done
 shift $((OPTIND -1))
+
+
 
 frame=$1
 if [ `echo $frame | grep -c '_'` -lt 1 ]; then
@@ -104,7 +118,12 @@ if [ $multi -gt 0 ]; then
  echo "preparing for custom multilooking - just run ./multirun.sh"
  mkdir GEOCml$multi
  echo cd `pwd`/GEOCml$multi > multirun.sh
- echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
+ if [ $hgts == 1 ]; then
+  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi", )\"" >> multirun.sh
+ else
+  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
+ fi
+ #echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
  echo "cd .." >> multirun.sh
  chmod 777 multirun.sh
 fi
@@ -117,7 +136,9 @@ sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
 sed -i 's/n_para=\"\"/n_para=\"1\"/' batch_LiCSBAS.sh
 if [ $multi -gt 0 ]; then
  sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
- sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
+ sed -i 's/p11_coh_thre=\"/p11_coh_thre=\"0.01/' batch_LiCSBAS.sh
+ #sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
+ sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"30/' batch_LiCSBAS.sh
  sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
  sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"200/' batch_LiCSBAS.sh
  sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"50/' batch_LiCSBAS.sh
@@ -126,6 +147,14 @@ if [ $multi -gt 0 ]; then
 fi
 if [ $dogacos -gt 0 ]; then
  sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
+fi
+
+if [ $clip -gt 0 ]; then
+ # lon1/lon2/lat1/lat2
+ sed -i 's/do05op_clip=\"n\"/do05op_clip=\"y\"/' batch_LiCSBAS.sh
+ echo $aoi | sed 's/\//\\\//g' > tmp.sedaoi
+ sed -i 's/^p05_clip_range_geo=\"/p05_clip_range_geo=\"'`cat tmp.sedaoi`'/' batch_LiCSBAS.sh
+ rm tmp.sedaoi
 fi
 
 if [ $run_jasmin -eq 1 ]; then
@@ -142,12 +171,13 @@ if [ $run_jasmin -eq 1 ]; then
  echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vstd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
+ #echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
+ echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum.h5 -o "$frame".nc" >> jasmin_run.sh
  hours=14
  if [ $multi -eq 1 ]; then
   hours=23
  fi
- cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W "$hours":00 -q comet ./jasmin_run.sh"
+ cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W "$hours":00 -M 8192 -q comet ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
  chmod 777 jasmin_run.sh
  chmod 777 jasmin_run_cmd.sh

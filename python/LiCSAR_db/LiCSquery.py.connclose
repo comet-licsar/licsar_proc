@@ -34,41 +34,10 @@ else:
 #if conn == 'MYSQL ERROR':
 #    print('No database connection could be established')
 
-
-def delete_burst_from_db(bidtanx):
-    bid = get_bid_frombidtanx(bidtanx)
-    # check if the burst is not used
-    sql='select * from polygs2bursts where bid={};'.format(bid)
-    num = do_query(sql, True)
-    if num > 0:
-        print('this burst is used within some frame(s) - cancelling')
-        return False
-    # first of all, deleting all files that uses the burst
-    sql='delete from files2bursts where bid={};'.format(bid)
-    num = do_query(sql, True)
-    if num > 0:
-        print('deleted {} records of files using this burst'.format(str(num)))
-    sql='delete from bursts2gis where bid={};'.format(bid)
-    num = do_query(sql, True)
-    sql='delete from bursts where bid={};'.format(bid)
-    num = do_query(sql, True)
-    if num == 1:
-        print('burst successfully deleted')
-        return True
-    else:
-        print('no burst definition deleted - ERROR')
-        return False
-
-
-def delete_file_from_db(ff, col = 'abs_path'):
-    '''
-    cols can be: fid, name, abs_path,...
-    '''
-    sql='select fid from files where {0}="{1}";'.format(col, ff)
+def delete_file_from_db(fullpath):
+    sql='select * from files where abs_path="{}";'.format(fullpath)
     out = do_pd_query(sql)
     for fid in out.fid:
-        sql='delete from files2jobs where fid={};'.format(fid)
-        num = do_query(sql, True)
         sql='delete from files2bursts where fid={};'.format(fid)
         num = do_query(sql, True)
         sql='delete from files where fid={};'.format(fid)
@@ -82,7 +51,6 @@ def delete_frame_only(frame):
     #res = do_query(sql, True)
     return True
 
-
 def delete_frame_files(frame):
     #e.g. in case of messed up bursts, this should help:
     sql="SET FOREIGN_KEY_CHECKS=0; delete fb,f from files f inner join files2bursts fb on fb.fid=f.fid inner join polygs2bursts pb on fb.bid=pb.bid inner join polygs p on pb.polyid=p.polyid where p.polyid_name='{}';SET FOREIGN_KEY_CHECKS=1;".format(frame)
@@ -91,7 +59,7 @@ def delete_frame_files(frame):
     res = do_query(sql, True)
     return True
 
-
+    #return res
 
 def rename_frame(frameold, framenew):
     sql = "update polygs set polyid_name='{0}' where polyid_name='{1}';".format(framenew, frameold)
@@ -118,38 +86,24 @@ def rename_burst(bold, bnew):
     return res
 
 
-def replace_bidtanx_in_frame(frame, bidtanx_old, bidtanx_new):
-    bid_old = get_bid_frombidtanx(bidtanx_old)
-    bid_new = get_bid_frombidtanx(bidtanx_new)
-    polyid = sqlout2list(get_frame_polyid(frame))[0]
-    sql = "update polygs2bursts set bid={0} where bid={1} and polyid={2};".format(bid_new, bid_old, polyid)
-    res = do_query(sql, True)
-    return res
-
-
 def do_pd_query(query):
-    global conn
     #if use_tunnel:
-    try:
-        #else:
-        #    conn = Conn_db()
-        #if type(conn) == tuple:
-        #    conn = conn[0]
-        conn.ping(reconnect=True)
-        df = pd.read_sql_query(query, conn)
-        conn.close()
-    except:
-        conn.ping(reconnect=True)
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+    global conn
+    #else:
+    #    conn = Conn_db()
+    #if type(conn) == tuple:
+    #    conn = conn[0]
+    conn.ping(reconnect=True)
+    df = pd.read_sql_query(query, conn)
+    conn.close()
     return df
 
 
 def do_query(query, commit=False):
-    global conn
     # execute MySQL query and return result
     try:
         #if use_tunnel:
+        global conn
         #else:
         #    conn = Conn_db()
         if conn == 'MYSQL ERROR':
@@ -157,25 +111,15 @@ def do_query(query, commit=False):
             return 'MYSQL ERROR'
         #if type(conn) == tuple:
         #    conn = conn[0]
-        #to reconnect potentially lost connection.. try it twice!
-        try:
-            rc = conn.ping(reconnect=True)
-            with conn.cursor() as c:
-                c.execute(query, )
-                res_list = c.fetchall()
-                if commit:
-                    conn.commit()
-                    res_list = c.rowcount
-            rc = conn.close()
-        except:
-            rc = conn.ping(reconnect=True)
-            with conn.cursor() as c:
-                c.execute(query, )
-                res_list = c.fetchall()
-                if commit:
-                    conn.commit()
-                    res_list = c.rowcount
-            rc = conn.close()
+        #to reconnect potentially lost connection..
+        rc = conn.ping(reconnect=True)
+        with conn.cursor() as c:
+            c.execute(query, )
+            res_list = c.fetchall()
+            if commit:
+                conn.commit()
+                res_list = c.rowcount
+        rc = conn.close()
     except pymysql.err.Error as e:
         print("\nUnexpected MySQL error {0}: {1}".format(e[0], e[1]))
         return []
@@ -212,10 +156,7 @@ def close_db_and_tunnel():
 
 def connection_established():
     sql_q = "SELECT VERSION();"
-    try:
-        res = do_query(sql_q)
-    except:
-        res = do_query(sql_q)
+    res = do_query(sql_q)
     if res == 'MYSQL ERROR':
         print('Could not establish database connection')
         return False
@@ -227,7 +168,6 @@ def check_frame(frame):
     sql_q = "select distinct polyid_name from polygs " \
         "where polyid_name='{0}'".format(frame)
     return do_query(sql_q)
-
 
 def geom_from_polygs2geom(frame):
     polyid = get_frame_polyid(frame)[0][0]
@@ -336,7 +276,7 @@ def get_bidtanxs_in_track(track = '001A', onlyFrames = True):
     return do_query(sql_q)
 
 
-def get_frame_files_period(frame,t1,t2, only_file_title = False):
+def get_frame_files_period(frame,t1,t2):
     # takes frame and two datetime.date objects and returns list returns
     # polygon name, aquisition date, file name and file path for all files 
     # in frame in the given time period
@@ -347,25 +287,15 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
     # use only the newer version files.
     #
     # this cannot be: and files.abs_path not like '%metadata_only%' "\
-    if not only_file_title:
-        sql_q = "select distinct polygs.polyid_name, date(files.acq_date), " \
-            "files.name, files.abs_path from files " \
-            "inner join files2bursts on files.fid=files2bursts.fid " \
-            "inner join polygs2bursts on files2bursts.bid=polygs2bursts.bid " \
-            "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
-            "where polygs.polyid_name='{0}' " \
-            "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and files.pol='VV' "\
-            "order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
-    else:
-        sql_q = "select distinct files.name from files " \
-            "inner join files2bursts on files.fid=files2bursts.fid " \
-            "inner join polygs2bursts on files2bursts.bid=polygs2bursts.bid " \
-            "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
-            "where polygs.polyid_name='{0}' " \
-            "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and files.pol='VV' "\
-            "order by files.name asc;".format(frame,t1,t2)
+    sql_q = "select distinct polygs.polyid_name, date(files.acq_date), " \
+        "files.name, files.abs_path from files " \
+        "inner join files2bursts on files.fid=files2bursts.fid " \
+        "inner join polygs2bursts on files2bursts.bid=polygs2bursts.bid " \
+        "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
+        "where polygs.polyid_name='{0}' " \
+        "and date(files.acq_date) between '{1}' and '{2}' "\
+        "and files.pol='VV' "\
+        "order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
     return do_query(sql_q)
 
 
@@ -463,12 +393,6 @@ def get_bursts_in_polygon_old(lon1,lon2,lat1,lat2,relorb = None, swath = None):
     sql_q += "and bursts.centre_lat >= '{0}' and bursts.centre_lat <= '{1}';".format(lat1,lat2)
     return do_query(sql_q)
 
-
-def get_bursts_in_xy(lon,lat,relorb=None,swath=None, tol=0.05):
-    out = get_bursts_in_polygon(lon-tol,lon+tol,lat-tol,lat+tol,relorb, swath)
-    return out
-
-
 def get_bursts_in_polygon(minlon,maxlon,minlat,maxlat,relorb = None, swath = None):
     if swath:
         if 'IW' not in swath:
@@ -488,7 +412,6 @@ def get_bursts_in_polygon(minlon,maxlon,minlat,maxlat,relorb = None, swath = Non
              "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) <= {1};".format(minlat,maxlat)
     return do_query(sql_q)
 
-
 def get_frames_in_lonlat(lon,lat):
     radius = 0.01
     minlon = lon-radius
@@ -497,7 +420,6 @@ def get_frames_in_lonlat(lon,lat):
     maxlat = lat+radius
     frames = get_frames_in_polygon(minlon,maxlon,minlat,maxlat)
     return frames
-
 
 def get_frames_in_polygon(minlon,maxlon,minlat,maxlat):
     sql_q = "select distinct p.polyid_name from polygs p inner join polygs2bursts pb on p.polyid=pb.polyid " \
@@ -509,12 +431,6 @@ def get_frames_in_polygon(minlon,maxlon,minlat,maxlat):
              "b.corner1_lat, b.corner2_lat, b.corner3_lat, b.corner4_lat) <= {1};".format(minlat,maxlat)
     return do_query(sql_q)
 
-
-def get_frames_with_burst(bidtanx):
-    sql_q = "select distinct p.polyid_name from polygs p inner join polygs2bursts pb on p.polyid=pb.polyid inner join bursts b on pb.bid=b.bid where b.bid_tanx = '{}';".format(bidtanx)
-    return do_query(sql_q)
-
-
 def get_frames_in_orbit(relorb, orbdir = None):
     relorb = str(relorb)
     while len(relorb) < 3:
@@ -524,7 +440,6 @@ def get_frames_in_orbit(relorb, orbdir = None):
         relorb = relorb+orbdir
     sql_q = "select distinct polyid_name from polygs where polyid_name LIKE '{}%';".format(relorb)
     return do_query(sql_q)
-
 
 def get_files_from_burst(burstid):
     sql_q = "select distinct bursts.bid_tanx, files.abs_path from bursts " \

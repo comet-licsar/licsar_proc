@@ -143,6 +143,9 @@ python3 unw2nc.py
 gmt grdedit -T -R$ifg unw1.nc # to get same extents in geo coordinates
 gmt grdconvert -G$outunw=gd:GTiff -R$ifg unw1.nc # to convert to geotiff (ye, the -R is perhaps not necessary)
 create_preview_unwrapped $outunw $frame
+# just to make sure the geotiff has correct coord system information..
+gdal_edit.py -a_srs EPSG:4326 $outunw
+
 #mv unw1png `echo $outunw | rev | cut -c 4- | rev`png
 cd ..; rm -r temp
 cd $heredir

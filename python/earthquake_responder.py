@@ -21,7 +21,7 @@ web_path_maps = 'https://comet.nerc.ac.uk/earthquakes'
 eqcsvfile = "/home/home02/earmla/pokuseq.csv"
 
 #you may want to change these parameters:
-max_days = 30
+max_days = 35
 minmag = 5.5
 #here will be exceptions (i.e. eqs that MUST be processed):
 #minmag = 4.6

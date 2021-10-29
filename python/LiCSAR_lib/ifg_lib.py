@@ -173,7 +173,8 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
 def geocode_ifg(procdir, pair, extraparam = ''):
     print('geocoding pair '+pair)
     rc = os.system('create_geoctiffs_to_pub.sh -C {0} {1} {2}'.format(extraparam, procdir, pair))
-    rc = os.system('create_geoctiffs_to_pub.sh -I {0} {1} {2}'.format(extraparam, procdir, pair))
+    #rc = os.system('create_geoctiffs_to_pub.sh -I {0} {1} {2}'.format(extraparam, procdir, pair))
+    rc = os.system('create_geoctiffs_to_pub.sh -u -I {0} {1} {2}'.format(extraparam, procdir, pair))
     rc = os.system('rm {0}/GEOC/{1}/*.diff {0}/GEOC/{1}/*.cc {0}/GEOC/{1}/*.diff_pha'.format(procdir, pair))
     return rc
 

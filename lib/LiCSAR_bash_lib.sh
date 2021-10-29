@@ -329,7 +329,9 @@ function create_preview_wrapped() {
     local ifgfile=$1
     extracmd_convert=''
     if [ ! -z $2 ]; then
-     extracmd_convert='-resize 30%'
+     if [ $2 == 0 ]; then
+      extracmd_convert='-resize 30%'
+     fi
     fi
     outfile=`echo $ifgfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
     gmt grdimage $ifgfile -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
@@ -391,6 +393,72 @@ function correct_ifg_gacos_public() {
 };
 
 
+function cdproc() {
+    if [ -z $1 ]; then
+        echo "please provide frame id";
+        return 0
+    fi
+    frame=$1
+    tr=`track_from_frame $frame`
+    cd $LiCSAR_procdir/$tr/$frame
+}
+
+function cdpub() {
+    if [ -z $1 ]; then
+        echo "please provide frame id";
+        return 0
+    fi
+    frame=$1
+    tr=`track_from_frame $frame`
+    cd $LiCSAR_public/$tr/$frame
+}
+
+function recreate_frame_to_hires() {
+    #to be run for all tienshan frames that were initialised 'normally'
+    if [ -z $1 ]; then
+        echo "please provide frame id";
+        return 0
+    fi
+    echo "WARNING - expecting this frame to be from Tien Shan, check local_config.py if this is not wanted"
+    local frame=$1
+    echo "regenerating the frame files to make medium resolution outputs (56 m)"
+    tr=`track_from_frame $frame`
+    master=`get_master $frame`
+    m=$master
+    fdir=$LiCSAR_procdir/$tr/$frame
+    cd $fdir
+    echo "outres=0.0005" > local_config.py
+    echo "tienshan=1" >> local_config.py
+    mv geo backup.geo.110m
+    mkdir geo
+    echo "master is "$master
+    python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; geocode_dem('RSLC/"$master"','geo','DEM','.','"$master"',0.0005)"
+    
+    LiCSAR_05_mk_angles_master
+    echo "Generating E-N-U files"
+    submit_lookangles.py -f $frame -t $tr
+    echo "Generating land mask (would remove heights below 0 m)"
+    landmask=$LiCSAR_procdir/$tr/$frame/geo/landmask
+    hgtgeo=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+    gmt grdlandmask -G$landmask.tif=gd:GTiff -R$hgtgeo -Df -N0/1/0/1/0
+    cp $landmask.tif $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+    echo "Generating master MLI geotiff"
+    create_geoctiffs_to_pub.sh -M `pwd` $m
+    mkdir -p $LiCSAR_public/$tr/$frame/epochs 2>/dev/null
+    rm -r $LiCSAR_public/$tr/$frame/epochs/$m 2>/dev/null
+    mv GEOC.MLI/$m $LiCSAR_public/$tr/$frame/epochs/.
+    rmdir GEOC.MLI 2>/dev/null
+    echo "Generating public metadata file"
+    submit_to_public_metadata.sh $frame
+    ifgdir=$LiCSAR_public/$tr/$frame/interferograms
+    if [ `ls $ifgdir 2>/dev/null | wc -l` -gt 0 ]; then
+        echo "backing up ifgs"
+        mkdir -p $ifgdir.backup
+        mv $ifgdir/* $ifgdir.backup/.
+    fi
+};
+
+
 function correct_ifg_tides_public() {
   if [ "$#" == "3" ]; then
     local frame=$1
@@ -439,19 +507,26 @@ function correct_ifg_tides_public() {
 
 
 function get_master(){
+ tdir=`pwd`
+ if [ ! -z $1 ]; then
+  cdproc $1
+ fi
  #this should be run from a frame folder
  if [ ! -d geo ]; then
   #echo "please use get_master function only in frame folder, with geo"
+  cd $tdir
   return 0
  else
   m=`ls geo/20??????.hgt 2>/dev/null| cut -d '/' -f2 | cut -d '.' -f1`
   if [ -z $m ]; then
    #echo "error - missing hgt file in geo folder"
+   cd $tdir
    return 0
   else
    echo $m
   fi
  fi
+ cd $tdir
 };
 
 
@@ -1490,6 +1565,13 @@ function mk_coreg_TOPS_specdiv_crop(){
 }; export -f mk_coreg_TOPS_specdiv_crop
 
 
+function deramp_ifg {
+ path=$1
+ if [ -z $1 ]; then echo "parameter is full path to the ifg geotiff in LiCSAR_public"; 
+  else
+    python3 -c "import LiCSAR_lib.unwrp_multiscale as unw; unw.deramp_ifg_tif('"$path"')"
+  fi
+}; export -f deramp_ifg
 
 function datediff {
 # very useful function to find the difference (in days) between two dates

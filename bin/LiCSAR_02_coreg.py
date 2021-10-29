@@ -35,7 +35,7 @@ LiCSAR_02_coreg.py -f <framename> -d </path/to/processing/location> -m <masterda
     -T <file> report file to use. Defaults to FRAME-coreg-report.txt
     -R    Force clean recreation of rslcs - by default if it finds an existing lookup table
           it will use this instead
-    (-E   little tweaks for eq responder)
+    (-E   little tweaks for eq responder - e.g. skip SD quality check)
 
 guys.. if you work with existing LiCSAR frame, please use -i to prevent re-geocoding
 

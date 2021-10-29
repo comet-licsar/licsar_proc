@@ -91,6 +91,16 @@ cat << EOF > $kmlfile
            <tilt>0</tilt>
            <range>500000</range>
          </LookAt>
+EOF
+
+eqkml=`ls -t ../../*.kml 2>/dev/null | head -n1 2>/dev/null`
+if [ ! -z $eqkml ]; then
+ if [ `tail -n1 $eqkml | grep -c USGS` -gt 0 ]; then
+  tail -n1 $eqkml | cut -d '>' -f 2- | rev | cut -d '<' -f 2- | rev >> $kmlfile
+ fi
+fi
+
+cat << EOF >> $kmlfile
     <Folder>
         <Style id="radioLayer">
          <ListStyle>
