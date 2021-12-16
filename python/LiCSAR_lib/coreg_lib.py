@@ -27,6 +27,8 @@ def link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id):
     """ Creates RSLC dir and links master SLC images
     """
 ############################################################Create directories
+    rslcdir = os.path.realpath(rslcdir)
+    masterslcdir = os.path.realpath(masterslcdir)
     if not os.path.exists(rslcdir):
         os.mkdir(rslcdir)
     masterrslcdir = os.path.join(rslcdir,masterdate.strftime('%Y%m%d'))
@@ -539,9 +541,13 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 slave3rslcdir = os.path.join(rslcdir,slave3date.strftime('%Y%m%d'))
                 #print(slavebursts)
                 #print(masterbursts)
-                slave3bursts = lq.get_frame_bursts_on_date(framename,slave3date)
+                try:
+                    slave3bursts = lq.get_frame_bursts_on_date(framename,slave3date)
+                except:
+                    #happens in EIDP when the -z filelist doesn't include the RSLC3
+                    slave3bursts = ''
                 if len(slave3bursts) == 0:
-                    print('warning, cannot get list of RSLC3 bursts. assuming same burst as master..')
+                    print('warning, cannot get list of RSLC3 bursts. assuming same bursts as master..')
                     print('THIS ACTUALLY IS CONSIDERED A BUG, SO CAREFUL!')
                     slave3bursts = masterbursts
                 if os.path.exists(slave3rslcdir+slave3date.strftime('/%Y%m%d.lock')):

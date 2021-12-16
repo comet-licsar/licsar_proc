@@ -315,19 +315,15 @@ def check_and_fix_burst_supershifts_in_frame_files(frame, viewerror = False, for
                     bursts = lq.sqlout2list(lq.get_bursts_in_file(fileid))
                     vis_bidtanxs(bursts)
 
-'''
-frame='158A_04407_191919'
-frame='070A_04843_111111''
-t1 = '2014-10-01'
-t2 = fc.dt.datetime.now().date()
 
-files = fc.lq.get_frame_files_period(frame, t1, t2, only_file_title = True)
-files = fc.lq.sqlout2list(files)
+def reingest_all_files_in_frame(frame):
+    t1 = '2014-10-01'
+    t2 = dt.datetime.now().date()
+    files = lq.get_frame_files_period(frame, t1, t2, only_file_title = True)
+    files = lq.sqlout2list(files)
+    for fileid in files:
+        reingest_file(fileid)
 
-for fileid in files:
-    fc.reingest_file(fileid)
-
-'''
 
 def vis_file(fileid):
     fbursts = lq.get_bursts_in_file(fileid)
@@ -447,8 +443,10 @@ def ingest_file_to_licsinfo(filepath, isfullpath = True):
     if not isfullpath:
         filepath = s1.get_neodc_path_images(filepath, file_or_meta = True)[0]
     if not os.path.exists(filepath):
-        print('ERROR - this file does not exist')
-        return False
+        filepath = os.path.join(os.environ['LiCSAR_SLC'], os.path.basename(filepath))
+        if not os.path.exists(filepath):
+            print('ERROR - this file does not exist')
+            return False
     else:
         #cmd = 'arch2DB.py -f {} >/dev/null 2>/dev/null'.format(filepath)
         #cmd = 'arch2DB.py -f {}'.format(filepath)

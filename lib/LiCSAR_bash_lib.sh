@@ -40,6 +40,26 @@ function slurm_get_jobname() {
     scontrol show jobid $jobid | grep JobName | cut -d '=' -f3
 }
 
+function clean_public() {
+    cd $LiCSAR_public
+    for track in `seq 1 175`; do echo $track; 
+      for frame in `ls $track | grep '_'`; do
+         if [ `ls $track/$frame | wc -l` -lt 2 ]; then
+            echo "frame "$frame" seems wrongly intialized, see list:"
+            ls $track/$frame
+         fi
+         if [ -d $track/$frame/interferograms/geo ]; then rm -rf $track/$frame/interferograms/geo; fi
+         for ifg in `ls $track/$frame/interferograms`; do
+            if [ `ls $track/$frame/interferograms/$ifg | wc -l` -lt 2 ]; then
+               echo "Removing empty folder of"
+               echo $track/$frame/interferograms/$ifg
+               rm -rf $track/$frame/interferograms/$ifg
+            fi
+         done
+      done
+    done
+}
+
 function create_LOS_tide() {
   if [ "$#" == "2" ]; then
     local frame=$1
@@ -286,13 +306,18 @@ function create_preview_unwrapped() {
   if [ -z $3 ]; then
    gmt grdimage $unwfile -C$outfile.unw.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
    convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
-   if [ `echo $frame | cut -c 4` == 'A' ]; then grav='southeast'; else grav='southwest'; fi
+   if [ ! -z $frame ]; then
+    if [ `echo $frame | cut -c 4` == 'A' ]; then grav='southeast'; else grav='southwest'; fi
+   else
+    # no frame? firmly bottom left corner
+    grav='southwest'
+   fi
    convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
    #save only the small preview..
    mv $outfile.sm.png $outfile
    rm $barpng $outfile.unw.cpt
   else
-   #echo "preparing kml"
+   #echo "preparing for kml"
    gmt grd2kml -Ag -C$outfile.unw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd $unwfile 2>/dev/null
   fi
   rm $maskedfile $hillshade $outfile.unw.cpt 2>/dev/null
@@ -505,6 +530,14 @@ function correct_ifg_tides_public() {
   fi
 };
 
+
+function get_burstsno_frame(){
+ if [ -z $1 ]; then echo "just add frame"; return 0; fi
+ frame=$1
+ bursts=`echo $frame | cut -d '_' -f3`
+ burstsnum=`echo ${bursts:0:2}+${bursts:2:2}+${bursts:4:2} | bc`
+ echo $burstsnum
+}
 
 function get_master(){
  tdir=`pwd`

@@ -123,7 +123,7 @@ def main():
             indate = get_indate(frame)
             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
             # we used -P before, now -R for comet_ ...responder
-            cmd = 'licsar_make_frame.sh -S -R -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate),str(offdate.date()))
+            cmd = 'licsar_make_frame.sh -S -R -N {0} 0 1 {1} {2} >pokus.{0}.log 2> pokus.{0}.err'.format(frame,str(indate),str(offdate.date()))
             print(cmd)
             os.system(cmd)
     #first update the frame lists - only once per month...:

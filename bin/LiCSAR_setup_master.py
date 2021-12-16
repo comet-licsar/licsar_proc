@@ -199,8 +199,8 @@ def main(argv=None):
     if masterdate:
         #the timedelta below is a fix for midnight error in case of master:
         print('rechecking S1 data for this date')
-        todown = s1data.check_and_import_to_licsinfo(framename,masterdate - timedelta(days=1), masterdate + timedelta(days=1), reingest = True)
-        filelist = lq.get_frame_files_period(framename,masterdate,masterdate+dt.timedelta(days=1))
+        todown = s1data.check_and_import_to_licsinfo(framename,masterdate - timedelta(days=1), masterdate + timedelta(days=1), reingest = False)
+        filelist = lq.get_frame_files_period(framename,masterdate-dt.timedelta(days=1),masterdate+dt.timedelta(days=1))
         midnighterror = False
         for f in filelist:
             if f[1] > masterdate: midnighterror = True
@@ -210,7 +210,7 @@ def main(argv=None):
             return 1
     else:
         print('checking for S1 data not ingested to licsinfo db')
-        todown = s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=days_limit)), reingest = True)
+        todown = s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=days_limit)), reingest = False)
         print(todown)
         try:
             burstlist, filelist, dates = check_bursts(framename,dt.date(2015,10,0o1),dt.date.today(),lq)

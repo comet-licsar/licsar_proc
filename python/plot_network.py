@@ -11,12 +11,30 @@ import LiCSBAS_tools_lib as tools_lib
 import LiCSBAS_inv_lib as inv_lib
 
 #%% File setting
-framedir = sys.argv[1]
-pngfile = sys.argv[2] 
-gapfile = sys.argv[3]
+try:
+    framedir = sys.argv[1]
+    pngfile = sys.argv[2] 
+    gapfile = sys.argv[3]
+except:
+    print('Usage: ')
+    print('plot_network.py path_to_frame_directory out_png_file out_gaps_file')
+    exit()
+
 
 ifgdir = os.path.join(framedir, 'interferograms')
 bperp_file = os.path.join(framedir, 'metadata', 'baselines')
+if not os.path.exists(ifgdir):
+    # update to have it work in BATCH_CACHE_DIR
+    ifgdir = os.path.join(framedir, 'GEOC')
+    bperp_file = os.path.join(framedir, 'baselines')
+    if not os.path.exists(ifgdir):
+        print('error, no interferograms found for this frame')
+        exit()
+    else:
+        print('generating baselines file in custom directory')
+        cmd = 'cd {0}; mk_bperp_file.sh; mv baselines {1} 2>/dev/null'.format(framedir, bperp_file)
+        rc = os.system(cmd)
+
 
 if os.path.exists(pngfile):
     os.remove(pngfile)
@@ -28,11 +46,11 @@ imdates = tools_lib.ifgdates2imdates(ifgdates)
 
 if not os.path.exists(bperp_file):
     print('Make dummy bperp')
-    bperp_file = 'baselines_tmp.txt'
+    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
     io_lib.make_dummy_bperp(bperp_file, imdates)
 elif not io_lib.read_bperp_file(bperp_file, imdates):
     print('Make dummy bperp')
-    bperp_file = 'baselines_tmp.txt'
+    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
     io_lib.make_dummy_bperp(bperp_file, imdates)
 
 bperp = io_lib.read_bperp_file(bperp_file, imdates)

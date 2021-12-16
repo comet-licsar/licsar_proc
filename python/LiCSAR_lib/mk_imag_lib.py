@@ -413,7 +413,17 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     slcdir = os.path.join( procdir, 'SLC' )
     imdir = os.path.join( slcdir, date.strftime( '%Y%m%d' ) )
     # Get all files containing frame bursts on current date
+    # and +-1 day (midnight error)
+    t1 = date-dt.timedelta(days=1)
+    t2 = date+dt.timedelta(days=1)
+    filelist1 = licsQuery.get_frame_files_date( framename, t1 )
     filelist = licsQuery.get_frame_files_date( framename, date )
+    filelist1 = filelist1 + licsQuery.get_frame_files_date( framename, t2 )
+    fl = list( filelist )
+    for f in filelist1:
+        if not f in fl:
+            fl.append(f)
+    filelist = tuple( fl )
     # check if they have correct bursts?
     # not working.... because licsQuery is batchDBquery...yikes
     #filelist = check_bursts_file(burstlist, filelist, licsQuery)

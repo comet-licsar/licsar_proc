@@ -6,31 +6,43 @@ if [ -z $1 ]; then
  echo "parameters: frame [startdate] [enddate]"
  echo "e.g. 155D_02611_050400 20141001 20200205"
  echo "parameters:"
- echo "-M 10 .... this will do extra (Gaussian-improved) multilooking and reunwrapping"
- echo "-H 1 .... this will use hgt to support unwrapping"
+ echo "-M 10 .... this will do extra multilooking"
+ echo "-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)"
+ echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
+ echo "-T ....... use testing version of LiCSBAS"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
- echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
+ #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
  exit
 fi
 
-multi=0
+multi=1
 run_jasmin=1
 #dogacos=0
 hgts=0
 clip=0
+reunw=0
+LB_version=LiCSBAS
+#LB_version=licsbas_comet_dev
+#LB_version=LiCSBAS_testing
 
-while getopts ":MHG" option; do
+while getopts ":M:HuTG:" option; do
  case "${option}" in
-  M) multi=$2;
-     shift
+  M) multi=${OPTARG};
+     #shift
      ;;
-  H) hgts=$2;
-     shift
+  H) hgts=1;
+     #shift
      ;;
-  G) aoi=$2;
+  u) reunw=1;
+     #shift
+     ;;
+  T) LB_version=licsbas_comet_dev;
+     #shift
+     ;;
+  G) aoi=${OPTARG};
      clip=1;
-     echo "warning - the clipping will affect only LiCSBAS for now, so in case of ML, the clip will be done only AFTER all reunwrapping"
-     shift
+     #echo "warning - the clipping will affect only LiCSBAS for now, so in case of ML, the clip will be done only AFTER all reunwrapping"
+     #shift
      ;;
  esac
 done
@@ -97,15 +109,19 @@ for epoch in `ls $epochdir`; do
   fi
 done
 
-if [ -z $2 ]; then
+if [ ! -z $2 ]; then
+  echo "limiting the dataset to dates between "$startdate" and "$enddate
     #cp $epochdir/$epoch/$epoch.sltd.geo.tif ../GACOS/. 2>/dev/null
   for ifg in `ls $indir/20* -d 2>/dev/null`; do
+   if [ `basename $ifg | cut -d '_' -f1` -ge $startdate ]; then
     if [ `basename $ifg | cut -d '_' -f2` -le $enddate ]; then
       ln -s $ifg;
-     fi
+    fi
+   fi
   done
 else
- echo "nah, not ready yet, do full proc, without startdate enddate please.."
+ for ifg in `ls $indir/20* -d 2>/dev/null`; do ln -s $ifg; done
+ #echo "nah, not ready yet, do full proc, without startdate enddate please.."
 fi
 
 #using GACOS only if there is at least for half of the files
@@ -114,12 +130,12 @@ let half=$numf/2
 if [ `ls ../GACOS | wc -l` -lt $half ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
 
 cd $workdir
-if [ $multi -gt 0 ]; then
+if [ $reunw -gt 0 ]; then
  echo "preparing for custom multilooking - just run ./multirun.sh"
  mkdir GEOCml$multi
  echo cd `pwd`/GEOCml$multi > multirun.sh
  if [ $hgts == 1 ]; then
-  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi", )\"" >> multirun.sh
+  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi", hgtcorr = True)\"" >> multirun.sh
  else
   echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
  fi
@@ -129,22 +145,31 @@ if [ $multi -gt 0 ]; then
 fi
 
 #preparing batch file
-module load LiCSBAS
+module load $LB_version
 copy_batch_LiCSBAS.sh >/dev/null
 
 sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
 sed -i 's/n_para=\"\"/n_para=\"1\"/' batch_LiCSBAS.sh
-if [ $multi -gt 0 ]; then
- sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
- sed -i 's/p11_coh_thre=\"/p11_coh_thre=\"0.01/' batch_LiCSBAS.sh
+sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
+if [ $reunw -gt 0 ]; then
  #sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
- sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"30/' batch_LiCSBAS.sh
- sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
+ sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"30/' batch_LiCSBAS.sh   # because we would use --nullify here...
  sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"200/' batch_LiCSBAS.sh
- sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"50/' batch_LiCSBAS.sh
+ sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"15/' batch_LiCSBAS.sh
  #sed -i 's/start_step=\"02\"/start_step=\"16\"/' $x/batch_LiCSBAS.sh
- sed -i 's/p16_deg_deramp=\"/p16_deg_deramp=\"2/' batch_LiCSBAS.sh
+else
+ sed -i 's/p11_coh_thre=\"/p11_coh_thre=\"0.025/' batch_LiCSBAS.sh
+ sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
+ sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
+# sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
+ sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"20/' batch_LiCSBAS.sh
 fi
+
+# setting those values 'everywhere' (originally it was in the modified approach):
+sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
+sed -i 's/p16_deg_deramp=\"/p16_deg_deramp=\"1/' batch_LiCSBAS.sh
+sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
+
 if [ $dogacos -gt 0 ]; then
  sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
 fi
@@ -160,17 +185,24 @@ fi
 if [ $run_jasmin -eq 1 ]; then
  echo "sending as job to JASMIN"
  rm jasmin_run.sh 2>/dev/null
- if [ $multi -gt 0 ]; then
+ if [ $reunw -gt 0 ]; then
   cat multirun.sh > jasmin_run.sh
  fi
- echo "module load LiCSBAS" >> jasmin_run.sh
+  #just a little export fix
+  #multi=1
+ #fi
+ echo "module load "$LB_version >> jasmin_run.sh
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  #include generation of outputs
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.mskd.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel_deramp.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.mskd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel -p GEOCml"$multi"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vstd -p GEOCml"$multi"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
+ if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
+ if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_deramp.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_deramp.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel -p "$geocd"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vstd -p "$geocd"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
+ echo "cp TS_GEOCml"$multi"*/network/network13.png $frame'_network.png'" >> jasmin_run.sh
+ echo "cp TS_GEOCml"$multi"*/mask_ts.png $frame'_mask_ts.png'" >> jasmin_run.sh
  #echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
  echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum.h5 -o "$frame".nc" >> jasmin_run.sh
  hours=14

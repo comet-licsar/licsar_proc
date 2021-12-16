@@ -19,6 +19,7 @@ import wget
 class var():
     outDir = None
 
+
 class ClickLabel(QtWidgets.QLabel):
     clicked = QtCore.pyqtSignal()
     imagepath = None
@@ -26,11 +27,11 @@ class ClickLabel(QtWidgets.QLabel):
         self.clicked.emit()
         QtWidgets.QLabel.mousePressEvent(self, event)
 
+
 class Ui_dialogChooseFrames(object):
     #this way I do a class variable, i.e. shared through all classes.. maybe should be private one?
     frameList = None
     frameListAll = None
-        
     def runChecker(self):
         #print(str(self.listFrames.selectedItems()[0].text()))
         track = self.listTracks.selectedItems()[0].text()
@@ -65,7 +66,6 @@ class Ui_dialogChooseFrames(object):
             error_dialog.exec_()
         self.buttonBox.setEnabled(True)
         self.labeldown.setVisible(False)
-    
     def trackSelected(self, item):
         #once user selects a track, he should get a list of available frames
         track = int(str(item.text()))
@@ -76,7 +76,6 @@ class Ui_dialogChooseFrames(object):
             self.listFrames.addItem(item)
         self.listFrames.takeItem(0)
         #self.listFrames.addItem()
-    
     def checkonly(self, clicked):
         if self.checkOnly.isChecked():
             self.frameList = getUncheckedFrames(self.frameListAll)
@@ -84,7 +83,6 @@ class Ui_dialogChooseFrames(object):
             self.frameList = self.frameListAll
         if len(self.listTracks.selectedItems()) > 0:
             self.trackSelected(self.listTracks.selectedItems()[0])
-
     def setupUi(self, dialogChooseFrames):
         dialogChooseFrames.setObjectName("dialogChooseFrames")
         dialogChooseFrames.resize(400, 300)
@@ -112,19 +110,16 @@ class Ui_dialogChooseFrames(object):
         for i in range(1,176):
             self.listTracks.addItem(str(i))
         self.listTracks.itemClicked.connect(self.trackSelected)
-
         self.listFrames = QtWidgets.QListWidget(dialogChooseFrames)
         self.listFrames.setGeometry(QtCore.QRect(130, 40, 256, 192))
         self.listFrames.setObjectName("listFrames")
         #self.listFrames.clear
-
         self.retranslateUi(dialogChooseFrames)
         #self.buttonBox.accepted.connect(dialogChooseFrames.accept)
         #self.buttonBox.accepted.connect(self.dummy)
         self.buttonBox.accepted.connect(self.runChecker)
         self.buttonBox.rejected.connect(dialogChooseFrames.reject)
         QtCore.QMetaObject.connectSlotsByName(dialogChooseFrames)
-
     def retranslateUi(self, dialogChooseFrames):
         _translate = QtCore.QCoreApplication.translate
         dialogChooseFrames.setWindowTitle(_translate("dialogChooseFrames", "LiCS data checker"))
@@ -159,7 +154,6 @@ class Ui_DialogCheckIfg(object):
         self.graphicsViewIfg.setObjectName("graphicsViewIfg")
         self.graphicsViewIfg.setScaledContents(True)
         self.graphicsViewIfg.clicked.connect(self.viewFullImageIfg)
-        
         self.graphicsViewUnw = ClickLabel(Dialog)
         #self.graphicsViewUnw = QtWidgets.QLabel(Dialog)
         #self.graphicsViewUnw.setGeometry(QtCore.QRect(10, 330, 331, 251))
@@ -167,7 +161,6 @@ class Ui_DialogCheckIfg(object):
         self.graphicsViewUnw.setObjectName("graphicsViewUnw")
         self.graphicsViewUnw.setScaledContents(True)
         self.graphicsViewUnw.clicked.connect(self.viewFullImageUnw)
-        
         self.label = QtWidgets.QLabel(Dialog)
         self.label.setGeometry(QtCore.QRect(10, 40, 81, 16))
         self.label.setObjectName("label")
@@ -234,7 +227,6 @@ class Ui_DialogCheckIfg(object):
         shortcutright = QtWidgets.QShortcut(QtGui.QKeySequence.MoveToNextChar, self.btnNextImage)
         shortcutleft.activated.connect(self.showPrevIfg)
         shortcutright.activated.connect(self.showNextIfg)
-        
         shortcut0 = QtWidgets.QShortcut(QtGui.QKeySequence('0'), self.rbNoError)
         shortcut0.activated.connect(self.rbNoError.toggle)
         shortcut1 = QtWidgets.QShortcut(QtGui.QKeySequence('1'), self.btnError1)
@@ -251,17 +243,14 @@ class Ui_DialogCheckIfg(object):
         shortcut6.activated.connect(self.btnError6.toggle)
         shortcut7 = QtWidgets.QShortcut(QtGui.QKeySequence('4'), self.btnError7)
         shortcut7.activated.connect(self.btnError7.toggle)
-
         shortcutpgup = QtWidgets.QShortcut(QtGui.QKeySequence.MoveToPreviousPage, self.label)
         shortcutpgdwn = QtWidgets.QShortcut(QtGui.QKeySequence.MoveToNextPage, self.label)
         shortcutpgup.activated.connect(self.showNextIfgMore)
         shortcutpgdwn.activated.connect(self.showPrevIfgMore)
-
         shortcutshpgup = QtWidgets.QShortcut(QtGui.QKeySequence.SelectPreviousPage, self.label)
         shortcutshpgdwn = QtWidgets.QShortcut(QtGui.QKeySequence.SelectNextPage, self.label)
         shortcutshpgup.activated.connect(self.showNextIfgMore100)
         shortcutshpgdwn.activated.connect(self.showPrevIfgMore100)
-        
         self.labelCheckingIfg = QtWidgets.QLabel(Dialog)
         self.labelCheckingIfg.setGeometry(QtCore.QRect(10, 10, 581, 16))
         self.labelCheckingIfg.setObjectName("labelCheckingIfg")
@@ -273,10 +262,8 @@ class Ui_DialogCheckIfg(object):
         self.labelHelp.setObjectName("labelHelp")
         self.totalIfgs = len(self.ifgs)
         self.curIfg = self.ifgs[self.posIfg]
-        
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
-    
     def setIfgError(self):
         errCode = 0
         if self.rbNoError.isChecked()==True: errCode=0
@@ -288,7 +275,6 @@ class Ui_DialogCheckIfg(object):
         if self.btnError6.isChecked()==True: errCode=6
         if self.btnError7.isChecked()==True: errCode=7
         self.ifgerrors[self.posIfg] = errCode
-
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Manual check of ifgs for frame "+str(self.selectedFrame)))
@@ -306,26 +292,20 @@ class Ui_DialogCheckIfg(object):
         self.btnError6.setText(_translate("Dialog", "7: other (or mixed) error"))
         self.btnNextImage.setText(_translate("Dialog", "Next image pair"))
         self.btnPrevImage.setText(_translate("Dialog", "Previous"))
-        
         self.totalIfgs = len(self.ifgs)
         pairpath = str(self.selectedTrack)+'/'+str(self.selectedFrame)+"/"+str(self.ifgs[self.posIfg])
         self.labelCheckingIfg.setText(_translate("Dialog", "Checking combination "+pairpath))
         #self.labelIfgNo.setText(_translate("Dialog", "ifg no "))
         self.labelIfgNo.setText(_translate("Dialog", "ifg no. "+str(int(self.posIfg)+1)+" from "+str(len(self.ifgs))))
         self.labelHelp.setText(_translate("Dialog", "try arrows, (shift+)PgUp, numbers, click image"))
-
     def showNextIfgMore(self):
         self.showNextIfg(20)
-
     def showPrevIfgMore(self):
         self.showPrevIfg(20)
-
     def showNextIfgMore100(self):
         self.showNextIfg(100)
-
     def showPrevIfgMore100(self):
         self.showPrevIfg(100)
-
     def showNextIfg(self, num = 1):
         _translate = QtCore.QCoreApplication.translate
         if self.posIfg+num >= self.totalIfgs:
@@ -350,7 +330,6 @@ class Ui_DialogCheckIfg(object):
                 self.btnPrevImage.setText(_translate("Dialog", "Previous"))
             #self.rbNoError.toggle()
             self.drawIfgs(self)
-
     def showPrevIfg(self, num = 1):
         _translate = QtCore.QCoreApplication.translate
         if self.posIfg-num < 0:
@@ -372,7 +351,6 @@ class Ui_DialogCheckIfg(object):
                 self.btnPrevImage.setText(_translate("Dialog", "Save"))
             #self.rbNoError.toggle()
             self.drawIfgs(self)   
-    
     def toggleErrors(self, posIfg):
         errNo = self.ifgerrors[posIfg]
         options = {0: self.rbNoError.toggle,
@@ -386,7 +364,6 @@ class Ui_DialogCheckIfg(object):
         }
         options[errNo]()
         #self.rbNoError.toggle()
-
     def drawIfgs(self, Dialog):
         ifgfile = os.path.join(var.outDir,self.selectedFrame,self.ifgs[self.posIfg]+'.geo.diff.png')
         unwfile = os.path.join(var.outDir,self.selectedFrame,self.ifgs[self.posIfg]+'.geo.unw.png')
@@ -406,7 +383,6 @@ class Ui_DialogCheckIfg(object):
         else:
             self.graphicsViewUnw.clear()
             self.graphicsViewUnw.imagepath = None
-
     class Ui_ImageView(object):
         imagepath = None #'/nfs/a1/insar/lics_check/003D_09757_111111/20170510_20170522.geo.unw.bmp'
         def setupUi(self, Dialog):
@@ -416,7 +392,6 @@ class Ui_DialogCheckIfg(object):
             image = QtGui.QPixmap(self.imagepath)
             self.imageView.setPixmap(image)
             Dialog.resize(image.width(), image.height())
-    
     def viewFullImageIfg(self):
         print(self.graphicsViewIfg.imagepath)
         imagepath = self.graphicsViewIfg.imagepath
@@ -428,7 +403,6 @@ class Ui_DialogCheckIfg(object):
             self.UiImView.setupUi(self.DialogView)
             self.DialogView.show()
             self.DialogView.raise_()
-
     def viewFullImageUnw(self):
         print(self.graphicsViewUnw.imagepath)
         imagepath = self.graphicsViewUnw.imagepath
@@ -454,6 +428,7 @@ def get_framelist():
             framelist[track].append(frame)
     return framelist
 
+
 def getUncheckedFrames(frameList):
     resFiles = [file for file in os.listdir(var.outDir) if fnmatch(file, '*.savedResults')]
     checkedFrames = [f.split('.')[0] for f in resFiles]
@@ -465,6 +440,7 @@ def getUncheckedFrames(frameList):
             if item in checkedFrames: frames.remove(item)
         #framelist.update({track:frames})
     return framelist
+
 
 def getIfgList(frame):
     #unws=var.tempDir
@@ -483,6 +459,7 @@ def getIfgList(frame):
     #os.listdir(os.path.join(var.tempDir,frame))
     return ifglist
 
+
 def saveIfgErrors(frame,ifglist,ifgerrors):
     ifgset=[ifglist,ifgerrors]
     #fullpath=os.path.join(var.outDir,frame)
@@ -498,7 +475,8 @@ def saveIfgErrors(frame,ifglist,ifgerrors):
         print('warning, could not change savedResults permissions')
     print('Saved to '+pickleFilePath)
     #print('Please send this file to M.Lazecky@leeds.ac.uk')
-    
+
+
 def getIfgErrors(frame):
     #fullpath=os.path.join(var.outDir,frame)
     pickleFile=frame+'.savedResults'
@@ -523,6 +501,7 @@ def getIfgErrors(frame):
         ifgerrorslist = [0] * len(ifglist)
     return ifgerrorslist, lastpos
 
+
 def downloadIfgs(track,frame):
     outDir = os.path.join(var.outDir,str(frame))
     if not os.path.exists(outDir):
@@ -537,7 +516,7 @@ def downloadIfgs(track,frame):
     ifgs.remove(ifgs[0])
     ifgs = [w.split('/')[0] for w in ifgs]
     for ifg in ifgs:
-        print('checking/downloading '+ifg)
+        print(' checking/downloading '+ifg)
         for ext in ['unw.png', 'diff.png']:
             webpath = webaddr+'/'+ifg+'/'+ifg+'.geo.'+ext
             outpath = os.path.join(outDir,ifg+'.geo.'+ext)
@@ -565,6 +544,7 @@ def downloadIfgs(track,frame):
     #else:
     #    return True
     return True
+
 
 if __name__ == "__main__":
     outDir = '/nfs/a1/insar/lics_check'

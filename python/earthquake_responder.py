@@ -146,6 +146,9 @@ def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/publi
 
 
 def reset_frame(frame, eventid='us7000ckx5'):
+    '''
+    this will set the frame to coifg status 0 and frame status 2, i.e. copied2arc, checking for coseismic ifg
+    '''
     try:
         fid=lq.get_frame_polyid(frame)[0][0]
     except:

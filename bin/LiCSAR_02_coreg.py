@@ -261,12 +261,12 @@ def main(argv=None):
             rc = SLC_mosaic_S1_TOPS(slctab,mastermosaic,gc.rglks,gc.azlks,logmosaic)
             os.remove(slctab)
         rslcdir = os.path.join(procdir,'RSLC')
-        if os.path.exists(os.path.join(rslcdir, masterdate.strftime('%Y%m%d'))):
-            shutil.rmtree(os.path.join(rslcdir, masterdate.strftime('%Y%m%d')))
-        rc = link_master_rslc(masterslcdir,rslcdir,masterdate, lq, job_id)
-        if rc > 0:
-            f.write('\nProblem creating a link to master SLC directory in RSLC directory.')
-            return 1
+        if not os.path.exists(os.path.join(rslcdir, masterdate.strftime('%Y%m%d'), masterdate.strftime('%Y%m%d')+'.rslc.mli.par')):
+            #shutil.rmtree(os.path.join(rslcdir, masterdate.strftime('%Y%m%d')))
+            rc = link_master_rslc(masterslcdir,rslcdir,masterdate, lq, job_id)
+            if rc > 0:
+                f.write('\nProblem creating a link to master SLC directory in RSLC directory.')
+                return 1
 ############################################################ Create list of slave images
     if coregListFile:
         slavedatelist = list()

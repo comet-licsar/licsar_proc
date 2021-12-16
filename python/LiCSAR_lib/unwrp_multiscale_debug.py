@@ -280,13 +280,8 @@ def main_prepare_for_unwrapping(pha, coh, maskin, maskfullin, cpx):
 
 
 def RI2cpx(R, I, cpxfile):
-    # we may either load R, I from file:
-    if type(R) == type('str'):
-        r = np.fromfile(R, dtype=np.float32)
-        i = np.fromfile(I, dtype=np.float32)
-    else:
-        r = R.astype(np.float32).ravel()
-        i = I.astype(np.float32).ravel()
+    r = np.fromfile(R, dtype=np.float32)
+    i = np.fromfile(I, dtype=np.float32)
     cpx = np.zeros(len(r)+len(i))
     cpx[0::2] = r
     cpx[1::2] = i
@@ -301,35 +296,6 @@ def coh_from_cpxbin(cpxbin, cohbin, width):
     runcmd('cpxfiddle -w {0} -o float -q mag -f cr4 {1} > {2}'.format(str(width), cpxbin, cohbin))
 
 
-def remove_islands(npa, pixelsno = 50):
-    '''
-    removes isolated clusters of pixels from numpy array npa having less than pixelsno pixels
-    '''
-    #check the mask - should be 1 for islands and 0 for nans
-    mask = ~np.isnan(npa)
-    from scipy import ndimage
-    islands, ncomp = ndimage.label(mask)
-    for i in range(ncomp):
-        #island = islands == i # need to get this one right
-        #island = npa[islands==i]
-        numofpixels = len(mask[islands==i])
-        if numofpixels < pixelsno:
-            npa[islands==i] = np.nan
-    return npa
-
-
-def plotit():
-    plt.figure(figsize=(7, 3.5))
-    plt.subplot(1, 2, 1)
-    plt.imshow(sig)
-    plt.axis('off')
-    plt.title('sig')
-    plt.subplot(1, 2, 2)
-    plt.imshow(mask, cmap=plt.cm.gray)
-    plt.axis('off')
-    plt.title('mask')
-    plt.subplots_adjust(wspace=.05, left=.01, bottom=.01, right=.99, top=.9)
-    plt.show()
 
 def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', width = 0, est = None, bin_pre_remove = None, defomax = 0.6, printout = True):
     if width == 0:
@@ -428,29 +394,21 @@ def make_gacos_ifg(frame, pair, outnc):
         return False
 
 
-def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = True, nonlinear=False):
-    '''
-     first, correlate ifg_ml['pha'] and ifg_ml['hgt'] in blocks
-      - better to keep dounw=True that unwraps each block by snaphu. but it can be slow
-     get coefficient for correction of correlating areas
-     interpolate the coefficient throughout whole raster
-     multiply by hgt = 'to_remove'
-    '''
+def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = False):
     ifg_mlc = ifg_ml.copy(deep=True)
-    ifg_mlc = filter_ifg_ml(ifg_mlc)
     ifg_mlc['toremove'] = 0*ifg_mlc['coh']
-    t = time.process_time()
-    minheight=float(ifg_ml.hgt.quantile(0.25)+200)
-    thisisit, thistype = correct_hgt(ifg_mlc, blocklen = 40, tmpdir = tmpdir, dounw = dounw, nonlinear=nonlinear, minheight=minheight)
-    elapsed_time = time.process_time() - t
-    print('Elapsed time for hgt correction: {:f}'.format(elapsed_time))
+    thisisit, thistype = correct_hgt(ifg_mlc, blocklen = 20, tmpdir = tmpdir, dounw = dounw)
     #thisisit can be either False, xr.DataArray, or np.float - ok, adding 'thistype' that can be bool, float, xr
     if not thistype == 'bool':
         if thistype == 'float':
-            print('we use average value of {} rad/km'.format(str(thisisit*1000)))
+            print('we use average value of {} rad/m'.format(str(thisisit)))
         else:
             print('using hgt correlation grid to reduce hgt component')
         ifg_mlc['toremove'].values = thisisit*ifg_mlc['hgt']
+    # first, correlate ifg_ml['pha'] and ifg_ml['hgt'] in blocks - perhaps good to partially unwrap it here, per block - so... snaphu in python!?!
+    # get coefficient for correction of correlating areas
+    # interpolate the coefficient throughout whole raster
+    # multiply by hgt = 'to_remove'
     return ifg_mlc['toremove']
 
 
@@ -534,12 +492,11 @@ def unwrap_np(cpx, coh, defomax = 0.6, tmpdir=os.getcwd()):
     binCPX = os.path.join(tmpdir,'cpxifg.bin')
     unwbin = os.path.join(tmpdir,'unw.bin')
     # create R, I -> CPX as expected by snaphu
-    r = np.real(cpx) #.tofile(binR)
-    i = np.imag(cpx) #.tofile(binI)
-    #RI2cpx(binR, binI, binCPX)
-    RI2cpx(r, i, binCPX)
+    r = np.real(cpx).tofile(binR)
+    i = np.imag(cpx).tofile(binI)
+    RI2cpx(binR, binI, binCPX)
     #and coh
-    coh.astype(np.float32).tofile(bincoh)
+    coh.tofile(bincoh)
     # unwrap it
     width = coh.shape[0]
     #with nostdout():
@@ -554,13 +511,13 @@ def unwrap_np(cpx, coh, defomax = 0.6, tmpdir=os.getcwd()):
 
 import dask.array as da
 
-def correct_hgt(ifg_ml, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_workers = 1, nonlinear=False, minheight=200, mingausscoh=0.4):
+def correct_hgt(ifg_ml, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_workers = 1):
     #ifg_ml['hgtcorr'] = ifg_ml['pha']
     winsize = (blocklen, blocklen)
-    cohb = da.from_array(ifg_ml['coh'].where(ifg_ml.gauss_coh>mingausscoh).where(ifg_ml.hgt>minheight).astype(np.float32).fillna(0.001), chunks=winsize)
+    cohb = da.from_array(ifg_ml['coh'].where(ifg_ml.gauss_coh>0.4).astype(np.float32).fillna(0.001), chunks=winsize)
     #phab = da.from_array(ifg_ml['pha'].astype(np.float32).fillna(0), chunks=winsize)
-    cpxb = da.from_array(ifg_ml['cpx'].where(ifg_ml.gauss_coh>mingausscoh).where(ifg_ml.hgt>minheight).astype(np.complex64).fillna(0), chunks=winsize)
-    hgtb = da.from_array(ifg_ml['hgt'].where(ifg_ml.gauss_coh>mingausscoh).where(ifg_ml.hgt>minheight).astype(np.float32).fillna(0), chunks=winsize)
+    cpxb = da.from_array(ifg_ml['cpx'].where(ifg_ml.gauss_coh>0.4).astype(np.complex64).fillna(0), chunks=winsize)
+    hgtb = da.from_array(ifg_ml['hgt'].where(ifg_ml.gauss_coh>0.4).astype(np.float32).fillna(0), chunks=winsize)
     f = da.map_blocks(block_hgtcorr, cpxb, cohb, hgtb, procdir = tmpdir, dounw = dounw, meta=np.array(()), chunks = (1,1))
     try:
         #with nostdout():
@@ -574,7 +531,7 @@ def correct_hgt(ifg_ml, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_w
     aaa['hgtcorr'] = aaa['coh']
     aaa.hgtcorr.values = hgtcorr
     #count means - number of non-nan data..!
-    if aaa.hgtcorr.count() > 50 and nonlinear:
+    if aaa.hgtcorr.count() > 50:
         kernel = Gaussian2DKernel(x_stddev=1)
         #interpolate nans using gaussian 2d kernel.. lower stddev, and iterate till all nans are replaced!
         while aaa.hgtcorr.isnull().max() == True:
@@ -587,7 +544,6 @@ def correct_hgt(ifg_ml, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_w
             out.values = interpolate_replace_nans(out.values, kernel)
         outype = 'xr'
     else:
-        #so this will take only median, to perform only linear heights correction
         out = np.nanmedian(hgtcorr)
         outype = 'float'
         if np.isnan(out):
@@ -595,7 +551,6 @@ def correct_hgt(ifg_ml, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_w
             return False, 'bool'
         if np.abs(out) < 0.001:
             print('almost nothing to reduce for hgt')
-            print('the estimate was: '+str(out))
             return False, 'bool'
     #if we got here, means, now it is up to splining it to the full (ml) resolution... but --- at this moment, i will just use average value
     return out, outype
@@ -604,11 +559,10 @@ def correct_hgt(ifg_ml, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_w
 def process_ifg(frame, pair, 
         procdir = os.getcwd(), 
         ml = 10, fillby = 'gauss', 
-        thres = 0.4, prevest = None, 
-        hgtcorr = False, pre_detrend=True,
+        thres = 0.35, prevest = None, 
+        remove_pha = None, hgtcorr = False, pre_detrend=True,
         gacoscorr = True, outtif = None, 
-        defomax = 0.6, add_resid = True, smooth = True, 
-        prev_ramp = None, rampit=False):
+        defomax = 0.6, add_resid = True, smooth = False):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms',pair)
@@ -628,11 +582,6 @@ def process_ifg(frame, pair,
     hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
     #orig file ncs - I do this only because i was too lazy in importing from rio or gdal directly! need to change this!
     origphanc = os.path.join(tmpgendir,'origpha.nc')
-    # to load orig unw_file
-    #unw_file = os.path.join(geoifgdir,pair+'.geo.unw.tif')
-    #origunwnc = os.path.join(tmpgendir,'origunw.nc')
-    #convert_tif2nc(unw_file,origunwnc)
-    #inunw = xr.open_dataset(origunwnc)
     origcohnc = os.path.join(tmpgendir,'origcoh.nc')
     landmasknc = os.path.join(tmpgendir,'landmask.nc')
     hgtnc = os.path.join(tmpgendir,'hgt.nc')
@@ -654,7 +603,6 @@ def process_ifg(frame, pair,
     # prepare input dataset and load
     if not os.path.exists(origphanc):
         convert_tif2nc(ifg_pha_file,origphanc)
-        #
     if hgtcorr:
         if not os.path.exists(hgtnc):
             convert_tif2nc(hgtfile,hgtnc)
@@ -678,11 +626,9 @@ def process_ifg(frame, pair,
     ifg = ifg.rename({'z':'pha'})
     ifg['coh'] = ifg.pha
     ifg['mask'] = ifg.pha
-    ifg['mask_extent'] = ifg.pha
     #ifg['origpha'] = ifg.pha
     ifg['coh'].values = incoh.z.values
     ifg['mask'].values = inmask.z.values
-    ifg['mask_extent'].values = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
     if hgtcorr:
         if os.path.exists(hgtnc):
             inhgt = xr.open_dataset(hgtnc)
@@ -711,37 +657,18 @@ def process_ifg(frame, pair,
     #ifg_ml = multilook_by_gauss(ifg, ml)
     # result more or less same, but much more economic way in memory..
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
-    ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp)
-    width = len(ifg_ml.lon)
-    length = len(ifg_ml.lat)
+    ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend)
     #here we should keep the (not wrapped) phase we remove due to corrections - here, heights, and gacos
     #mask it ... this worked ok here:
     #thres = 0.5
     #gmmm.... it works better if i use the 'trick on gauss of normalised ifg....'
-    mask_gauss = (ifg_ml.gauss_coh > thres)*1
-    #return pixels that have coh > 0.25
-    mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > 0.25).values[mask_gauss.values == 0]
-    ifg_ml['mask_coh'] = mask_gauss.fillna(0)
-    # additionally remove islands of size over 7x7 km
-    # how many pixels are in 10x10 km region?
-    lenthres = 7 # km
-    # resolution of orig ifg is expected 0.1 km
-    origres = 0.1
-    pixels = int(round(lenthres/origres/ml))
-    pixelsno = pixels**2
-    npa = ifg_ml['mask_coh'].where(ifg_ml['mask_coh']==1).where(ifg_ml['mask']==1).values
-    ifg_ml['mask_full'] = ifg_ml['mask_coh']
-    ifg_ml['mask_full'].values = remove_islands(npa, pixelsno)
-    ifg_ml['mask_full'] = ifg_ml['mask_full'].fillna(0)
-    #ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).where(ifg_ml.coh > thres).fillna(0)
-    #here the origpha is just before the gapfilling filter
+    ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).fillna(0)
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     #try without modal filter..
     #ifg_ml = filter_mask_modal(ifg_ml, 'mask_coh', 'mask_coh', 8)
     print('interpolate coh-based masked areas of gauss pha')
     #tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
     if fillby == 'gauss':
-        # keep smooth always on - much better...
         if smooth:
             ifg_ml['pha'] = ifg_ml.gauss_pha
         #trying astropy approach now:
@@ -752,31 +679,15 @@ def process_ifg(frame, pair,
         cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values)
         ifg_ml['cpx_tofill'] = ifg['cpx']
         ifg_ml['cpx_tofill'].values = cpxarr
-        # using only extent - avoiding landmask as rivers would have problems
-        #tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
-        #tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_coh.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
-        # or not... let's mask fully
-        tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
+        tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         tofillR = np.real(tofill)
         tofillI = np.imag(tofill)
         filledR = interpolate_replace_nans(tofillR.values, kernel)
         filledI = interpolate_replace_nans(tofillI.values, kernel)
         ifg_ml['pha'].values = np.angle(filledR + 1j*filledI)
-        #sometimes the whole area is not within gauss kernel
-        while np.max(np.isnan(ifg_ml['pha'].values)):
-            cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
-            ifg_ml['cpx_tofill'].values = cpxarr
-            tofill = ifg_ml['cpx_tofill']
-            tofillR = np.real(tofill)
-            tofillI = np.imag(tofill)
-            filledR = interpolate_replace_nans(tofillR.values, kernel)
-            filledI = interpolate_replace_nans(tofillI.values, kernel)
-            ifg_ml['pha'].values = np.angle(filledR + 1j*filledI)
         #sometimes the whole area is not within gauss kernel - use NN for that:
-        #if np.max(np.isnan(ifg_ml['pha'].values)):
-        #    # no, this would be too far. using only filling by zero
-        #    ifg_ml['pha'] = ifg_ml['pha'].fillna(0)
-        #    #ifg_ml['pha'].values = interpolate_nans(ifg_ml['pha'].values, method='nearest')
+        if np.max(np.isnan(ifg_ml['pha'].values)):
+            ifg_ml['pha'].values = interpolate_nans(ifg_ml['pha'].values, method='nearest')
         #ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         #ifg_ml['pha'].values = interpolate_replace_nans(tofillpha.values, kernel)
     elif fillby == 'none':
@@ -797,21 +708,20 @@ def process_ifg(frame, pair,
     binmask= os.path.join(tmpdir,'gaussmask.bin')
     #bincoh = os.path.join(tmpdir,'gausscoh.bin')
     bincoh = os.path.join(tmpdir,'coh.bin')
-    #binR = os.path.join(tmpdir,'gaussR.bin')
-    #binI = os.path.join(tmpdir,'gaussI.bin')
+    binR = os.path.join(tmpdir,'gaussR.bin')
+    binI = os.path.join(tmpdir,'gaussI.bin')
     binCPX = os.path.join(tmpdir,'cpxgaussifg.bin')
     outunwbin = os.path.join(tmpdir,'gaussunwrapped.bin')
     #print('exporting to bin files')
-    #ifg_ml.mask_coh.fillna(0).values.astype(np.byte).tofile(binmask)
-    # full masking may be too much for snaphu here:
-    #ifg_ml.mask_full.fillna(0).values.astype(np.byte).tofile(binmask)
-    ifg_ml.mask.fillna(0).values.astype(np.byte).tofile(binmask)
+    ifg_ml.mask_coh.fillna(0).values.astype(np.byte).tofile(binmask)
     #ifg_ml.gauss_coh.fillna(0.001).values.astype(np.float32).tofile(bincoh)
     # we should use the orig coh for weights... and perhaps very low coh values instead of 0
     ifg_ml.coh.fillna(0.001).values.astype(np.float32).tofile(bincoh)
-    r = np.real(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values #.tofile(binR)
-    i = np.imag(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values #.tofile(binI)
-    RI2cpx(r, i, binCPX)
+    r = np.real(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values.tofile(binR)
+    i = np.imag(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values.tofile(binI)
+    RI2cpx(binR, binI, binCPX)
+    width = len(ifg_ml.lon)
+    length = len(ifg_ml.lat)
     #unwrapping itself
     if type(prevest) != type(None):
         #resizing previous ML step and using to unwrap
@@ -841,21 +751,18 @@ def process_ifg(frame, pair,
     unw1 = np.fromfile(binfile,dtype=dtype)
     unw1 = unw1.reshape(ifg_ml.pha.shape)
     #unw1 = np.flip(unw1,axis=0)
-    ifg_ml[daname] = ifg_ml['pha'] #.copy(deep=True)
+    ifg_ml[daname] = ifg_ml['pha'].copy(deep=True)
     ifg_ml[daname].values = unw1
     #ok, so the gauss-based coh mask is not the best to do... so exporting 'all pixels'
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
+    ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
     #print('20210722 - testing now - using gauss-based coh mask, ignore the next message:')
     #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
-    #this would do median correction, not doing it now:
-    #ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
+    ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
     #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
-    ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
+    ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask
     #print('unwrap also residuals from the filtered cpx, and add to the final unw - mask only waters..')
     cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.origpha.fillna(0).where(ifg_ml.mask == 1).values)
-    ifg_ml['origcpx'] = ifg_ml['gauss_cpx'] #.copy(deep=True)
+    ifg_ml['origcpx'] = ifg_ml['gauss_cpx'].copy(deep=True)
     ifg_ml['origcpx'].values = cpxarr
     if add_resid:
         print('unwrapping residuals and adding back to the final unw output')
@@ -864,24 +771,22 @@ def process_ifg(frame, pair,
         # ifg_unw_unfilt = ifg_unw_filt - delta
         ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate()
         incpx = 'resid_cpx'
-        #binR = os.path.join(tmpdir,incpx+'.R.bin')
-        #binI = os.path.join(tmpdir,incpx+'.I.bin')
+        binR = os.path.join(tmpdir,incpx+'.R.bin')
+        binI = os.path.join(tmpdir,incpx+'.I.bin')
         binCPX = os.path.join(tmpdir,incpx+'.cpx.bin')
         outunwbin = os.path.join(tmpdir,incpx+'.unw.bin')
         binfile = outunwbin
         daname = incpx+'.unw'
         #
-        r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binR)
-        i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binI)
-        RI2cpx(r, i, binCPX)
+        r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binR)
+        i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values.tofile(binI)
+        RI2cpx(binR, binI, binCPX)
         main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.5)
         unw1 = np.fromfile(binfile,dtype=dtype)
         unw1 = unw1.reshape(ifg_ml.pha.shape)
-        ifg_ml[daname] = ifg_ml['pha'] #.copy()
+        ifg_ml[daname] = ifg_ml['pha'].copy()
         ifg_ml[daname].values = unw1
-        #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
-        #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
-        ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
+        ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
         print('debug - avoiding median correction now')
         #ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
         #print('again, masking the final product by gauss coh threshold')
@@ -897,20 +802,11 @@ def process_ifg(frame, pair,
     # add back what we have removed before..
     ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml['toremove']
     #mask it
-    #ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask>0)
+    ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask>0)
     # ok ok.... let's mask by the gauss mask.. although, can be quite missing lot of areas
     #ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask_coh>0)
     # hmmm... just to make it nicer...
-    ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask>0)
-    # but this may be wrong!
-    #ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['unw'].median()
-    if rampit:
-        ifg_ml['unw_orig'] = ifg_ml['unw'].copy()
-        ifg_ml['unw'].values= interpolate_replace_nans(ifg_ml['unw'].values, kernel)
-        ifg_ml['unw'].values = filter_nan_gaussian_conserving(ifg_ml['unw'].values, sigma=2, trunc=4)
-        ifg_ml['unw'] = ifg_ml['unw'].fillna(0).where(ifg_ml.mask_extent>0)
-    else:
-        ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask_full>0)
+    ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['unw'].median()
     if outtif:
         #ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         #ifg_ml['unw'].to_netcdf(outtif+'.nc')
@@ -932,7 +828,7 @@ def process_ifg(frame, pair,
     return ifg_ml
 
 
-def process_frame(frame, ml = 10, hgtcorr = True, cascade=False):
+def process_frame(frame, ml = 10, hgtcorr = False, cascade=False):
     if cascade and ml>1:
         print('error - the cascade approach is ready only for ML1')
         return False
@@ -979,18 +875,14 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False):
                     if cascade:
                         ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd())
                     else:
-                        #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
-                        ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
-                                 thres = 0.3, defomax = 0.6, add_resid = True)
+                        ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
                     #else:
-                    
                     #    print('ML set to 1 == will try running the cascade (multiscale) unwrapping')
                     #    ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd())
                     #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
                     #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
                     #np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                    #np.flipud(ifg_ml.unw.where(ifg_ml.mask > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                    np.flipud(ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
+                    np.flipud(ifg_ml.unw.where(ifg_ml.mask > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     #or use gauss here?
                     np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     width = len(ifg_ml.lon)
@@ -1068,106 +960,52 @@ def make_gauss_coh_good(ifg, ml = 10):
     return ifgtemp_ml['gauss_coh']
 
 
-def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None):
-    '''
-    prev_ramp is an xarray dataframe, it can be of different multilooking
-    '''
+def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True):
     #landmask it and multilook it
     if ml > 1:
         bagcpx = ifg[['cpx']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
         ifg_ml = bagcpx.sum() / bagcpx.count()
-        ifg_ml['pxcount'] = ifg_ml.cpx
-        ifg_ml['pxcount'].values = bagcpx.count().cpx.values    # to use later - evaluate bad ML data, e.g. mask those pxls
     else:
         ifg_ml = ifg[['cpx']].where(ifg.mask>0)
+    #prepare 'toremove' layer
+    ifg_ml['toremove'] = ifg_ml.cpx.copy()
+    ifg_ml['toremove'].values = 0*np.angle(ifg_ml.cpx)
+    if pre_detrend:
+        ifg_ml['cpx'], ifg_ml['toremove'] = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
+    ifg_ml['pha'] = ifg_ml.cpx.copy()
+    ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
+    #have the orig coh here:
+    ifg_ml['coh'] = 0*ifg_ml['pha']
+    ifg_ml.coh.values = np.abs(ifg_ml.cpx)
+    #keep the original original pha values
+    ifg_ml['origpha_noremovals'] = ifg_ml.pha.copy(deep=True)
     #downsample mask
     if ml > 1:
         ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max()
-        ifg_ml['mask_extent'] = ifg.mask_extent.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max()
         if 'gacos' in ifg.variables:
             ifg_ml['gacos'] = ifg.gacos.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()
         if 'hgt' in ifg.variables:
             ifg_ml['hgt'] = ifg.hgt.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()
     else:
         ifg_ml['mask'] = ifg.mask
-        ifg_ml['mask_extent'] = ifg.mask_extent
         if 'gacos' in ifg.variables:
             ifg_ml['gacos'] = ifg.gacos
         if 'hgt' in ifg.variables:
             ifg_ml['hgt'] = ifg.hgt
-    #keep the original original pha values
-    ifg_ml['origpha_noremovals'] = ifg_ml.cpx #.copy(deep=True)
-    ifg_ml['origpha_noremovals'].values = np.angle(ifg_ml.cpx) #.copy(deep=True)
-    #prepare 'toremove' layer
-    ifg_ml['toremove'] = ifg_ml.cpx
-    ifg_ml['toremove'].values = 0*np.angle(ifg_ml.cpx) # just make them zeroes
-    #remove previous estimates
-    if not type(prev_ramp) == type(None):
-        width = len(ifg_ml.lon)
-        length = len(ifg_ml.lat)
-        #prev_width = len(prev_ramp.lon)
-        #prev_length = len(prev_ramp.lat)
-        prev_ramp = prev_ramp.fillna(0)
-        resized = cv2.resize(prev_ramp.values,dsize=(width,length), interpolation=cv2.INTER_LINEAR) #or INTER_CUBIC ?
-        # if gacos is to be applied, need to remove its effect first here:
-        if 'gacos' in ifg_ml.variables:
-            resized = resized - ifg_ml['gacos'].values
-        ifg_ml['toremove'] = ifg_ml['toremove'] + resized
-        # apply the correction - wrapping it and conjugate in complex realm
-        mag = np.ones(resized.shape)
-        correction = wrap2phase(resized)
-        cpx_corr = magpha2RI_array(mag, correction)
-        #a trick to apply the correction only to non-nan values.. 'other'
-        #da = da.where(xrda.isnull(), other=da.values * np.conjugate(cpx_corr))
-        ifg_ml['cpx'].values = ifg_ml['cpx'].values * np.conjugate(cpx_corr)
-        resized = ''
-        if pre_detrend:
-            print('no need to detrend if prev_ramp is here, cancelling to avoid extra noise')
-            pre_detrend = False
-    ifg_ml['pha'] = ifg_ml.cpx
-    ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
-    #have the orig coh here:
-    ifg_ml['coh'] = ifg_ml['pha']
-    ifg_ml.coh.values = np.abs(ifg_ml.cpx)
     #have gacos removed first, prior to doing height corr:
     if 'gacos' in ifg_ml.variables:
         ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-        ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
         ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
-        #ok, return coh, phase back to cpx
-        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
-        ifg_ml['cpx'].values = cpxa
-    #
     ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-    ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
-    #
-    if pre_detrend:
-        ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
-        ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
-        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-        ifg_ml['toremove'] = ifg_ml['toremove'] + correction
-    if 'hgt' in ifg.variables:
-        ifg_ml['hgt'] = ifg_ml['hgt'].where(ifg_ml.mask>0)
-    # perform Gaussian filtering
-    #ifg_ml = filter_ifg_ml(ifg_ml)
     #now fix the correlation with heights:
     if hgtcorr:
+        ifg_ml = filter_ifg_ml(ifg_ml)
         #ifg_ml['toremove'] = ifg_ml['toremove'] + 
-        # dounw=False may be faster!
-        toremove_hgt = remove_height_corr(ifg_ml, tmpdir = tmpdir, dounw = True, nonlinear=False)
+        toremove_hgt = remove_height_corr(ifg_ml, tmpdir = tmpdir)
         ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
-        # need to remove hgt only here, as the 'toremove' was already removed before..
         ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - toremove_hgt)
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-        #ok, return coh, phase back to cpx
-        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
-        ifg_ml['cpx'].values = cpxa
-        if pre_detrend:
-            ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
-            ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
-            ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-            ifg_ml['toremove'] = ifg_ml['toremove'] + correction
         # ifg_ml['pha'].plot()
     #else:
     #    ifg_ml['toremove'] = 0*ifg_ml['pha']
@@ -1175,18 +1013,10 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     #ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['toremove'])
     #ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
     # maybe not the best, but have gacos correction inside the toremove variable
+    if 'gacos' in ifg_ml.variables:
+        ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos'] #.fillna(0)
     ifg_ml['toremove'] = ifg_ml['toremove'].where(ifg_ml.mask>0)
-    # oh, ok, also masking pixels with small number of pre-multilooked points (landmasked)
-    if 'pxcount' in ifg_ml.data_vars:
-        # try setting to something like 90 if ML10
-        if not thres_pxcount:
-            #thres_pxcount = int(round((ml**2)/2))
-            thres_pxcount = int(round((ml**2)*4/5))
-        ifg_ml['mask'] = ifg_ml.mask * (ifg_ml.pxcount >= thres_pxcount)
-        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-        ifg_ml['cpx'] = ifg_ml['cpx'].where(ifg_ml.mask>0)
-        ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
-    print('finally, filter using (adapted) gauss filter')
+    #print('filter using (adapted) gauss filter')
     ifg_ml = filter_ifg_ml(ifg_ml)
     return ifg_ml
 
@@ -1291,7 +1121,6 @@ def detrend_ifg_xr(xrda, isphase=True, return_correction = False):
 
     
 def filter_ifg_ml(ifg_ml):
-    # this will use only PHA and would filter it
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
     cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
@@ -1320,26 +1149,19 @@ def wrap2phase(A):
 
 import time
 
-def cascade_unwrap(frame, pair, procdir = os.getcwd(), only10 = True, hgtcorr = True, outtif = None):
+def cascade_unwrap(frame, pair, procdir = os.getcwd(), only10 = True, outtif = None):
     print('performing cascade unwrapping')
     starttime = time.time()
     if only10:
-        #ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.5, add_resid = False, smooth = True)
-        #ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = True, smooth=True, outtif=outtif)
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.6, add_resid = True, hgtcorr = hgtcorr, outtif=outtif)
+        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.5, add_resid = False, smooth = True)
+        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = True, smooth=True, outtif=outtif)
     else:
-        ifg_ml20 = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prev_ramp = ifg_ml20['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
+        ifg_ml20 = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False)
+        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prevest = ifg_ml20['unw'], defomax = 0.5, add_resid = False)
         #elapsed_time10 = time.time()-starttime
-        ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.6, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml3 = process_ifg(frame, pair, procdir = procdir, ml = 3, fillby = 'gauss', prev_ramp = ifg_ml5['unw'], defomax = 0.6, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prev_ramp = ifg_ml3['unw'], thres = 0.3, defomax = 0.6, add_resid = True, hgtcorr = hgtcorr, outtif=outtif)
-        #ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prevest = ifg_ml20['unw'], defomax = 0.5, add_resid = False, rampit=True)
-        ##elapsed_time10 = time.time()-starttime
-        #ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = False, rampit=True)
-        #ifg_ml3 = process_ifg(frame, pair, procdir = procdir, ml = 3, fillby = 'gauss', prevest = ifg_ml5['unw'], defomax = 0.6, add_resid = False, rampit=True)
-        #ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml3['unw'], defomax = 0.6, add_resid = True, outtif=outtif)
+        ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = False)
+        ifg_ml3 = process_ifg(frame, pair, procdir = procdir, ml = 3, fillby = 'gauss', prevest = ifg_ml5['unw'], defomax = 0.6, add_resid = False)
+        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml3['unw'], defomax = 0.6, add_resid = True, outtif=outtif)
     elapsed_time = time.time()-starttime
     hour = int(elapsed_time/3600)
     minite = int(np.mod((elapsed_time/60),60))

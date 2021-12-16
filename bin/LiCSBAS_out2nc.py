@@ -71,6 +71,7 @@ def loadall2cube(cumfile):
     cohfile = os.path.join(cumdir,'results/coh_avg')
     rmsfile = os.path.join(cumdir,'results/resid_rms')
     vstdfile = os.path.join(cumdir,'results/vstd')
+    stcfile = os.path.join(cumdir,'results/stc')
     metafile = os.path.join(cumdir,'../../metadata.txt')
     #h5datafile = 'cum.h5'
     cum = xr.load_dataset(cumfile)
@@ -116,6 +117,12 @@ def loadall2cube(cumfile):
         vstdxr.attrs['unit'] = 'mm/year'
         cube['vstd'] = vstdxr
     else: print('No vstd file detected, skipping')
+    if os.path.exists(stcfile):
+        infile = np.fromfile(stcfile, 'float32')
+        stcxr = xr.DataArray(infile.reshape(sizey,sizex), coords=[lat, lon], dims=["lat", "lon"])
+        #vstdxr.attrs['unit'] = 'mm/year'
+        cube['stc'] = stcxr
+    else: print('No stc file detected, skipping')
     # add inc_angle
     if os.path.exists(metafile):
         a = subp.run(['grep','inc_angle', metafile], stdout=subp.PIPE)

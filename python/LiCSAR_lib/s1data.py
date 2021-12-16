@@ -167,16 +167,10 @@ def get_neodc_path_images(images, file_or_meta = False):
             sensType='SM'
         else:
             sensType='IW'
-        name = image.split('.')[0]
-        try:
-            import LiCSquery as lq
-            ipf = lq.get_ipf(name)
-            vers = str(int(ipf.split('.')[0]))
-        except:
-            if dt.datetime.strptime(year+mon+day,'%Y%m%d') >= dt.datetime.strptime('20190625','%Y%m%d'):
-                vers='3'
-            else:
-                vers='2'
+        if dt.datetime.strptime(year+mon+day,'%Y%m%d') >= dt.datetime.strptime('20190625','%Y%m%d'):
+            vers='3'
+        else:
+            vers='2'
         neodcpath = os.path.join('/neodc/sentinel1'+AorB,'data',sensType,'L1_SLC/IPF_v'+vers,year,mon,day,image+'.zip')
         if file_or_meta:
             if not os.path.exists(neodcpath):
@@ -208,8 +202,12 @@ def import_to_licsinfo(images, meta = True):
                 #arch2DB.main('-f'+metaonly)
                 os.system('arch2DB.py -f {}'.format(metaonly))
             else:
-                print('Image '+os.path.basename(imagepath)+' is not in neodc. Including to the list for download')
-                todown.append(os.path.basename(imagepath))
+                localfile = os.path.join(os.environ['LiCSAR_SLC'], os.path.basename(imagepath))
+                if os.path.exists(localfile):
+                    os.system('arch2DB.py -f {}'.format(localfile))
+                else:
+                    print('Image '+os.path.basename(imagepath)+' is not in neodc, neither downloaded. Including to the list for download')
+                    todown.append(os.path.basename(imagepath))
     return todown
 
 
