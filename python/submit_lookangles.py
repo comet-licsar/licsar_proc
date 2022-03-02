@@ -67,6 +67,9 @@ def main(argv=None):
     theta = os.path.join(geodir,'theta')
     phi = os.path.join(geodir,'phi')
     lutfile = os.path.join(geodir,origmasterdate+'.lt_fine')
+    if not os.path.exists(lutfile):
+        print('warning - fine LUT does not exist, using non-refined LUT')
+        lutfile = os.path.join(geodir,origmasterdate+'.lt')
     logfilename = os.path.join(framedir,'log','look_vector-{0}.log'.format(origmasterdate))
     if look_vector(slcpar,offpar,dempar,dem,theta,phi,logfilename):
         logfilename = os.path.join(framedir,'log','geocode-theta-{0}.log'.format(origmasterdate))

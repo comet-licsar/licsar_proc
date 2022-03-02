@@ -59,7 +59,7 @@ def link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id):
 ################################################################################
 #geocode dem function
 ################################################################################
-def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres):
+def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres, skip_fit = False):
     """ Geocodes the DEM to the master image geometry
     """
 ############################################################ Create radar coded DEM
@@ -113,70 +113,77 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres
         print("Something went wrong during the DEM lookup table creation.", file=sys.stderr)
         return 1 
 ############################################################ Simulate DEM amplitude
-    #sigma 0 normalization area
-    pixsigma = os.path.join(geodir,'pix_sigma0')
-    #gamma 0 normalization area
-    pixgamma = os.path.join(geodir,'pix_gamma0')
-    logfilename = os.path.join(procdir,'log','pixel_area_{0}.log'.format(masterstr))
-    print('Simulating DEM amplitude...')
-    if not pixel_area(mlipar,demseg,lut,lsmap,inc,pixsigma,pixgamma,logfilename):
-        # Error in amplitude simulation
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during the DEM amplitude simulation.", file=sys.stderr)
-        return 2
-############################################################ Create a Diff param file
-#    masterstr = masterdate.strftime('%Y%m%d')
-    #the pixsigma file from the previous step
-    mli1 = os.path.join(geodir,'pix_sigma0')
-    mli2 = mlipar[:-4] #The original master mli
-    #Diff param file path
-    diffpar = os.path.join(geodir,masterstr+'.diff_par')
-    logfile = os.path.join(procdir,'log',
-                           'create_diff_par_{0}.log'.format(masterstr))
-    if not create_diff_par(mli2+'.par','-',diffpar,'1','0',logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during the DIFF parameter file creation", file=sys.stderr)
-        return 3
-############################################################ Estimate cross correlation
-                                                #offsets between sim and master original
-    print('Estimating offsets...')
-    #offset file
-    offfile = os.path.join(geodir,masterstr+'.offs')
-    #redundent variable?
-    cofffile = os.path.join(geodir,'coffs')
-    #patch cross-correlation
-    ccpfile = os.path.join(geodir,masterstr+'.ccp')
-    #text file containing offsets
-    offsets = os.path.join(geodir,'offsets')
-    logfile = os.path.join(procdir,'log',
-                           'offset_pwrm_{0}.log'.format(masterstr))
-    if not offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,'256','256',
-                       offsets,'2','64','64','0.2',logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during the cross correlation"\
-                                                            "offset estimation.", file=sys.stderr)
-        return 3
-############################################################ Fit offset function
-    coffs = os.path.join(geodir,'coffs')
-    logfile = os.path.join(procdir,'log',
-                           'offset_fitm_{0}.log'.format(masterstr))
-    print('Fitting offsets...')
-    if not offset_fitm(offfile,ccpfile,diffpar,coffs,coffs+'ets','0.2','1',logfile):
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong during the offset function fittin.", file=sys.stderr)
-        return 3 
-############################################################ Refine lookup table
-    demwidth,demlength = get_dem_size(os.path.join(geodir,'EQA.dem_par')) # isn't this demseg?
-    lutfine = os.path.join(geodir,masterstr+'.lt_fine')
-    logfile = os.path.join(procdir,'log',
-                           'gc_map_fine_{0}.log'.format(masterstr))
-    if not gc_map_fine(lut,demwidth,diffpar,lutfine,'1',logfile):
-        # Error in lookup table refining
-        print("\nError:", file=sys.stderr)
-        print("Something went wrong refining the lookup table.", file=sys.stderr)
-        return 4
+    mli2 = mlipar[:-4]
+    if not skip_fit:
+        #sigma 0 normalization area
+        pixsigma = os.path.join(geodir,'pix_sigma0')
+        #gamma 0 normalization area
+        pixgamma = os.path.join(geodir,'pix_gamma0')
+        logfilename = os.path.join(procdir,'log','pixel_area_{0}.log'.format(masterstr))
+        print('Simulating DEM amplitude...')
+        if not pixel_area(mlipar,demseg,lut,lsmap,inc,pixsigma,pixgamma,logfilename):
+            # Error in amplitude simulation
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong during the DEM amplitude simulation.", file=sys.stderr)
+            return 2
+    ############################################################ Create a Diff param file
+    #    masterstr = masterdate.strftime('%Y%m%d')
+        #the pixsigma file from the previous step
+        mli1 = os.path.join(geodir,'pix_sigma0')
+        #mli2 = mlipar[:-4] #The original master mli
+        #Diff param file path
+        diffpar = os.path.join(geodir,masterstr+'.diff_par')
+        logfile = os.path.join(procdir,'log',
+                               'create_diff_par_{0}.log'.format(masterstr))
+        if not create_diff_par(mli2+'.par','-',diffpar,'1','0',logfile):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong during the DIFF parameter file creation", file=sys.stderr)
+            return 3
+    ############################################################ Estimate cross correlation
+                                                    #offsets between sim and master original
+        print('Estimating offsets...')
+        #offset file
+        offfile = os.path.join(geodir,masterstr+'.offs')
+        #redundent variable?
+        cofffile = os.path.join(geodir,'coffs')
+        #patch cross-correlation
+        ccpfile = os.path.join(geodir,masterstr+'.ccp')
+        #text file containing offsets
+        offsets = os.path.join(geodir,'offsets')
+        logfile = os.path.join(procdir,'log',
+                               'offset_pwrm_{0}.log'.format(masterstr))
+        if not offset_pwrm(mli1,mli2,diffpar,offfile,ccpfile,'256','256',
+                           offsets,'2','64','64','0.2',logfile):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong during the cross correlation"\
+                                                                "offset estimation.", file=sys.stderr)
+            return 3
+    ############################################################ Fit offset function
+        coffs = os.path.join(geodir,'coffs')
+        logfile = os.path.join(procdir,'log',
+                               'offset_fitm_{0}.log'.format(masterstr))
+        print('Fitting offsets...')
+        if not offset_fitm(offfile,ccpfile,diffpar,coffs,coffs+'ets','0.2','1',logfile):
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong during the offset function fittin.", file=sys.stderr)
+            return 3 
+    ############################################################ Refine lookup table
+        demwidth,demlength = get_dem_size(os.path.join(geodir,'EQA.dem_par')) # isn't this demseg?
+        lutfine = os.path.join(geodir,masterstr+'.lt_fine')
+        logfile = os.path.join(procdir,'log',
+                               'gc_map_fine_{0}.log'.format(masterstr))
+        if not gc_map_fine(lut,demwidth,diffpar,lutfine,'1',logfile):
+            # Error in lookup table refining
+            print("\nError:", file=sys.stderr)
+            print("Something went wrong refining the lookup table.", file=sys.stderr)
+            return 4
 ############################################################ create dem seg mli
                                                 #by gecoding master mli to demseg
+    else:
+        print('skipping fitting of MLI to DEM to improve geocoding')
+        lutfine = lut
+        demwidth,demlength = get_dem_size(os.path.join(geodir,'EQA.dem_par'))
+    
     width, length = get_mli_size(mli2+'.par')
     demsegmli = os.path.join(geodir,'EQA.{0}.slc.mli'.format(masterstr))
     logfile = os.path.join(procdir,'log',
@@ -389,7 +396,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
             print('skipping link to non-existing slc file: '+row[0])
             iws.append(os.path.basename(row[0]).split('.')[1])
     if iws:
-        masterslctab2 = masterslctab+'.noiw'
+        masterslctab2 = masterslctab+'.'+slavedate.strftime('%Y%m%d')+'.noiw'
         slaveslctab2 = slaveslctab+'.noiw'
         slaverslctab2 = slaverslctab+'.noiw'
         if slave3tab:
@@ -419,7 +426,8 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     extracmd = ' '
     if slave3datestr:
         extracmd = '--RSLC3_tab {0} --RSLC3_ID {1}'.format(slave3tab, slave3datestr)
-    cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --no_int --no_cleaning --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
+    #cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --use_existing --no_int --no_cleaning --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
+    cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
     print(cmd)
     #now this may take some 80 minutes
     rc = os.system(cmd)
@@ -606,26 +614,30 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             missingbursts.append(mb)
 ############################################################ Create input tab files
     #master tab file
+    print('WARNING, we will now not generate master tab file - it may contain wrong path..')
     masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')+'_tab')
     masterfilename = os.path.join(masterrslcdir,masterdate.strftime('%Y%m%d')+'.rslc')
-    rc, msg = make_SLC_tab(masterslctab,masterfilename,swathlist)
-    if rc > 0:
-        print('Something went wrong creating the master tab file...')
-        return 1
+    if not os.path.exists(masterslctab):
+        rc, msg = make_SLC_tab(masterslctab,masterfilename,swathlist)
+        if rc > 0:
+            print('Something went wrong creating the master tab file...')
+            return 1
     #slave slc tab file
     slaveslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'_tab')
     slavefilename = os.path.join(slaveslcdir,slavedate.strftime('%Y%m%d')+'.slc')
-    rc, msg = make_SLC_tab(slaveslctab,slavefilename,swathlist)
-    if rc > 0:
-        print('Something went wrong creating the slave tab file...')
-        return 1
+    if not os.path.exists(slaveslctab):
+        rc, msg = make_SLC_tab(slaveslctab,slavefilename,swathlist)
+        if rc > 0:
+            print('Something went wrong creating the slave tab file...')
+            return 1
     #resampled slave slc tab file
     slaverslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'R_tab')
     slaverfilename = os.path.join(slaverslcdir,slavedate.strftime('%Y%m%d')+'.rslc')
-    rc, msg = make_SLC_tab(slaverslctab,slaverfilename,swathlist)
-    if rc > 0:
-        print('Something went wrong creating the slave resampled tab file...')
-        return 1
+    if not os.path.exists(slaverslctab):
+        rc, msg = make_SLC_tab(slaverslctab,slaverfilename,swathlist)
+        if rc > 0:
+            print('Something went wrong creating the slave resampled tab file...')
+            return 1
     #auxillary slave tab file -> used for refinement passes
     if slave3date:
         slave3tab = os.path.join(procdir,'tab',slave3date.strftime('%Y%m%d_tab'))

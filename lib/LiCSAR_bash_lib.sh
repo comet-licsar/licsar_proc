@@ -102,7 +102,7 @@ function prepare_landmask() {
     elif [ -f $filedir/$frame.geo.landmask.tif ]; then
         maskfile=$filedir/$frame.geo.landmask.tif
     else 
-        wget --no-check-certificate -O $filedir/$frame.geo.landmask.tif https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
+        wget --no-check-certificate -O $filedir/$frame.geo.landmask.tif https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
         if [ -f $filedir/$frame.geo.landmask.tif ]; then
             if [ `ls -l $filedir/$frame.geo.landmask.tif | gawk {'print $5'}` -eq 0 ]; then
                 rm $filedir/$frame.geo.landmask.tif; maskfile='';
@@ -284,8 +284,12 @@ function create_preview_unwrapped() {
   if [ ! -z $1 ]; then
     local unwfile=$1
     echo "generating preview for "$unwfile
+    origfile=$unwfile
     #local RESIZE=30
     outfile=`echo $unwfile | rev | cut -c 4- | rev`png
+    # correct for median
+    unwfile=$origfile.tmp.tif
+    gmt grdmath $origfile $origfile MEDIAN SUB = $unwfile=gd:Gtiff
   extracmd=''
   if [ ! -z $2 ]; then
    frame=$2
@@ -320,7 +324,7 @@ function create_preview_unwrapped() {
    #echo "preparing for kml"
    gmt grd2kml -Ag -C$outfile.unw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd $unwfile 2>/dev/null
   fi
-  rm $maskedfile $hillshade $outfile.unw.cpt 2>/dev/null
+  rm $maskedfile $hillshade $unwfile $outfile.unw.cpt 2>/dev/null
   rm gmt.history 2>/dev/null
   else
     echo "Usage: create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
@@ -405,14 +409,19 @@ function correct_ifg_gacos_public() {
     #mcoef=4*PI/$wavelength
     #mcoef=226.56
     echo "correcting the interferogram to "$outfile
-    #sltd are already in radians
-    gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB SUB WRAP = $outfile'=gd:Gtiff'
-    #gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB 226.56 MUL 0 NAN $U DIV SUB WRAP = $outfile'=gd:Gtiff'
-    create_preview_wrapped $outfile
+    if [ $ext == 'unw' ]; then
+     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB SUB = $outfile'=gd:Gtiff'
+     create_preview_unwrapped $outfile
+    else
+     #sltd are already in radians
+     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB SUB WRAP = $outfile'=gd:Gtiff'
+     #gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB 226.56 MUL 0 NAN $U DIV SUB WRAP = $outfile'=gd:Gtiff'
+     create_preview_wrapped $outfile
+    fi
   else
     echo "Usage: correct_ifg_gacos_public frame_id ifg ext"
     echo "(ifg must be yyyymmdd_yyyymmdd)"
-    echo "(ext should be either diff_pha or diff_unfiltered_pha)"
+    echo "(ext should be either diff_pha, diff_unfiltered_pha or unw)"
     return 0
   fi
 };

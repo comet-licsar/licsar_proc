@@ -348,7 +348,10 @@ def main(argv=None):
     
 ############################################################ Geocode the master
     print('\n\n')
-    rc = geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,gc.outres)
+    rc = geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,gc.outres, skip_fit = False)
+    if rc != 0:
+        print('some error geocoding DEM. trying to skip the fitting (S1 orbits are very precise now)')
+        rc = geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,gc.outres, skip_fit = True)
     with open(reportfile,'a') as f:
         if rc == 0:
             f.write('\nMaster geocoding completed successfully\n')

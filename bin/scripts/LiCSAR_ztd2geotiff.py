@@ -32,7 +32,7 @@ import sys
 import time
 import subprocess as subp
 import numpy as np
-import gdal, osr
+from osgeo import gdal, osr
 
 os.environ['QT_QPA_PLATFORM']='offscreen'
 import warnings

@@ -77,6 +77,9 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
                                  origmasterdate.strftime('%Y%m%d'),
                                  origmasterdate.strftime('%Y%m%d')+'.rslc.par')
     hgtfile = os.path.join(procdir,'geo',origmasterdate.strftime('%Y%m%d')+'.hgt')
+    if not os.path.exists(hgtfile):
+        print('warning, no DEM found. will use only orbits for simulated phase screen')
+        hgtfile = '-'
     simfile = os.path.join(ifgthisdir,pair+'.sim_unw')
     logfilename = os.path.join(procdir,'log','phase_sim_orb_{0}.log'.format(pair))
     #if rglks != gc.rglks or azlks != gc.azlks:

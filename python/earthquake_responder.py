@@ -72,7 +72,11 @@ def create_eq_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_pr
     eq_df[dbcols].to_csv(csvfile, sep = ';', index=False)
     return True
 
+
 def add_new_event(event, updatecsv = True):
+    '''
+    you may provide either usgs id or the event object
+    '''
     #this will add the event to the database of eqs and the eqs.csv
     if type(event)==str:
         #assuming eventid is parsed only

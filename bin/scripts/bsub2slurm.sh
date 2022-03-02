@@ -109,7 +109,7 @@ while true; do
                #exit
              fi
             done
-            cmd=$cmd' --dependency=afterany'$jobids
+            cmd=$cmd' --kill-on-invalid-dep=no --dependency=afterany'$jobids
             shift 2
             ;;
         -v|--verbose)

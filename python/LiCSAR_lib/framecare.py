@@ -614,6 +614,9 @@ def frame2geopandas_brute(frame):
     return gpan
 
 def rename_frame_main(framename,newname, reportcsv = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/frameid_changes.txt'):
+    '''
+    this function will physically rename a frame (and move folders etc.) - oh, but it doesn't touch the frame def in database! for this, use lq.rename_frame
+    '''
     track = str(int(framename[0:3]))
     pubpath = os.path.join(pubdir,track,framename)
     procpath = os.path.join(procdir,track,framename)
@@ -648,6 +651,23 @@ def get_number_of_ifgs(framename):
         return 0
     filenumber = len(glob.glob1(ifgspath,'2???????_2???????'))
     return filenumber
+
+
+def get_epochs(framename, return_mli_tifs = False):
+    pubdir = os.environ['LiCSAR_public']
+    track = str(int(framename[0:3]))
+    pubpath = os.path.join(pubdir,track,framename)
+    if not os.path.exists(pubpath):
+        return False
+    epochspath = os.path.join(pubpath,'epochs')
+    if not os.path.exists(epochspath):
+        return False
+    if return_mli_tifs:
+        #this will return tif file paths
+        return glob.glob(epochspath + "/**/*.geo.mli.tif", recursive = True)
+    else:
+        epochslist = glob.glob1(epochspath,'2???????')
+        return epochslist
 
 
 def get_ifg_list_pubdir(framename):

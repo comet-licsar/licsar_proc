@@ -417,7 +417,7 @@ class Ui_DialogCheckIfg(object):
 
 def get_framelist():
     import requests
-    a=requests.get('http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/framelist.txt')
+    a=requests.get('http://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/framelist.txt')
     #initiate framelist as dictionary d
     framelist = dict()
     for i in range(1,175+1):
@@ -508,7 +508,7 @@ def downloadIfgs(track,frame):
         os.mkdir(outDir)
     rc = os.system('chmod -R 777 '+outDir+' 2>/dev/null')
     #get list of ifgs:
-    webaddr = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/'+str(track)+'/'+str(frame)+'/interferograms'
+    webaddr = 'http://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/'+str(track)+'/'+str(frame)+'/interferograms'
     print('getting list of interferograms in LiCSAR')
     a = requests.get(webaddr)
     b = html.fromstring(a.content)

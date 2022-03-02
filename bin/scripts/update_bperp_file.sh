@@ -27,7 +27,7 @@ else
  else
   touch $pub_bperp.lock
   #tail -n+2 $pub_bperp > temp_bperp_file
-  cp $pub_bperp temp_baselines
+  cp $pub_bperp temp_baselines; chmod 777 temp_baselines
   #getting rid of potential nomaster error here:
   sed '/^0.0000/d' baselines >> temp_baselines
   #echo "master    slave     bperp   btemp" > $pub_bperp

@@ -16,16 +16,16 @@ November 2020: added parallelisation etc. (M. Lazecky, Uni of Leeds)
 =====
 Usage
 =====
-LiCSAR_03_mk_ifgs.py -f <framename> -d </path/to/processing/location>
+LiCSAR_03_mk_ifgs.py -d </path/to/processing/location>
 
-    -f    Name of the frame to be processed in database
+    (-f    Name of the frame to be processed in database -- used only to check, can be fully avoided)
     -d    Path to the processing location. 
     -j    job id
     -i    ifg list file
     -n    if set to number of processors (>1), it will attempt to parallelise
-    -p    polygon
-    -z    sip file
-    -y    batch mode
+    (-p    polygon - see below)
+    (-z    sip file - see below)
+    (-y    batch mode - does nothing, should be removed)
     -a    azimuth looks
     -r    range looks
     -c <level> clean rslcs after succesful interferogram creation, acording to level:
@@ -67,6 +67,7 @@ def main(argv=None):
     procdir = []
     framename = []
     job_id = -1
+    lq = None
     ifgListFile = None
     ziplistfile = None
     cleanLvl = 0
@@ -122,8 +123,8 @@ def main(argv=None):
             except:
                 print('error establishing multiprocessing pool - will work without parallelisation')
                 parallelise=False
-        if not framename:
-            raise Usage('No frame name given, -f option is not optional!')
+        #if not framename:
+        #    raise Usage('No frame name given, -f option is not optional!')
         if not procdir:
             raise Usage('No output data directory given, -d is not optional!')
         if job_id == -1:
@@ -132,9 +133,9 @@ def main(argv=None):
             if not(polygonfile) or not(ziplistfile):
                 raise Usage("Polygon file AND ziplist file are required in batch mode.")
             import LiCSquery_batch
-            global lq
+            #global lq
             lq = LiCSquery_batch.dbquery(ziplistfile, polygonfile)
-        else:
+        if framename:
             import LiCSquery as lq
 
     except Usage as err:
@@ -144,16 +145,16 @@ def main(argv=None):
         return 2
 
 ############################################################ Ensure connected to database
-    if not lq.connection_established():
-        print("\nERROR:", file=sys.stderr)
-        print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
-        return 1
-
-############################################################ Make sure critical data is available in database
-    if not lq.check_frame(framename):
-        print("\nERROR:", file=sys.stderr)
-        print("Frame {0} was not found in database.".format(framename), file=sys.stderr)
-        return 1
+############################################################ just check frame (not needed really)
+    if framename:
+        if not lq.connection_established():
+            print("\nERROR:", file=sys.stderr)
+            print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
+            return 1
+        if not lq.check_frame(framename):
+            print("\nERROR:", file=sys.stderr)
+            print("Frame {0} was not found in database.".format(framename), file=sys.stderr)
+            return 1
 
     if not os.path.exists(procdir):
         print("\nERROR:", file=sys.stderr)
@@ -224,7 +225,10 @@ def main(argv=None):
 
 ############################################################ Create a report file
     if not reportfile:
-        reportfile = os.path.join(procdir,'{0}-mk-ifgs.txt'.format(framename))
+        if framename:
+            reportfile = os.path.join(procdir,'{0}-mk-ifgs.txt'.format(framename))
+        else:
+            reportfile = os.path.join(procdir,'mk-ifgs.txt')
     starttime = dt.datetime.now()
     with open(reportfile,'w') as f:
         f.write('LiCSAR_03_mk_ifgs processing started {0}.\n'.format(dt.datetime.now().strftime('%Y-%m-%d %H:%M')))

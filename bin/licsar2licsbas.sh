@@ -6,8 +6,10 @@ if [ -z $1 ]; then
  echo "parameters: frame [startdate] [enddate]"
  echo "e.g. 155D_02611_050400 20141001 20200205"
  echo "parameters:"
- echo "-M 10 .... this will do extra multilooking"
+ echo "-M 10 .... this will do extra multilooking (in this example, 10x multilooking)"
  echo "-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)"
+ echo "-s ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
+ echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
@@ -21,11 +23,13 @@ run_jasmin=1
 hgts=0
 clip=0
 reunw=0
+use_coh_stab=0
+keep_coh_debug=1
 LB_version=LiCSBAS
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HuTG:" option; do
+while getopts ":M:HuTskG:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -34,6 +38,12 @@ while getopts ":M:HuTG:" option; do
      #shift
      ;;
   u) reunw=1;
+     #shift
+     ;;
+  s) use_coh_stab=1;
+     #shift
+     ;;
+  k) keep_coh_debug=0;
      #shift
      ;;
   T) LB_version=licsbas_comet_dev;
@@ -135,10 +145,19 @@ if [ $reunw -gt 0 ]; then
  mkdir GEOCml$multi
  echo cd `pwd`/GEOCml$multi > multirun.sh
  if [ $hgts == 1 ]; then
-  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi", hgtcorr = True)\"" >> multirun.sh
+  extraparam=", hgtcorr = True"
  else
-  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
+  extraparam=", hgtcorr = False"
  fi
+ if [ $keep_coh_debug == 1 ]; then
+  extraparam=$extraparam", keep_coh_debug = True";
+ else
+  extraparam=$extraparam", keep_coh_debug = False"
+ fi
+ if [ $use_coh_stab == 1 ]; then
+  extraparam=$extraparam", use_coh_stab = True"
+ fi
+ echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
  #echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
  echo "cd .." >> multirun.sh
  chmod 777 multirun.sh

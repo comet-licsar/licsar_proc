@@ -3,10 +3,11 @@
 ################################################################################
 import numpy as np
 import os, glob
-import gdal
+from osgeo import gdal
 import subprocess
 import xarray as xr
 import rioxarray
+import pandas as pd
 
 import cv2
 from scipy import interpolate
@@ -24,6 +25,8 @@ from astropy.convolution import Gaussian2DKernel, interpolate_replace_nans, conv
 from sklearn.linear_model import HuberRegressor
 
 import shutil
+# fc used only for amp stability..
+import framecare as fc
 
 #set dask client to use only one worker...
 #from dask.distributed import Client
@@ -91,6 +94,12 @@ def coh_from_cpx(cpxvalues, winsize = 3):
     imagvar = ndimage.generic_filter(np.imag(cpxvalues), np.var, size=winsize)
     fullvar = realvar + imagvar
     outcoh = 1/np.sqrt(1+2*winsize*winsize*fullvar)
+    return outcoh
+
+
+def coh_from_phadiff(phadiff, winsize = 3):
+    variance = ndimage.generic_filter(phadiff, np.var, size=winsize)
+    outcoh = 1/np.sqrt(1+winsize*winsize*variance)
     return outcoh
 
 
@@ -407,7 +416,7 @@ def make_snaphu_conf(sdir, defomax = 1.2):
     return snaphuconffile
 
 
-def make_gacos_ifg(frame, pair, outnc):
+def make_gacos_ifg(frame, pair, outfile):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     for epoch in pair.split('_'):
@@ -418,11 +427,11 @@ def make_gacos_ifg(frame, pair, outnc):
     epoch2 = pair.split('_')[1]
     gacos1 = os.path.join(geoframedir,'epochs',epoch1,epoch1+'.sltd.geo.tif')
     gacos2 = os.path.join(geoframedir,'epochs',epoch2,epoch2+'.sltd.geo.tif')
-    cmd = 'gmt grdmath {0} {1} SUB = {2}'.format(gacos2, gacos1, outnc)
+    cmd = 'gmt grdmath {0} {1} SUB = {2}=gd:GTiff'.format(gacos2, gacos1, outfile)
     print(cmd)
     rc = os.system(cmd)
-    if os.path.exists(outnc):
-        return outnc
+    if os.path.exists(outfile):
+        return outfile
     else:
         print('error in GACOS processing of pair '+pair)
         return False
@@ -497,7 +506,7 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
             tmpdir = os.path.join(procdir, str(block_id[0])+'_'+str(block_id[1]))
             if not os.path.exists(tmpdir):
                 os.mkdir(tmpdir)
-            unwr = unwrap_np(cpx, coh, defomax = 0.6, tmpdir=tmpdir)
+            unwr = unwrap_np(cpx, coh, defomax = 0.3, tmpdir=tmpdir)
             # ok, then correlate - and if higher then 0.4, do linear regression to get rad/m
             try:
                 x = np.ravel(hgt)
@@ -524,7 +533,7 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
     #return out
 
 
-def unwrap_np(cpx, coh, defomax = 0.6, tmpdir=os.getcwd()):
+def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd()):
     '''
     unwraps given arrays
     '''
@@ -601,14 +610,141 @@ def correct_hgt(ifg_ml, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_w
     return out, outype
 
 
+def debug(frame, pair):
+    #from LiCSAR_lib.unwrp_multiscale import *
+    import matplotlib.pyplot as plt
+    procdir = os.getcwd()
+    ml = 10
+    fillby = 'gauss'
+    thres = 0.3
+    prevest = None
+    hgtcorr = True
+    pre_detrend=True
+    gacoscorr = True
+    outtif = None
+    defomax = 0.3
+    add_resid = True
+    smooth = True
+    prev_ramp = None
+    rampit=False
+    cohratio = None
+    keep_coh_debug = False
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+    tmpdir = os.path.join(procdir,pair,'temp_'+str(ml))
+    tmpgendir = os.path.join(procdir,pair,'temp_gen')
+    if not os.path.exists(os.path.join(procdir,pair)):
+            os.mkdir(os.path.join(procdir,pair))
+    
+    
+    if not os.path.exists(tmpdir):
+            os.mkdir(tmpdir)
+    
+    
+    if not os.path.exists(tmpgendir):
+        os.mkdir(tmpgendir)
+    
+    
+    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
+    coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
+    landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
+    hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
+    if gacoscorr:
+        gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
+        try:
+            gacoscorrfile = make_gacos_ifg(frame, pair, gacoscorrfile)
+        except:
+            print('error processing gacos data for pair '+pair)
+            gacoscorrfile = False
+    else:
+        gacoscorrfile = False
+    
+    
+    if gacoscorrfile:
+        print('GACOS data found, using to improve unwrapping')
+        #ingacos = xr.open_dataset(gacoscorrfile)
+        ingacos = load_tif2xr(gacoscorrfile)
+    else:
+        gacoscorr = False
+    
+    
+    inpha = load_tif2xr(ifg_pha_file)
+    incoh = load_tif2xr(coh_file)
+    incoh = incoh/255
+    inmask = incoh.copy(deep=True)
+    inmask.values = np.byte(incoh > 0)
+    if os.path.exists(landmask_file):
+        landmask = load_tif2xr(landmask_file)
+        #landmask = xr.open_dataset(landmasknc)
+        inmask.values = landmask.values * inmask.values
+    else:
+        landmask = None
+    
+    
+    ifg = xr.Dataset()
+    ifg['pha'] = inpha
+    ifg['coh'] = ifg['pha']
+    ifg['coh'].values = incoh.values
+    ifg['mask'] = ifg['pha']
+    ifg['mask'].values = inmask.values
+    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
+    if hgtcorr:
+        if os.path.exists(hgtfile):
+            try:
+                inhgt = load_tif2xr(hgtfile)
+                ifg['hgt'] = ifg['pha']
+                ifg['hgt'].values = inhgt.values
+            except:
+                print('ERROR in importing heights!')
+                hgtcorr = False
+    
+    
+    if gacoscorr:
+        ifg['gacos'] = ifg.pha
+        ifg['gacos'].values = ingacos.values
+    
+    
+    # erase from memory
+    inpha = ''
+    incoh = ''
+    inmask = ''
+    ingacos = ''
+    inhgt = ''
+    # now doing multilooking, using coh as mag...
+    #make complex from coh and pha
+    ifg['cpx'] = ifg.coh.copy()
+    if type(cohratio) != type(None):
+        ifg['cpx'].values = magpha2RI_array(cohratio.values, ifg.pha.values)
+    else:
+        ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
+    
+    
+    #fixing difference in xarray version... perhaps...
+    if 'lat' not in ifg.coords:
+        print('warning - perhaps old xarray version - trying anyway')
+        ifg = ifg.rename_dims({'x':'lon','y':'lat'})
+    
+    
+    print('and now switch to multilook_normalized')
+
+
+
 def process_ifg(frame, pair, 
         procdir = os.getcwd(), 
         ml = 10, fillby = 'gauss', 
-        thres = 0.4, prevest = None, 
-        hgtcorr = False, pre_detrend=True,
+        thres = 0.35, prevest = None, 
+        hgtcorr = False, pre_detrend=False,
         gacoscorr = True, outtif = None, 
-        defomax = 0.6, add_resid = True, smooth = True, 
-        prev_ramp = None, rampit=False):
+        defomax = 0.3, add_resid = True, smooth = True, 
+        prev_ramp = None, rampit=False, cohratio = None, 
+        keep_coh_debug = True, replace_ml_pha = None,
+        coh2var = False):
+    '''
+    main function for unwrapping a geocoded LiCSAR interferogram.
+    ml .. multilook factor in both lat and lon directions (would use pha+coh)
+    coh2var - something to try... perhaps this is better for weighting?
+    '''
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms',pair)
@@ -626,19 +762,11 @@ def process_ifg(frame, pair,
     coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
     landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
-    #orig file ncs - I do this only because i was too lazy in importing from rio or gdal directly! need to change this!
-    origphanc = os.path.join(tmpgendir,'origpha.nc')
     # to load orig unw_file
     #unw_file = os.path.join(geoifgdir,pair+'.geo.unw.tif')
-    #origunwnc = os.path.join(tmpgendir,'origunw.nc')
-    #convert_tif2nc(unw_file,origunwnc)
-    #inunw = xr.open_dataset(origunwnc)
-    origcohnc = os.path.join(tmpgendir,'origcoh.nc')
-    landmasknc = os.path.join(tmpgendir,'landmask.nc')
-    hgtnc = os.path.join(tmpgendir,'hgt.nc')
     # do gacos if exists
     if gacoscorr:
-        gacoscorrfile = os.path.join(tmpgendir,'gacos.nc')
+        gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
         try:
             gacoscorrfile = make_gacos_ifg(frame, pair, gacoscorrfile)
         except:
@@ -648,52 +776,43 @@ def process_ifg(frame, pair,
         gacoscorrfile = False
     if gacoscorrfile:
         print('GACOS data found, using to improve unwrapping')
-        ingacos = xr.open_dataset(gacoscorrfile)
+        #ingacos = xr.open_dataset(gacoscorrfile)
+        ingacos = load_tif2xr(gacoscorrfile)
     else:
         gacoscorr = False
     # prepare input dataset and load
-    if not os.path.exists(origphanc):
-        convert_tif2nc(ifg_pha_file,origphanc)
-        #
-    if hgtcorr:
-        if not os.path.exists(hgtnc):
-            convert_tif2nc(hgtfile,hgtnc)
-    if not os.path.exists(landmasknc):
-        convert_tif2nc(landmask_file,landmasknc)
-    if not os.path.exists(origcohnc):
-        convert_tif2nc(coh_file,origcohnc, coh = True)
     #use orig ifg and coh
-    inpha = xr.open_dataset(origphanc)
-    incoh = xr.open_dataset(origcohnc)
+    inpha = load_tif2xr(ifg_pha_file)
+    incoh = load_tif2xr(coh_file)
+    incoh = incoh/255
     inmask = incoh.copy(deep=True)
-    #inhgt = incoh.copy(deep=True)
-    inmask.z.values = np.byte(incoh.z > 0)
-    if os.path.exists(landmasknc):
-        landmask = xr.open_dataset(landmasknc)
-        inmask.z.values = landmask.z.values * inmask.z.values
+    inmask.values = np.byte(incoh > 0)
+    if os.path.exists(landmask_file):
+        landmask = load_tif2xr(landmask_file)
+        #landmask = xr.open_dataset(landmasknc)
+        inmask.values = landmask.values * inmask.values
     else:
         landmask = None
     # to get all in on encapsulement (with coords..)
-    ifg = inpha.copy(deep=True)
-    ifg = ifg.rename({'z':'pha'})
-    ifg['coh'] = ifg.pha
-    ifg['mask'] = ifg.pha
-    ifg['mask_extent'] = ifg.pha
-    #ifg['origpha'] = ifg.pha
-    ifg['coh'].values = incoh.z.values
-    ifg['mask'].values = inmask.z.values
-    ifg['mask_extent'].values = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
+    ifg = xr.Dataset()
+    ifg['pha'] = inpha
+    ifg['coh'] = ifg['pha']
+    ifg['coh'].values = incoh.values
+    ifg['mask'] = ifg['pha']
+    ifg['mask'].values = inmask.values
+    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
     if hgtcorr:
-        if os.path.exists(hgtnc):
-            inhgt = xr.open_dataset(hgtnc)
-        ifg['hgt'] = ifg.pha
-        try:
-            ifg['hgt'].values = inhgt.z.values
-        except:
-            print('ERROR in importing heights!')
+        if os.path.exists(hgtfile):
+            try:
+                inhgt = load_tif2xr(hgtfile)
+                ifg['hgt'] = ifg['pha']
+                ifg['hgt'].values = inhgt.values
+            except:
+                print('ERROR in importing heights!')
+                hgtcorr = False
     if gacoscorr:
         ifg['gacos'] = ifg.pha
-        ifg['gacos'].values = ingacos.z.values
+        ifg['gacos'].values = ingacos.values
     # erase from memory
     inpha = ''
     incoh = ''
@@ -703,7 +822,18 @@ def process_ifg(frame, pair,
     # now doing multilooking, using coh as mag...
     #make complex from coh and pha
     ifg['cpx'] = ifg.coh.copy()
-    ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
+    if coh2var:
+        if type(cohratio) != type(None):
+            # use cohratio for better weights
+            coh = cohratio
+        else:
+            coh = ifg['coh']
+        # if this is better, i will change it and have it fixed
+        cohratio = (2*coh**2)/(1-coh**2)
+    if type(cohratio) != type(None):
+        ifg['cpx'].values = magpha2RI_array(cohratio.values, ifg.pha.values)
+    else:
+        ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
     #fixing difference in xarray version... perhaps...
     if 'lat' not in ifg.coords:
         print('warning - perhaps old xarray version - trying anyway')
@@ -711,28 +841,33 @@ def process_ifg(frame, pair,
     #ifg_ml = multilook_by_gauss(ifg, ml)
     # result more or less same, but much more economic way in memory..
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
-    ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp)
+    ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug, replace_ml_pha = replace_ml_pha)
     width = len(ifg_ml.lon)
     length = len(ifg_ml.lat)
     #here we should keep the (not wrapped) phase we remove due to corrections - here, heights, and gacos
     #mask it ... this worked ok here:
     #thres = 0.5
     #gmmm.... it works better if i use the 'trick on gauss of normalised ifg....'
+    #thres = 0.25
     mask_gauss = (ifg_ml.gauss_coh > thres)*1
-    #return pixels that have coh > 0.25
+    #return (unmask) pixels that have coh > 0.25
     mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > 0.25).values[mask_gauss.values == 0]
     ifg_ml['mask_coh'] = mask_gauss.fillna(0)
     # additionally remove islands of size over 7x7 km
-    # how many pixels are in 10x10 km region?
+    # how many pixels are in 7x7 km region?
     lenthres = 7 # km
     # resolution of orig ifg is expected 0.1 km
-    origres = 0.1
+    #origres = 0.1
+    resdeg = np.abs(ifg.lat[1]-ifg.lat[0])
+    latres = 111.32 * np.cos(np.radians(ifg_ml.lat.mean()))
+    origres = float(latres * resdeg) # in km
+    #
     pixels = int(round(lenthres/origres/ml))
     pixelsno = pixels**2
     npa = ifg_ml['mask_coh'].where(ifg_ml['mask_coh']==1).where(ifg_ml['mask']==1).values
     ifg_ml['mask_full'] = ifg_ml['mask_coh']
     ifg_ml['mask_full'].values = remove_islands(npa, pixelsno)
-    ifg_ml['mask_full'] = ifg_ml['mask_full'].fillna(0)
+    ifg_ml['mask_full'] = ifg_ml['mask_full'].fillna(0).astype(np.int8)
     #ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).where(ifg_ml.coh > thres).fillna(0)
     #here the origpha is just before the gapfilling filter
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
@@ -756,6 +891,7 @@ def process_ifg(frame, pair,
         #tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         #tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_coh.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
         # or not... let's mask fully
+        i = 1
         tofill = ifg_ml['cpx_tofill'].where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
         tofillR = np.real(tofill)
         tofillI = np.imag(tofill)
@@ -764,6 +900,8 @@ def process_ifg(frame, pair,
         ifg_ml['pha'].values = np.angle(filledR + 1j*filledI)
         #sometimes the whole area is not within gauss kernel
         while np.max(np.isnan(ifg_ml['pha'].values)):
+            i = i+1
+            print('gapfilling iteration '+str(i))
             cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
             ifg_ml['cpx_tofill'].values = cpxarr
             tofill = ifg_ml['cpx_tofill']
@@ -788,6 +926,12 @@ def process_ifg(frame, pair,
         tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         ifg_ml['pha'].values = interpolate_nans(tofillpha.values, method='nearest')
         #ifg_ml['gauss_pha'] = ifg_ml['gauss_pha'].fillna(0)
+    print('debug: now pha is fine-filled layer but with some noise at edges - why is that? not resolved. so adding one extra gauss filter')
+    # ok, i see some high freq signal is still there.. so filtering once more (should also help after the nan filling)
+    if smooth:
+        print('an extra Gaussian smoothing here')
+        ifg_ml = filter_ifg_ml(ifg_ml)
+        ifg_ml['pha'] = ifg_ml['gauss_pha']
     #exporting for snaphu
     #normalise mag from the final pha
     tempar_mag1 = np.ones_like(ifg_ml.pha)
@@ -832,7 +976,10 @@ def process_ifg(frame, pair,
         ifg_ml['toremove'].astype(np.float32).fillna(0).values.tofile(bin_pre_remove)
         main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax)
     else:
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax)
+        #print('unwrapping')
+        #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
+        # 2022-01-14 - avoiding mask here - it does only worse
+        main_unwrap(binCPX, bincoh, None, outunwbin, width, defomax = defomax, printout=False)
     print('importing snaphu result to ifg_ml')
     binfile = outunwbin
     #toxr = ifg_ml
@@ -859,10 +1006,12 @@ def process_ifg(frame, pair,
     ifg_ml['origcpx'].values = cpxarr
     if add_resid:
         print('unwrapping residuals and adding back to the final unw output')
-        # maybe can use this somehow? by yma
+        # maybe can use this somehow? by yma. i checked and it is correct
         # delta = np.angle(np.exp(np.complex(0+1j)*( np.angle(ifg_filt) - np.angle(ifg_unfilt))))
+        # delta = np.angle(np.exp(0+1j)*( np.angle(ifg_filt) - np.angle(ifg_unfilt)))
+        # delta = np.angle(np.exp(0+1j)*( pha_filt - pha_unfilt ) )
         # ifg_unw_unfilt = ifg_unw_filt - delta
-        ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate()
+        ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate() * ifg_ml.mask_full
         incpx = 'resid_cpx'
         #binR = os.path.join(tmpdir,incpx+'.R.bin')
         #binI = os.path.join(tmpdir,incpx+'.I.bin')
@@ -874,15 +1023,23 @@ def process_ifg(frame, pair,
         r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binR)
         i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binI)
         RI2cpx(r, i, binCPX)
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.5)
+        #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax/2)
+        # ok, just hold the defomax down - discontinuities are not wanted or expected here
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0, printout = False)
         unw1 = np.fromfile(binfile,dtype=dtype)
         unw1 = unw1.reshape(ifg_ml.pha.shape)
         ifg_ml[daname] = ifg_ml['pha'] #.copy()
         ifg_ml[daname].values = unw1
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
+        # ensure values are correctly surrounded by zeroes
+        # 2022/02 - actually seems weird to me. skipping
+        #ifg_ml[daname] = ifg_ml[daname] - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_extent==0).values)
+        #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
+        ifg_ml[daname] = ifg_ml[daname] - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_extent==1).values)
         ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
-        print('debug - avoiding median correction now')
+        #nanmed = np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
+        #print('debug - avoiding median correction now, although maybe ok for add_resid: median was {} rad'.format(str(nanmed)))
         #ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
         #print('again, masking the final product by gauss coh threshold')
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
@@ -901,7 +1058,8 @@ def process_ifg(frame, pair,
     # ok ok.... let's mask by the gauss mask.. although, can be quite missing lot of areas
     #ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask_coh>0)
     # hmmm... just to make it nicer...
-    ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask>0)
+    #ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask>0)
+    ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask_full>0)
     # but this may be wrong!
     #ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['unw'].median()
     if rampit:
@@ -909,14 +1067,14 @@ def process_ifg(frame, pair,
         ifg_ml['unw'].values= interpolate_replace_nans(ifg_ml['unw'].values, kernel)
         ifg_ml['unw'].values = filter_nan_gaussian_conserving(ifg_ml['unw'].values, sigma=2, trunc=4)
         ifg_ml['unw'] = ifg_ml['unw'].fillna(0).where(ifg_ml.mask_extent>0)
-    else:
-        ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask_full>0)
+    #else:
+    #    ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask_full>0)
     if outtif:
         #ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         #ifg_ml['unw'].to_netcdf(outtif+'.nc')
         import rioxarray
-        toexp = ifg_ml['unw']
-        toexp.values = np.flipud(toexp.values)
+        toexp = ifg_ml['unw'].copy(deep=True)
+        #toexp.values = np.flipud(toexp.values)
         toexp.rio.write_crs("epsg:4326", inplace=True)
         toexp.rio.set_spatial_dims(x_dim="lon",y_dim="lat",inplace=True)
         toexp.rio.to_raster(outtif)
@@ -932,7 +1090,11 @@ def process_ifg(frame, pair,
     return ifg_ml
 
 
-def process_frame(frame, ml = 10, hgtcorr = True, cascade=False):
+def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = False,
+            use_coh_stab = False, keep_coh_debug = True, export_to_tif = False, phase_bias_experiment = False):
+    '''
+    hint - try use_coh_stab = True.. maybe helps against loop closure errors?!
+    '''
     if cascade and ml>1:
         print('error - the cascade approach is ready only for ML1')
         return False
@@ -940,11 +1102,54 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     geoifgdir = os.path.join(geoframedir,'interferograms')
+    inputifgdir = geoifgdir
+    if phase_bias_experiment:
+        print('running for the phas bias experiment - make sure you are inside your folder with ifgs, e.g.')
+        print('/work/scratch-pw/earyma/LiCSBAS/bias/138D_05142_131313/wrapped/GEOC_wrapped_ml10')
+        inputifgdir = os.getcwd()
     hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
     raster = gdal.Open(hgtfile)
     framewid = raster.RasterXSize
     framelen = raster.RasterYSize
-    for pair in os.listdir(geoifgdir):
+    cohratio = None
+    if use_amp_stab:
+        print('calculating amplitude stability')
+        try:
+            ampstabfile = frame+'_ampstab.nc'
+            if os.path.exists(ampstabfile):
+                print('using existing ampstabfile')
+                ampstab = xr.open_dataarray(ampstabfile)
+            else:
+                ampavg, ampstd = build_amp_avg_std(frame)
+                ampstab = 1 - ampstd/ampavg
+                ampstab.values[ampstab<=0] = 0.00001
+                ampstab.to_netcdf(ampstabfile)
+        except:
+            print('some error happened, disabling use of amplitude stability')
+            use_amp_stab = False
+    if use_coh_stab:
+        cohstabdays = 12
+        print('calculating coherence stability, using only {} days coherences'.format(str(cohstabdays)))
+        try:
+            cohratiofile = frame+'_cohratio.nc'
+            if os.path.exists(cohratiofile):
+                print('using existing cohratiofile')
+                cohratio = xr.open_dataarray(cohratiofile)
+            else:
+                cohavg, cohstd = build_coh_avg_std(frame, days = cohstabdays, monthly = False)
+                # ok, original coh_stab = 1 - coh_dispersion, i.e.:
+                cohratio = 1 - cohstd/cohavg
+                cohratio.values[cohratio<=0] = 0.00001
+                print('storing DQ=1-cohstd/cohavg to '+cohratiofile)
+                cohratio.to_netcdf(cohratiofile)
+                # but i want now to have it logarithmic, so:
+                #cohratio = cohavg/cohstd
+                #hmm... not really any difference. so using the orig way
+        except:
+            print('some error happened, disabling use of coh stability')
+            use_coh_stab = False
+    
+    for pair in os.listdir(inputifgdir):
         if os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
             #check its dimensions..
             raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
@@ -975,13 +1180,22 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False):
                 continue
             if not os.path.exists(os.path.join(pair,pair+'.unw')):
                 print('processing pair '+pair)
+                if export_to_tif:
+                    outtif = os.path.join(pair,pair+'.geo.unw.tif')
+                else:
+                    outtif = None
                 try:
                     if cascade:
-                        ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd())
+                        ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd(), outtif = outtif)
                     else:
                         #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
+                        defomax = 0.3
+                        replace_ml_pha = None
+                        if phase_bias_experiment:
+                            replace_ml_pha = os.path.join(pair, pair+'.diff_pha_cor')
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
-                                 thres = 0.3, defomax = 0.6, add_resid = True)
+                                 thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
+                                 keep_coh_debug = keep_coh_debug, replace_ml_pha = replace_ml_pha)
                     #else:
                     
                     #    print('ML set to 1 == will try running the cascade (multiscale) unwrapping')
@@ -990,13 +1204,17 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False):
                     #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
                     #np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     #np.flipud(ifg_ml.unw.where(ifg_ml.mask > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                    np.flipud(ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                    #or use gauss here?
-                    np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
+                    #hey, it works ok without flipping - probably thanks to new sort of lat values when loading from tiffs directly
+                    #np.flipud(ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
+                    (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
+                    #or use gauss coh here?
+                    #np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
+                    ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     width = len(ifg_ml.lon)
                     create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
                     os.system('rm '+pair+'/'+pair+'.unw.ras')
                     os.system('rm -r '+pair+'/'+'temp_'+str(ml))
+                    os.system('rm -r '+pair+'/'+'temp_gen')
                 except:
                     print('ERROR processing of pair '+pair)
                     os.system('rm -r '+pair)
@@ -1068,22 +1286,33 @@ def make_gauss_coh_good(ifg, ml = 10):
     return ifgtemp_ml['gauss_coh']
 
 
-def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None):
+def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True, replace_ml_pha = None):
     '''
     prev_ramp is an xarray dataframe, it can be of different multilooking
     '''
     #landmask it and multilook it
     if ml > 1:
+        # that's for multilooking - in case of cohratio, we want to only weight phases based on that, and then return to coh
         bagcpx = ifg[['cpx']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
-        ifg_ml = bagcpx.sum() / bagcpx.count()
+        ifg_ml = bagcpx.sum() / bagcpx.count()   # this really equals np.nanmean, or, bagcpx.mean() - same result
+        # if we use coh instead of amplitude, it may get underestimated after ML (as found by Jack McG.), so just averaging it here:
+        #if type(ml_weights) != type(None):
+        bagcoh = ifg[['coh']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
+        #coh_ml = bagcoh.sum() / bagcoh.count()
+        coh_ml = bagcoh.mean()
+        ifg_ml['coh'] = ifg_ml.cpx
+        ifg_ml['coh'].values = coh_ml.coh.values
+        # non-nan px count per window
         ifg_ml['pxcount'] = ifg_ml.cpx
-        ifg_ml['pxcount'].values = bagcpx.count().cpx.values    # to use later - evaluate bad ML data, e.g. mask those pxls
+        ifg_ml['pxcount'].values = bagcpx.count().cpx.values.astype(np.uint8)    # to use later - evaluate bad ML data, e.g. mask those pxls
     else:
         ifg_ml = ifg[['cpx']].where(ifg.mask>0)
+        ifg_ml['coh'] = ifg_ml.cpx
+        ifg_ml['coh'].values = ifg.coh.values
     #downsample mask
     if ml > 1:
-        ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max()
-        ifg_ml['mask_extent'] = ifg.mask_extent.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max()
+        ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max().astype(np.int8)
+        ifg_ml['mask_extent'] = ifg.mask_extent.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max().astype(np.int8)
         if 'gacos' in ifg.variables:
             ifg_ml['gacos'] = ifg.gacos.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()
         if 'hgt' in ifg.variables:
@@ -1101,6 +1330,20 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     #prepare 'toremove' layer
     ifg_ml['toremove'] = ifg_ml.cpx
     ifg_ml['toremove'].values = 0*np.angle(ifg_ml.cpx) # just make them zeroes
+    if replace_ml_pha:
+        # a quick fix to load other existing phase - e.g. after bias correction...
+        ifg_ml['origpha_noremovals'].values = np.fromfile(replace_ml_pha, dtype=np.float32).reshape(ifg_ml['origpha_noremovals'].values.shape)
+        
+        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha_noremovals.values)
+        ifg_ml['cpx'].values = cpxa
+    if keep_coh_debug:
+        #ok, return coh, phase back to cpx
+        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha_noremovals.values)
+        ifg_ml['cpx'].values = cpxa
+    else:
+        #print('debug: trying to use the cohratio rather than current coh. maybe wrong?')
+        ifg_ml['orig_coh'] = ifg_ml.coh.copy(deep=True)
+        ifg_ml.coh.values = np.abs(ifg_ml['cpx'])
     #remove previous estimates
     if not type(prev_ramp) == type(None):
         width = len(ifg_ml.lon)
@@ -1126,9 +1369,10 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
             pre_detrend = False
     ifg_ml['pha'] = ifg_ml.cpx
     ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
-    #have the orig coh here:
-    ifg_ml['coh'] = ifg_ml['pha']
-    ifg_ml.coh.values = np.abs(ifg_ml.cpx)
+    #if type(ml_weights) == type(None):
+    #    #have the orig coh here:
+    #    ifg_ml['coh'] = ifg_ml['pha']
+    #    ifg_ml.coh.values = np.abs(ifg_ml.cpx)
     #have gacos removed first, prior to doing height corr:
     if 'gacos' in ifg_ml.variables:
         ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
@@ -1139,14 +1383,16 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
         ifg_ml['cpx'].values = cpxa
     #
-    ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-    ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
-    #
     if pre_detrend:
         ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
         ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
-        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+        #ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
         ifg_ml['toremove'] = ifg_ml['toremove'] + correction
+    
+    # just mask it
+    ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+    ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
+    
     if 'hgt' in ifg.variables:
         ifg_ml['hgt'] = ifg_ml['hgt'].where(ifg_ml.mask>0)
     # perform Gaussian filtering
@@ -1155,20 +1401,29 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     if hgtcorr:
         #ifg_ml['toremove'] = ifg_ml['toremove'] + 
         # dounw=False may be faster!
-        toremove_hgt = remove_height_corr(ifg_ml, tmpdir = tmpdir, dounw = True, nonlinear=False)
-        ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
-        # need to remove hgt only here, as the 'toremove' was already removed before..
-        ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - toremove_hgt)
-        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-        #ok, return coh, phase back to cpx
-        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
-        ifg_ml['cpx'].values = cpxa
-        if pre_detrend:
-            ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
-            ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
-            ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-            ifg_ml['toremove'] = ifg_ml['toremove'] + correction
-        # ifg_ml['pha'].plot()
+        print('calculating correlation with DEM')
+        try:
+            toremove_hgt = remove_height_corr(ifg_ml, tmpdir = tmpdir, dounw = True, nonlinear=False)
+            pha_no_hgt = wrap2phase(ifg_ml['pha'] - toremove_hgt)
+            if np.nanstd(pha_no_hgt) >= np.nanstd(ifg_ml.pha.values):
+                print('but the correction would increase overall phase std - dropping')
+                hgtcorr = False
+            else:
+                ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
+                # need to remove hgt only here, as the 'toremove' was already removed before..
+                ifg_ml['pha'].values = pha_no_hgt
+                ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+                #ok, return coh, phase back to cpx
+                cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
+                ifg_ml['cpx'].values = cpxa
+                if pre_detrend:
+                    ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
+                    ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
+                    ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+                    ifg_ml['toremove'] = ifg_ml['toremove'] + correction
+        except:
+            print('some error trying correlate with DEM. continuing without it')
+            # ifg_ml['pha'].plot()
     #else:
     #    ifg_ml['toremove'] = 0*ifg_ml['pha']
     #here we remove height correlation - gacos was already removed from pha
@@ -1186,26 +1441,33 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
         ifg_ml['cpx'] = ifg_ml['cpx'].where(ifg_ml.mask>0)
         ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
-    print('finally, filter using (adapted) gauss filter')
-    ifg_ml = filter_ifg_ml(ifg_ml)
+        #ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
+    #print('finally, filter using (adapted) gauss filter')
+    ifg_ml = filter_ifg_ml(ifg_ml, calc_coh_from_delta = True)
+    if not keep_coh_debug:
+        ifg_ml['coh'] = ifg_ml['orig_coh']
+        ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
     return ifg_ml
 
 
 def load_tif2xr(tif):
-    xrpha = xr.open_rasterio(tif)
+    #xrpha = xr.open_rasterio(tif)
+    xrpha = rioxarray.open_rasterio(tif)
     xrpha = xrpha.squeeze('band')
     xrpha = xrpha.drop('band')
     xrpha = xrpha.rename({'x': 'lon','y': 'lat'})
     return xrpha
 
 
-def export_xr2tif(xrda, tif):
-    xrda = xrda.astype(np.float32)
+def export_xr2tif(xrda, tif, debug = True):
+    if debug:
+        xrda = xrda.astype(np.float32)
     coordsys = xrda.crs.split('=')[1]
     xrda = xrda.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
     xrda = xrda.rio.write_crs(coordsys, inplace=True)
     xrda.rio.to_raster(tif, compress='deflate')
-    
+
+
 
 def deramp_ifg_tif(phatif, unwrap_after = True):
     # works fine if the path is to some diff_pha.tif file inside $LiCSAR_public only!
@@ -1240,7 +1502,7 @@ def deramp_ifg_tif(phatif, unwrap_after = True):
     
 
 
-def detrend_ifg_xr(xrda, isphase=True, return_correction = False):
+def detrend_ifg_xr(xrda, isphase=True, return_correction = False, maxfringes = 4):
     #not done yet... doris matlab cpxdetrend function is too cool.. need to understand it first
     #xrcpx = ifg_ml['cpx']
     da = xrda.copy(deep=True).fillna(0)
@@ -1264,6 +1526,12 @@ def detrend_ifg_xr(xrda, isphase=True, return_correction = False):
         numfringesx = numfringesx - X
     if numfringesy > Y/2:
         numfringesy = numfringesy - Y
+    if (abs(numfringesx) > maxfringes) or (abs(numfringesy) > maxfringes):
+        print('too many fringes identified, probably wrong. cancelling detrend')
+        if return_correction:
+            return da, 0
+        else:
+            return da
     print('detrending by {0}/{1} fringes in lon/lat'.format(numfringesx, numfringesy))
     trendx = np.linspace(0,2*np.pi,X) * numfringesx
     trendy = np.linspace(0,2*np.pi,Y) * numfringesy
@@ -1290,19 +1558,29 @@ def detrend_ifg_xr(xrda, isphase=True, return_correction = False):
 
 
     
-def filter_ifg_ml(ifg_ml):
+def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False):
     # this will use only PHA and would filter it
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
-    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
-    ifg_ml['cpx'].values = cpxarr
+    ifg_ml['cpx'].values = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
     print('filter using (adapted) gauss filter')
     ifg_ml['gauss_cpx'] = filter_cpx_gauss(ifg_ml, sigma = 1, trunc = 2)
     ifg_ml['gauss_pha'] = 0*ifg_ml['pha']
     ifg_ml['gauss_pha'].values = np.angle(ifg_ml.gauss_cpx.values)
     #use magnitude after filtering as coherence
     ifg_ml['gauss_coh'] = 0*ifg_ml['pha']
+    # that is great but has problems at maxima of cos or sin
     ifg_ml['gauss_coh'].values = np.abs(ifg_ml.gauss_cpx.values)
+    if calc_coh_from_delta:
+        # if using the coh from the phase residuals (based on variance), it 
+        delta = np.angle(np.exp(1j*(ifg_ml['gauss_pha'] - ifg_ml['pha'])))
+        #aaa = coh_from_phadiff(delta, winsize=5)
+        print('calculating coh from phase diff')
+        phacoh = coh_from_phadiff(delta, winsize=3)
+        # this should be much better:
+        #ifg_ml['gauss_coh'].values = 1-np.abs(delta)/np.pi
+        #but it is not actually. so i am using max of gauss_coh and phacoh:
+        ifg_ml['gauss_coh'].values=np.maximum(ifg_ml['gauss_coh'].values, phacoh)
     return ifg_ml
 
 
@@ -1326,8 +1604,11 @@ def cascade_unwrap(frame, pair, procdir = os.getcwd(), only10 = True, hgtcorr = 
     if only10:
         #ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.5, add_resid = False, smooth = True)
         #ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = True, smooth=True, outtif=outtif)
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.6, add_resid = True, hgtcorr = hgtcorr, outtif=outtif)
+        # orig:
+        #ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
+        # 01/2022: updating parameters:
+        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True)
+        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif)
     else:
         ifg_ml20 = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
         ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prev_ramp = ifg_ml20['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
@@ -1350,3 +1631,430 @@ def cascade_unwrap(frame, pair, procdir = os.getcwd(), only10 = True, hgtcorr = 
 #print('preparing nc and png')
 #bin2nc(outunwbin, mask_full, outunwnc, dtype = np.float32)
 #create_preview(outunwnc, ftype = 'unwrapped')
+
+
+
+import LiCSBAS_io_lib as io
+from LiCSBAS_tools_lib import *
+
+def make_avg_amp(mlitiflist, hgtxr):
+    avgamp = hgtxr*0
+    nopixels = avgamp.copy()
+    for ampf in mlitiflist:
+        try:
+            amp = io.read_geotiff(ampf) #/ 255
+        except:
+            print('error reading '+ampf)
+            continue
+        amp[np.isnan(amp)] = 0
+        nopixels.values[amp>0] += 1
+        avgamp = avgamp + amp
+    avgamp = avgamp/nopixels
+    return avgamp
+
+
+def make_std_amp(mlitiflist, avgamp):
+    ddof = 1
+    avgvar = avgamp*0
+    nopixels = avgvar.copy()
+    for ampf in mlitiflist:
+        try:
+            amp = io.read_geotiff(ampf)
+        except:
+            print('error reading '+ampf)
+            continue
+        amp[np.isnan(amp)] = 0
+        nopixels.values[amp>0] += 1
+        avgvar = avgvar + (amp - avgamp)**2
+    # correct for ddof
+    sumpx = nopixels - ddof
+    #sumpx[sumpx<1] = np.nan
+    sumpx.values[sumpx<1] = np.nan
+    avgstd = np.sqrt(avgvar/sumpx)
+    return avgstd
+
+'''
+# for unlimited time dimension netcdf
+
+import netCDF4
+
+def _expand_variable(nc_variable, data, expanding_dim, nc_shape, added_size):
+    # For time deltas, we must ensure that we use the same encoding as
+    # what was previously stored.
+    # We likely need to do this as well for variables that had custom
+    # econdings too
+    if hasattr(nc_variable, 'calendar'):
+        data.encoding = {
+            'units': nc_variable.units,
+            'calendar': nc_variable.calendar,
+        }
+    data_encoded = xr.conventions.encode_cf_variable(data) # , name=name)
+    left_slices = data.dims.index(expanding_dim)
+    right_slices = data.ndim - left_slices - 1
+    nc_slice   = (slice(None),) * left_slices + (slice(nc_shape, nc_shape + added_size),) + (slice(None),) * (right_slices)
+    nc_variable[nc_slice] = data_encoded.data
+
+
+
+def append_to_netcdf(filename, ds_to_append, unlimited_dims):
+    if isinstance(unlimited_dims, str):
+        unlimited_dims = [unlimited_dims]
+    if len(unlimited_dims) != 1:
+        # TODO: change this so it can support multiple expanding dims
+        raise ValueError(
+            "We only support one unlimited dim for now, "
+            f"got {len(unlimited_dims)}.")
+    unlimited_dims = list(set(unlimited_dims))
+    expanding_dim = unlimited_dims[0]
+    with netCDF4.Dataset(filename, mode='a') as nc:
+        nc_dims = set(nc.dimensions.keys())
+        nc_coord = nc[expanding_dim]
+        nc_shape = len(nc_coord)
+        added_size = len(ds_to_append[expanding_dim])
+        variables, attrs = xr.conventions.encode_dataset_coordinates(ds_to_append)
+        for name, data in variables.items():
+            if expanding_dim not in data.dims:
+                # Nothing to do, data assumed to the identical
+                continue
+            nc_variable = nc[name]
+            _expand_variable(nc_variable, data, expanding_dim, nc_shape, added_size)
+
+
+# TODO - make median coh, but better - RAM-effective - using dask
+def make_median_coh_memory(group):
+    #medcoh = hgtxr*0
+    firstpass = True
+    #thirddim = 'pair'
+    for pair,row in group.iterrows():
+        cohf = row['cohf']
+        try:
+            data = xr.open_rasterio(cohf)
+        except:
+            print('error reading coh of pair '+pair)
+            continue
+        if firstpass:
+            medcoh_xr = data.copy(deep=True).squeeze('band').drop('band')
+            coh_np = data.values
+            firstpass = False
+        else:
+            try:
+                coh_np = np.append(coh_np, data.values, axis = 0)
+            except:
+                print('error in pair '+pair+' - maybe shape mismatch?')
+    medcoh_xr.values = np.nanmedian(coh_np, axis=0)
+    number_of_cohs = coh_np.shape[0]
+    return medcoh_xr, number_of_cohs
+'''
+
+
+'''
+import dask
+def make_median_coh(group, num_workers = 1, outtif = None):
+    #outnc is only a temp file
+    outnc = 'tmpcoh.nc'
+    varname = 'coherence'
+    if os.path.exists(outnc):
+        os.remove(outnc)
+    #medcoh = hgtxr*0
+    firstpass = True
+    thirddim = 'pair'
+    for pair,row in group.iterrows():
+        cohf = row['cohf']
+        try:
+            data = xr.open_rasterio(cohf)
+            data = data.rename({'x': 'lon','y': 'lat','band': thirddim})
+            data[thirddim] = [pair]
+            #sort lons and lats - some tifs may have it inverted?
+            data = data.sortby([thirddim,'lon','lat'])
+        except:
+            print('error reading coh of pair '+pair)
+            continue
+        if firstpass:
+            #coh_xr = ds.copy(deep=True) #.squeeze('band').drop('band')
+            #coh_np = data.values
+            ds = xr.Dataset({varname:data})
+            coordsys = data.crs.split('=')[1]
+            ds = ds.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
+            ds = ds.rio.write_crs(coordsys, inplace=True)
+            ds.to_netcdf(outnc, mode='w', unlimited_dims=[thirddim])
+            firstpass = False
+        else:
+            try:
+                #fast fix having sometimes wrong lon/lats (still same dimensions)
+                data['lon'] = ds.lon
+                data['lat'] = ds.lat
+                dsA = xr.Dataset({varname:data})
+                append_to_netcdf(outnc, dsA, unlimited_dims=thirddim)
+                #coh_np = np.append(coh_np, data.values, axis = 0)
+            except:
+                print('error in pair '+pair+' - maybe shape mismatch?')
+    if not os.path.exists(outnc):
+        print('some error, cancelling for frame '+frame)
+        return False
+    print('temporary chunked netcdf ready, now dask-calculate median')
+    dsA = ''  #clean from RAM
+    data = ''
+    # this will load it to dask - accessible through 'data' later
+    medcoh_xr = xr.open_dataset(outnc, chunks={"lon":10,"lat":10})
+    medcoh_dask = dask.array.nanmedian(medcoh_xr.coherence.data, axis=0)
+    #xr.apply_ufunc(
+    #    np.nanmedian,
+    #    medcoh_xr.coherence,
+    #    input_core_dims=[[dim]], # [dim]],
+    #    dask="parallelized",
+    #    kwargs={"axis": 0})
+    #    output_dtypes=[np.uint8],
+    #)
+    medcoh = medcoh_dask.compute(num_workers=num_workers)  # scheduler='processes' # output is numpy ndarray
+    #save to netcdf:
+    ds = ds.squeeze(thirddim).drop(thirddim)
+    da = ds['coherence']
+    da.values = medcoh.astype(np.uint8)
+    da.attrs['NUMBER_OF_INPUT_FILES'] = len(medcoh_xr[thirddim])
+    if outtif:
+        da = da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
+        da = da.rio.write_crs(coordsys, inplace=True)
+        da.rio.to_raster(outtif, compress='deflate')
+    return da
+
+'''
+def make_avg_coh(group, hgtxr):
+    avgcoh = hgtxr*0
+    nopixels = avgcoh.copy()
+    for cohf in group['cohf']:
+        try:
+            coh = io.read_geotiff(cohf) / 255
+        except:
+            print('error reading '+cohf)
+            continue
+        coh[np.isnan(coh)] = 0
+        nopixels.values[coh>0] += 1
+        avgcoh = avgcoh + coh
+    avgcoh = avgcoh/nopixels
+    return avgcoh
+
+
+def make_std_coh(group, avgcoh):
+    ddof = 1
+    avgvar = avgcoh*0
+    nopixels = avgvar.copy()
+    for cohf in group['cohf']:
+        try:
+            coh = io.read_geotiff(cohf) / 255
+        except:
+            print('error reading '+cohf)
+            continue
+        coh[np.isnan(coh)] = 0
+        nopixels.values[coh>0] += 1
+        avgvar = avgvar + (coh - avgcoh)**2
+    # correct for ddof
+    sumpx = nopixels - ddof
+    #sumpx[sumpx<1] = np.nan
+    sumpx.values[sumpx<1] = np.nan
+    avgstd = np.sqrt(avgvar/sumpx)
+    return avgstd
+
+
+def get_date_matrix(pairs):
+    date_matrix = pd.DataFrame(pairs, columns=['pair'])
+    date_matrix['date1'] = pd.to_datetime(date_matrix.pair.str[:8], format='%Y%m%d')
+    date_matrix['date2'] = pd.to_datetime(date_matrix.pair.str[9:], format='%Y%m%d')
+    date_matrix['btemp'] = date_matrix.date2 - date_matrix.date1
+    date_matrix = date_matrix.set_index('pair')
+    return date_matrix
+
+
+def build_amp_avg_std(frame, return_ampstab = False):
+    track=str(int(frame[:3]))
+    epochsdir = os.path.join(os.environ['LiCSAR_public'], track, frame, 'epochs')
+    hgtfile = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.hgt.tif')
+    hgtxr = xr.open_rasterio(os.path.join(hgtfile))
+    hgtxr = hgtxr.squeeze('band').drop('band')
+    mlitiflist = fc.get_epochs(frame, return_mli_tifs = True)
+    print('generating amp average')
+    ampavg = make_avg_amp(mlitiflist, hgtxr)
+    print('generating amp std')
+    ampstd = make_std_amp(mlitiflist, ampavg)
+    if return_ampstab:
+        ampstab = 1 - ampstd/ampavg
+        ampstab.values[ampstab<=0] = 0.00001
+        return ampstab
+    else:
+        return ampavg, ampstd
+
+
+def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outnopx = False, do_std = True, do_tif = False):
+    track=str(int(frame[:3]))
+    if not ifgdir:
+        ifgdir = os.path.join(os.environ['LiCSAR_public'], track, frame, 'interferograms')
+    try:
+        pairs = get_ifgdates(ifgdir)
+    except:
+        print('error, dropping frame '+frame)
+        pairs = None
+        return False
+    pairsall = get_date_matrix(pairs)
+    pairsall['pair'] = list(pairsall.index)
+    pairsall['cohf'] = ifgdir + '/' + pairsall.pair + '/' + pairsall.pair + '.geo.cc.tif'
+    if days != 'all':
+        pairs = pairsall[pairsall.btemp == str(days)+' days']
+    #pairs['datetocheck'] = pairs.date1 + pd.Timedelta('6 days')
+    #pairs['month'] = pairs['datetocheck'].dt.month
+    hgtfile = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.hgt.tif')
+    hgtxr = xr.open_rasterio(os.path.join(hgtfile))
+    hgtxr = hgtxr.squeeze('band').drop('band')
+    if not monthly:
+        print('generating coh average')
+        if days == 'all':
+            print('fast written solution, will output xr Dataset of avg cohs')
+            coherences = xr.Dataset()
+            #ndays = pairsall.btemp.dt.days.unique()
+            #ndays.sort()
+            daygroups = [(6,6), (12,12), (18,24), (30,42), (48,72), (78,96), (102,156), (162,200), (201,300), (301,400)]
+            for daygroup in daygroups:
+                print('preparing coh avgs for btemp between {0} and {1} days'.format(daygroup[0],daygroup[1]))
+                pairs = pairsall[np.isin(pairsall.btemp.dt.days, np.arange(daygroup[0], daygroup[1]+1))]
+                #now, this will select in periods between 1st March and 1st September
+                for setX in [([3,4,5,6,7,8], 'summer'), ([9,10,11,12,1,2], 'winter')]:
+                    setX_time = setX[0]
+                    setX_label = setX[1]
+                    center_date = pairs.date1+(pairs.date2-pairs.date1)/2
+                    setA = pairs[np.isin(center_date.dt.month,setX_time)]
+                    if len(setA) > 1:
+                        cohavgA = make_avg_coh(setA, hgtxr)
+                        cohavgA.attrs['number of input cohs'] = len(setA)
+                        nameA = 'mean coh {0}-{1} days {2}'.format(daygroup[0], daygroup[1], setX_label)
+                        coherences[nameA] = cohavgA
+                # cohavgB.plot(vmin=0,vmax=0.9)
+                # plt.show()
+                #for ddays in days:
+                # 
+            return coherences
+        else:
+            cohavg = make_avg_coh(pairs, hgtxr)
+            if do_std:
+                print('generating coh std')
+                cohstd = make_std_coh(pairs, cohavg)
+            else:
+                cohstd = 0
+    else:
+        pairs['month'] = pairs['date1'].dt.month
+        for i, group in pairs.groupby('month'):
+            print('preparing month '+str(i)+' from {} coh maps'.format(str(len(group))))
+            out = make_avg_coh(group, hgtxr)
+            outtif = frame+'.avg_coh.month'+str(i)+'.tif'
+            print('exporting to '+outtif)
+            out.rio.write_crs("epsg:4326", inplace=True).rio.to_raster(outtif)
+    if do_tif:
+        outtif = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.meancoh.'+str(days)+'.tif')
+        nopx = len(pairs)
+        cohavg = (cohavg*255).astype(np.uint8)
+        cohavg.attrs['NUMBER_OF_INPUT_FILES'] = nopx
+        cohavg = cohavg.rename({'x': 'lon','y': 'lat'}).sortby(['lon','lat'])
+        export_xr2tif(cohavg, outtif, debug = False)
+    if outnopx:
+        nopx = len(pairs)
+        return cohavg, cohstd, nopx
+    else:
+        return cohavg, cohstd
+
+
+
+'''
+# once in /work/scratch-pw/earmla/LiCSAR_temp/batchdir/142D_09148_131313
+coherences = build_coh_avg_std(frame, ifgdir = 'GEOC', days = 'all')
+coherences.to_netcdf('cohnewmeans.nc')
+# to plot them
+i=0
+plt.close()
+for x in coherences:
+    i=i+1
+    label = str(x)+': from {} files'.format(coherences[x].attrs['number of input cohs'])
+    name = 'meancoh_{}.png'.format(str(i))
+    coherences[x].plot(vmin=0,vmax=0.9)
+    plt.title(label)
+    print(label)
+    plt.savefig(name, format='png')
+    plt.close()
+    #plt.show()
+    
+'''
+
+
+'''
+def build_median_coh(frame, days = 12, num_workers = 8):
+    track=str(int(frame[:3]))
+    ifgdir = os.path.join(os.environ['LiCSAR_public'], track, frame, 'interferograms')
+    try:
+        pairs = get_ifgdates(ifgdir)
+    except:
+        print('error, dropping frame '+frame)
+        pairs = None
+        return False
+    pairs = get_date_matrix(pairs)
+    pairs = pairs[pairs.btemp == str(days)+' days']
+    pairs['pair'] = list(pairs.index)
+    #pairs['datetocheck'] = pairs.date1 + pd.Timedelta('6 days')
+    #pairs['month'] = pairs['datetocheck'].dt.month
+    pairs['cohf'] = ifgdir + '/' + pairs.pair + '/' + pairs.pair + '.geo.cc.tif'
+    outtif = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.medcoh.'+str(days)+'.tif')
+    if os.path.exists(outtif):
+        print('already exists: '+outtif)
+    print('generating median of {} days coh for frame '.format(str(days))+frame)
+    da = make_median_coh(pairs, num_workers = num_workers)
+    export_xr2tif(da, outtif, debug = False)
+
+
+
+def build_median_coh_frames(frames, dayset = [6, 12, 18], avg = True):
+    lenf = len(frames)
+    i = 0
+    for frame in frames['frameID']:
+        i = i+1
+        print('[{0}/{1}] processing frame {2}'.format(str(i),str(lenf),frame))
+        for days in dayset:
+            try:
+                if avg:
+                    dmm = build_coh_avg_std(frame, days = days, monthly = False, outnopx = False, do_std = False, do_tif = True)
+                    dmm = ''
+                else:
+                    build_median_coh(frame, days = days)
+            except:
+                print('error processing '+frame)
+
+'''
+
+'''
+
+tr=134
+orb='D'
+days = 12
+
+import LiCSAR_lib.unwrp_multiscale as unw
+#for tr in range(134,140):
+for tr in range(100,176):
+    #for tr in range(150,160):
+    #for tr in range(160,176):
+    frames=unw.fc.lq.sqlout2list(unw.fc.lq.get_frames_in_orbit(tr,orb))
+    for frame in frames:
+        try:
+            dmm = unw.build_coh_avg_std(frame, days = days, monthly = False, outnopx = False, do_std = False, do_tif = True)
+        except:
+            print('error in '+frame)
+
+
+    unw.build_median_coh_frames(frames, dayset, avg = True)
+
+
+def build_median_coh_all_frames(dayset = [6, 12, 18], avg = True):
+    ascf, descf = unw.fc.get_all_frames()
+    6,
+    12
+    , 
+    [24] 
+    dayset = [36,48]
+    frames = descf
+    for frames in [ascf, descf]:
+        unw.build_median_coh_frames(frames, dayset, avg = True)
+        
+'''

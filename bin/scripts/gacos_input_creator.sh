@@ -1,7 +1,15 @@
 ## The script is used to generate the required input file for the GACOS.sh API
 ## It takes the frame id as the input
-
+# optionaly, you may add second parameter to input and that will be a text file with dates to process
+# e.g. 
+# 20190401
+# 20220202 ...
 frame=$1
+input=''
+if [ ! -z $2 ]; then
+ if [ ! -f $2 ]; then echo "if you use 2nd parameter, it should be an existing txt file with a list of epochs"; exit; fi
+ input=`realpath $2`
+fi
 
 prod_dir=$LiCSAR_public
 work_dir="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/GACOS"
@@ -58,15 +66,19 @@ else
    exit 1
 fi
 
-ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f1 > $frame.inp.tmp
-ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f2 >> $frame.inp.tmp
-sort -u $frame.inp.tmp >$frame.inp.tmp2
+if [ ! -z $input ]; then
+ cp $input $frame.inp.tmp2;
+else
+ ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f1 > $frame.inp.tmp
+ ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f2 >> $frame.inp.tmp
+ sort -u $frame.inp.tmp >$frame.inp.tmp2
+fi
 for epoch in `cat $frame.inp.tmp2`; do
     if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.ztd.geo.tif ]; then
      echo $epoch >> $frame.inp
     fi
 done
-rm $frame.inp.tmp $frame.inp.tmp2
+rm $frame.inp.tmp $frame.inp.tmp2 2>/dev/null
 
 exit
 

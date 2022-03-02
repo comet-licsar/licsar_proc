@@ -9,9 +9,12 @@ try:
     sshtunnel.SSH_TIMEOUT = 5*60*60  #5 hours..
     sshtunnel.TUNNEL_TIMEOUT = sshtunnel.SSH_TIMEOUT
 except:
-    print('no ssh tunneling available')
+    #print('no ssh tunneling available')
+    debugg = False
     #print('problem importing sshtunnel module - ARC will have problems connecting to LiCSInfo db')
     #None
+
+
 configfile = os.environ["LiCSARconfig"]
 
 def Conn_db():

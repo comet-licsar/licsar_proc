@@ -73,13 +73,12 @@ if [ $HIRES == 1 ]; then
   thisdir=`pwd`
   cd $procdir
   submit_geo_hires.py
-  geodir=geo_50m
  fi
  if [ -f $procdir/geo_50m/locked ]; then
   echo "seems like the hires geocoding is locked by another process. please wait for it to finish first"
   exit
  fi
-
+ geodir=geo_50m
  GEOCDIR=GEOC_50m
  mkdir -p $GEOCDIR
  cd $thisdir
@@ -91,13 +90,12 @@ if [ $LORES == 1 ]; then
   thisdir=`pwd`
   cd $procdir
   submit_geo_lores.py
-  geodir=geo_500m
  fi
  if [ -f $procdir/geo_500m/locked ]; then
   echo "seems like the lores geocoding is locked by another process. please wait for it to finish first"
   exit
  fi
-
+ geodir=geo_500m
  GEOCDIR=GEOC_500m
  mkdir -p $GEOCDIR
  cd $thisdir
@@ -457,19 +455,21 @@ fi
 
 if [ $MLIDO -eq 1 ]; then
 #finally amplitudes/intensities
-mkdir $procdir/GEOC.MLI 2>/dev/null
+mkdir $procdir/$GEOCDIR.MLI 2>/dev/null
 for im in `echo $ifg | sed 's/_/ /'`; do
-if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/GEOC.MLI/$im ]; then
- mkdir -p ${procdir}/GEOC.MLI/$im
+if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/$GEOCDIR.MLI/$im ]; then
+ mkdir -p ${procdir}/$GEOCDIR.MLI/$im
  echo "preparing GeoTIFF and PNG for intensity image of "$im
  #geocode MLI
- geocode_back ${procdir}/RSLC/$im/$im.rslc.mli $width ${procdir}/$geodir/$master.lt_fine ${procdir}/GEOC.MLI/$im/$im.geo.mli ${width_dem} ${length_dem} 0 0 >> $logfile
+ #echo geocode_back ${procdir}/RSLC/$im/$im.rslc.mli $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli ${width_dem} ${length_dem} 0 0 #>> $logfile
+ geocode_back ${procdir}/RSLC/$im/$im.rslc.mli $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli ${width_dem} ${length_dem} 0 0 >> $logfile
  #convert MLI to geotiff
- data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/GEOC.MLI/$im/$im.geo.mli 2 ${procdir}/GEOC.MLI/$im/$im.geo.mli.tif 0.0  >> $logfile 2>/dev/null
+ #echo data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli 2 ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.tif 0.0  #>> $logfile 2>/dev/null
+ data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli 2 ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.tif 0.0  >> $logfile 2>/dev/null
  #generate raster preview
- raspwr ${procdir}/GEOC.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
- convert -transparent black -resize $RESIZE'%' ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli.png
- rm ${procdir}/GEOC.MLI/$im/$im.geo.mli.bmp ${procdir}/GEOC.MLI/$im/$im.geo.mli  2>/dev/null
+ raspwr ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
+ convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.png
+ rm ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli  2>/dev/null
 fi 
 done
 fi
