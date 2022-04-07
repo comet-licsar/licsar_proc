@@ -72,6 +72,10 @@ cp temp/mask.fullin.nc temp/mask.fullin.georeg.nc
 #gmt grdedit temp/mask.fullin.georeg.nc -T -R$ifg   #to pixel reg
 #gmt grdmath -N $ifg temp/mask.fullin.georeg.nc MUL 0 NAN = temp/ifg.fullin.tofill.nc
 #gmt grdmath -N $ifg 0 NAN 10 DENAN temp/mask.fullin.georeg.nc MUL 0 NAN = temp/ifg.masked.tofill.nc
+if [ `gmt grdinfo temp/ifg.nc | grep "node reg" | grep -c 'Gridline'` == 1 ]; then
+ gmt grdedit temp/ifg.nc -T -Rtemp/mask.fullin.georeg.nc
+fi
+
 gmt grdmath -N temp/ifg.nc 0 NAN 10 DENAN temp/mask.fullin.georeg.nc MUL 0 NAN = temp/ifg.masked.tofill.nc ##JW
 
 

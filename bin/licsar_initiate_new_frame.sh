@@ -10,6 +10,7 @@ r=20
 a=4
 dolocal=0
 tienshan=0
+clip=0
 
 if [ -z $1 ];
 then
@@ -18,18 +19,19 @@ then
  echo "(if master date is not given, it will choose automatically, from last 3 months data)"
  echo "(to include custom downloaded master files, don't forget to arch2DB.py them first)"
  echo "parameters:"
- echo " -H - do master in highest resolution (r=1, a=1)"
+ echo " -H - do master in high resolution (r=5, a=1, res approx 15 m) - auto-applied if H is in framename"
  echo " -M - do master in medium resolution (towards 56 m outputs)"
  echo " -D /path/to/dem.tif - use custom DEM - you may want to use gdal_merge.py -a_nodata -32768 .."
  echo " -V 365 would only output possible master epoch candidates..for last 365 days"
  echo " -T - would include some extra Tien Shan related tuning"
+ echo " -C lat1/lat2/lon1/lon2 - would establish a crop area for the frame"
  exit
 fi
 
 #improved getopts, finally
-while getopts ":HMTD:V:" option; do
+while getopts ":HMTD:V:C:" option; do
  case "${option}" in
-  H) a=1; r=1; outres=0.0001; dolocal=1; echo "high resolution option enabled"
+  H) a=1; r=5; outres=0.00015; dolocal=1; echo "high resolution option enabled"
      ;;
   M) outres=0.0005; dolocal=1; echo "medium (56 m) resolution option enabled"
      ;;
@@ -40,6 +42,10 @@ while getopts ":HMTD:V:" option; do
      ;;
   V) dryrun=1;
      lastdays=$OPTARG;
+     ;;
+  C) clip=1;
+     cliparea=$OPTARG;
+     dolocal=1;
      ;;
  esac
 done
@@ -54,7 +60,11 @@ fi
 
 
  frame=$1
-
+ # update if the frame is for H:
+ if [ ${frame:9:1} == 'H' ]; then
+  a=1; r=5; outres=0.00015; dolocal=1;
+ fi
+ 
  tr=`echo $frame | cut -d '_' -f1 | sed 's/^0//' | sed 's/^0//' | rev | cut -c 2- | rev`
  rmdir $curdir/$tr/$frame 2>/dev/null
  if [ -d $curdir/$tr/$frame ]; then
@@ -82,6 +92,9 @@ if [ $dolocal == 1 ]; then
      echo "rglks = "$r > local_config.py
      echo "azlks = "$a >> local_config.py
      echo "outres = "$outres >> local_config.py
+     if [ $clip == 1 ]; then
+       echo "cliparea = "$cliparea >> local_config.py
+     fi
 fi
 if [ $tienshan == 1 ]; then
     echo "tienshan = "1 >> local_config.py
@@ -142,3 +155,19 @@ else
  rm -f $curdir/$tr/$frame/SLC/*/2???????.slc 2>/dev/null
  echo "done"
 fi
+
+if [ $clip == 1 ]; then
+ echo "clipping to requested area - WARNING, MUST BE lon1<lon2 etc"
+ ulx=`echo $cliparea | cut -d '/' -f3`
+ uly=`echo $cliparea | cut -d '/' -f2`
+ lrx=`echo $cliparea | cut -d '/' -f4`
+ lry=`echo $cliparea | cut -d '/' -f1`
+ for tif in `ls $LiCSAR_public/$tr/$frame/metadata/*tif $LiCSAR_public/$tr/$frame/epochs/*/*tif`; do
+   gdal_translate -projwin $ulx $uly $lrx $lry -co "COMPRESS=DEFLATE" -of GTiff -a_srs epsg:4326 $tif $tif.clip.tif
+   mv $tif.clip.tif $tif
+ done
+ # just to clean the small png preview file
+ rm $LiCSAR_public/$tr/$frame/epochs/*/*png
+fi
+echo "changing permissions"
+chmod -R 775 $curdir/$tr/$frame $LiCSAR_public/$tr/$frame

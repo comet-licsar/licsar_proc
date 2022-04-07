@@ -12,7 +12,10 @@ if [ -z $1 ]; then
  echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
  echo "-T ....... use testing version of LiCSBAS"
+ echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
+ echo "----------------"
+ #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
  exit
 fi
@@ -24,12 +27,13 @@ hgts=0
 clip=0
 reunw=0
 use_coh_stab=0
+strict=0
 keep_coh_debug=1
 LB_version=LiCSBAS
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HuTskG:" option; do
+while getopts ":M:HuTsSkG:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -41,6 +45,9 @@ while getopts ":M:HuTskG:" option; do
      #shift
      ;;
   s) use_coh_stab=1;
+     #shift
+     ;;
+  S) strict=1;
      #shift
      ;;
   k) keep_coh_debug=0;
@@ -71,12 +78,15 @@ if [ ! `pwd | rev | cut -d '/' -f1 | rev` == $frame ]; then
  cd $frame
 fi
 
+defdates=1
 startdate=20141001
 enddate=`date +%Y%m%d`
 if [ ! -z $2 ]; then
+ defdates=0
  startdate=$2
 fi
 if [ ! -z $3 ]; then
+ defdates=0
  enddate=$3
 fi
 
@@ -134,16 +144,29 @@ else
  #echo "nah, not ready yet, do full proc, without startdate enddate please.."
 fi
 
-#using GACOS only if there is at least for half of the files
-numf=`ls | cut -d '_' -f1 | sort -u | wc -l`
-let half=$numf/2
-if [ `ls ../GACOS | wc -l` -lt $half ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
+# strict means gacos will be used only if available for ALL data
+ #using GACOS only if there is at least for half of the files
+ numf=`ls -d 20*[0-9] | cut -d '_' -f2 | sort -u| wc -l`
+ let half=$numf/2
+if [ $strict == 0 ]; then
+ if [ `ls ../GACOS | wc -l` -lt $half ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
+else
+ if [ `ls ../GACOS | wc -l` -lt $numf ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
+fi
 
 cd $workdir
 if [ $reunw -gt 0 ]; then
  echo "preparing for custom multilooking - just run ./multirun.sh"
- mkdir GEOCml$multi
- echo cd `pwd`/GEOCml$multi > multirun.sh
+ if [ $dogacos == 1 ]; then
+  mlgeocdir=GEOCml$multi'GACOS'
+ else
+  mlgeocdir=GEOCml$multi
+ fi
+ if [ $clip == 1 ]; then
+  mlgeocdir=$mlgeocdir'clip'
+ fi
+ mkdir $mlgeocdir
+ echo cd `pwd`/$mlgeocdir > multirun.sh
  if [ $hgts == 1 ]; then
   extraparam=", hgtcorr = True"
  else
@@ -157,24 +180,50 @@ if [ $reunw -gt 0 ]; then
  if [ $use_coh_stab == 1 ]; then
   extraparam=$extraparam", use_coh_stab = True"
  fi
+ if [ $clip == 1 ]; then
+  extraparam=$extraparam", cliparea_geo = '"$aoi"'" 
+ fi
+ if [ $dogacos == 1 ]; then
+  extraparam=$extraparam", subtract_gacos = True" 
+ fi
+ if [ $defdates == 0 ]; then
+  ls GEOC | grep ^20 | grep '_' > pairset.txt
+  extraparam=$extraparam", pairsetfile = '../pairset.txt'"
+ fi
+ #cp $LiCSAR_procdir/$track/$frame/geo/EQA.dem_par GEOC/.
  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
+ # this seems not needed but in case of cropping, licsbas would try regenerate all missing data. so keeping this solution - may not be best if starting in local dir
+ #echo "cd ..; for x in \`cat pairset.txt\`; do rm GEOC/\$x 2>/dev/null; done" >> multirun.sh
+ echo "cd ..; cp GEOC/baselines $mlgeocdir/." >> multirun.sh
+ #echo "python3 extra.py" >> multirun.sh
  #echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
- echo "cd .." >> multirun.sh
+ #echo "cd .." >> multirun.sh
  chmod 777 multirun.sh
 fi
+
 
 #preparing batch file
 module load $LB_version
 copy_batch_LiCSBAS.sh >/dev/null
 
-sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
+if [ $reunw -gt 0 ] && [ $clip == 1 ]; then
+ # in this case, the whole dataset should be ready for time series processing
+ sed -i 's/start_step=\"01\"/start_step=\"11\"/' batch_LiCSBAS.sh
+ sed -i 's/GEOCmldir=\"GEOCml${nlook}/GEOCmldir=\"'$mlgeocdir'/' batch_LiCSBAS.sh
+else
+ sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
+fi
+
+
 sed -i 's/n_para=\"\"/n_para=\"1\"/' batch_LiCSBAS.sh
 sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
+
+
 if [ $reunw -gt 0 ]; then
- #sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
- sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"30/' batch_LiCSBAS.sh   # because we would use --nullify here...
- sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"200/' batch_LiCSBAS.sh
- sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"15/' batch_LiCSBAS.sh
+ sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
+ #sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"30/' batch_LiCSBAS.sh   # because we would use --nullify here...
+ sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"'$half'/' batch_LiCSBAS.sh
+ sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"5/' batch_LiCSBAS.sh
  #sed -i 's/start_step=\"02\"/start_step=\"16\"/' $x/batch_LiCSBAS.sh
 else
  sed -i 's/p11_coh_thre=\"/p11_coh_thre=\"0.025/' batch_LiCSBAS.sh
@@ -185,7 +234,7 @@ else
 fi
 
 # setting those values 'everywhere' (originally it was in the modified approach):
-sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
+sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"'$half'/' batch_LiCSBAS.sh
 sed -i 's/p16_deg_deramp=\"/p16_deg_deramp=\"1/' batch_LiCSBAS.sh
 sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
 
@@ -200,6 +249,7 @@ if [ $clip -gt 0 ]; then
  sed -i 's/^p05_clip_range_geo=\"/p05_clip_range_geo=\"'`cat tmp.sedaoi`'/' batch_LiCSBAS.sh
  rm tmp.sedaoi
 fi
+
 
 if [ $run_jasmin -eq 1 ]; then
  echo "sending as job to JASMIN"

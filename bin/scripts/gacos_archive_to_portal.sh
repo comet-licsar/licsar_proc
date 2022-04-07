@@ -31,6 +31,7 @@ for geotif in $work_dir/$frame/*.geo.tif; do
    date=`basename $geotif | cut -d '.' -f1`
    mkdir -p  $prod_dir/$track/$frame/epochs/$date
    cp -f $geotif $prod_dir/$track/$frame/epochs/$date/.
+   chmod -R 775 $prod_dir/$track/$frame/epochs/$date 2>/dev/null
 done
 
 #for jpg in $work_dir/$frame/*.ztd.jpg; do

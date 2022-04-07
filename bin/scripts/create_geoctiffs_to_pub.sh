@@ -1,7 +1,11 @@
 #!/bin/bash
+
+source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+
 if [ -z $2 ]; then 
  echo "inputs are: create_geoctiffs_to_pub.sh procdir ifg, e.g. \`pwd\` 20160101_20160202";
  echo "optional parameters:"
+ #echo "-c lat1/lat2/lon1/lon2 - would establish a crop area for the frame"
  echo "-u .... geocode also unfiltered wrapped interferogram"
  echo "-F .... do full resolution previews" # (needed for KML) - this will use different colour bar"
  echo "-L .... do low resolution geotiffs (500x500 m)"
@@ -15,6 +19,7 @@ if [ -z $2 ]; then
  exit;
 fi
 #what is needed here (can be changed probably) is *.rslc.mli.par of master image !!!
+
 
 #module load doris
 #module load LiCSAR/dev
@@ -30,6 +35,7 @@ LORES=0
 UNFILT=0
 FULL=0
 mask=1
+clip=0
 
 while getopts ":uabmUCFHIML" option; do
  case "${option}" in
@@ -146,6 +152,12 @@ lonstep=`awk '$1 == "post_lon:" {if($2<0) printf "%7f", -1*$2; else printf "%7f"
 # Frequency = (C / Wavelength), Where: Frequency: Frequency of the wave in hertz (hz). C: Speed of light (29,979,245,800 cm/sec (3 x 10^10 approx))
 lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/SLC/$master/$master.slc.mli.par`;
 
+# update 2022: set hgt file and warp towards it
+frame=`basename $procdir`
+tr=`track_from_frame $frame`
+hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+
+
 #echo "Running doGeocoding step" #" for unwrapped"
 #this is for the case if we start the geotiff generation within or outside of licsar_make_frame:
 if [ -d ${procdir}/LOGS ]; then
@@ -196,8 +208,12 @@ if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
    gmt grdmath $nctempfile $nctempfile MEDIAN SUB = ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif=gd:gtiff
    minmaxcolour=`gmt grdinfo -T+a0.1+s $nctempfile`
    minmaxreal=`gmt grdinfo -T $nctempfile`
+   # update 2022: align to hgt - should work also for clipping!
+   if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig2.tif
+    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig2.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif
+   fi
    gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 -a_srs EPSG:4326 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif >> $logfile 2>/dev/null
-   
 #   data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
    echo "Generating preview PNG"
   if [ $mask -eq 1 ]; then
@@ -356,6 +372,10 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  # Convert to geotiff
  #data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.tif 0.0  >> $logfile 2>/dev/null
  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' 0.0  >> $logfile 2>/dev/null
+   if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif'
+    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
+   fi
  gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' >> $logfile 2>/dev/null
  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
  # Create bmps
@@ -394,6 +414,10 @@ if [ $UNFILT -eq 1 ]; then
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 1 1 >> $logfile
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' 0.0  >> $logfile 2>/dev/null
+   if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif'
+    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
+   fi
  gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' >> $logfile 2>/dev/null
  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
  #rasmph_pwr ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$geodir/EQA.${master}.slc.mli ${width_dem} - - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' >> $logfile
@@ -423,6 +447,10 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/$
   geocode_back ${procdir}/IFG/${ifg}/${ifg}.cc $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc ${width_dem} ${length_dem} 1 0 >> $logfile
   # Convert to geotiff
   data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif 0.0  >> $logfile 2>/dev/null
+    if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig2.tif
+    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig2.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif
+   fi
   #for compression types differences, check e.g. https://kokoalberti.com/articles/geotiff-compression-optimization-guide/
   gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif >> $logfile 2>/dev/null
   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif
@@ -465,11 +493,18 @@ if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/$GEOCDIR.MLI/$im
  geocode_back ${procdir}/RSLC/$im/$im.rslc.mli $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli ${width_dem} ${length_dem} 0 0 >> $logfile
  #convert MLI to geotiff
  #echo data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli 2 ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.tif 0.0  #>> $logfile 2>/dev/null
- data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli 2 ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.tif 0.0  >> $logfile 2>/dev/null
+ data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli 2 ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig.tif 0.0  >> $logfile 2>/dev/null
+   if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig.tif $hgtfile ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig2.tif
+    mv ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig2.tif ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig.tif
+   fi
+  #for compression types differences, check e.g. https://kokoalberti.com/articles/geotiff-compression-optimization-guide/
+  gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig.tif ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.tif >> $logfile 2>/dev/null
+  
  #generate raster preview
  raspwr ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
  convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.png
- rm ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli  2>/dev/null
+ rm ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli  ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig.tif 2>/dev/null
 fi 
 done
 fi
@@ -506,3 +541,4 @@ fi
 #Move it to the public area(?)
 #for filename in .......; do
 # if [ ! -f ${publicdir}/ ]
+

@@ -95,14 +95,27 @@ while true; do
             for myJOBNAME in `echo $vars | sed 's/ended(//g' | sed 's/)//g' | sed 's/\&\&//g' | tr "'" " "`; do
              #this way the jobid can be really 'historic'
              #jobid=$(sacct -n --format="JobID" --name $myJOBNAME | head -n1 | cut -d '.' -f1)
-             jobid=$(squeue -n $myJOBNAME | sed '/JOBID/d' | head -n1 | gawk {'print $1'})
+             jobid=''
+             count=0
+             max_count=8
+             jobid=$(squeue -h --name=${myJOBNAME} --format='%i')
+             while [ -z "${jobid}" ] && [ ${count} -lt ${max_count} ]
+             do
+                echo "job not found, trying again - attempt "$count"/"$max_count
+                # great solution by Rich Rigby! as sometimes jobs were not found...
+                jobid=$(squeue -h --name=${myJOBNAME} --format='%i')
+                count=$((${count}+1))
+                sleep 3
+             done
+             #jobid=$(squeue -n $myJOBNAME | sed '/JOBID/d' | head -n1 | gawk {'print $1'})
              #jobid=$myJOBNAME
              if [ ! -z $jobid ]; then
                jobids=$jobids':'$jobid
              else
                #echo "ERROR: dependency not satisfied - seems job "$myJOBNAME" is not active.."
                #echo "trying with archived processing info, but expect problems"
-               jobid=$(sacct -n --name $myJOBNAME | head -n1 | gawk {'print $1'})
+               #jobid=$(sacct -n --name $myJOBNAME | head -n1 | gawk {'print $1'})
+               jobid=$(sacct -n --format=jobid --name=${myJOBNAME} | egrep '^[0-9]+\s' | sort -n | tail -n 1)
                if [ ! -z $jobid ]; then
                 jobids=$jobids':'$jobid
                fi

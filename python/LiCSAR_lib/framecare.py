@@ -755,7 +755,7 @@ def store_frame_geometry(framesgpd):
     return res
 
 def export_geopandas_to_kml(gpan, outfile):
-    gpan.to_file(outfile, driver='KML')
+    gpan.to_file(outfile, driver='KML', NameField='frameID')
 
 def bursts_group_to_iws(bidtanxs):
     iw1s = []
@@ -884,7 +884,10 @@ def generate_frame_name(bidtanxs):
     polyid_name = polyid_track+'_'+polyid_colat10+'_'+iw1_str+iw2_str+iw3_str
     return polyid_name
 
-def generate_new_frame(bidtanxs,testonly = True):
+def generate_new_frame(bidtanxs,testonly = True, hicode = None):
+    '''
+    hicode... use 'H' for high resolution (1/5 multilook), or 'M' for medium, i.e. 56 m
+    '''
     #and now i can generate the new frame:
     track = bidtanxs[0].split('_')[0]
     orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
@@ -905,6 +908,8 @@ def generate_new_frame(bidtanxs,testonly = True):
     if colat < 100: polyid_colat10 = '000'+str(colat)
     if colat < 10: polyid_colat10 = '0000'+str(colat)
     polyid_name = polyid_track+'_'+polyid_colat10+'_'+iw1_str+iw2_str+iw3_str
+    if hicode:
+        polyid_name = polyid_name[:9]+hicode+polyid_name[10:]
     #print(polyid_name)
     sql = "select count(*) from polygs where polyid_name = '{0}';".format(polyid_name)
     polyid_exists = lq.do_query(sql)[0][0]
@@ -974,6 +979,8 @@ def generate_new_frame(bidtanxs,testonly = True):
         print('generated new frame '+polyid_name)
         print('you may do following now: ')
         print('licsar_initiate_new_frame.sh '+polyid_name)
+        if hicode:
+            print('(but remember adding parameter -'+hicode+')')
         #delete_frame_commands(frame)
     return polyid_name
 
