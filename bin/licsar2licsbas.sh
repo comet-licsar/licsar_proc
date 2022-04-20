@@ -156,7 +156,7 @@ fi
 
 cd $workdir
 if [ $reunw -gt 0 ]; then
- echo "preparing for custom multilooking - just run ./multirun.sh"
+ #echo "preparing for custom multilooking - just run ./multirun.sh"
  if [ $dogacos == 1 ]; then
   mlgeocdir=GEOCml$multi'GACOS'
  else

@@ -11,6 +11,7 @@ from LiCSBAS_plot_lib import *
 import LiCSBAS_tools_lib as tools_lib
 import LiCSBAS_inv_lib as inv_lib
 import datetime as dt
+import s1data as s1
 
 #%%
 def read_bperp_file(bperp_file, imdates):
@@ -138,7 +139,14 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
     else:
         plt.ylabel('Bperp [m]')
     
-    
+    # 2022-04-19 adding dots of 'existing epochs'
+    epochdates = s1.get_epochs_for_frame(frame, firstdate.date(), lastdate.date(), returnAsDate = True)
+    for imd in imdates_dt:
+        imdd = imd.date()
+        if imdd in epochdates:
+            #print('debug - found and removed ok: '+str(imdd))
+            epochdates.remove(imdd)
+    ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red')
     # adding timestamp
     timestamp = 'updated: '+str(dt.datetime.now().strftime("%Y-%m-%d %I:%M:%S"))
     plt.title(frame+', '+timestamp)

@@ -206,8 +206,8 @@ def create_preview_bin(binfile, width, ftype = 'unw'):
         print('wrong ftype - choose one of: unw,pha,coh,mag')
         return
     outfile = binfile+'.png'
-    runcmd('cpxfiddle -w {0} -o sunraster -q {1} -f {2} -c {3} {4} {5} > {6}'.format(str(width), q, f, c, r, binfile, binfile+'.ras'), , printcmd = False)
-    runcmd('convert -resize 700x {0} {1}'.format(binfile+'.ras',outfile), printcmd = False)
+    runcmd('cpxfiddle -w {0} -o sunraster -q {1} -f {2} -c {3} {4} {5} > {6}'.format(str(width), q, f, c, r, binfile, binfile+'.ras'))
+    runcmd('convert -resize 700x {0} {1}'.format(binfile+'.ras',outfile))
     return outfile
 
 
@@ -307,11 +307,11 @@ def RI2cpx(R, I, cpxfile):
 
 
 def multilook_bin(binfile, outbinfile, width, mlfactor, dtype = 'cr4'):
-    runcmd('cpxfiddle -w {0} -o float -q normal -f {1} -M {2}/{2} {3} > {4}'.format(str(width), dtype, str(mlfactor), binfile, outbinfile), printcmd = False)
+    runcmd('cpxfiddle -w {0} -o float -q normal -f {1} -M {2}/{2} {3} > {4}'.format(str(width), dtype, str(mlfactor), binfile, outbinfile))
 
 
 def coh_from_cpxbin(cpxbin, cohbin, width):
-    runcmd('cpxfiddle -w {0} -o float -q mag -f cr4 {1} > {2}'.format(str(width), cpxbin, cohbin), printcmd = False)
+    runcmd('cpxfiddle -w {0} -o float -q mag -f cr4 {1} > {2}'.format(str(width), cpxbin, cohbin))
 
 
 def remove_islands(npa, pixelsno = 50):
@@ -1175,7 +1175,7 @@ def export_xr2tif(xrda, tif, lonlat = True, debug = True):
 def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = False,
             use_coh_stab = False, keep_coh_debug = True, export_to_tif = False, 
             gacoscorr = True, phase_bias_experiment = False, cliparea_geo = None,
-            pairsetfile = None, subtract_gacos = False):
+            pairsetfile = None, subtract_gacos = False, nproc = 1):
     '''
     hint - try use_coh_stab = True.. maybe helps against loop closure errors?!
     '''
@@ -1245,8 +1245,30 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
             pairset = None
     if not pairset:
         pairset = os.listdir(inputifgdir)
-    for pair in pairset:
-        if os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
+    '''
+    for multiprocessing - i need to make the below code as a function (but check, as it must use global variables! i need to learn with them better)
+    then the situation would be super easy, i.e.:
+    def check_and_process_ifg(pair):
+        ...
+    if nproc>1:
+        try:
+            from pathos.multiprocessing import ProcessingPool as Pool
+        except:
+            print('pathos not installed - not parallelism')
+            nproc = 1
+    if nproc>1:
+        p = Pool(nproc)
+        outs = p.map(check_and_process_ifg, pairset)  # out is one output per pair -> list
+        p.close()  # or not?
+    else:
+        for pair in pairset:
+            out=check_and_process_ifg(pair)
+    '''
+    #so try this:
+    def check_and_process_ifg(pair):
+        if not os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
+            return False
+        else:
             #check its dimensions..
             raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
             if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
@@ -1293,38 +1315,9 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                                  thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
                                  subtract_gacos = subtract_gacos)
-                    #else:
-                    
-                    #    print('ML set to 1 == will try running the cascade (multiscale) unwrapping')
-                    #    ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd())
-                    #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
-                    #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
-                    #np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                    #np.flipud(ifg_ml.unw.where(ifg_ml.mask > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                    #hey, it works ok without flipping - probably thanks to new sort of lat values when loading from tiffs directly
-                    #np.flipud(ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                    #or use gauss coh here?
-                    #np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
-                    
                     # export 
-                    mlipar = 'slc.mli.par'
-                    if not os.path.exists(mlipar):
-                        f = open(mlipar, 'w')
-                        f.write('range_samples: '+str(len(ifg_ml.lon))+'\n')
-                        f.write('azimuth_lines: '+str(len(ifg_ml.lat))+'\n')
-                        f.write('radar_frequency: 5405000000.0 Hz\n')
-                        f.close()
-                    if not os.path.exists('hgt'):
-                        if 'hgt' in ifg_ml:
-                            ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
-                    if not os.path.exists('EQA.dem_par'):
-                        post_lon=np.round(float(ifg_ml.lon[1] - ifg_ml.lon[0]),6)
-                        post_lat=np.round(float(ifg_ml.lat[1] - ifg_ml.lat[0]),6)
-                        cor_lat = np.round(float(ifg_ml.lat[0]),6)
-                        cor_lon = np.round(float(ifg_ml.lon[0]),6)
-                        create_eqa_file('EQA.dem_par',len(ifg_ml.lon),len(ifg_ml.lat),cor_lat,cor_lon,post_lat,post_lon)
                     width = len(ifg_ml.lon)
                     create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
                     os.system('rm '+pair+'/'+pair+'.unw.ras')
@@ -1336,6 +1329,133 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
             if not os.path.exists(os.path.join(pair,pair+'.unw')):
                 print('some error occured and the unw was not processed')
                 os.system('rm -r '+pair)
+                return False
+            else:
+                return True
+    def fix_additionals():
+        mlipar = 'slc.mli.par'
+        if not os.path.exists(mlipar):
+            f = open(mlipar, 'w')
+            f.write('range_samples: '+str(len(ifg_ml.lon))+'\n')
+            f.write('azimuth_lines: '+str(len(ifg_ml.lat))+'\n')
+            f.write('radar_frequency: 5405000000.0 Hz\n')
+            f.close()
+        if not os.path.exists('hgt'):
+            if 'hgt' in ifg_ml:
+                ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
+        if not os.path.exists('EQA.dem_par'):
+            post_lon=np.round(float(ifg_ml.lon[1] - ifg_ml.lon[0]),6)
+            post_lat=np.round(float(ifg_ml.lat[1] - ifg_ml.lat[0]),6)
+            cor_lat = np.round(float(ifg_ml.lat[0]),6)
+            cor_lon = np.round(float(ifg_ml.lon[0]),6)
+            create_eqa_file('EQA.dem_par',len(ifg_ml.lon),len(ifg_ml.lat),cor_lat,cor_lon,post_lat,post_lon)
+    if nproc>1:
+        try:
+            from pathos.multiprocessing import ProcessingPool as Pool
+        except:
+            print('pathos not installed - not parallelism')
+            nproc = 1
+    if nproc>1:
+        try:
+            p = Pool(nproc)
+            outs = p.map(check_and_process_ifg, pairset)  # out is one output per pair -> list
+            p.close()  # or not?
+            fix_additionals()
+        except:
+            print('some error appeared - please try manually (debug). now, just returning to no parallelism'
+            nproc = 1
+    if nproc == 1:
+        for pair in pairset:
+            if os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
+                #check its dimensions..
+                raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
+                if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
+                    #use tolerance of max pixels
+                    maxpixels = 4
+                    if ((abs(framewid - raster.RasterXSize) > maxpixels) or (abs(framelen - raster.RasterYSize) > maxpixels)):
+                        print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                        continue
+                    print('ERROR - the file {} has unexpected dimensions, trying to fix'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                    for tif in glob.glob(os.path.join(geoifgdir, pair, pair+'.geo.*.tif')):
+                        outfile = tif+'.tmp.tif'
+                        try:
+                            filedone = reproject_to_match(tif, hgtfile, outfile)
+                            if os.path.exists(outfile):
+                                shutil.move(outfile, tif)
+                        except:
+                            print('something wrong during reprojection, skipping')
+                            continue
+                        #os.system('gmt grdsample {0} -G{1}')
+                try:
+                    raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
+                    if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
+                        print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                        continue
+                except:
+                    print('some error processing file {}'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                    continue
+                if not os.path.exists(os.path.join(pair,pair+'.unw')):
+                    print('processing pair '+pair)
+                    if export_to_tif:
+                        outtif = os.path.join(pair,pair+'.geo.unw.tif')
+                    else:
+                        outtif = None
+                    try:
+                        if cascade:
+                            ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos)
+                        else:
+                            #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
+                            defomax = 0.3
+                            replace_ml_pha = None
+                            if phase_bias_experiment:
+                                replace_ml_pha = os.path.join(pair, pair+'.diff_pha_cor')
+                            ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
+                                     thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
+                                     keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
+                                     subtract_gacos = subtract_gacos)
+                        #else:
+                        
+                        #    print('ML set to 1 == will try running the cascade (multiscale) unwrapping')
+                        #    ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd())
+                        #ifg_ml.unw.values.tofile(pair+'/'+pair+'.unw')
+                        #np.flipud(ifg_ml.unw.fillna(0).values).tofile(pair+'/'+pair+'.unw')
+                        #np.flipud(ifg_ml.unw.where(ifg_ml.mask_coh > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
+                        #np.flipud(ifg_ml.unw.where(ifg_ml.mask > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
+                        #hey, it works ok without flipping - probably thanks to new sort of lat values when loading from tiffs directly
+                        #np.flipud(ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
+                        (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
+                        #or use gauss coh here?
+                        #np.flipud((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
+                        ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
+                        
+                        # export 
+                        mlipar = 'slc.mli.par'
+                        if not os.path.exists(mlipar):
+                            f = open(mlipar, 'w')
+                            f.write('range_samples: '+str(len(ifg_ml.lon))+'\n')
+                            f.write('azimuth_lines: '+str(len(ifg_ml.lat))+'\n')
+                            f.write('radar_frequency: 5405000000.0 Hz\n')
+                            f.close()
+                        if not os.path.exists('hgt'):
+                            if 'hgt' in ifg_ml:
+                                ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
+                        if not os.path.exists('EQA.dem_par'):
+                            post_lon=np.round(float(ifg_ml.lon[1] - ifg_ml.lon[0]),6)
+                            post_lat=np.round(float(ifg_ml.lat[1] - ifg_ml.lat[0]),6)
+                            cor_lat = np.round(float(ifg_ml.lat[0]),6)
+                            cor_lon = np.round(float(ifg_ml.lon[0]),6)
+                            create_eqa_file('EQA.dem_par',len(ifg_ml.lon),len(ifg_ml.lat),cor_lat,cor_lon,post_lat,post_lon)
+                        width = len(ifg_ml.lon)
+                        create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
+                        os.system('rm '+pair+'/'+pair+'.unw.ras')
+                        os.system('rm -r '+pair+'/'+'temp_'+str(ml))
+                        os.system('rm -r '+pair+'/'+'temp_gen')
+                    except:
+                        print('ERROR processing of pair '+pair)
+                        os.system('rm -r '+pair)
+                if not os.path.exists(os.path.join(pair,pair+'.unw')):
+                    print('some error occured and the unw was not processed')
+                    os.system('rm -r '+pair)
 
 
 def create_eqa_file(eqafile,wid,nlines,cor_lat,cor_lon,post_lat,post_lon):
@@ -2219,4 +2339,29 @@ def build_median_coh_all_frames(dayset = [6, 12, 18], avg = True):
     for frames in [ascf, descf]:
         unw.build_median_coh_frames(frames, dayset, avg = True)
         
+'''
+
+
+
+'''
+how to make multiprocessing? this way:
+from pathos.multiprocessing import ProcessingPool as Pool
+import multiprocessing as multi
+
+p = Pool(n_para_gap)
+_result = np.array(p.map(count_gaps_wrapper, range(n_para_gap)),
+                                   dtype=object)
+
+p.close()
+
+
+
+q = multi.get_context('fork')
+
+p = q.Pool(n_para_gap)
+                _result = np.array(p.map(count_gaps_wrapper, range(n_para_gap)),
+                                   dtype=object)
+                p.close()
+
+
 '''

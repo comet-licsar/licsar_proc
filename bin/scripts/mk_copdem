@@ -1,5 +1,6 @@
 #!/bin/bash
 
+echo "generating hgt from Copernicus DEM"
 output=$1
 # Input coordinate limits
 west=$2

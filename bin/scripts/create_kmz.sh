@@ -148,6 +148,7 @@ for topic in $todo; do
   keyword="unwrapped_ifg"
   create_preview_unwrapped $unw_tif $frame 1
   #cpt=unw.cpt
+  
   scalebarfile=scalebar_unwrapped.png
   tododirs=$tododirs" "$keyword
   visible=1

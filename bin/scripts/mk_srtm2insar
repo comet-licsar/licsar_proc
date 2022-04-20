@@ -3,7 +3,7 @@
 #
 # Dependencies: python3
 ####################################################
-
+echo "generating hgt from SRTM DEM"
 output=$1
 # Input coordinate limits
 west=$2

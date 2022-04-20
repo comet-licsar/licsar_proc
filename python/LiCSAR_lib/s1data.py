@@ -59,6 +59,16 @@ def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     return df
 
 
+def get_epochs_for_frame(frame, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), returnAsDate = False):
+    new_images = get_images_for_frame(frame, startdate, enddate)
+    epochs = [i.split('_')[5].split('T')[0] for i in new_images]
+    epochs = list(set(epochs))
+    if returnAsDate:
+        return [dt.date(int(a[:4]),int(a[4:6]),int(a[6:8])) for a in epochs]
+    else:
+        return epochs
+
+
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
              enddate = dt.date.today(), sensType = 'IW', outAspd = False, asf = True):
     #startdate and enddate should be of type datetime.date (but datetime may also work)
