@@ -334,6 +334,19 @@ function create_preview_unwrapped() {
 };
 
 
+function create_landmask() {
+  if [ ! -z $1 ]; then
+    local tif=$1
+    masktype="0/1/0/1/0"
+    echo $masktype " for .. <ocean>/<land>/<lake>/<island>/<pond>"
+    gmt grdlandmask -Glandmask.tif=gd:GTiff -R$tif -Df -N$masktype
+  else
+    echo "Usage: create_landmask tiffile"
+    echo "(can be either geotiff or nc/grd)"
+    return 0
+  fi
+}
+
 function create_preview_coh() {
   if [ ! -z $1 ]; then
     local cohfile=$1

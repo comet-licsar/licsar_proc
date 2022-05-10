@@ -15,22 +15,36 @@ from scipy import ndimage
 import time
 import matplotlib.pyplot as plt
 xr.set_options(keep_attrs=True)
-from LiCSAR_lib.LiCSAR_misc import *
+
 
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage import generic_filter
 from scipy import stats
+import scipy.signal as sps
+import scipy.linalg as spl
 
 from astropy.convolution import Gaussian2DKernel, interpolate_replace_nans, convolve_fft
 from sklearn.linear_model import HuberRegressor
 
 import shutil
 # fc used only for amp stability..
-import framecare as fc
+try:
+    import framecare as fc
+except:
+    print('framecare not loaded')
 
 
-import LiCSBAS_io_lib as io
-from LiCSBAS_tools_lib import *
+try:
+    from LiCSAR_lib.LiCSAR_misc import *
+except:
+    print('licsar misc not loaded')
+
+
+try:
+    import LiCSBAS_io_lib as io
+    from LiCSBAS_tools_lib import *
+except:
+    print('licsbas not loaded')
 
 #set dask client to use only one worker...
 #from dask.distributed import Client
@@ -206,8 +220,9 @@ def create_preview_bin(binfile, width, ftype = 'unw'):
         print('wrong ftype - choose one of: unw,pha,coh,mag')
         return
     outfile = binfile+'.png'
-    runcmd('cpxfiddle -w {0} -o sunraster -q {1} -f {2} -c {3} {4} {5} > {6}'.format(str(width), q, f, c, r, binfile, binfile+'.ras'))
+    runcmd('cpxfiddle -w {0} -o sunraster -q {1} -f {2} -c {3} {4} {5} > {6} 2>/dev/null'.format(str(width), q, f, c, r, binfile, binfile+'.ras'))
     runcmd('convert -resize 700x {0} {1}'.format(binfile+'.ras',outfile))
+    rc = os.system('rm {0}'.format(binfile+'.ras'))
     return outfile
 
 
@@ -307,11 +322,11 @@ def RI2cpx(R, I, cpxfile):
 
 
 def multilook_bin(binfile, outbinfile, width, mlfactor, dtype = 'cr4'):
-    runcmd('cpxfiddle -w {0} -o float -q normal -f {1} -M {2}/{2} {3} > {4}'.format(str(width), dtype, str(mlfactor), binfile, outbinfile))
+    runcmd('cpxfiddle -w {0} -o float -q normal -f {1} -M {2}/{2} {3} > {4} 2>/dev/null'.format(str(width), dtype, str(mlfactor), binfile, outbinfile))
 
 
 def coh_from_cpxbin(cpxbin, cohbin, width):
-    runcmd('cpxfiddle -w {0} -o float -q mag -f cr4 {1} > {2}'.format(str(width), cpxbin, cohbin))
+    runcmd('cpxfiddle -w {0} -o float -q mag -f cr4 {1} > {2} 2>/dev/null'.format(str(width), cpxbin, cohbin))
 
 
 def remove_islands(npa, pixelsno = 50):
@@ -329,6 +344,21 @@ def remove_islands(npa, pixelsno = 50):
         if numofpixels < pixelsno:
             npa[islands==i] = np.nan
     return npa
+
+
+def rad2mm_s1(inrad):
+    speed_of_light = 299792458 #m/s
+    radar_freq = 5.405e9  #for S1
+    wavelength = speed_of_light/radar_freq #meter
+    coef_r2m = -wavelength/4/np.pi*1000 #rad -> mm, positive is -LOS
+    outmm = inrad*coef_r2m
+    return outmm
+
+
+def rad2mm(pha, lam = 0.0312):
+    coef_r2m = -lam/4/np.pi*1000 #rad -> mm, positive is -LOS
+    outmm = pha*coef_r2m
+    return outmm
 
 
 def plotit():
@@ -538,13 +568,32 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
     #return out
 
 
-def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd()):
+def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.getcwd()):
+    #tmp = ifg[['cpx','coh']].copy(deep=True)
+    coh = ifg.coh.values
+    cpx = ifg.cpx.fillna(0).astype(np.complex64).values
+    if mask:
+        mask = ifg.mask.fillna(0).values
+    unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, tmpdir=tmpdir, deltemp=False)
+    ifg['unw']=ifg.pha.copy(deep=True)
+    ifg['unw'].values = unw
+    return ifg
+
+
+def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd(), mask = False, deltemp = True):
     '''
     unwraps given arrays
     '''
+    if not os.path.exists(tmpdir):
+        os.mkdir(tmpdir)
+    try:
+        binmask= os.path.join(tmpdir,'mask.bin')
+        mask.astype(np.byte).tofile(binmask)
+    except:
+        binmask=None
     bincoh = os.path.join(tmpdir,'coh.bin')
-    binR = os.path.join(tmpdir,'R.bin')
-    binI = os.path.join(tmpdir,'I.bin')
+    #binR = os.path.join(tmpdir,'R.bin')
+    #binI = os.path.join(tmpdir,'I.bin')
     binCPX = os.path.join(tmpdir,'cpxifg.bin')
     unwbin = os.path.join(tmpdir,'unw.bin')
     # create R, I -> CPX as expected by snaphu
@@ -557,13 +606,22 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd()):
     # unwrap it
     width = coh.shape[0]
     #with nostdout():
-    main_unwrap(binCPX, bincoh, outunwbin = unwbin, width = width, defomax = defomax, printout = False)
+    main_unwrap(binCPX, bincoh, maskbin = binmask, outunwbin = unwbin, width = width, defomax = defomax, printout = False)
     # and load it back
     unw1 = np.fromfile(unwbin,dtype=np.float32)
     unw1 = unw1.reshape(coh.shape)
-    #shutil - delete tmpdir!!!!!
-    shutil.rmtree(tmpdir)
+    if deltemp:
+        #shutil - delete tmpdir!!!!!
+        shutil.rmtree(tmpdir)
     return unw1
+
+
+def gausspha2cpx(ifgxr):
+    ifgxr['pha'] = ifgxr.gauss_pha
+    tempar_mag1 = np.ones_like(ifgxr.pha)
+    cpxarr = magpha2RI_array(tempar_mag1, ifgxr.pha.values)
+    ifgxr['cpx'].values = cpxarr
+    return ifgxr
 
 
 import dask.array as da
@@ -748,21 +806,25 @@ def process_ifg(frame, pair,
         thres = 0.35, prevest = None, 
         hgtcorr = False, pre_detrend=True,
         gacoscorr = True, outtif = None, 
-        defomax = 0.3, add_resid = True, smooth = True, 
+        defomax = 0.3, add_resid = True, smooth = False, 
         prev_ramp = None, rampit=False, cohratio = None, 
         keep_coh_debug = True, replace_ml_pha = None,
         coh2var = False, cliparea_geo = None,
-        subtract_gacos = False):
+        subtract_gacos = False, dolocal = False):
     '''
     main function for unwrapping a geocoded LiCSAR interferogram.
     ml .. multilook factor in both lat and lon directions (would use pha+coh)
     coh2var - something to try... perhaps this is better for weighting?
     cliparea_geo - as lon1/lon2/lat1/lat2
     fillby - 'nearest' or 'gauss' - gauss might be better but also slower (notice the 'gapfill iterations')
+    20220506 - setting smooth to False by default - some extra errors here!
     '''
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
-    geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+    if dolocal:
+        geoifgdir = os.path.join('GEOC',pair)
+    else:
+        geoifgdir = os.path.join(geoframedir,'interferograms',pair)
     tmpdir = os.path.join(procdir,pair,'temp_'+str(ml))
     tmpgendir = os.path.join(procdir,pair,'temp_gen')
     if not os.path.exists(os.path.join(procdir,pair)):
@@ -863,6 +925,9 @@ def process_ifg(frame, pair,
         minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
         # now will clip it - lat is opposite-sorted, so need to slice from max to min in y ... plus 10 pixels on all sides
         ifg = ifg.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
+        # not the best here, as pixels might get slightly shifted, but perhaps not that big deal (anyway prev_ramp is 'blurred')
+        if not type(prev_ramp) == type(None):
+            prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
     ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug, replace_ml_pha = replace_ml_pha)
     width = len(ifg_ml.lon)
@@ -1155,7 +1220,7 @@ def process_ifg(frame, pair,
 
 
 
-def export_xr2tif(xrda, tif, lonlat = True, debug = True):
+def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True):
     import rioxarray
     #coordsys = xrda.crs.split('=')[1]
     if debug:
@@ -1166,26 +1231,35 @@ def export_xr2tif(xrda, tif, lonlat = True, debug = True):
     else:
         xrda = xrda.rio.set_spatial_dims(x_dim="x", y_dim="y", inplace=True)
     xrda = xrda.rio.write_crs(coordsys, inplace=True)
-    xrda.rio.to_raster(tif+'tmp.tif', compress='deflate')
-    cmd = 'gdalwarp -t_srs EPSG:4326 {0} {1}'.format(tif+'tmp.tif', tif)
-    runcmd(cmd, printcmd = False)
-    os.remove(tif+'tmp.tif')
+    if dogdal:
+        xrda.rio.to_raster(tif+'tmp.tif', compress='deflate')
+        cmd = 'gdalwarp -t_srs EPSG:4326 {0} {1}'.format(tif+'tmp.tif', tif)
+        runcmd(cmd, printcmd = False)
+        os.remove(tif+'tmp.tif')
+    else:
+        xrda.rio.to_raster(tif, compress='deflate')
 
 
 def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = False,
             use_coh_stab = False, keep_coh_debug = True, export_to_tif = False, 
             gacoscorr = True, phase_bias_experiment = False, cliparea_geo = None,
-            pairsetfile = None, subtract_gacos = False, nproc = 1):
+            pairsetfile = None, subtract_gacos = False, nproc = 1, dolocal = False):
     '''
     hint - try use_coh_stab = True.. maybe helps against loop closure errors?!
     '''
-    if cascade and ml>1:
-        print('error - the cascade approach is ready only for ML1')
-        return False
+    #if cascade and ml>1:
+    #    print('error - the cascade approach is ready only for ML1')
+    #    return False
     #the best to run in directory named by the frame id
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
-    geoifgdir = os.path.join(geoframedir,'interferograms')
+    if dolocal:
+        geoifgdir = 'GEOC'
+        if not os.path.exists(geoifgdir):
+            print('ERROR: the GEOC directory does not exist, cancelling')
+            exit()
+    else:
+        geoifgdir = os.path.join(geoframedir,'interferograms')
     inputifgdir = geoifgdir
     if phase_bias_experiment:
         print('running for the phas bias experiment - make sure you are inside your folder with ifgs, e.g.')
@@ -1276,26 +1350,30 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                 maxpixels = 4
                 if ((abs(framewid - raster.RasterXSize) > maxpixels) or (abs(framelen - raster.RasterYSize) > maxpixels)):
                     print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                    continue
-                print('ERROR - the file {} has unexpected dimensions, trying to fix'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                for tif in glob.glob(os.path.join(geoifgdir, pair, pair+'.geo.*.tif')):
-                    outfile = tif+'.tmp.tif'
-                    try:
-                        filedone = reproject_to_match(tif, hgtfile, outfile)
-                        if os.path.exists(outfile):
-                            shutil.move(outfile, tif)
-                    except:
-                        print('something wrong during reprojection, skipping')
-                        continue
+                    return False
+                else:
+                    print('ERROR - the file {} has unexpected dimensions, trying to fix'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                    for tif in glob.glob(os.path.join(geoifgdir, pair, pair+'.geo.*.tif')):
+                        outfile = tif+'.tmp.tif'
+                        try:
+                            filedone = reproject_to_match(tif, hgtfile, outfile)
+                            if os.path.exists(outfile):
+                                shutil.move(outfile, tif)
+                        except:
+                            print('something wrong during reprojection, skipping')
+                            #continue
+                            return False
                     #os.system('gmt grdsample {0} -G{1}')
             try:
                 raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
                 if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
                     print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                    continue
+                    #continue
+                    return False
             except:
                 print('some error processing file {}'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                continue
+                #continue
+                return False
             if not os.path.exists(os.path.join(pair,pair+'.unw')):
                 print('processing pair '+pair)
                 if export_to_tif:
@@ -1304,7 +1382,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                     outtif = None
                 try:
                     if cascade:
-                        ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos)
+                        ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                     else:
                         #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
                         defomax = 0.3
@@ -1314,7 +1392,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                  thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
-                                 subtract_gacos = subtract_gacos)
+                                 subtract_gacos = subtract_gacos, dolocal = dolocal)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     # export 
@@ -1362,7 +1440,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
             p.close()  # or not?
             fix_additionals()
         except:
-            print('some error appeared - please try manually (debug). now, just returning to no parallelism'
+            print('some error appeared - please try manually (debug). now, just returning to no parallelism')
             nproc = 1
     if nproc == 1:
         for pair in pairset:
@@ -1402,7 +1480,8 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                         outtif = None
                     try:
                         if cascade:
-                            ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos)
+                            #ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo)
+                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo, dolocal = dolocal)
                         else:
                             #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
                             defomax = 0.3
@@ -1412,7 +1491,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                             ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                      thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
                                      keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
-                                     subtract_gacos = subtract_gacos)
+                                     subtract_gacos = subtract_gacos, dolocal = dolocal)
                         #else:
                         
                         #    print('ML set to 1 == will try running the cascade (multiscale) unwrapping')
@@ -1447,9 +1526,8 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                             create_eqa_file('EQA.dem_par',len(ifg_ml.lon),len(ifg_ml.lat),cor_lat,cor_lon,post_lat,post_lon)
                         width = len(ifg_ml.lon)
                         create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
-                        os.system('rm '+pair+'/'+pair+'.unw.ras')
-                        os.system('rm -r '+pair+'/'+'temp_'+str(ml))
-                        os.system('rm -r '+pair+'/'+'temp_gen')
+                        #os.system('rm -r '+pair+'/'+'temp_'+str(ml))
+                        os.system('rm -r '+pair+'/'+'temp_*')
                     except:
                         print('ERROR processing of pair '+pair)
                         os.system('rm -r '+pair)
@@ -1570,7 +1648,7 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         ifg_ml['coh'].values = coh_ml.coh.values
         # non-nan px count per window
         ifg_ml['pxcount'] = ifg_ml.cpx
-        ifg_ml['pxcount'].values = bagcpx.count().cpx.values.astype(np.uint8)    # to use later - evaluate bad ML data, e.g. mask those pxls
+        ifg_ml['pxcount'].values = bagcpx.count().cpx.values.astype(np.uint16)    # to use later - evaluate bad ML data, e.g. mask those pxls
     else:
         ifg_ml = ifg[['cpx']].where(ifg.mask>0)
         ifg_ml['coh'] = ifg_ml.cpx
@@ -1736,6 +1814,34 @@ def load_tif2xr(tif):
     return xrpha
 
 
+def deramp_unw(xrda, dim=['lat','lon']):
+    da = xrda.fillna(0).copy(deep=True)
+    dt = xr.apply_ufunc(
+                    _detrend_2d_ufunc,
+                    da,
+                    input_core_dims=[dim],
+                    output_core_dims=[dim],
+                    output_dtypes=[da.dtype],
+                    vectorize=True,
+                    dask="parallelized",
+                )
+    return dt
+
+
+def _detrend_2d_ufunc(arr):
+    assert arr.ndim == 2
+    N = arr.shape
+    col0 = np.ones(N[0] * N[1])
+    col1 = np.repeat(np.arange(N[0]), N[1]) + 1
+    col2 = np.tile(np.arange(N[1]), N[0]) + 1
+    G = np.stack([col0, col1, col2]).transpose()
+    d_obs = np.reshape(arr, (N[0] * N[1], 1))
+    m_est = np.dot(np.dot(spl.inv(np.dot(G.T, G)), G.T), d_obs)
+    d_est = np.dot(G, m_est)
+    linear_fit = np.reshape(d_est, N)
+    return arr - linear_fit
+
+
 def deramp_ifg_tif(phatif, unwrap_after = True):
     # works fine if the path is to some diff_pha.tif file inside $LiCSAR_public only!
     phatif = os.path.realpath(phatif)
@@ -1882,7 +1988,11 @@ def wrap2phase(A):
 import time
 
 # 2022-04-04 - ok, this should now work after the updated, properly!
-def cascade_unwrap(frame, pair, procdir = os.getcwd(), only10 = True, hgtcorr = True, outtif = None, subtract_gacos = False):
+def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), only10 = True, smooth = False, hgtcorr = True, outtif = None, subtract_gacos = False, cliparea_geo = None, dolocal = False):
+    '''
+    only10 = only 1 previous ramp, scaled 10x to the downtoml, 
+    20220506 - i turned 'smooth' off as it caused large errors!!! not sure why, need to revisit the filtering!!!!
+    '''
     print('performing cascade unwrapping')
     starttime = time.time()
     if only10:
@@ -1891,15 +2001,23 @@ def cascade_unwrap(frame, pair, procdir = os.getcwd(), only10 = True, hgtcorr = 
         # orig:
         #ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
         # 01/2022: updating parameters:
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos)
+        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, dolocal = dolocal)
+        if downtoml == 1:
+            # avoiding gauss proc, as seems heavy for memory
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
+        else:
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
     else:
-        ifg_ml20 = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prev_ramp = ifg_ml20['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        #elapsed_time10 = time.time()-starttime
-        ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.6, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml3 = process_ifg(frame, pair, procdir = procdir, ml = 3, fillby = 'gauss', prev_ramp = ifg_ml5['unw'], defomax = 0.6, add_resid = False, hgtcorr = hgtcorr, rampit=True)
-        ifg_ml1 = process_ifg(frame, pair, procdir = procdir, ml = 1, fillby = 'gauss', prev_ramp = ifg_ml3['unw'], thres = 0.3, defomax = 0.6, add_resid = True, hgtcorr = hgtcorr, outtif=outtif, subtract_gacos = subtract_gacos)
+        ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
+        for i in [10, 5, 3]:
+            if downtoml < i:
+                ifg_mla = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
+                ifg_mlc = ifg_mla.copy(deep=True)
+        if downtoml == 1:
+            # avoiding gauss proc, as seems heavy for memory
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_mlc['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal)
+        else:
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], thres = 0.3, defomax = 0.4, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
         #ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prevest = ifg_ml20['unw'], defomax = 0.5, add_resid = False, rampit=True)
         ##elapsed_time10 = time.time()-starttime
         #ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = False, rampit=True)
@@ -1910,7 +2028,7 @@ def cascade_unwrap(frame, pair, procdir = os.getcwd(), only10 = True, hgtcorr = 
     minite = int(np.mod((elapsed_time/60),60))
     sec = int(np.mod(elapsed_time,60))
     print("\nTotal elapsed time: {0:02}h {1:02}m {2:02}s".format(hour,minite,sec))
-    return ifg_ml1
+    return ifg_ml
 
 #print('preparing nc and png')
 #bin2nc(outunwbin, mask_full, outunwnc, dtype = np.float32)

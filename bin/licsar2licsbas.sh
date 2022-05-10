@@ -8,6 +8,7 @@ if [ -z $1 ]; then
  echo "parameters:"
  echo "-M 10 .... this will do extra multilooking (in this example, 10x multilooking)"
  echo "-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)"
+ echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-s ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
  echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
@@ -20,6 +21,7 @@ if [ -z $1 ]; then
  exit
 fi
 
+dolocal=0
 multi=1
 run_jasmin=1
 #dogacos=0
@@ -30,10 +32,11 @@ use_coh_stab=0
 strict=0
 keep_coh_debug=1
 LB_version=LiCSBAS
+cascade=0
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HuTsSkG:" option; do
+while getopts ":M:HucTsSkG:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -43,6 +46,8 @@ while getopts ":M:HuTsSkG:" option; do
      ;;
   u) reunw=1;
      #shift
+     ;;
+  c) cascade=1;
      ;;
   s) use_coh_stab=1;
      #shift
@@ -97,7 +102,12 @@ epochdir=$LiCSAR_public/$track/$frame/epochs
 metadir=$LiCSAR_public/$track/$frame/metadata
 workdir=`pwd`
 
-mkdir GEOC GACOS
+if [ -d GEOC ]; then
+ echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
+ dolocal=1;
+fi
+
+mkdir GEOC GACOS 2>/dev/null
 cd GEOC
 for meta in E N U hgt; do
  ln -s $metadir/$frame.geo.$meta.tif
@@ -129,6 +139,7 @@ for epoch in `ls $epochdir`; do
   fi
 done
 
+if [ $dolocal == 0 ]; then
 if [ ! -z $2 ]; then
   echo "limiting the dataset to dates between "$startdate" and "$enddate
     #cp $epochdir/$epoch/$epoch.sltd.geo.tif ../GACOS/. 2>/dev/null
@@ -142,6 +153,7 @@ if [ ! -z $2 ]; then
 else
  for ifg in `ls $indir/20* -d 2>/dev/null`; do ln -s $ifg; done
  #echo "nah, not ready yet, do full proc, without startdate enddate please.."
+fi
 fi
 
 # strict means gacos will be used only if available for ALL data
@@ -177,6 +189,9 @@ if [ $reunw -gt 0 ]; then
  else
   extraparam=$extraparam", keep_coh_debug = False"
  fi
+ if [ $cascade == 1 ]; then
+  extraparam=$extraparam", cascade = True"
+ fi
  if [ $use_coh_stab == 1 ]; then
   extraparam=$extraparam", use_coh_stab = True"
  fi
@@ -189,6 +204,11 @@ if [ $reunw -gt 0 ]; then
  if [ $defdates == 0 ]; then
   ls GEOC | grep ^20 | grep '_' > pairset.txt
   extraparam=$extraparam", pairsetfile = '../pairset.txt'"
+ fi
+ if [ $dolocal == 1 ]; then
+#  echo "your dir contains GEOC folder. using local data - not from LiCSAR_public"
+  extraparam=$extraparam",  dolocal = True"
+  echo "ln -s ../GEOC" >> multirun.sh
  fi
  #cp $LiCSAR_procdir/$track/$frame/geo/EQA.dem_par GEOC/.
  echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
@@ -206,7 +226,7 @@ fi
 module load $LB_version
 copy_batch_LiCSBAS.sh >/dev/null
 
-if [ $reunw -gt 0 ] && [ $clip == 1 ]; then
+if [ $reunw -gt 0 ]; then # && [ $clip == 1 ]; then
  # in this case, the whole dataset should be ready for time series processing
  sed -i 's/start_step=\"01\"/start_step=\"11\"/' batch_LiCSBAS.sh
  sed -i 's/GEOCmldir=\"GEOCml${nlook}/GEOCmldir=\"'$mlgeocdir'/' batch_LiCSBAS.sh

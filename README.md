@@ -7,4 +7,3 @@ LiCSAR is a software package created to generate InSAR products for the NERC fun
 
 LiCSAR is release "as is". LiCSAR is a research tool, hence it is in constant development, and it is made publicly available under GPL v3 license. Any potential user should use at their own risk.
 
-this is test message

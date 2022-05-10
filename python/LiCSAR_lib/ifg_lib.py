@@ -174,6 +174,8 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
 
 
 def geocode_ifg(procdir, pair, extraparam = ''):
+    # ensure the path is really full path:
+    procdir = os.path.realpath(procdir)
     print('geocoding pair '+pair)
     rc = os.system('create_geoctiffs_to_pub.sh -C {0} {1} {2}'.format(extraparam, procdir, pair))
     #rc = os.system('create_geoctiffs_to_pub.sh -I {0} {1} {2}'.format(extraparam, procdir, pair))
