@@ -12,7 +12,7 @@ test of the integrated docs
 2. coregister to RSLC files
 -------------------
 
-how to coreg outside of 180 days limit? .... note here
+how to coreg outside of 180 days limit? .... just run with '-E' parameter (some extra tweaks there, EIDP-related)
 test of the integrated docs
 
 3. create interferograms
