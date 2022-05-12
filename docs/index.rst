@@ -4,32 +4,60 @@ LiCSAR proc
 This section describes core functionality of LiCSAR system, that is used by LiCSAR FrameBatch system but can be used independently.
 Some parameters of particular use (often not fully integrated in FrameBatch) are discussed here.
 
-1. create SLC files
--------------------
+Forming LiCSAR interferograms (Sentinel-1)
+------------------------------
 
-test of the integrated docs
+1. create SLC files
+^^^^^^^^^^^^^^^^^^^^^^^
+
+some tips and tricks about
+::
+  LiCSAR_01_mk_images.py
 
 2. coregister to RSLC files
--------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
-how to coreg outside of 180 days limit? .... just run LiCSAR_02_coreg.py with '-E' parameter (some extra tweaks there, EIDP-related)
+some tips and tricks about
+::
+  LiCSAR_02_coreg.py
 
-test of the integrated docs
+How to coreg outside of 180 days limit? .... just run LiCSAR_02_coreg.py with '-E' parameter (some extra tweaks there, EIDP-related, including skip of Btemp check)
+
 
 3. create interferograms
--------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
-test of the integrated docs
+some tips and tricks about
+::
+  LiCSAR_03_mk_ifgs.py
 
 4. unwrap interferograms
+^^^^^^^^^^^^^^^^^^^^^^^
+
+some tips and tricks about
+::
+  LiCSAR_04_unwrap.py
+
+and
+::
+  unwrap_geo.sh
+
+and perhaps
+::
+  import unwrp_multiscale as unw
+  help(unw.process_frame)
+
+
+5. geocoding results
+^^^^^^^^^^^^^^^^^^^^^^^
+
+some tips and tricks about geocoding (or explanation how does it work)
+
+
+Post-processing
 -------------------
 
-test of the integrated docs
-
-5. additional functionality
--------------------
-
-LiCSAR to LiCSBAS
+LiCSAR to LiCSBAS (JASMIN)
 ^^^^^^^^^^^^^^^^^^^^^^^
 This script runs LiCSBAS processing from the LiCSAR data. To be used in JASMIN environment.
 
@@ -68,3 +96,14 @@ The data here will be prepared to folder GEOCml5GACOSclip.
 Then, the -T would use up-to-date LiCSBAS codes with their experimental functionality ON (in this case, e.g. nullification of pixels in unwrapped pairs with loop closure errors over pi is ON).
 The whole procedure will run in the background through JASMIN's LOTUS server (see generated .sh files) and once finished, results will be in TS_GEOCml5GACOSclip, plus additional files will be generated
 (e.g. geotiffs of velocity estimate, or standard NetCDF file that can be loaded to e.g. QGIS or ncview to plot time series from 'cum' layer, etc.)
+
+
+Decomposition to E-U(+N) vectors
+^^^^^^^^^^^^^^^^^^^^^^^
+
+This section should contain information on both decomposition from A+D (use of Andrew's tutorial?)
+
+Bringing ENU model values to line-of-sight
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Inverse procedure (with example?) using E,N,U tif files to convert ENU->LOS.
