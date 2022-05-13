@@ -2,7 +2,8 @@ LiCSAR proc
 ===========
 
 This section describes core functionality of LiCSAR system, that is used by LiCSAR FrameBatch system but can be used independently.
-Some parameters of particular use (often not fully integrated in FrameBatch) are discussed here.
+Some parameters of particular use (often not fully integrated in FrameBatch) are discussed here, yet we assume that you work with
+standard project started by licsar_make_frame.sh.
 
 Forming LiCSAR interferograms (Sentinel-1)
 ------------------------------
@@ -10,18 +11,40 @@ Forming LiCSAR interferograms (Sentinel-1)
 1. create SLC files
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-some tips and tricks about
+see
 ::
-  LiCSAR_01_mk_images.py
+  LiCSAR_01_mk_images.py -h
+
+normal use:
+::
+  frameid= # e.g. 016A_02562_091313
+  m= # reference date, e.g. 20191103
+  s= # e.g. 20220101
+  e= # e.g. 20220201
+  LiCSAR_01_mk_images.py -n -d . -f $frameid -m $m -s $s -e $e -a 4 -r 20
+
+This command would create SLC for given frame in given time period. For this to work, you should be sure the data are existing on disk and are
+ingested to LiCSInfo database (command arch2DB.py). This is done automatically through licsar_make_frame.sh.
 
 2. coregister to RSLC files
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-some tips and tricks about
+see:
 ::
-  LiCSAR_02_coreg.py
+  LiCSAR_02_coreg.py -h
 
-How to coreg outside of 180 days limit? .... just run LiCSAR_02_coreg.py with '-E' parameter (some extra tweaks there, EIDP-related, including skip of Btemp check)
+normal use:
+::
+  frameid= # e.g. 016A_02562_091313
+  m= # reference date, e.g. 20191103
+  LiCSAR_02_coreg.py -f $frameid -d . -m $m -i
+
+This command would coregister/resample all files in SLC folder to RSLC directory, for given frame.
+The standard constrains apply, for example limit for spectral diversity estimation to combine epochs with up to Btemp=180 days.
+In order to force-skip this limit, use parameter '-E' (some extra tweaks there, EIDP-related, including skip of Btemp check),
+probably in combination of '-l slclist.txt', i.e. better to include one SLC (with no missing bursts) to the slclist.txt and try coregister that one,
+and only then start the standard procedure (without -E) for all the SLCs left. This way you would make sure that the other epochs would use appropriate
+RSLC3 for the spectral diversity (see e.g. https://www.mdpi.com/2072-4292/12/15/2430 )
 
 
 3. create interferograms
