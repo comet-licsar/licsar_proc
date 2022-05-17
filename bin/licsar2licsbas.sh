@@ -255,7 +255,7 @@ fi
 
 # setting those values 'everywhere' (originally it was in the modified approach):
 sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"'$half'/' batch_LiCSBAS.sh
-sed -i 's/p16_deg_deramp=\"/p16_deg_deramp=\"1/' batch_LiCSBAS.sh
+#sed -i 's/p16_deg_deramp=\"/p16_deg_deramp=\"1/' batch_LiCSBAS.sh   # nah, let's not deramp by default
 sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
 
 if [ $dogacos -gt 0 ]; then
@@ -285,15 +285,15 @@ if [ $run_jasmin -eq 1 ]; then
  #include generation of outputs
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_deramp.mskd.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_deramp.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vel -p "$geocd"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_GEOCml"$multi"*/results/vstd -p "$geocd"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
- echo "cp TS_GEOCml"$multi"*/network/network13.png $frame'_network.png'" >> jasmin_run.sh
- echo "cp TS_GEOCml"$multi"*/mask_ts.png $frame'_mask_ts.png'" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel -p "$geocd"/EQA.dem_par -o "$frame".vel.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd -p "$geocd"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
+ echo "cp TS_"$geocd"/network/network13.png $frame'_network.png'" >> jasmin_run.sh
+ echo "cp TS_"$geocd"/mask_ts.png $frame'_mask_ts.png'" >> jasmin_run.sh
  #echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
- echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum.h5 -o "$frame".nc" >> jasmin_run.sh
+ echo "LiCSBAS_out2nc.py -i TS_"$geocd"/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
  hours=14
  if [ $multi -eq 1 ]; then
   hours=23
