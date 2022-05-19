@@ -8,6 +8,8 @@ standard project started by licsar_make_frame.sh.
 Forming LiCSAR interferograms (Sentinel-1)
 ------------------------------
 
+The core processing scripts are also described (in more details, and still valid, although of older date) in https://gitlab.com/comet_licsar/licsar_documentation/-/wikis/ciw2019/licsar
+
 1. create SLC files
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -50,22 +52,28 @@ RSLC3 for the spectral diversity (see e.g. https://www.mdpi.com/2072-4292/12/15/
 3. create interferograms
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-some tips and tricks about
+see:
 ::
-  LiCSAR_03_mk_ifgs.py
+  LiCSAR_03_mk_ifgs.py -h
+
+The script is very useful if you have your own list of interferograms to form, e.g. in a text file containing lines as '20200101_20200202' etc. (see help).
+An extra parameter -n would use parallel processing on given number of CPUs.
+
 
 4. unwrap interferograms
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-some tips and tricks about
+For the original unwrapping approach, running on radar-coordinate interferograms, use:
 ::
-  LiCSAR_04_unwrap.py
+  LiCSAR_04_unwrap.py -h
 
-and
+and then you may geocode the result, as discussed in next section.
+
+However, you may find useful (and faster) the updated version, currently used by LiCSAR FrameBatch, that performs unwrapping on already geocoded wrapped interferograms:
 ::
   unwrap_geo.sh
 
-and perhaps
+Finally, you may experiment with the updated (much improved) unwrapper, running through python, and starting again from geocoded interferograms. This script is used by licsar2licbas.sh described later.
 ::
   import unwrp_multiscale as unw
   help(unw.process_frame)
@@ -73,8 +81,9 @@ and perhaps
 
 5. geocoding results
 ^^^^^^^^^^^^^^^^^^^^^^^
-
-some tips and tricks about geocoding (or explanation how does it work)
+For geocoding results, please use the following command:
+::
+  create_geoctiffs_to_pub.sh
 
 
 Post-processing
