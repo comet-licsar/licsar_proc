@@ -1243,7 +1243,7 @@ def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True):
 def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = False,
             use_coh_stab = False, keep_coh_debug = True, export_to_tif = False, 
             gacoscorr = True, phase_bias_experiment = False, cliparea_geo = None,
-            pairsetfile = None, subtract_gacos = False, nproc = 1, dolocal = False):
+            pairsetfile = None, subtract_gacos = False, nproc = 1, smooth = False, dolocal = False):
     '''
     hint - try use_coh_stab = True.. maybe helps against loop closure errors?!
     '''
@@ -1382,7 +1382,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                     outtif = None
                 try:
                     if cascade:
-                        ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
+                        ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                     else:
                         #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
                         defomax = 0.3
@@ -1390,7 +1390,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                         if phase_bias_experiment:
                             replace_ml_pha = os.path.join(pair, pair+'.diff_pha_cor')
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
-                                 thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
+                                 thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
                                  subtract_gacos = subtract_gacos, dolocal = dolocal)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
@@ -1481,7 +1481,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                     try:
                         if cascade:
                             #ifg_ml = cascade_unwrap(frame, pair, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo)
-                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo, dolocal = dolocal)
+                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, cliparea_geo = cliparea_geo, dolocal = dolocal)
                         else:
                             #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
                             defomax = 0.3
@@ -1491,7 +1491,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                             ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                      thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
                                      keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
-                                     subtract_gacos = subtract_gacos, dolocal = dolocal)
+                                     subtract_gacos = subtract_gacos, dolocal = dolocal, smooth = smooth)
                         #else:
                         
                         #    print('ML set to 1 == will try running the cascade (multiscale) unwrapping')

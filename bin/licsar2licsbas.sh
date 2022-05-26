@@ -9,8 +9,9 @@ if [ -z $1 ]; then
  echo "-M 10 .... this will do extra multilooking (in this example, 10x multilooking)"
  echo "-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)"
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
- echo "-s ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
- echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
+ echo "-s ....... if the reunwrapping is to be performed, use smooth operation before adding back residuals (usually best option, but noticed errors in turbulent areas)"
+ #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
+ #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
@@ -33,10 +34,11 @@ strict=0
 keep_coh_debug=1
 LB_version=LiCSBAS
 cascade=0
+smooth=0
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsSkG:" option; do
+while getopts ":M:HucTsSCkG:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -49,7 +51,10 @@ while getopts ":M:HucTsSkG:" option; do
      ;;
   c) cascade=1;
      ;;
-  s) use_coh_stab=1;
+  C) use_coh_stab=1;
+     #shift
+     ;;
+  s) smooth=1;
      #shift
      ;;
   S) strict=1;
@@ -183,6 +188,9 @@ if [ $reunw -gt 0 ]; then
   extraparam=", hgtcorr = True"
  else
   extraparam=", hgtcorr = False"
+ fi
+ if [ $smooth == 1 ]; then
+  extraparam=", smooth = True"
  fi
  if [ $keep_coh_debug == 1 ]; then
   extraparam=$extraparam", keep_coh_debug = True";
