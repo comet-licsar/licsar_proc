@@ -9,7 +9,12 @@ import xarray as xr
 import rioxarray
 import pandas as pd
 
-import cv2
+try:
+    import cv2
+except:
+    print('cv2 not loaded - cascade will not work')
+
+
 from scipy import interpolate
 from scipy import ndimage
 import time
