@@ -103,15 +103,19 @@ Afterwards, you may just fine tune parameters of LiCSBAS step 15 (and 16) and re
   #-M 10 .... this will do extra multilooking (in this example, 10x multilooking)
   #-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)
   #-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)
-  #-s ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)
-  #-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)
+  #-s ....... if the reunwrapping is to be performed, use smoothing (two-pass unw approach, similar effect as with cascade, only milder)
   #-H ....... this will use hgt to support unwrapping (only if using reunwrapping)
   #-T ....... use testing version of LiCSBAS
   #-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs
   #-G lon1/lon2/lat1/lat2  .... clip to this AOI
+  ##
+  ## following is an ongoing work, for testing only:
+  ##-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)
+  ##-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)
 
 
-While parameters -s, -k are only related to a short-term experiment (should conclude in use of amplitude stability and/or general coherence for masking and weighting),
+
+While parameters -C, -k are only related to a short-term experiment (should conclude in use of amplitude stability and/or general coherence for masking and weighting),
 the other parameters are practically used/recommended to understand.
 
 
