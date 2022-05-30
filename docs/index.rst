@@ -43,9 +43,14 @@ normal use:
 
 This command would coregister/resample all files in SLC folder to RSLC directory, for given frame.
 The standard constrains apply, for example limit for spectral diversity estimation to combine epochs with up to Btemp=180 days.
-In order to force-skip this limit, use parameter '-E' (some extra tweaks there, EIDP-related, including skip of Btemp check),
-probably in combination of '-l slclist.txt', i.e. better to include one SLC (with no missing bursts) to the slclist.txt and try coregister that one,
-and only then start the standard procedure (without -E) for all the SLCs left. This way you would make sure that the other epochs would use appropriate
+
+
+In order to force-skip the 180 days limit, use parameter '-E' (some extra tweaks there, EIDP-related, including skip of Btemp check).
+In practice, to connect a cluster of epochs far in time, choose one SLC in that cluster that has no missing bursts (see e.g. their mli preview, or check size),
+and add its date to slclist.txt and try coregister that one by ``LiCSAR_02_coreg.py -f $frameid -d . -m $m -i -l slclist.txt -E``.
+
+
+Only then start the standard procedure (without -E) for all the SLCs left. This way you would make sure that the other epochs would use appropriate
 RSLC3 for the spectral diversity (see e.g. https://www.mdpi.com/2072-4292/12/15/2430 )
 
 

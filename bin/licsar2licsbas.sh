@@ -251,7 +251,7 @@ if [ $reunw -gt 0 ]; then
  sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
  #sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"30/' batch_LiCSBAS.sh   # because we would use --nullify here...
  sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"'$half'/' batch_LiCSBAS.sh
- sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"5/' batch_LiCSBAS.sh
+ sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"12/' batch_LiCSBAS.sh
  #sed -i 's/start_step=\"02\"/start_step=\"16\"/' $x/batch_LiCSBAS.sh
 else
  sed -i 's/p11_coh_thre=\"/p11_coh_thre=\"0.025/' batch_LiCSBAS.sh
