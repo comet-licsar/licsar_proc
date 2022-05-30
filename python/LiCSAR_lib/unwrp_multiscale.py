@@ -814,7 +814,7 @@ def process_ifg(frame, pair,
         defomax = 0.3, add_resid = True, smooth = False, 
         prev_ramp = None, rampit=False, cohratio = None, 
         keep_coh_debug = True, replace_ml_pha = None,
-        coh2var = False, cliparea_geo = None,
+        coh2var = True, cliparea_geo = None,
         subtract_gacos = False, dolocal = False):
     '''
     main function for unwrapping a geocoded LiCSAR interferogram.
@@ -1248,7 +1248,8 @@ def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True):
 def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = False,
             use_coh_stab = False, keep_coh_debug = True, export_to_tif = False, 
             gacoscorr = True, phase_bias_experiment = False, cliparea_geo = None,
-            pairsetfile = None, subtract_gacos = False, nproc = 1, smooth = False, dolocal = False):
+            pairsetfile = None, subtract_gacos = False, nproc = 1, smooth = False, 
+            thres = 0.35, dolocal = False):
     '''
     hint - try use_coh_stab = True.. maybe helps against loop closure errors?!
     '''
@@ -1395,7 +1396,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                         if phase_bias_experiment:
                             replace_ml_pha = os.path.join(pair, pair+'.diff_pha_cor')
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
-                                 thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
+                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
                                  subtract_gacos = subtract_gacos, dolocal = dolocal)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
@@ -1494,7 +1495,7 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                             if phase_bias_experiment:
                                 replace_ml_pha = os.path.join(pair, pair+'.diff_pha_cor')
                             ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
-                                     thres = 0.3, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
+                                     thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
                                      keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
                                      subtract_gacos = subtract_gacos, dolocal = dolocal, smooth = smooth)
                         #else:
@@ -1993,7 +1994,7 @@ def wrap2phase(A):
 import time
 
 # 2022-04-04 - ok, this should now work after the updated, properly!
-def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), only10 = True, smooth = False, hgtcorr = True, outtif = None, subtract_gacos = False, cliparea_geo = None, dolocal = False):
+def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), only10 = True, smooth = False, thres=0.3, hgtcorr = True, outtif = None, subtract_gacos = False, cliparea_geo = None, dolocal = False):
     '''
     only10 = only 1 previous ramp, scaled 10x to the downtoml, 
     20220506 - i turned 'smooth' off as it caused large errors!!! not sure why, need to revisit the filtering!!!!
@@ -2009,9 +2010,9 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), only10 = Tr
         ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, dolocal = dolocal)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
         else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
     else:
         ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
         for i in [10, 5, 3]:
@@ -2020,9 +2021,9 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), only10 = Tr
                 ifg_mlc = ifg_mla.copy(deep=True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_mlc['unw'], defomax = 0.3, thres = 0.3, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_mlc['unw'], defomax = 0.3, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal)
         else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], thres = 0.3, defomax = 0.4, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], thres = thres, defomax = 0.4, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
         #ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10, fillby = 'gauss', prevest = ifg_ml20['unw'], defomax = 0.5, add_resid = False, rampit=True)
         ##elapsed_time10 = time.time()-starttime
         #ifg_ml5 = process_ifg(frame, pair, procdir = procdir, ml = 5, fillby = 'gauss', prevest = ifg_ml10['unw'], defomax = 0.6, add_resid = False, rampit=True)
