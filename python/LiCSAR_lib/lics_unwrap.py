@@ -1,5 +1,5 @@
 ################################################################################
-# LiCS Unwrapper
+# LiCSAR Unwrapper
 # by Milan Lazecky, 2021-2022, University of Leeds
 #
 # version: 1.0.0 (2022-06-03)
@@ -76,11 +76,30 @@ except:
 # Main functions to perform the unwrapping
 ################################################################################
 
-def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), only10 = True, smooth = False, thres=0.3, hgtcorr = True, outtif = None, subtract_gacos = False, cliparea_geo = None, dolocal = False):
-    '''
-    only10 = only 1 previous ramp, scaled 10x to the downtoml, 
-    20220506 - i turned 'smooth' off as it caused large errors!!! not sure why, need to revisit the filtering!!!!
-    '''
+def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
+                   only10 = True, smooth = False, thres=0.3, hgtcorr = True, 
+                   outtif = None, cliparea_geo = None, subtract_gacos = False, dolocal = False):
+    """Main function to unwrap a geocoded LiCSAR interferogram using a cascade approach.
+
+    Args:
+        frame (string): LiCSAR frame ID
+        pair (string): identifier of interferometric pair, e.g. '20200120_20200201'
+        downtoml (int): target multilook factor (default: 1, no extra multilooking)
+        procdir (string): path to processing directory
+        
+        only10 (boolean): switch to use only 1 previous ramp, scaled 10x to the downtoml, instead of few cascades
+        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
+        thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
+        hgtcorr (boolean): switch to perform correction for height-phase correlation
+        
+        outtif (string): path to geotiff file to export result to (optional)
+        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
+        subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
+        dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
+        
+    Returns:
+        xr.Dataset: unwrapped multilooked interferogram with additional layers
+    """
     print('performing cascade unwrapping')
     starttime = time.time()
     if only10:
@@ -112,25 +131,45 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), only10 = Tr
 
 
 
-def process_ifg(frame, pair, 
-        procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', 
-        thres = 0.35, prevest = None, 
-        hgtcorr = False, pre_detrend=True,
-        gacoscorr = True, outtif = None, 
-        defomax = 0.3, add_resid = True, smooth = False, 
-        prev_ramp = None, rampit=False, cohratio = None, 
-        keep_coh_debug = True, replace_ml_pha = None,
-        coh2var = True, cliparea_geo = None,
-        subtract_gacos = False, dolocal = False):
-    '''
-    main function for unwrapping a geocoded LiCSAR interferogram.
-    ml .. multilook factor in both lat and lon directions (would use pha+coh)
-    coh2var - something to try... perhaps this is better for weighting?
-    cliparea_geo - as lon1/lon2/lat1/lat2
-    fillby - 'nearest' or 'gauss' - gauss might be better but also slower (notice the 'gapfill iterations')
-    20220506 - setting smooth to False by default - some extra errors here!
-    '''
+def process_ifg(frame, pair, procdir = os.getcwd(), 
+        ml = 10, fillby = 'gauss', thres = 0.35, smooth = False, defomax = 0.3,
+        hgtcorr = False, gacoscorr = True, pre_detrend = True,
+        cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
+        coh2var = True, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
+        cohratio = None, keep_coh_debug = True):
+    """Main function to unwrap a geocoded LiCSAR interferogram. Works on JASMIN (but can be easily adapted for local use)
+
+    Args:
+        frame (string): LiCSAR frame ID
+        pair (string): identifier of interferometric pair, e.g. '20200120_20200201'
+        procdir (string): path to processing directory
+        ml (int): multilooking factor used to reduce the interferogram in lon/lat
+        fillby (string): algorithm to fill gaps. use one of values: 'gauss', 'nearest', 'none' (where 'none' would only fill NaNs by zeroes)
+        thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
+        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
+        defomax (float): parameter to snaphu for maximum deformation in rad per 2pi cycle (DEFOMAX_CYCLE)
+        
+        hgtcorr (boolean): switch to perform correction for height-phase correlation
+        gacoscorr (boolean): switch to apply GACOS corrections (if detected)
+        pre_detrend (boolean): switch to apply detrending on wrapped phase to support unwrapping
+        
+        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
+        outtif (string): path to geotiff file to export result to (optional)
+        prevest (xr.DataArray): a previous rough estimate to be used by snaphu as the ESTFILE
+        prev_ramp (xr.DataArray): a previous estimate or a ramp that will be removed prior to unwrapping (and added back)
+        
+        coh2var (boolean): convert coherence to variance for weighting. could be useful, but need to change from squared, something to try...
+        add_resid (boolean): switch to add back residuals from spatially filtered unwrapping (makes sense if smooth is ON)
+        rampit (boolean): perform an extra strong gaussian filter to get a very rough unwrapping result. basically a longwave signal ramp. used by cascade approach
+        subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
+        dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
+        
+        cohratio (xr.DataArray): coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
+        keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
+    
+    Returns:
+        xr.Dataset: unwrapped multilooked interferogram with additional layers
+    """
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     if dolocal:
@@ -241,7 +280,7 @@ def process_ifg(frame, pair,
         if not type(prev_ramp) == type(None):
             prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
-    ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug, replace_ml_pha = replace_ml_pha)
+    ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug)
     width = len(ifg_ml.lon)
     length = len(ifg_ml.lat)
     #here we should keep the (not wrapped) phase we remove due to corrections - here, heights, and gacos
@@ -532,14 +571,38 @@ def process_ifg(frame, pair,
 
 
 
-def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = False,
-            use_coh_stab = False, keep_coh_debug = True, export_to_tif = False, 
-            gacoscorr = True, phase_bias_experiment = False, cliparea_geo = None,
-            pairsetfile = None, subtract_gacos = False, nproc = 1, smooth = False, 
-            thres = 0.35, dolocal = False):
-    '''
-    hint - try use_coh_stab = True.. maybe helps against loop closure errors?!
-    '''
+def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False, 
+            hgtcorr = True, gacoscorr = True,
+            cliparea_geo = None, pairsetfile = None, 
+            export_to_tif = False, subtract_gacos = False,
+            nproc = 1, dolocal = False,
+            use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True):
+    """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
+
+    Args:
+        frame (string): LiCSAR frame ID
+        ml (int): multilooking factor used to reduce the interferogram in lon/lat
+        thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
+        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
+        cascade (boolean): switch to perform cascade unwrapping
+        
+        hgtcorr (boolean): switch to perform correction for height-phase correlation
+        gacoscorr (boolean): switch to apply GACOS corrections (if detected)
+        
+        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates: e.g. 
+        pairsetfile (string): path to file containing list of pairs to unwrap
+        export_to_tif (boolean): switch to export unwrapped data to geotiffs (default: False, generate only binaries, as used by LiCSBAS)
+        subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
+        nproc (int): use multiprocessing (one core per interferogram), not well tested, uses pathos
+        dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
+        
+        use_amp_stab (boolean): apply amplitude stability index instead of coherence-per-interferogram for unwrapping
+        use_coh_stab (boolean): apply (experimental) coherence stability index. not recommended (seems not logical to me) - worth investigating though (maybe helps against loop closure errors)
+        keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
+    
+    Returns:
+        xr.Dataset: multilooked interferogram with additional layers
+    """
     #if cascade and ml>1:
     #    print('error - the cascade approach is ready only for ML1')
     #    return False
@@ -554,10 +617,6 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms')
     inputifgdir = geoifgdir
-    if phase_bias_experiment:
-        print('running for the phas bias experiment - make sure you are inside your folder with ifgs, e.g.')
-        print('/work/scratch-pw/earyma/LiCSBAS/bias/138D_05142_131313/wrapped/GEOC_wrapped_ml10')
-        inputifgdir = os.getcwd()
     hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
     raster = gdal.Open(hgtfile)
     framewid = raster.RasterXSize
@@ -658,14 +717,10 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                     if cascade:
                         ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                     else:
-                        #ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss')
                         defomax = 0.3
-                        replace_ml_pha = None
-                        if phase_bias_experiment:
-                            replace_ml_pha = os.path.join(pair, pair+'.diff_pha_cor')
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
-                                 keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
+                                 keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                  subtract_gacos = subtract_gacos, dolocal = dolocal)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
@@ -757,12 +812,9 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
                             ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, cliparea_geo = cliparea_geo, dolocal = dolocal)
                         else:
                             defomax = 0.3
-                            replace_ml_pha = None
-                            if phase_bias_experiment:
-                                replace_ml_pha = os.path.join(pair, pair+'.diff_pha_cor')
                             ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                      thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
-                                     keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, replace_ml_pha = replace_ml_pha, cliparea_geo = cliparea_geo,
+                                     keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                      subtract_gacos = subtract_gacos, dolocal = dolocal, smooth = smooth)
                         (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                         ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
@@ -795,10 +847,26 @@ def process_frame(frame, ml = 10, hgtcorr = True, cascade=False, use_amp_stab = 
 
 
 
-def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True, replace_ml_pha = None):
-    '''
-    prev_ramp is an xarray dataframe, it can be of different multilooking
-    '''
+def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True):
+    """Multilooking function that does much more.
+    
+    This function is normally called by process_ifg. It would use coherence as weights to multilook interferometric phase, and downsample other layers if available to a final datacube.
+    It will apply mask, including based on number of valid pixels in the multilooking window.
+    It will also apply Gaussian filter, mainly to get the Gaussian-based coherence-like measure (used no matter if smooth is ON)
+
+    Args:
+        ifg (xr.Dataset): xarray dataset containing interferogram layers, mainly cpx for complex numbers interferogram
+        ml (int): multilooking factor used to reduce the interferogram in both x/y or lon/lat
+        tmpdir (string): path to temporary directory
+        hgtcorr (boolean): switch to perform correction for height-phase correlation
+        pre_detrend (boolean): switch to perform detrending of phase
+        prev_ramp (xr.DataArray): a previous (ramp) estimate. it can be of different dimensions as it would get interpolated
+        thres_pxcount (int): by default, we nullify multilooked pixel that has less than 4/5 non-nan input values. You may change this, e.g. if ml=10, apply thres_pxcount=90 for keeping only pixel with over 9/10 values
+        keep_coh_debug (boolean): for experiments, this would keep the original interferogram coherence instead of use average coherence or amplitude stability etc. for weighting
+
+    Returns:
+        xr.Dataset: multilooked interferogram with additional layers
+    """
     #landmask it and multilook it
     if ml > 1:
         # that's for multilooking - in case of cohratio, we want to only weight phases based on that, and then return to coh
@@ -839,11 +907,6 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     #prepare 'toremove' layer
     ifg_ml['toremove'] = ifg_ml.cpx
     ifg_ml['toremove'].values = 0*np.angle(ifg_ml.cpx) # just make them zeroes
-    if replace_ml_pha:
-        # a quick fix to load other existing phase - e.g. after bias correction...
-        ifg_ml['origpha_noremovals'].values = np.fromfile(replace_ml_pha, dtype=np.float32).reshape(ifg_ml['origpha_noremovals'].values.shape)
-        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha_noremovals.values)
-        ifg_ml['cpx'].values = cpxa
     if keep_coh_debug:
         #ok, return coh, phase back to cpx
         cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha_noremovals.values)
@@ -883,30 +946,33 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     #    ifg_ml.coh.values = np.abs(ifg_ml.cpx)
     #have gacos removed first, prior to doing height corr:
     if 'gacos' in ifg_ml.variables:
+        ''' removing this check, because we want to FORCE-apply GACOS.. otherwise we get loop closure errors...
         pha_no_gacos = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
         #if np.nanstd(pha_no_gacos) >= np.nanstd(ifg_ml.pha.values):
         if get_fft_std(pha_no_gacos) >= get_fft_std(ifg_ml['pha'].values):
             print('GACOS correction would increase overall phase std - dropping')
             #ifg_ml = ifg_ml.drop('gacos')
         else:
-            ifg_ml['pha'].values = pha_no_gacos #wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
-            ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-            ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
-            ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
-            #ok, return coh, phase back to cpx
-            cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
-            ifg_ml['cpx'].values = cpxa
+            ifg_ml['pha'].values = pha_no_gacos
+        '''
+        ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
+        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+        ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
+        ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
+        #ok, return coh, phase back to cpx
+        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
+        ifg_ml['cpx'].values = cpxa
     #
     if pre_detrend:
         ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
         ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
         #ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
         ifg_ml['toremove'] = ifg_ml['toremove'] + correction
-    
+    #
     # just mask it
     ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
     ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
-    
+    #
     if 'hgt' in ifg.variables:
         ifg_ml['hgt'] = ifg_ml['hgt'].where(ifg_ml.mask>0)
     # perform Gaussian filtering
