@@ -1,49 +1,48 @@
 ################################################################################
 #Imports
 ################################################################################
-import numpy as np
 import os, glob
-from osgeo import gdal
+import shutil
 import subprocess
+
 import xarray as xr
+xr.set_options(keep_attrs=True)
 import rioxarray
+from osgeo import gdal
+
+import numpy as np
 import pandas as pd
-
-try:
-    import cv2
-except:
-    print('cv2 not loaded - cascade will not work')
-
 
 from scipy import interpolate
 from scipy import ndimage
-import time
-import matplotlib.pyplot as plt
-xr.set_options(keep_attrs=True)
-
-
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage import generic_filter
 from scipy import stats
 import scipy.signal as sps
 import scipy.linalg as spl
-
 from astropy.convolution import Gaussian2DKernel, interpolate_replace_nans, convolve_fft
 from sklearn.linear_model import HuberRegressor
 
-import shutil
+import time
+import matplotlib.pyplot as plt
+
+
+# some extra imports, used by additional functions
+try:
+    import cv2
+except:
+    print('cv2 not loaded - cascade will not work')
+
 # fc used only for amp stability..
 try:
     import framecare as fc
 except:
     print('framecare not loaded')
 
-
 try:
     from LiCSAR_lib.LiCSAR_misc import *
 except:
     print('licsar misc not loaded')
-
 
 try:
     import LiCSBAS_io_lib as io
@@ -58,6 +57,17 @@ except:
 ################################################################################
 
 def interpolate_nans(array, method='cubic'):
+    """One line desc
+    
+    long desc
+
+    Args:
+        array (np.array): numpy array with nans to interpolate
+        method (string): interpolation method for griddata function, e.g. cubic
+
+    Returns:
+        np.array: interpolated grid
+    """
     array = np.ma.masked_invalid(array)
     x = np.arange(0, array.shape[1])
     y = np.arange(0, array.shape[0])
@@ -65,25 +75,36 @@ def interpolate_nans(array, method='cubic'):
     x1 = xx[~array.mask]
     y1 = yy[~array.mask]
     newarr = array[~array.mask]
-    GD1 = interpolate.griddata((x1, y1), newarr.ravel(),(xx, yy),method=method) #, fill_value=0)
+    GD1 = interpolate.griddata((x1, y1), newarr.ravel(),(xx, yy),method=method)
     GD1 = np.array(GD1)
     return GD1
 
 
 def runcmd(cmd, printcmd = True):
+    """Runs command through os.system
+
+    Args:
+        cmd (string): command to run
+        printcmd (boolean): if True, will do verbose
+    """
     if printcmd:
         print(cmd)
         rc = os.system(cmd)
     else:
         #with nostdout():
         rc = os.system(cmd+' >/dev/null 2>/dev/null')
-    #rc = os.system(cmd, shell=True, text=True)
     if not rc == 0:
         print('WARNING - command did not exit as OK')
 
-
+'''
+unused:
 def get_width(infile):
-    #should work either with grd, nc or geotiffs
+    """gets width of geo-raster, using GMT
+
+    Args:
+        infile (string): filename (e.g. GRD, NC, GeoTIFF,..)
+
+    """
     batcmd="gmt grdinfo {} | grep n_columns".format(infile)
     result = subprocess.check_output(batcmd, shell=True, text=True)
     width = result.split()[-1]
@@ -102,7 +123,7 @@ def convert_nc2tif(nc, tif): #, coh=False):
     #    runcmd('gmt grdmath {0} 255 DIV = {1}'.format(tif, nc)) #out in px reg
     #else:
     runcmd('gmt grdconvert {0} {1}; gmt grdedit {1} -T'.format(nc, tif))
-
+'''
 
 def magpha2RI_array(mag, pha):
     R = np.cos(pha) * mag
