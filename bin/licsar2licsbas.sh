@@ -14,6 +14,7 @@ if [ -z $1 ]; then
  #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
  echo "-T ....... use testing version of LiCSBAS"
+ echo "-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u)"
  echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "----------------"
@@ -22,6 +23,7 @@ if [ -z $1 ]; then
  exit
 fi
 
+thres=0.3
 dolocal=0
 multi=1
 run_jasmin=1
@@ -38,7 +40,7 @@ smooth=0
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsSCkG:" option; do
+while getopts ":M:HucTsSCkG:t:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -68,6 +70,11 @@ while getopts ":M:HucTsSCkG:" option; do
      ;;
   G) aoi=${OPTARG};
      clip=1;
+     #echo "warning - the clipping will affect only LiCSBAS for now, so in case of ML, the clip will be done only AFTER all reunwrapping"
+     #shift
+     ;;
+  t) thres=${OPTARG};
+     #clip=1;
      #echo "warning - the clipping will affect only LiCSBAS for now, so in case of ML, the clip will be done only AFTER all reunwrapping"
      #shift
      ;;
@@ -192,6 +199,8 @@ if [ $reunw -gt 0 ]; then
  if [ $smooth == 1 ]; then
   extraparam=", smooth = True"
  fi
+ # adding possibility to change coh threshold here
+ extraparam=", thres = "$thres
  if [ $keep_coh_debug == 1 ]; then
   extraparam=$extraparam", keep_coh_debug = True";
  else
