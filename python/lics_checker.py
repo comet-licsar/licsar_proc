@@ -529,10 +529,11 @@ def downloadIfgs(track,frame):
                 if not pngcheck(outpath):
                     os.remove(outpath)
             if not os.path.exists(outpath):
-                print(webpath)
-                print(outpath)
-                wget.download(webpath, outpath)
-                os.system('chmod 777 '+outpath)
+                try:
+                    wget.download(webpath, outpath)
+                    os.system('chmod 777 '+outpath)
+                except:
+                    print('error downloading '+ifg+'.geo.'+ext)
     #wgetcmd = 'wget -r -nd -c -e robots=off -A unw.png,diff.png -P '+outDir
     #cmd = wgetcmd+' '+webadd
     #cmd = [wgetcmd,webadd]
