@@ -104,7 +104,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
     starttime = time.time()
     if only10:
         # 01/2022: updating parameters:
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, dolocal = dolocal)
+        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, dolocal = dolocal, smooth=True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
@@ -228,6 +228,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     ifg['coh'].values = incoh.values
     ifg['mask'] = ifg['pha']
     ifg['mask'].values = inmask.values
+    # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
+    if ml == 1:
+        cohthres = 0.15
+        ifg['mask'] = ifg['mask'] * ifg['mask'].where(ifg['coh'] < cohthres).fillna(1)
     ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
     #if hgtcorr:
     # including hgt anyway - would be useful later
@@ -985,8 +989,12 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         try:
             toremove_hgt = remove_height_corr(ifg_ml, tmpdir = tmpdir, dounw = True, nonlinear=False)
             pha_no_hgt = wrap2phase(ifg_ml['pha'] - toremove_hgt)
-            if np.nanstd(pha_no_hgt) >= np.nanstd(ifg_ml.pha.values):
-                print('but the correction would increase overall phase std - dropping')
+            cpx_no_hgt = magpha2RI_array(np.abs(ifg_ml.cpx.values), pha_no_hgt)
+            #if np.nanstd(pha_no_hgt) >= np.nanstd(ifg_ml.pha.values):
+            #    print('but the correction would increase overall phase std - dropping')
+            #    hgtcorr = False
+            if np.nanstd(cpx_no_hgt) >= np.nanstd(ifg_ml.cpx.values):
+                print('but the correction would increase overall complex std - dropping')
                 hgtcorr = False
             else:
                 ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
@@ -1010,6 +1018,7 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         # try setting to something like 90 if ML10
         if not thres_pxcount:
             #thres_pxcount = int(round((ml**2)/2))
+            # if not set, we will auto-set it to mask multilooked pixels with less than 80% input (non-nan) pixels
             thres_pxcount = int(round((ml**2)*4/5))
         ifg_ml['mask'] = ifg_ml.mask * (ifg_ml.pxcount >= thres_pxcount)
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)

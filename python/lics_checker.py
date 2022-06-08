@@ -6,6 +6,7 @@ Created on Mon Jul 15 14:25:06 2019
 @author: earmla
 """
 from PyQt5 import QtCore, QtWidgets, QtGui
+from PIL import Image
 import sys, os
 from fnmatch import fnmatch
 #import subprocess as subp
@@ -524,7 +525,12 @@ def downloadIfgs(track,frame):
             #cmd = 'wget -O {0} -nc {1} 2>/dev/null'.format(outpath,webpath)
             #rc = os.system(cmd)
             #wget.download(url, '/Users/scott/Downloads/cat4.jpg')
-            wget.download(webpath, outpath)
+            if os.path.exists(outpath):
+                if not pngcheck(outpath):
+                    os.remove(outpath)
+            if not os.path.exists(outpath):
+                wget.download(webpath, outpath)
+                os.system('chmod 777 '+outpath)
     #wgetcmd = 'wget -r -nd -c -e robots=off -A unw.png,diff.png -P '+outDir
     #cmd = wgetcmd+' '+webadd
     #cmd = [wgetcmd,webadd]
@@ -544,6 +550,19 @@ def downloadIfgs(track,frame):
     #else:
     #    return True
     return True
+
+
+def pngcheck(filename):
+    try:
+        im = Image.open(filename)
+        im.verify() #I perform also verify, don't know if he sees other types o defects
+        im.close() #reload is necessary in my case
+        im = Image.open(filename) 
+        im.transpose(Image.FLIP_LEFT_RIGHT)
+        im.close()
+        return True
+    except:
+        return False
 
 
 if __name__ == "__main__":
