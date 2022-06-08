@@ -117,6 +117,7 @@ Afterwards, you may just fine tune parameters of LiCSBAS step 15 (and 16) and re
   #-s ....... if the reunwrapping is to be performed, use smoothing (two-pass unw approach, similar effect as with cascade, only milder)
   #-H ....... this will use hgt to support unwrapping (only if using reunwrapping)
   #-T ....... use testing version of LiCSBAS
+  #-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u)
   #-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs
   #-G lon1/lon2/lat1/lat2  .... clip to this AOI
   ##
