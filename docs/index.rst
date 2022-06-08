@@ -94,6 +94,12 @@ For geocoding results, please use the following command:
 Post-processing
 -------------------
 
+Reunwrapping existing interferograms
+^^^^^^^^^^^^^^^^^^^^^^^
+Standard LiCSAR products use general parameters for unwrapping. Here we document the python tool ``lics_unwrap.py``.
+We will soon augment it to allow processing directly from command line, for now you may check the :ref:`API documentation<apidoc_unwrap>`.
+
+
 LiCSAR to LiCSBAS (JASMIN)
 ^^^^^^^^^^^^^^^^^^^^^^^
 This script runs LiCSBAS processing from the LiCSAR data. To be used in JASMIN environment.

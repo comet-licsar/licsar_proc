@@ -1,3 +1,5 @@
 #ignore pyc files
 *.pyc
 
+doctrees/
+.buildinfo

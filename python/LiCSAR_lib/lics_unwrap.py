@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 ################################################################################
 # LiCSAR Unwrapper
 # by Milan Lazecky, 2021-2022, University of Leeds
