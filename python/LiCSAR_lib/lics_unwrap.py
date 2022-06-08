@@ -1582,11 +1582,27 @@ def get_fft_std(inarr):
     return magnitude_spectrum.mean()
 
 
-def load_tif2xr(tif):
+def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
+    """loads geotiff to xarray.DataArray
+    
+    Args:
+        tif (string): path to geotiff
+        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
+        tolonlat (boolean): if True, return as lon lat coordinates
+    
+    Returns:
+        xr.DataArray: loaded contents
+    """
     xrpha = rioxarray.open_rasterio(tif)
     xrpha = xrpha.squeeze('band')
     xrpha = xrpha.drop('band')
-    xrpha = xrpha.rename({'x': 'lon','y': 'lat'})
+    
+    if cliparea_geo:
+        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
+        minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
+        xrpha = xrpha.sel(x=slice(minclipx, maxclipx), y=slice(maxclipy, minclipy))
+    if tolonlat:
+        xrpha = xrpha.rename({'x': 'lon','y': 'lat'})
     return xrpha
 
 
