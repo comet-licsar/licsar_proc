@@ -8,5 +8,5 @@ LiCSAR unwrapping module
 
 Here we document the python tool ``lics_unwrap.py``. Note this is early attempt for the documentation.
 
-.. automodule:: python.LiCSAR_lib.lics_unwrap
+.. automodule:: licsar_proc.python.LiCSAR_lib.lics_unwrap
   :members:
