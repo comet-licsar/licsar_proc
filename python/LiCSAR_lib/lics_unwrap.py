@@ -88,14 +88,12 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
         pair (string): identifier of interferometric pair, e.g. '20200120_20200201'
         downtoml (int): target multilook factor (default: 1, no extra multilooking)
         procdir (string): path to processing directory
-        
         only10 (boolean): switch to use only 1 previous ramp, scaled 10x to the downtoml, instead of few cascades
         smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
-        hgtcorr (boolean): switch to perform correction for height-phase correlation
-        
+        hgtcorr (boolean): switch to perform correction for height-phase correlation.
         outtif (string): path to geotiff file to export result to (optional)
-        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
+        cliparea_geo (:obj:`str`, optional): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
         subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
         dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
         
