@@ -77,6 +77,20 @@ except:
 ################################################################################
 # Main functions to perform the unwrapping
 ################################################################################
+def function_with_types_in_docstring(param1, param2):
+    """Example function with types documented in the docstring.
+
+    :pep:`484` type annotations are supported. If attribute, parameter, and
+    return types are annotated according to `PEP 484`_, they do not need to be
+    included in the docstring:
+
+    Args:
+        param1 (int): The first parameter.
+        param2 (str): The second parameter.
+
+    Returns:
+        bool: The return value. True for success, False otherwise.
+    """
 
 def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
                    only10 = True, smooth = False, thres=0.3, hgtcorr = True, 
@@ -96,7 +110,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
         cliparea_geo (:obj:`str`, optional): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
         subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
         dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
-        
+
     Returns:
         xr.Dataset: unwrapped multilooked interferogram with additional layers
     """
@@ -139,36 +153,32 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         cohratio = None, keep_coh_debug = True):
     """Main function to unwrap a geocoded LiCSAR interferogram. Works on JASMIN (but can be easily adapted for local use)
 
-    Args:
-        frame (string): LiCSAR frame ID
-        pair (string): identifier of interferometric pair, e.g. '20200120_20200201'
-        procdir (string): path to processing directory
-        ml (int): multilooking factor used to reduce the interferogram in lon/lat
-        fillby (string): algorithm to fill gaps. use one of values: 'gauss', 'nearest', 'none' (where 'none' would only fill NaNs by zeroes)
-        thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
-        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
-        defomax (float): parameter to snaphu for maximum deformation in rad per 2pi cycle (DEFOMAX_CYCLE)
-        
-        hgtcorr (boolean): switch to perform correction for height-phase correlation
-        gacoscorr (boolean): switch to apply GACOS corrections (if detected)
-        pre_detrend (boolean): switch to apply detrending on wrapped phase to support unwrapping
-        
-        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
-        outtif (string): path to geotiff file to export result to (optional)
-        prevest (xr.DataArray): a previous rough estimate to be used by snaphu as the ESTFILE
-        prev_ramp (xr.DataArray): a previous estimate or a ramp that will be removed prior to unwrapping (and added back)
-        
-        coh2var (boolean): convert coherence to variance for weighting. could be useful, but need to change from squared, something to try...
-        add_resid (boolean): switch to add back residuals from spatially filtered unwrapping (makes sense if smooth is ON)
-        rampit (boolean): perform an extra strong gaussian filter to get a very rough unwrapping result. basically a longwave signal ramp. used by cascade approach
-        subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
-        dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
-        
-        cohratio (xr.DataArray): coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
-        keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
-    
-    Returns:
-        xr.Dataset: unwrapped multilooked interferogram with additional layers
+Args:
+    frame (string): LiCSAR frame ID
+    pair (string): identifier of interferometric pair, e.g. '20200120_20200201'
+    procdir (string): path to processing directory
+    ml (int): multilooking factor used to reduce the interferogram in lon/lat
+    fillby (string): algorithm to fill gaps. use one of values: 'gauss', 'nearest', 'none' (where 'none' would only fill NaNs by zeroes)
+    thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
+    smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
+    defomax (float): parameter to snaphu for maximum deformation in rad per 2pi cycle (DEFOMAX_CYCLE)
+    hgtcorr (boolean): switch to perform correction for height-phase correlation
+    gacoscorr (boolean): switch to apply GACOS corrections (if detected)
+    pre_detrend (boolean): switch to apply detrending on wrapped phase to support unwrapping
+    cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
+    outtif (string): path to geotiff file to export result to (optional)
+    prevest (xr.DataArray): a previous rough estimate to be used by snaphu as the ESTFILE
+    prev_ramp (xr.DataArray): a previous estimate or a ramp that will be removed prior to unwrapping (and added back)
+    coh2var (boolean): convert coherence to variance for weighting. could be useful, but need to change from squared, something to try...
+    add_resid (boolean): switch to add back residuals from spatially filtered unwrapping (makes sense if smooth is ON)
+    rampit (boolean): perform an extra strong gaussian filter to get a very rough unwrapping result. basically a longwave signal ramp. used by cascade approach
+    subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
+    dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
+    cohratio (xr.DataArray): coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
+    keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
+
+Returns:
+    xr.Dataset: unwrapped multilooked interferogram with additional layers
     """
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
