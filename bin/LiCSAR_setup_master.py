@@ -272,7 +272,9 @@ def main(argv=None):
 
 ############################################################ Get Frame image
     print('\nUnzipping, converting and merging image files for master {0}...'.format(masterdate))
-    imburstlist = lq.get_frame_bursts_on_date(framename,masterdate)
+    #imburstlist = lq.get_frame_bursts_on_date(framename,masterdate)
+    # ok, so the burstlist of frame should be kept ok - master epoch should have same bursts..
+    imburstlist = lq.get_bursts_in_frame(framename)
     rc = make_frame_image(masterdate,framename,imburstlist,procdir, lq,job_id, autodownload = autodownload)
     if rc != 0:
         print('error initialising frame reference')
