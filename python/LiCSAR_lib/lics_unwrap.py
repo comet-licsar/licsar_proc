@@ -93,13 +93,13 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
         
         hgtcorr (boolean): switch to perform correction for height-phase correlation.
-        outtif (string): path to geotiff file to export result to (optional)
-        cliparea_geo (:obj:`str`, optional): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
+        outtif (string or None): path to geotiff file to export result to.
+        cliparea_geo (string or None): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as ``'lon1/lon2/lat1/lat2'``
         subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
         dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
     
     Returns:
-        xr.Dataset: unwrapped multilooked interferogram with additional layers
+        xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
     print('performing cascade unwrapping')
     starttime = time.time()
@@ -142,10 +142,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
 
     Args:
         frame (string): LiCSAR frame ID
-        pair (string): identifier of interferometric pair, e.g. '20200120_20200201'
+        pair (string): identifier of interferometric pair, e.g. ``'20200120_20200201'``
         procdir (string): path to processing directory
         ml (int): multilooking factor used to reduce the interferogram in lon/lat
-        fillby (string): algorithm to fill gaps. use one of values: 'gauss', 'nearest', 'none' (where 'none' would only fill NaNs by zeroes)
+        fillby (string): algorithm to fill gaps. use one of values: ``'gauss'``, ``'nearest'``, ``'none'`` (where ``'none'`` would only fill NaNs by zeroes)
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
         smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
         defomax (float): parameter to snaphu for maximum deformation in rad per 2pi cycle (DEFOMAX_CYCLE)
@@ -154,10 +154,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         gacoscorr (boolean): switch to apply GACOS corrections (if detected)
         pre_detrend (boolean): switch to apply detrending on wrapped phase to support unwrapping
         
-        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
-        outtif (string): path to geotiff file to export result to (optional)
-        prevest (xr.DataArray): a previous rough estimate to be used by snaphu as the ESTFILE
-        prev_ramp (xr.DataArray): a previous estimate or a ramp that will be removed prior to unwrapping (and added back)
+        cliparea_geo (string or None): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as ``'lon1/lon2/lat1/lat2'``
+        outtif (string or None): path to geotiff file to export result to.
+        prevest (xarray.DataArray or None): a previous rough estimate to be used by snaphu as the ESTFILE
+        prev_ramp (xarray.DataArray or None): a previous estimate or a ramp that will be removed prior to unwrapping (and added back)
         
         coh2var (boolean): convert coherence to variance for weighting. could be useful, but need to change from squared, something to try...
         add_resid (boolean): switch to add back residuals from spatially filtered unwrapping (makes sense if smooth is ON)
@@ -169,7 +169,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
     
     Returns:
-        xr.Dataset: unwrapped multilooked interferogram with additional layers
+        xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
@@ -594,8 +594,8 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
         hgtcorr (boolean): switch to perform correction for height-phase correlation
         gacoscorr (boolean): switch to apply GACOS corrections (if detected)
         
-        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates: e.g. 
-        pairsetfile (string): path to file containing list of pairs to unwrap
+        cliparea_geo (string or None): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates: e.g. ``'lon1/lon2/lat1/lat2'``
+        pairsetfile (string or None): path to file containing list of pairs to unwrap
         export_to_tif (boolean): switch to export unwrapped data to geotiffs (default: False, generate only binaries, as used by LiCSBAS)
         subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
         nproc (int): use multiprocessing (one core per interferogram), not well tested, uses pathos
@@ -606,7 +606,7 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
         keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
     
     Returns:
-        xr.Dataset: multilooked interferogram with additional layers
+        xarray.Dataset: multilooked interferogram with additional layers
     """
     #if cascade and ml>1:
     #    print('error - the cascade approach is ready only for ML1')
@@ -857,20 +857,20 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     
     This function is normally called by process_ifg. It would use coherence as weights to multilook interferometric phase, and downsample other layers if available to a final datacube.
     It will apply mask, including based on number of valid pixels in the multilooking window.
-    It will also apply Gaussian filter, mainly to get the Gaussian-based coherence-like measure (used no matter if smooth is ON)
+    It will also apply Gaussian filter, mainly to get the Gaussian-based coherence-like measure (used no matter if smooth is ON).
 
     Args:
-        ifg (xr.Dataset): xarray dataset containing interferogram layers, mainly cpx for complex numbers interferogram
+        ifg (xarray.Dataset): xarray dataset containing interferogram layers, mainly cpx for complex numbers interferogram
         ml (int): multilooking factor used to reduce the interferogram in both x/y or lon/lat
         tmpdir (string): path to temporary directory
         hgtcorr (boolean): switch to perform correction for height-phase correlation
         pre_detrend (boolean): switch to perform detrending of phase
-        prev_ramp (xr.DataArray): a previous (ramp) estimate. it can be of different dimensions as it would get interpolated
-        thres_pxcount (int): by default, we nullify multilooked pixel that has less than 4/5 non-nan input values. You may change this, e.g. if ml=10, apply thres_pxcount=90 for keeping only pixel with over 9/10 values
+        prev_ramp (xarray.DataArray): a previous (ramp) estimate. it can be of different dimensions as it would get interpolated
+        thres_pxcount (int or None): by default, we nullify multilooked pixel that has less than 4/5 non-nan input values. You may change this, e.g. if ml=10, apply thres_pxcount=90 for keeping only pixel with over 9/10 values
         keep_coh_debug (boolean): for experiments, this would keep the original interferogram coherence instead of use average coherence or amplitude stability etc. for weighting
 
     Returns:
-        xr.Dataset: multilooked interferogram with additional layers
+        xarray.Dataset: multilooked interferogram with additional layers
     """
     #landmask it and multilook it
     if ml > 1:
@@ -1231,6 +1231,13 @@ def resize_bin(inbin, inwid, inlen, outbin, outwid, outlen, dtype = np.byte, int
 
 
 def RI2cpx(R, I, cpxfile):
+    """Convert real and imaginary binary files to a complex number binary file. Obsolete function.
+    
+    Args:
+        R (string): path to the binary file with real values
+        I (string): path to the binary file with imaginary values
+        cpxfile (string): path to the binary file for complex output
+    """
     # we may either load R, I from file:
     if type(R) == type('str'):
         r = np.fromfile(R, dtype=np.float32)
@@ -1245,8 +1252,14 @@ def RI2cpx(R, I, cpxfile):
 
 
 def remove_islands(npa, pixelsno = 50):
-    '''
-    removes isolated clusters of pixels from numpy array npa having less than pixelsno pixels
+    '''Removes isolated clusters of pixels from numpy array npa having less than pixelsno pixels.
+    
+    Args:
+        npa (np.array): (unwrapped) interferogram with NaNs
+        pixelsno (int): minimum number of pixels in isolated clusters (connected components)
+    
+    Returns:
+        np.array: array after removing islands
     '''
     #check the mask - should be 1 for islands and 0 for nans
     mask = ~np.isnan(npa)
@@ -1262,6 +1275,8 @@ def remove_islands(npa, pixelsno = 50):
 
 
 def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', width = 0, est = None, bin_pre_remove = None, defomax = 0.6, printout = True):
+    '''Main function to perform unwrapping with snaphu.
+    '''
     if width == 0:
         print('error - width is zero')
         return False
@@ -1296,6 +1311,8 @@ def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', wid
 
 
 def create_preview(infile, ftype = 'unwrapped'):
+    """Creates preview of interferogram (wrapped or unwrapped)
+    """
     if 'wrapped' not in ftype:
         print('wrong ftype')
         return False
@@ -1309,6 +1326,8 @@ def create_preview(infile, ftype = 'unwrapped'):
 
 
 def make_snaphu_conf(sdir, defomax = 1.2):
+    """Creates snaphu configuration file
+    """
     snaphuconf = ('STATCOSTMODE  DEFO\n',
             'INFILEFORMAT  COMPLEX_DATA\n',
             'CORRFILEFORMAT  FLOAT_DATA\n'
@@ -1324,6 +1343,8 @@ def make_snaphu_conf(sdir, defomax = 1.2):
 
 
 def make_gacos_ifg(frame, pair, outfile):
+    """Creates GACOS correction for the interferogram
+    """
     print('preparing GACOS correction')
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
@@ -1346,8 +1367,9 @@ def make_gacos_ifg(frame, pair, outfile):
 
 
 def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = True, nonlinear=False):
-    '''
-     first, correlate ifg_ml['pha'] and ifg_ml['hgt'] in blocks
+    '''Removes height-correlated signal
+    
+     first, correlate ```ifg_ml['pha']``` and ```ifg_ml['hgt']``` in blocks
       - better to keep dounw=True that unwraps each block by snaphu. but it can be slow
      get coefficient for correction of correlating areas
      interpolate the coefficient throughout whole raster
@@ -1437,6 +1459,8 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
 
 
 def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.getcwd()):
+    """Quite direct unwrapping of the xarray Dataset of ifg
+    """
     coh = ifg.coh.values
     cpx = ifg.cpx.fillna(0).astype(np.complex64).values
     if mask:
@@ -1531,6 +1555,8 @@ def correct_hgt(ifg_mlc, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_
 
 
 def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True):
+    """Exports xarray dataarray to a geotiff
+    """
     import rioxarray
     #coordsys = xrda.crs.split('=')[1]
     if debug:
@@ -1586,7 +1612,7 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
     
     Args:
         tif (string): path to geotiff
-        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as 'lon1/lon2/lat1/lat2'
+        cliparea_geo (string): use GMT/LiCSBAS string to identify area to clip, in geo-coordinates, as ``'lon1/lon2/lat1/lat2'``
         tolonlat (boolean): if True, return as lon lat coordinates
     
     Returns:
@@ -1606,7 +1632,8 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
 
 
 def detrend_ifg_xr(xrda, isphase=True, return_correction = False, maxfringes = 4):
-    #based on doris insarmatlab toolbox
+    """Estimates ramp of (wrapped) interferogram and corrects it. Based on Doris InSARMatlab Toolbox
+    """
     da = xrda.copy(deep=True).fillna(0)
     if isphase:
         #convert to cpx values first
@@ -1659,7 +1686,8 @@ def detrend_ifg_xr(xrda, isphase=True, return_correction = False, maxfringes = 4
 
     
 def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False):  #, rotate = False):
-    # this will use only PHA and would filter it
+    """Normalises interferogram and performs Gaussian filtering (expects proper structure of the ifg dataset).
+    """
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
     ifg_ml['cpx'].values = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
@@ -1686,10 +1714,14 @@ def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False):  #, rotate = False):
 
 
 def wrap2phase(A):
+    """Wraps array to -pi,pi (or 0,2pi?)
+    """
     return np.angle(np.exp(1j*A))
 
 
 def make_avg_amp(mlitiflist, hgtxr):
+    """Generates average amplitude from list of MLI tiffs
+    """
     avgamp = hgtxr*0
     nopixels = avgamp.copy()
     for ampf in mlitiflist:
@@ -1706,6 +1738,8 @@ def make_avg_amp(mlitiflist, hgtxr):
 
 
 def make_std_amp(mlitiflist, avgamp):
+    """Generates standard deviation of amplitude from list of MLI tiffs
+    """
     ddof = 1
     avgvar = avgamp*0
     nopixels = avgvar.copy()
@@ -1727,6 +1761,8 @@ def make_std_amp(mlitiflist, avgamp):
 
 
 def make_avg_coh(group, hgtxr):
+    """Generates average coherence from 'group'
+    """
     avgcoh = hgtxr*0
     nopixels = avgcoh.copy()
     for cohf in group['cohf']:
@@ -1743,6 +1779,8 @@ def make_avg_coh(group, hgtxr):
 
 
 def make_std_coh(group, avgcoh):
+    """Generates standard deviation of coherence from 'group'
+    """
     ddof = 1
     avgvar = avgcoh*0
     nopixels = avgvar.copy()
@@ -1773,6 +1811,8 @@ def get_date_matrix(pairs):
 
 
 def build_amp_avg_std(frame, return_ampstab = False):
+    """Builds amplitude stability map (or just avg/std amplitude) of a frame
+    """
     track=str(int(frame[:3]))
     epochsdir = os.path.join(os.environ['LiCSAR_public'], track, frame, 'epochs')
     hgtfile = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.hgt.tif')
@@ -1792,6 +1832,8 @@ def build_amp_avg_std(frame, return_ampstab = False):
 
 
 def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outnopx = False, do_std = True, do_tif = False):
+    """Builds coherence stability map (or just avg/std coherence) of a frame
+    """
     track=str(int(frame[:3]))
     if not ifgdir:
         ifgdir = os.path.join(os.environ['LiCSAR_public'], track, frame, 'interferograms')
@@ -1874,6 +1916,8 @@ def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outno
 #### extra functions (not used in the workflow, but considered useful!)
 
 def deramp_unw(xrda, dim=['lat','lon']):
+    """Deramps unwrapped interferogram
+    """
     da = xrda.fillna(0).copy(deep=True)
     dt = xr.apply_ufunc(
                     _detrend_2d_ufunc,
@@ -1902,6 +1946,8 @@ def _detrend_2d_ufunc(arr):
 
 
 def deramp_ifg_tif(phatif, unwrap_after = True):
+    """Deramps wrapped interferogram geotiff
+    """
     # works fine if the path is to some diff_pha.tif file inside $LiCSAR_public only!
     phatif = os.path.realpath(phatif)
     if not os.path.exists(phatif):
