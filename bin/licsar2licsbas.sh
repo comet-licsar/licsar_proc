@@ -228,7 +228,7 @@ if [ $reunw -gt 0 ]; then
   echo "ln -s ../GEOC" >> multirun.sh
  fi
  #cp $LiCSAR_procdir/$track/$frame/geo/EQA.dem_par GEOC/.
- echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
+ echo "python3 -c \"from LiCSAR_lib.lics_unwrap import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
  # this seems not needed but in case of cropping, licsbas would try regenerate all missing data. so keeping this solution - may not be best if starting in local dir
  #echo "cd ..; for x in \`cat pairset.txt\`; do rm GEOC/\$x 2>/dev/null; done" >> multirun.sh
  echo "cd ..; cp GEOC/baselines $mlgeocdir/." >> multirun.sh

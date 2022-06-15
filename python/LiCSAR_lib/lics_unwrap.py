@@ -1615,6 +1615,13 @@ def correct_hgt(ifg_mlc, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_
 
 def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True):
     """Exports xarray dataarray to a geotiff
+    
+     Args:
+        xrda (xarray.Dataarray): dataarray to export
+        tif (string): path to output tif file
+        lonlat (boolean): are the dimensions named as lon, lat?
+        debug (boolean): just load it as float32
+        dogdal (boolean): after exporting, perform gdalwarp (fix for potential issues in output geotiff)
     """
     import rioxarray
     #coordsys = xrda.crs.split('=')[1]
@@ -1692,6 +1699,15 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
 
 def detrend_ifg_xr(xrda, isphase=True, return_correction = False, maxfringes = 4):
     """Estimates ramp of (wrapped) interferogram and corrects it. Based on Doris InSARMatlab Toolbox
+    
+    Args:
+        xrda (xarray.Dataarray): input data array (interferogram)
+        isphase (boolean): input array is phase (if not, expect complex ifg)
+        return_correction (boolean): returns also the correction
+        maxfringes (int): max amount of fringes to consider as proper correction
+    
+    Returns:
+        xarray.Dataarray: dataarray of corrected ifg
     """
     da = xrda.copy(deep=True).fillna(0)
     if isphase:
