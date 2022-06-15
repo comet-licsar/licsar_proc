@@ -1276,6 +1276,17 @@ def remove_islands(npa, pixelsno = 50):
 
 def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', width = 0, est = None, bin_pre_remove = None, defomax = 0.6, printout = True):
     '''Main function to perform unwrapping with snaphu.
+    
+    Args:
+        cpxbin (string): path to cpxfloat32 binary interferogram to unwrap
+        cohbin (string): path to float32 binary for coherence
+        maskbin (string or None): path to mask binary
+        outunwbin (string): path to output unwrapped binary
+        width (int): width of binary raster
+        est (string or None): path to coarse estimate binary (float32)
+        bin_pre_remove (string or None): path to float32 binary to remove from est, prior to unwrapping
+        defomax (float): max defo cycles
+        printout (boolean): controls verbosity of text output
     '''
     if width == 0:
         print('error - width is zero')
@@ -1311,7 +1322,11 @@ def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', wid
 
 
 def create_preview(infile, ftype = 'unwrapped'):
-    """Creates preview of interferogram (wrapped or unwrapped)
+    """Creates preview of interferogram (wrapped or unwrapped) - works only with licsar_proc
+    
+    Args:
+        infile (string): path to input tif to generate preview
+        ftype (string): type of the input file. can be: 'wrapped', 'unwrapped'
     """
     if 'wrapped' not in ftype:
         print('wrong ftype')
@@ -1327,6 +1342,13 @@ def create_preview(infile, ftype = 'unwrapped'):
 
 def make_snaphu_conf(sdir, defomax = 1.2):
     """Creates snaphu configuration file
+    
+    Args:
+        sdir (string): directory where to generate snaphu.conf
+        defomax (float): DEFOMAX parameter to snaphu
+    
+    Returns:
+        string: path to generated snaphu.conf
     """
     snaphuconf = ('STATCOSTMODE  DEFO\n',
             'INFILEFORMAT  COMPLEX_DATA\n',
@@ -1343,7 +1365,14 @@ def make_snaphu_conf(sdir, defomax = 1.2):
 
 
 def make_gacos_ifg(frame, pair, outfile):
-    """Creates GACOS correction for the interferogram
+    """Creates GACOS correction for the interferogram. works only at JASMIN
+    
+    Args:
+        frame (string): frame ID
+        pair (string): pair ID (e.g. '20201001_20201201')
+    
+    Returns:
+        string: path to generated GACOS correction, or False
     """
     print('preparing GACOS correction')
     pubdir = os.environ['LiCSAR_public']
@@ -1374,6 +1403,16 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
      get coefficient for correction of correlating areas
      interpolate the coefficient throughout whole raster
      multiply by hgt = 'to_remove'
+     
+     Args:
+        ifg_ml (xarray.Dataset): input dataset
+        corr_thres (float): threshold of correlation within window to keep
+        tmpdir (string): path to temp directory
+        dounw (boolean): whether to unwrap the small windows, or try correlate with wrapped phase
+        nonlinear (boolean): pass nonlinear parameter to correct_hgt
+    
+    Returns:
+        xarray.Dataarray: dataarray of height correlation corrections
     '''
     ifg_mlc = ifg_ml.copy(deep=True)
     ifg_mlc = filter_ifg_ml(ifg_mlc)
@@ -1460,6 +1499,15 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
 
 def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.getcwd()):
     """Quite direct unwrapping of the xarray Dataset of ifg
+    
+    Args:
+        ifg (xarray.Dataset): ifg dataset
+        mask (boolean): whether to use mask
+        defomax (float): DEFOMAX to snaphu
+        tmpdir (string): temp dir
+    
+    Returns:
+        xarray.Dataset: ifg dataset now with unwrapped result
     """
     coh = ifg.coh.values
     cpx = ifg.cpx.fillna(0).astype(np.complex64).values
@@ -1472,16 +1520,27 @@ def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.getcwd()):
 
 
 def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd(), mask = False, deltemp = True):
-    '''
-    unwraps given arrays
+    '''unwraps given numpy array
+    
+    Args:
+        cpx (numpy.ndarray): array of complex interferogram
+        coh (numpy.ndarray): array of coherence
+        defomax (float): DEFOMAX to snaphu
+        tmpdir (string): temp dir
+        mask (boolean): whether to try use binary mask (if exists)
+        deltemp (boolean): clean temp dir after processing
+    
+    Returns:
+        numpy.ndarray: unwrapped array
     '''
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
-    try:
-        binmask= os.path.join(tmpdir,'mask.bin')
-        mask.astype(np.byte).tofile(binmask)
-    except:
-        binmask=None
+    if mask:
+        try:
+            binmask= os.path.join(tmpdir,'mask.bin')
+            mask.astype(np.byte).tofile(binmask)
+        except:
+            binmask=None
     bincoh = os.path.join(tmpdir,'coh.bin')
     #binR = os.path.join(tmpdir,'R.bin')
     #binI = os.path.join(tmpdir,'I.bin')
