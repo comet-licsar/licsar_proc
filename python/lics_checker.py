@@ -578,6 +578,8 @@ if __name__ == "__main__":
         outDir=os.path.expanduser('licscheck')
         print('we will use directory {} instead'.format(outDir))
         if not os.path.exists(outDir): os.mkdir(outDir)
+    else:
+        print("You run from Leeds Uni server - that's perfect, as we will use the flagged output later, from directory: "+outDir)
     var.outDir = outDir
     #app = QtWidgets.QApplication(sys.argv)
     app = QtWidgets.QApplication([])
