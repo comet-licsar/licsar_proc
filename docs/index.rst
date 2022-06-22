@@ -175,7 +175,7 @@ The use of the tool is simple:
 3. Once you click OK, the tool will download existing png previews of wrapped and unwrapped interferograms - the output is shown in the terminal (together with info on output directory). Note, we actually notice some connection issues causing download to stuck - if this happens, just press CTRL+C, the program will continue downloading other pairs.
 4. Once downloaded, you will see main screen of the viewer:
 
-.. image:: images/lics_checker.png
+.. image:: ../../licsar_proc/docs/images/lics_checker.png
    :width: 600
    :alt: Main window of lics_checker
 
@@ -183,4 +183,6 @@ Here, you can flag type of error that you see - either by clicking on its radio 
 To switch to the next image, either click on the 'Next image' button, or just press ``Right arrow``. Especially using arrows, you can fast-scroll through the interferograms.
 You can also use buttons ``PgDwn``, ``PgUp`` to scroll by 10 interferograms, or ``shift-PgDwn``, ``shift-PgUp`` to scroll by 100.
 After the last interferogram, the program will notify you that it saved the results to a file (see terminal). Also, the results are auto-saved during the process, so your next check will use existing flags.
-To add, clicking on the preview you will see it in larger resolution. And that's all folks, happy flagging!
+To add, clicking on the preview you will see it in larger resolution.
+
+And that's all folks, happy flagging!
