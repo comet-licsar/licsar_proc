@@ -147,11 +147,39 @@ The whole procedure will run in the background through JASMIN's LOTUS server (se
 
 
 Decomposition to E-U(+N) vectors
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This section should contain information on both decomposition from A+D (use of Andrew's tutorial?)
+This section should contain information on both decomposition from A+D - for now, you may go through `tutorial by Andrew Watson <https://github.com/andwatson/interseismic_practical>`_.
 
 Bringing ENU model values to line-of-sight
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Inverse procedure (with example?) using E,N,U tif files to convert ENU->LOS.
+This section should contain inverse procedure (with example) using LiCSAR E,N,U tif files to convert ENU->LOS.
+
+
+Tools operating with LiCSAR data
+--------------------------------
+
+LiCSAR Data Quality Checker
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This tool is a GUI (fast-)programmed to fast-look into preview PNGs of LiCSAR interferograms, and fast-flag errors in them. Once the operator (you) flags erroneous data within selected LiCSAR frame, the software will auto-generates a small .savedResults file.
+If you inform us about bad interferograms in LiCSAR system by sending the file to our team, you directly help improve our open dataset, as we will remove and reprocessed the corrupt data.
+Additionally, if you are a student of University of Leeds, and you will run (after setting the environment as `described here <https://gitlab.com/comet_licsar/licsar_documentation/-/wikis/licsar_settings_leeds>`_) ``lics_checker.py`` at some Leeds server,
+all your flagged data and the output .savedResults file will be stored in folder ``/nfs/a1/insar/lics_check``, and thus we will be able to apply machine learning, once we prepare a long-wished workflow to auto-detect such errors.
+
+The use of the tool is simple:
+#. Run ``lics_checker.py`` (make sure you install required python libraries if you run it from non-leeds-uni computer).
+#. The tool will download list of LiCSAR frames. Select track and frame you want to look into. If this frame was already *checked*, it will not appear in the list, until you untick ``exclude checked``.
+#. Once you click OK, the tool will download existing png previews of wrapped and unwrapped interferograms - the output is shown in the terminal (together with info on output directory).
+Note, we actually notice some connection issues causing download to stuck - if this happens, just press CTRL+C, the program will continue downloading other pairs.
+#. Once downloaded, you will see main screen of the viewer:
+.. image:: images/lics_checker.png
+   :width: 600
+   :alt: Main window of lics_checker
+
+Here, you can flag type of error that you see - either by clicking on its radio button by mouse (by default: set to no error), or pressing key corresponding to the error's number on your keyboard.
+To switch to the next image, either click on the 'Next image' button, or just press ``Right arrow``. Especially using arrows, you can fast-scroll through the interferograms.
+You can also use buttons ``PgDwn``, ``PgUp`` to scroll by 10 interferograms, or ``shift-PgDwn``, ``shift-PgUp`` to scroll by 100.
+After the last interferogram, the program will notify you that it saved the results to a file (see terminal). Also, the results are auto-saved during the process, so your next check will use existing flags.
+To add, clicking on the preview you will see it in larger resolution. And that's all folks, happy flagging!
