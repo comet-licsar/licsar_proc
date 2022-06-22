@@ -169,11 +169,12 @@ Additionally, if you are a student of University of Leeds, and you will run (aft
 all your flagged data and the output .savedResults file will be stored in folder ``/nfs/a1/insar/lics_check``, and thus we will be able to apply machine learning, once we prepare a long-wished workflow to auto-detect such errors.
 
 The use of the tool is simple:
-#. Run ``lics_checker.py`` (make sure you install required python libraries if you run it from non-leeds-uni computer).
-#. The tool will download list of LiCSAR frames. Select track and frame you want to look into. If this frame was already *checked*, it will not appear in the list, until you untick ``exclude checked``.
-#. Once you click OK, the tool will download existing png previews of wrapped and unwrapped interferograms - the output is shown in the terminal (together with info on output directory).
-Note, we actually notice some connection issues causing download to stuck - if this happens, just press CTRL+C, the program will continue downloading other pairs.
-#. Once downloaded, you will see main screen of the viewer:
+
+1. Run ``lics_checker.py`` (make sure you install required python libraries if you run it from non-leeds-uni computer).
+2. The tool will download list of LiCSAR frames. Select track and frame you want to look into. If this frame was already *checked*, it will not appear in the list, until you untick ``exclude checked``.
+3. Once you click OK, the tool will download existing png previews of wrapped and unwrapped interferograms - the output is shown in the terminal (together with info on output directory). Note, we actually notice some connection issues causing download to stuck - if this happens, just press CTRL+C, the program will continue downloading other pairs.
+4. Once downloaded, you will see main screen of the viewer:
+
 .. image:: images/lics_checker.png
    :width: 600
    :alt: Main window of lics_checker
