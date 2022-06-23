@@ -279,6 +279,16 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if cliparea_geo:
         minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
         minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
+        if minclipy > maxclipy:
+            print('you switched min max in crop coordinates (latitude). fixing')
+            tmpcl = minclipy
+            minclipy=maxclipy
+            maxclipy=tmpcl
+        if minclipx > maxclipx:
+            print('you switched min max in crop coordinates (longitude). fixing')
+            tmpcl = minclipx
+            minclipx=maxclipx
+            maxclipx=tmpcl
         # now will clip it - lat is opposite-sorted, so need to slice from max to min in y ... plus 10 pixels on all sides
         ifg = ifg.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
         # not the best here, as pixels might get slightly shifted, but perhaps not that big deal (anyway prev_ramp is 'blurred')
@@ -1691,6 +1701,16 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
     if cliparea_geo:
         minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
         minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
+        if minclipy > maxclipy:
+            print('you switched min max in crop coordinates (latitude). fixing')
+            tmpcl = minclipy
+            minclipy=maxclipy
+            maxclipy=tmpcl
+        if minclipx > maxclipx:
+            print('you switched min max in crop coordinates (longitude). fixing')
+            tmpcl = minclipx
+            minclipx=maxclipx
+            maxclipx=tmpcl
         xrpha = xrpha.sel(x=slice(minclipx, maxclipx), y=slice(maxclipy, minclipy))
     if tolonlat:
         xrpha = xrpha.rename({'x': 'lon','y': 'lat'})
