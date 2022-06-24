@@ -198,10 +198,10 @@ spacing = get_spacing_xr(hgt)
 field='range_pixel_spacing'
 ovalue_rgs = get_param_par(mlipar, field)
 value = str(spacing)
-f.write(field+':     '+value+'\n')
+f.write(field+':     '+value+'  m \n')
 field='azimuth_pixel_spacing'
 ovalue_azs = get_param_par(mlipar, field)
-f.write(field+':     '+value+'\n')
+f.write(field+':     '+value+'  m \n')
 
 # looks:
 field='range_looks'
