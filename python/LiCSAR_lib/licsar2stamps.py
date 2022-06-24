@@ -159,6 +159,23 @@ cmd='cp '+metafile+' '+outdir
 rc=os.system(cmd)
 
 
+# look angle (inc) / heading - probably ok, but needs check:
+e=os.path.join(geoframedir,'metadata',frame+'.geo.E.tif')
+#n=os.path.join(geoframedir,'metadata',frame+'.geo.N.tif') #no need for N
+u=os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
+e = load_tif2xr(e, cliparea_geo=cliparea)
+#n = load_tif2xr(n, cliparea_geo=cliparea)
+u = load_tif2xr(u, cliparea_geo=cliparea)
+
+outheading = os.path.join(outgeodir,'exported.deg.heading')
+outinc = os.path.join(outgeodir,'exported.deg.inc')
+
+theta=np.arcsin(u)
+phi=np.arccos(e/np.cos(theta))
+heading = np.rad2deg(phi)-180
+heading.values.tofile(outheading)
+inc = 90-np.rad2deg(theta)
+inc.values.tofile(outinc)
 
 
 
@@ -255,6 +272,9 @@ for pair in pairset:
         pha = load_tif2xr(difftif, cliparea_geo=cliparea)
         if pha.shape != hgt.shape:
             print('wrong size of ifg '+pair+'. skipping')
+            continue
+        if len(pha.values[~np.isnan(pha.values)])==0:
+            print('all values are nans in ifg '+pair+'. skipping')
             continue
         #print('extracting ifg '+pair)
         coh = load_tif2xr(cohtif, cliparea_geo=cliparea)
