@@ -524,6 +524,9 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 print('Bursts are distributed over more than 1 file, extracting '\
                     'bursts from files and merging...')
                 burstnolist = licsQuery.get_burst_no( framename, date )
+                # 2022-06 update: also try for midnight error (otherwise some bursts may not be found!!!), just this rough way:
+                burstnolist += licsQuery.get_burst_no( framename, t1 )
+                burstnolist += licsQuery.get_burst_no( framename, t2 )
     ############################################################ Sweep through swathes
                     #sw = IW1,IW2, etc.
                 for sw in sorted( 
