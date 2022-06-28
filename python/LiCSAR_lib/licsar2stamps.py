@@ -172,9 +172,15 @@ outinc = os.path.join(outgeodir,'exported.deg.inc')
 
 theta=np.arcsin(u)
 phi=np.arccos(e/np.cos(theta))
-heading = np.rad2deg(phi)-180
+heading = np.rad2deg(phi)-180  #maybe correct, but fast-written
+'''
+The look vector orientation angle is defined as the angle between the East direction and the projection 
+of the look vector on the horizontal surface plan.
+ The orientation angle increases towards north, with the North direction corresponding to PI/2 (and south to -PI/2).
+'''
+#heading = -np.rad2deg(phi) #-180  #
 heading.values.tofile(outheading)
-inc = 90-np.rad2deg(theta)
+inc = 90-np.rad2deg(theta)   #correct
 inc.values.tofile(outinc)
 
 

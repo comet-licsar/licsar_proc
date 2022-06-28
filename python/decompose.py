@@ -14,6 +14,21 @@ import pandas as pd
 importlib.reload(lib)
 
 
+# look angle (inc) / heading - probably ok, but needs check:
+e=os.path.join(geoframedir,'metadata',frame+'.geo.E.tif')
+#n=os.path.join(geoframedir,'metadata',frame+'.geo.N.tif') #no need for N
+u=os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
+e = load_tif2xr(e, cliparea_geo=cliparea)
+#n = load_tif2xr(n, cliparea_geo=cliparea)
+u = load_tif2xr(u, cliparea_geo=cliparea)
+
+theta=np.arcsin(u)
+phi=np.arccos(e/np.cos(theta))
+heading = np.rad2deg(phi)-180
+inc = 90-np.rad2deg(theta)   #correct
+#inc.values.tofile(outinc)
+
+
 
 
 
@@ -43,6 +58,9 @@ export_xr2tif(aa,'U.tif', lonlat=False,dogdal=False)
 import LiCSBAS_io_lib as io
 
 def decompose(asctif, desctif, aschead, deschead, ascinc, descinc):
+    '''Decomposes values from ascending and descending geotiffs, using heading and inc. angle
+    (these might be arrays of same size of just float values)
+    '''
     vel_asc = io.read_geotiff(asctif)
     vel_desc = io.read_geotiff(desctif)
     vel_E = np.zeros(vel_desc.shape)
@@ -56,7 +74,10 @@ def decompose(asctif, desctif, aschead, deschead, ascinc, descinc):
     for ii in np.arange(0,vel_E.shape[0]):
         for jj in np.arange(0,vel_E.shape[1]):
             # create the design matrix
-            G = np.array([[U_asc, E_asc], [U_desc, E_desc]])
+            if type(U_asc)==float:
+                G = np.array([[U_asc, E_asc], [U_desc, E_desc]])
+            else:
+                G = np.array([[U_asc[ii,jj], E_asc[ii,jj]], [U_desc[ii,jj], E_desc[ii,jj]]])
             # velocities
             d = np.array([[vel_asc[ii,jj], vel_desc[ii,jj]]]).T
             # solve the linear system for the Up and East velocities
