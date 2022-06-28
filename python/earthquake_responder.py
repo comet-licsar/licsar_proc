@@ -369,7 +369,9 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
                 selected_ifgs.append(pifg)
     return selected_ifgs
 
-def get_earliest_expected_dt(frame, eventtime, metafile = None):
+def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 12):
+	'''Gets earliest expected acquisition time of given frame for given event (time)
+	'''
     if metafile:
         masterdate = fc.get_master(frame, asdatetime = True, metafile = metafile)
     else:
@@ -378,9 +380,9 @@ def get_earliest_expected_dt(frame, eventtime, metafile = None):
         print('error getting masterdate')
         return False
     daysdiff = (eventtime - masterdate).days
-    noepochs = int(np.floor(daysdiff/6))
-    lastepoch = masterdate+dt.timedelta(days=noepochs*6)
-    expected_dt = lastepoch+dt.timedelta(days=6)
+    noepochs = int(np.floor(daysdiff/revisit_days))
+    lastepoch = masterdate+dt.timedelta(days=noepochs*revisit_days)
+    expected_dt = lastepoch+dt.timedelta(days=revisit_days)
     return expected_dt
 
 
