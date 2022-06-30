@@ -170,7 +170,7 @@ all your flagged data and the output .savedResults file will be stored in folder
 
 The use of the tool is simple:
 
-1. Run ``lics_checker.py`` (you may also `download it from here <../../licsar_proc/python/lics_checker.py>`_, just make sure you install required python libraries if you run it from non-leeds-uni computer).
+1. Run ``lics_checker.py`` (you may also `download it from here <https://github.com/comet-licsar/licsar_proc/blob/main/python/lics_checker.py>`_, just make sure you install required python libraries if you run it from non-leeds-uni computer - just see the import lines in the script).
 2. The tool will download list of LiCSAR frames. Select track and frame you want to look into. If this frame was already *checked*, it will not appear in the list, until you untick ``exclude checked``.
 3. Once you click OK, the tool will download existing png previews of wrapped and unwrapped interferograms - the output is shown in the terminal (together with info on output directory). Note, we actually notice some connection issues causing download to stuck - if this happens, just press CTRL+C, the program will continue downloading other pairs.
 4. Once downloaded, you will see main screen of the viewer:
