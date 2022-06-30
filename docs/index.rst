@@ -3,12 +3,14 @@ LiCSAR proc
 
 This section describes core functionality of LiCSAR system, that is used by LiCSAR FrameBatch system but can be used independently.
 Some parameters of particular use (often not fully integrated in FrameBatch) are discussed here, yet we assume that you work with
-standard project started by licsar_make_frame.sh.
+standard project started by ``licsar_make_frame.sh``. Some more information can be found in LiCSAR Wiki and materials from COMET InSAR workshops.
+
+In principle, LiCSAR_proc codes are built on top of GAMMA software for the main processing (as set of wrappers, enhanced by functions we developed or imported from existing open-source projects, such as `GMT <https://www.generic-mapping-tools.org/>`_, `GDAL <https://www.gdal.org>`_, `Doris <http://doris.tudelft.nl/>`_ and a bunch of python libraries).
 
 Forming LiCSAR interferograms (Sentinel-1)
 ------------------------------
 
-The core processing scripts are also described (in more details, and still valid, although of older date) in https://gitlab.com/comet_licsar/licsar_documentation/-/wikis/ciw2019/licsar
+The core processing scripts are also described (in more details, and still valid, although of older date) in `CIW 2019 LiCSAR Tutorial  <https://gitlab.com/comet_licsar/licsar_documentation/-/wikis/ciw2019/licsar>`_.
 
 1. create SLC files
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -26,7 +28,9 @@ normal use:
   LiCSAR_01_mk_images.py -n -d . -f $frameid -m $m -s $s -e $e -a 4 -r 20
 
 This command would create SLC for given frame in given time period. For this to work, you should be sure the data are existing on disk and are
-ingested to LiCSInfo database (command arch2DB.py). This is done automatically through licsar_make_frame.sh.
+ingested to LiCSInfo database (command arch2DB.py). This is done automatically through ``licsar_make_frame.sh``.
+
+To have it run without frame definitions, see `CIW 2019 LiCSAR Tutorial  <https://gitlab.com/comet_licsar/licsar_documentation/-/wikis/ciw2019/licsar>`_ and explore ``-y``,``-p`` and ``-l`` parameters.
 
 2. coregister to RSLC files
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -41,9 +45,11 @@ normal use:
   m= # reference date, e.g. 20191103
   LiCSAR_02_coreg.py -f $frameid -d . -m $m -i
 
-This command would coregister/resample all files in SLC folder to RSLC directory, for given frame.
+This command would coregister/resample all files in SLC folder to RSLC directory, for given frame. Explore other parameters (see ``-h``) on how to list epochs to process etc. Note that by default, the script would regenerate geo files based on DEM and the primary epoch metadata - this can (and often should) be skipped by ``-i`` parameter.
 The standard constrains apply, for example limit for spectral diversity estimation to combine epochs with up to Btemp=180 days.
 
+
+Note:
 
 In order to force-skip the 180 days limit, use parameter '-E' (some extra tweaks there, EIDP-related, including skip of Btemp check).
 In practice, to connect a cluster of epochs far in time, choose one SLC in that cluster that has no missing bursts (see e.g. their mli preview, or check size),
