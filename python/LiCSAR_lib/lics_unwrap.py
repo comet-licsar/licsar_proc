@@ -1220,24 +1220,29 @@ def create_preview_bin(binfile, width, ftype = 'unw'):
     return outfile
 
 
-def resize_bin(inbin, inwid, inlen, outbin, outwid, outlen, dtype = np.byte, intertype = cv2.INTER_NEAREST):
-    """Use of cv2 to interpolate/resize binary file to new dimensions
+try:
+    def resize_bin(inbin, inwid, inlen, outbin, outwid, outlen, dtype = np.byte, intertype = cv2.INTER_NEAREST):
+        """Use of cv2 to interpolate/resize binary file to new dimensions
 
-    Args:
-        inbin (string): path to the binary file
-        inwid (int): width of the input binary file
-        inlen (int): length of the input binary file
-        outbin (string): path to the output binary file
-        outwid (int): target width of the output binary file
-        outlen (int): target length of the output binary file
-        dtype (string): data type of the binary, e.g. np.byte
-        intertype (string): type of interpolation for cv2, e.g. cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC
-    """
-    a = np.fromfile(inbin, dtype=dtype).reshape(inlen, inwid)
-    #use cv2.INTER_CUBIC for upsample np.float32 data ...
-    #a = a - np.nanmedian(a)
-    out = cv2.resize(a,dsize=(outwid,outlen), interpolation=intertype)
-    out.astype(dtype).tofile(outbin)
+        Args:
+            inbin (string): path to the binary file
+            inwid (int): width of the input binary file
+            inlen (int): length of the input binary file
+            outbin (string): path to the output binary file
+            outwid (int): target width of the output binary file
+            outlen (int): target length of the output binary file
+            dtype (string): data type of the binary, e.g. np.byte
+            intertype (string): type of interpolation for cv2, e.g. cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC
+        """
+        a = np.fromfile(inbin, dtype=dtype).reshape(inlen, inwid)
+        #use cv2.INTER_CUBIC for upsample np.float32 data ...
+        #a = a - np.nanmedian(a)
+        out = cv2.resize(a,dsize=(outwid,outlen), interpolation=intertype)
+        out.astype(dtype).tofile(outbin)
+        return
+except:
+    print('error loading resize_bin function - cascade will not work (install cv2)')
+
 
 
 def RI2cpx(R, I, cpxfile):
