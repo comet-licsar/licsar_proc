@@ -31,7 +31,7 @@ frame2=099A_05416_131313
 frame1=099A_05615_131313
 
 #try mosaicing through SLC_copy
-# SHITTY OUTPUT!!!!!
+# BAD OUTPUT!!!!!
 for d in $epoch1 $epoch2; do
  for frame in $frame1 $frame2; do
   SLC_copy $path_frame/$frame/RSLC/$d/$d.rslc $path_frame/$frame/RSLC/$d/$d.rslc.par $path_frame/$frame/RSLC/$d/$d.rslc.scomplex $path_frame/$frame/RSLC/$d/$d.rslc.scomplex.par 3

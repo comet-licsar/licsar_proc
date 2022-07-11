@@ -399,7 +399,9 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     # ok, i see some high freq signal is still there.. so filtering once more (should also help after the nan filling)
     if smooth:
         print('an extra Gaussian smoothing here')
-        ifg_ml = filter_ifg_ml(ifg_ml)
+        #ifg_ml = filter_ifg_ml(ifg_ml)
+        # 2022/07: adding superstrong filter
+        ifg_ml = filter_ifg_ml(ifg_ml, sigma = 4, trunc = 8)
         ifg_ml['pha'] = ifg_ml['gauss_pha']
     #exporting for snaphu
     #normalise mag from the final pha
@@ -1139,13 +1141,15 @@ def filter_cpx_gauss(ifg_ml, sigma = 2, trunc = 4):
     Returns:
         xr.Dataarray: filtered complex numbers dataarray
     """
-    R = np.real(ifg_ml.cpx.values)
-    I = np.imag(ifg_ml.cpx.values)
+    # tried with R, I separately --- EXACT same result as if using cpx numbers...
+    #R = np.real(ifg_ml.cpx.values)
+    #I = np.imag(ifg_ml.cpx.values)
     #
-    gR = filter_nan_gaussian_conserving(R, sigma=sigma, trunc=trunc)
-    gI = filter_nan_gaussian_conserving(I, sigma=sigma, trunc=trunc)
+    #gR = filter_nan_gaussian_conserving(R, sigma=sigma, trunc=trunc)
+    #gI = filter_nan_gaussian_conserving(I, sigma=sigma, trunc=trunc)
     #
-    gauss_cpx = gR + 1j*gI
+    #gauss_cpx = gR + 1j*gI
+    gauss_cpx = filter_nan_gaussian_conserving(ifg_ml.cpx.values, sigma=sigma, trunc=trunc)
     gauss_xr = ifg_ml['cpx'].copy(deep=True)
     #
     gauss_xr.values = gauss_cpx
@@ -1797,14 +1801,14 @@ def detrend_ifg_xr(xrda, isphase=True, return_correction = False, maxfringes = 4
         return da
 
     
-def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False):  #, rotate = False):
+def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, sigma = 1, trunc = 2):  #, rotate = False):
     """Normalises interferogram and performs Gaussian filtering (expects proper structure of the ifg dataset).
     """
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
     ifg_ml['cpx'].values = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
     print('filter using (adapted) gauss filter')
-    ifg_ml['gauss_cpx'] = filter_cpx_gauss(ifg_ml, sigma = 1, trunc = 2)
+    ifg_ml['gauss_cpx'] = filter_cpx_gauss(ifg_ml, sigma = sigma, trunc = trunc)
     ifg_ml['gauss_pha'] = 0*ifg_ml['pha']
     ifg_ml['gauss_pha'].values = np.angle(ifg_ml.gauss_cpx.values)
     #use magnitude after filtering as coherence
