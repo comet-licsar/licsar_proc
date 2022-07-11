@@ -130,6 +130,12 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
     return ifg_ml
 
 
+def load_tif(frame,pair,dtype='unw',cliparea_geo=None):
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+    infile = os.path.join(geoifgdir,pair+'.geo.'+dtype+'.tif')
+    return  load_tif2xr(infile,cliparea_geo=cliparea_geo)
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
@@ -1450,7 +1456,11 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
 def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=None):
     # first unwrap the block if conditions are ok
     toret = None
-    if hgt[hgt!=0].size == 0:
+    try:
+        hgt=hgt.values
+    except:
+        print('ok, hgt was already np')
+    if hgt[hgt != 0].size == 0:
         toret = np.nan
     if not toret:
         if np.max(hgt[hgt!=0]) - np.min(hgt[hgt!=0]) < 100:
@@ -1488,7 +1498,7 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
             tmpdir = os.path.join(procdir, str(block_id[0])+'_'+str(block_id[1]))
             if not os.path.exists(tmpdir):
                 os.mkdir(tmpdir)
-            unwr = unwrap_np(cpx, coh, defomax = 0.3, tmpdir=tmpdir)
+            unwr = unwrap_np(cpx.values, coh.values, defomax = 0.3, tmpdir=tmpdir)
             # ok, then correlate - and if higher then 0.4, do linear regression to get rad/m
             try:
                 x = np.ravel(hgt)
@@ -1556,6 +1566,8 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd(), mask = False, deltemp
             mask.astype(np.byte).tofile(binmask)
         except:
             binmask=None
+    else:
+        binmask=None
     bincoh = os.path.join(tmpdir,'coh.bin')
     #binR = os.path.join(tmpdir,'R.bin')
     #binI = os.path.join(tmpdir,'I.bin')
