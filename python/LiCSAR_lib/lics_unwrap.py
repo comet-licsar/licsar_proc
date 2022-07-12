@@ -275,6 +275,7 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     cpx = np.complex64(magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values))
     #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)
     unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True)
+    unw = filter_nan_gaussian_conserving(unw, sigma=4, trunc=4) # a stronger filter should help...
     ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
     ifg_ml['origpha'].values = wrap2phase(ifg_ml['origpha']-unw)
     ifg_ml['pha'].values = ifg_ml['origpha'].values  # needed in later stage
