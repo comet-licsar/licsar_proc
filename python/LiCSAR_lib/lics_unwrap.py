@@ -59,6 +59,8 @@ if not in_ipynb():
         print('cv2 not loaded - cascade will not work')
 else:
     print('at JASMIN notebook service, cv2 does not load - cascade will not work')
+    print('setting pyproj data directory')
+    pyproj.datadir.set_data_dir('/gws/smf/j04/nceo_geohazards/software/mambalics/share/proj')
 
 
 try:
@@ -199,7 +201,7 @@ def load_ifg(frame, pair, unw=True, dolocal=False):
     # to load orig unw_file
     if unw:
         unw_file = os.path.join(geoifgdir,pair+'.geo.unw.tif')
-        incoh = load_tif2xr(unw_file)
+        inunw = load_tif2xr(unw_file)
         ifg['unw'] = ifg['pha']
         ifg['unw'].values = inunw.values
     ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
@@ -255,7 +257,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
     try:
-        ifg = load_ifg(frame, pair, dolocal=dolocal)
+        ifg = load_ifg(frame, pair, unw=False, dolocal=dolocal)
     except:
         print('error in loading data')
         return False
