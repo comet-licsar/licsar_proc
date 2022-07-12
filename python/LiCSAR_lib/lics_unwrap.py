@@ -60,6 +60,7 @@ if not in_ipynb():
 else:
     print('at JASMIN notebook service, cv2 does not load - cascade will not work')
     print('setting pyproj data directory')
+    import pyproj
     pyproj.datadir.set_data_dir('/gws/smf/j04/nceo_geohazards/software/mambalics/share/proj')
 
 
