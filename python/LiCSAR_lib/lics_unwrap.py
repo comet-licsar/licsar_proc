@@ -279,6 +279,8 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     ifg_ml['origpha'].values = wrap2phase(ifg_ml['origpha']-unw)
     ifg_ml['pha'].values = ifg_ml['origpha'].values  # needed in later stage
     ifg_ml['cpx'].values = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha.values)
+    ifg_ml['unwlow'] = ifg_ml['pha']
+    ifg_ml['unwlow'].values = unw
     return ifg_ml
 
 
