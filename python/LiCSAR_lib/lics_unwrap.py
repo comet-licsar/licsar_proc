@@ -233,8 +233,57 @@ def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
     return ifg
 
 
+def gaussfill(dapha, sigma=2):
+    tempar_mag1 = np.ones_like(dapha)
+    kernel = Gaussian2DKernel(x_stddev=sigma)
+    cpxarr = magpha2RI_array(tempar_mag1, dapha.values)
+    i=1
+    while np.max(np.isnan(dapha.values)):
+        i = i+1
+        print('gapfilling iteration '+str(i))
+        if i>3:
+            # no need to add more heavy iterations
+            print('filling by nearest neighbours')
+            dapha.values = interpolate_nans(dapha.values, method='nearest')
+        else:
+            tofill = magpha2RI_array(tempar_mag1, dapha.values)
+            tofillR = np.real(tofill)
+            tofillI = np.imag(tofill)
+            filledR = interpolate_replace_nans(tofillR, kernel)
+            filledI = interpolate_replace_nans(tofillI, kernel)
+            dapha.values = np.angle(filledR + 1j*filledI)
+    # but i need to finally smooth it a bit
+    cpxarr = magpha2RI_array(tempar_mag1, dapha.values)
+    gauss_cpx = filter_nan_gaussian_conserving(cpxarr, sigma=sigma*1.5, trunc=4)
+    dapha.values = np.angle(gauss_cpx)
+    return dapha
+
+
+def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
+    radius = 15*get_resolution(ifg_ml)  #in 30x30 window.. should be ok to do
+    ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
+    ifg_ml['pha'] = ifg_ml['gauss_pha']  # pha is to unwrap
+    mask = (ifg_ml.gauss_coh>thres).fillna(0).values
+    #dapha = ifg_ml.pha.where(mask*ifg_ml.mask_full != 0)
+    dapha = ifg_ml.pha.where(mask != 0)
+    ifg_ml['pha'].values = gaussfill(dapha, sigma=2)   # low pass filter
+    # unwrap and reduce that
+    coh = ifg_ml.coh.fillna(0).values
+    tempar_mag1 = np.ones_like(ifg_ml.pha)
+    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
+    cpx = np.complex64(magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values))
+    #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)
+    unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True)
+    ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
+    ifg_ml['origpha'].values = wrap2phase(ifg_ml['origpha']-unw)
+    ifg_ml['pha'].values = ifg_ml['origpha'].values  # needed in later stage
+    ifg_ml['cpx'].values = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha.values)
+    return ifg_ml
+
+
+
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.35, smooth = False, defomax = 0.3,
+        ml = 10, fillby = 'gauss', thres = 0.35, smooth = False, lowpass = False, defomax = 0.3,
         hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = True, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
@@ -387,13 +436,16 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     #ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).where(ifg_ml.coh > thres).fillna(0)
     #here the origpha is just before the gapfilling filter
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
+    if lowpass:
+        # now we have the high gradients masked and filled. let's do longwave filtering also:
+        ifg_ml = lowpass_gauss(ifg_ml)
     #try without modal filter..
     #ifg_ml = filter_mask_modal(ifg_ml, 'mask_coh', 'mask_coh', 8)
     print('interpolate coh-based masked areas of gauss pha')
     #tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
     if fillby == 'gauss':
         # keep smooth always on - much better...
-        if smooth:
+        if smooth and not lowpass:
             ifg_ml['pha'] = ifg_ml.gauss_pha
         #trying astropy approach now:
         print('filling through Gaussian kernel')
@@ -451,13 +503,15 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         tofillpha = ifg_ml.pha.where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
         ifg_ml['pha'].values = interpolate_nans(tofillpha.values, method='nearest')
         #ifg_ml['gauss_pha'] = ifg_ml['gauss_pha'].fillna(0)
-    print('debug: now pha is fine-filled layer but with some noise at edges - why is that? not resolved. so adding one extra gauss filter')
+    #print('debug: now pha is fine-filled layer but with some noise at edges - why is that? not resolved. so adding one extra gauss filter')
     # ok, i see some high freq signal is still there.. so filtering once more (should also help after the nan filling)
     if smooth:
-        print('an extra Gaussian smoothing here')
         #ifg_ml = filter_ifg_ml(ifg_ml)
-        # 2022/07: adding strong filter, say radius 1.5 km
-        ifg_ml = filter_ifg_ml(ifg_ml, radius = 1500)
+        # 2022/07: adding strong filter, say radius 1.5 km ... or... rather 15 pixels - this way it should be relatively long-wave signal
+        radius = 15*get_resolution(ifg_ml)
+        print('an extra Gaussian smoothing here, of '+str(int(radius))+' m radius')
+        #ifg_ml = filter_ifg_ml(ifg_ml, radius = 1500)
+        ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
         ifg_ml['pha'] = ifg_ml['gauss_pha']
     #exporting for snaphu
     #normalise mag from the final pha
@@ -553,8 +607,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binI)
         RI2cpx(r, i, binCPX)
         #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax/2)
-        # ok, just hold the defomax down - discontinuities are not wanted or expected here
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0, printout = False)
+        # ok, just hold the defomax low - discontinuities are not wanted or expected here
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.3, printout = False)
         unw1 = np.fromfile(binfile,dtype=dtype)
         unw1 = unw1.reshape(ifg_ml.pha.shape)
         ifg_ml[daname] = ifg_ml['pha'] #.copy()
@@ -1606,7 +1660,7 @@ def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.getcwd()):
     return ifg
 
 
-def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd(), mask = False, deltemp = True):
+def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp'), mask = False, deltemp = True):
     '''unwraps given numpy array
     
     Args:
@@ -1622,7 +1676,7 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd(), mask = False, deltemp
     '''
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
-    if mask:
+    if type(mask) != type(False):
         try:
             binmask= os.path.join(tmpdir,'mask.bin')
             mask.astype(np.byte).tofile(binmask)
@@ -1643,7 +1697,7 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.getcwd(), mask = False, deltemp
     #and coh
     coh.astype(np.float32).tofile(bincoh)
     # unwrap it
-    width = coh.shape[0]
+    width = coh.shape[1]
     #with nostdout():
     main_unwrap(binCPX, bincoh, maskbin = binmask, outunwbin = unwbin, width = width, defomax = defomax, printout = False)
     # and load it back
