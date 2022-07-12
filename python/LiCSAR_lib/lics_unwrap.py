@@ -355,6 +355,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
     ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug)
+    ifg_ml['consistence'] = ifg_ml['gauss_coh'].copy()
     width = len(ifg_ml.lon)
     length = len(ifg_ml.lat)
     #here we should keep the (not wrapped) phase we remove due to corrections - here, heights, and gacos
@@ -455,8 +456,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if smooth:
         print('an extra Gaussian smoothing here')
         #ifg_ml = filter_ifg_ml(ifg_ml)
-        # 2022/07: adding strong filter, say radius 1 km
-        ifg_ml = filter_ifg_ml(ifg_ml, radius = 1000)
+        # 2022/07: adding strong filter, say radius 1.5 km
+        ifg_ml = filter_ifg_ml(ifg_ml, radius = 1500)
         ifg_ml['pha'] = ifg_ml['gauss_pha']
     #exporting for snaphu
     #normalise mag from the final pha
