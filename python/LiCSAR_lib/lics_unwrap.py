@@ -266,7 +266,8 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     mask = (ifg_ml.gauss_coh>thres).fillna(0).values
     #dapha = ifg_ml.pha.where(mask*ifg_ml.mask_full != 0)
     dapha = ifg_ml.pha.where(mask != 0)
-    ifg_ml['pha'].values = gaussfill(dapha, sigma=2)   # low pass filter
+    ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
+    #ifg_ml['pha'].values = gaussfill(dapha, sigma=2)   # low pass filter   # gives ugly results
     # unwrap and reduce that
     coh = ifg_ml.coh.fillna(0).values
     tempar_mag1 = np.ones_like(ifg_ml.pha)
