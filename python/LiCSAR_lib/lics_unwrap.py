@@ -164,7 +164,7 @@ def get_resolution(ifg, in_m=True):
         return float(resdeg)
 
 
-def load_ifg(frame, pair, unw=True, dolocal=False):
+def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     if dolocal:
@@ -215,6 +215,21 @@ def load_ifg(frame, pair, unw=True, dolocal=False):
         except:
             print('ERROR in importing heights!')
             hgtcorr = False
+    if cliparea_geo:
+        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
+        minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
+        if minclipy > maxclipy:
+            print('you switched min max in crop coordinates (latitude). fixing')
+            tmpcl = minclipy
+            minclipy=maxclipy
+            maxclipy=tmpcl
+        if minclipx > maxclipx:
+            print('you switched min max in crop coordinates (longitude). fixing')
+            tmpcl = minclipx
+            minclipx=maxclipx
+            maxclipx=tmpcl
+        # now will clip it - lat is opposite-sorted, so need to slice from max to min in y
+        ifg = ifg.sel(lon=slice(minclipx, maxclipx), lat=slice(maxclipy, minclipy))
     return ifg
 
 
@@ -1088,6 +1103,9 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     else:
         # that part takes ages and it is not that big improvement..
         calc_coh_from_delta = False
+    # calculate gauss_coh, as a measure of spatial consistence
+    # ok, but let's have the radius of Gaussian kernel tightier - just 10x10 pixels, i.e.
+    radius = 5*get_resolution(ifg_ml)
     ifg_ml = filter_ifg_ml(ifg_ml, calc_coh_from_delta = calc_coh_from_delta)
     if not keep_coh_debug:
         ifg_ml['coh'] = ifg_ml['orig_coh']
@@ -1859,6 +1877,8 @@ def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, radius = 1000, trunc = 4)
     sigma = (radius_px - 1.5)/trunc
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
+    if 'cpx' not in ifg_ml:
+        ifg_ml['cpx'] = ifg_ml['pha'].copy()
     ifg_ml['cpx'].values = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
     print('filter using (adapted) gauss filter')
     ifg_ml['gauss_cpx'] = filter_cpx_gauss(ifg_ml, sigma = sigma, trunc = trunc)
