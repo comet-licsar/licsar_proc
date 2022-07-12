@@ -42,11 +42,23 @@ import time
 import matplotlib.pyplot as plt
 
 
-# some extra imports, used by additional functions
-try:
-    import cv2
-except:
-    print('cv2 not loaded - cascade will not work')
+# avoid cv2 in ipynb
+def in_ipynb():
+    try:
+        cfg = get_ipython().config 
+        return True
+    except NameError:
+        return False
+
+
+if not in_ipynb():
+    # some extra imports, used by additional functions
+    try:
+        import cv2
+    except:
+        print('cv2 not loaded - cascade will not work')
+else:
+    print('at JASMIN notebook service, cv2 does not load - cascade will not work')
 
 
 try:
@@ -149,6 +161,60 @@ def get_resolution(ifg, in_m=True):
         return float(resdeg)
 
 
+def load_ifg(frame, pair, unw=True, dolocal=False):
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    if dolocal:
+        geoifgdir = os.path.join('GEOC',pair)
+    else:
+        geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+    #orig files
+    # will use only the filtered ifgs now..
+    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
+    coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
+    landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
+    hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
+    # load the files
+    inpha = load_tif2xr(ifg_pha_file)
+    incoh = load_tif2xr(coh_file)
+    incoh = incoh/255
+    inmask = incoh.copy(deep=True)
+    inmask.values = np.byte(incoh > 0)
+    if os.path.exists(landmask_file):
+        landmask = load_tif2xr(landmask_file)
+        #landmask = xr.open_dataset(landmasknc)
+        inmask.values = landmask.values * inmask.values
+    else:
+        landmask = None
+    # create datacube
+    ifg = xr.Dataset()
+    ifg['pha'] = inpha
+    ifg['coh'] = ifg['pha']
+    ifg['coh'].values = incoh.values
+    ifg['mask'] = ifg['pha']
+    ifg['mask'].values = inmask.values
+    # just to clean from memory
+    inpha=''
+    incoh=''
+    # to load orig unw_file
+    if unw:
+        unw_file = os.path.join(geoifgdir,pair+'.geo.unw.tif')
+        incoh = load_tif2xr(unw_file)
+        ifg['unw'] = ifg['pha']
+        ifg['unw'].values = inunw.values
+    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
+    # including hgt anyway - would be useful later
+    if os.path.exists(hgtfile):
+        try:
+            inhgt = load_tif2xr(hgtfile)
+            ifg['hgt'] = ifg['pha']
+            ifg['hgt'].values = inhgt.values
+        except:
+            print('ERROR in importing heights!')
+            hgtcorr = False
+    return ifg
+
+
 def process_ifg(frame, pair, procdir = os.getcwd(), 
         ml = 10, fillby = 'gauss', thres = 0.35, smooth = False, defomax = 0.3,
         hgtcorr = False, gacoscorr = True, pre_detrend = True,
@@ -188,12 +254,13 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     Returns:
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
-    pubdir = os.environ['LiCSAR_public']
-    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
-    if dolocal:
-        geoifgdir = os.path.join('GEOC',pair)
-    else:
-        geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+    try:
+        ifg = load_ifg(frame, pair, dolocal=dolocal)
+    except:
+        print('error in loading data')
+        return False
+    
+    # prepare tmp dir structure
     tmpdir = os.path.join(procdir,pair,'temp_'+str(ml))
     tmpgendir = os.path.join(procdir,pair,'temp_gen')
     if not os.path.exists(os.path.join(procdir,pair)):
@@ -202,14 +269,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         os.mkdir(tmpdir)
     if not os.path.exists(tmpgendir):
         os.mkdir(tmpgendir)
-    #orig files
-    # will use only the filtered ifgs now..
-    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
-    coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
-    landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
-    hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
-    # to load orig unw_file
-    #unw_file = os.path.join(geoifgdir,pair+'.geo.unw.tif')
+    
     # do gacos if exists
     if gacoscorr:
         gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
@@ -224,52 +284,18 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         print('GACOS data found, using to improve unwrapping')
         #ingacos = xr.open_dataset(gacoscorrfile)
         ingacos = load_tif2xr(gacoscorrfile)
+        ifg['gacos'] = ifg.pha
+        ifg['gacos'].values = ingacos.values
     else:
         gacoscorr = False
-    # prepare input dataset and load
-    #use orig ifg and coh
-    inpha = load_tif2xr(ifg_pha_file)
-    incoh = load_tif2xr(coh_file)
-    incoh = incoh/255
-    inmask = incoh.copy(deep=True)
-    inmask.values = np.byte(incoh > 0)
-    if os.path.exists(landmask_file):
-        landmask = load_tif2xr(landmask_file)
-        #landmask = xr.open_dataset(landmasknc)
-        inmask.values = landmask.values * inmask.values
-    else:
-        landmask = None
-    # to get all in on encapsulement (with coords..)
-    ifg = xr.Dataset()
-    ifg['pha'] = inpha
-    ifg['coh'] = ifg['pha']
-    ifg['coh'].values = incoh.values
-    ifg['mask'] = ifg['pha']
-    ifg['mask'].values = inmask.values
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
     if ml == 1:
         cohthres = 0.15
         ifg['mask'] = ifg['mask'] * ifg['mask'].where(ifg['coh'] < cohthres).fillna(1)
-    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
-    #if hgtcorr:
-    # including hgt anyway - would be useful later
-    if os.path.exists(hgtfile):
-        try:
-            inhgt = load_tif2xr(hgtfile)
-            ifg['hgt'] = ifg['pha']
-            ifg['hgt'].values = inhgt.values
-        except:
+    if hgtcorr:
+        if not 'hgt' in ifg:
             print('ERROR in importing heights!')
             hgtcorr = False
-    if gacoscorr:
-        ifg['gacos'] = ifg.pha
-        ifg['gacos'].values = ingacos.values
-    # erase from memory
-    inpha = ''
-    incoh = ''
-    inmask = ''
-    ingacos = ''
-    inhgt = ''
     # now doing multilooking, using coh as mag...
     #make complex from coh and pha
     ifg['cpx'] = ifg.coh.copy()
@@ -289,9 +315,6 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if 'lat' not in ifg.coords:
         print('warning - perhaps old xarray version - trying anyway')
         ifg = ifg.rename_dims({'x':'lon','y':'lat'})
-    #ifg_ml = multilook_by_gauss(ifg, ml)
-    # result more or less same, but much more economic way in memory..
-    resdeg = np.abs(ifg.lat[1]-ifg.lat[0])
     # now crop if needed:
     if cliparea_geo:
         minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
@@ -307,6 +330,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             minclipx=maxclipx
             maxclipx=tmpcl
         # now will clip it - lat is opposite-sorted, so need to slice from max to min in y ... plus 10 pixels on all sides
+        resdeg = get_resolution(ifg, in_m=False)
         ifg = ifg.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
         # not the best here, as pixels might get slightly shifted, but perhaps not that big deal (anyway prev_ramp is 'blurred')
         if not type(prev_ramp) == type(None):
@@ -326,14 +350,16 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     ifg_ml['mask_coh'] = mask_gauss.fillna(0)
     # additionally remove islands of size over 7x7 km
     # how many pixels are in 7x7 km region?
-    lenthres = 7 # km
+    lenthres = 7000 # m
     # resolution of orig ifg is expected 0.1 km
+    mlres = get_resolution(ifg_ml, in_m=True)
+    pixels = int(round(lenthres/mlres))
     #origres = 0.1
-    resdeg = np.abs(ifg.lat[1]-ifg.lat[0])
-    latres = 111.32 * np.cos(np.radians(ifg_ml.lat.mean()))
-    origres = float(latres * resdeg) # in km
+    #resdeg = np.abs(ifg.lat[1]-ifg.lat[0])
+    #latres = 111.32 * np.cos(np.radians(ifg_ml.lat.mean()))
+    #origres = float(latres * resdeg) # in km
     #
-    pixels = int(round(lenthres/origres/ml))
+    #pixels = int(round(lenthres/origres/ml))
     pixelsno = pixels**2
     npa = ifg_ml['mask_coh'].where(ifg_ml['mask_coh']==1).where(ifg_ml['mask']==1).values
     ifg_ml['mask_full'] = ifg_ml['mask_coh']
@@ -602,7 +628,6 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         #except:
         #    print('ERROR removing the nc file - something wrong with export')
     return ifg_ml
-
 
 
 def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False, 
