@@ -138,6 +138,17 @@ def load_tif(frame,pair,dtype='unw',cliparea_geo=None):
     return  load_tif2xr(infile,cliparea_geo=cliparea_geo)
 
 
+def get_resolution(ifg, in_m=True):
+    """Gets resolution of the xr.dataset (or dataarray), either in metres or degrees
+    """
+    resdeg = (np.abs(ifg.lat[1]-ifg.lat[0])+np.abs(ifg.lon[1]-ifg.lon[0]))/2
+    if in_m:
+        latres = 111.32 * np.cos(np.radians(ifg.lat.mean())) * 1000 # in m
+        return float(latres * resdeg)
+    else:
+        return float(resdeg)
+
+
 def process_ifg(frame, pair, procdir = os.getcwd(), 
         ml = 10, fillby = 'gauss', thres = 0.35, smooth = False, defomax = 0.3,
         hgtcorr = False, gacoscorr = True, pre_detrend = True,
@@ -400,8 +411,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if smooth:
         print('an extra Gaussian smoothing here')
         #ifg_ml = filter_ifg_ml(ifg_ml)
-        # 2022/07: adding superstrong filter
-        ifg_ml = filter_ifg_ml(ifg_ml, sigma = 4, trunc = 8)
+        # 2022/07: adding strong filter, say radius 1 km
+        ifg_ml = filter_ifg_ml(ifg_ml, radius = 1000)
         ifg_ml['pha'] = ifg_ml['gauss_pha']
     #exporting for snaphu
     #normalise mag from the final pha
@@ -1801,9 +1812,23 @@ def detrend_ifg_xr(xrda, isphase=True, return_correction = False, maxfringes = 4
         return da
 
     
-def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, sigma = 1, trunc = 2):  #, rotate = False):
+def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, radius = 1000, trunc = 4): #, sigma = 1, trunc = 2):  #, rotate = False):
     """Normalises interferogram and performs Gaussian filtering (expects proper structure of the ifg dataset).
+    
+    Args:
+        ifg_ml (xarray.Dataset): input xr dataset (interferogram) - must contain ``pha`` data_var
+        calc_coh_from_delta (boolean): will calculate local variance and use to improve ``gauss_coh`` measure
+        radius (float): length of the Gaussian window in metres
+        trunc (int): truncation of std dev for Gaussian window, by default trunc=4 and this is recommended for the shape
+    Returns:
+        xarray.Dataset: dataset that includes filtering results (as ``gauss_pha``, ``gauss_coh``, ``gauss_cpx``)
     """
+    # get sigma, trunc from radius [m], converted to pixels using resolution
+    resolution = get_resolution(ifg_ml, in_m=True)
+    radius_px = radius/resolution
+    #width_filter = 2*int( trunc*sigma + 0.5) +1  # definition within scipy ndimage filters.py - gaussian_filter1d
+    #width_filter = 2*radius_px
+    sigma = (radius_px - 1.5)/trunc
     #normalise mag
     tempar_mag1 = np.ones_like(ifg_ml.pha)
     ifg_ml['cpx'].values = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
