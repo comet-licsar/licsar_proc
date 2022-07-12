@@ -1107,7 +1107,7 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     # calculate gauss_coh, as a measure of spatial consistence
     # ok, but let's have the radius of Gaussian kernel tightier - just 10x10 pixels, i.e.
     radius = 5*get_resolution(ifg_ml)
-    ifg_ml = filter_ifg_ml(ifg_ml, calc_coh_from_delta = calc_coh_from_delta)
+    ifg_ml = filter_ifg_ml(ifg_ml, calc_coh_from_delta = calc_coh_from_delta, radius = radius)
     if not keep_coh_debug:
         ifg_ml['coh'] = ifg_ml['orig_coh']
         ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
