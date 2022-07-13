@@ -139,147 +139,6 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
     return ifg_ml
 
 
-def load_tif(frame,pair,dtype='unw',cliparea_geo=None):
-    pubdir = os.environ['LiCSAR_public']
-    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
-    geoifgdir = os.path.join(geoframedir,'interferograms',pair)
-    infile = os.path.join(geoifgdir,pair+'.geo.'+dtype+'.tif')
-    return  load_tif2xr(infile,cliparea_geo=cliparea_geo)
-
-
-def get_resolution(ifg, in_m=True):
-    """Gets resolution of the xr.dataset (or dataarray), either in metres or degrees
-    """
-    resdeg = (np.abs(ifg.lat[1]-ifg.lat[0])+np.abs(ifg.lon[1]-ifg.lon[0]))/2
-    if in_m:
-        latres = 111.32 * np.cos(np.radians(ifg.lat.mean())) * 1000 # in m
-        return float(latres * resdeg)
-    else:
-        return float(resdeg)
-
-
-def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
-    pubdir = os.environ['LiCSAR_public']
-    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
-    if dolocal:
-        geoifgdir = os.path.join('GEOC',pair)
-    else:
-        geoifgdir = os.path.join(geoframedir,'interferograms',pair)
-    #orig files
-    # will use only the filtered ifgs now..
-    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
-    coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
-    landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
-    hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
-    # load the files
-    inpha = load_tif2xr(ifg_pha_file)
-    incoh = load_tif2xr(coh_file)
-    incoh.values = incoh.values/255
-    inmask = incoh.copy(deep=True)
-    inmask.values = np.byte(incoh > 0)
-    if os.path.exists(landmask_file):
-        landmask = load_tif2xr(landmask_file)
-        #landmask = xr.open_dataset(landmasknc)
-        inmask.values = landmask.values * inmask.values
-    else:
-        landmask = None
-    # create datacube
-    ifg = xr.Dataset()
-    ifg['pha'] = inpha
-    ifg['coh'] = ifg['pha']
-    ifg['coh'].values = incoh.values
-    ifg['mask'] = ifg['pha']
-    ifg['mask'].values = inmask.values
-    # just to clean from memory
-    inpha=''
-    incoh=''
-    # to load orig unw_file
-    if unw:
-        unw_file = os.path.join(geoifgdir,pair+'.geo.unw.tif')
-        inunw = load_tif2xr(unw_file)
-        ifg['unw'] = ifg['pha']
-        ifg['unw'].values = inunw.values
-    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
-    # including hgt anyway - would be useful later
-    if os.path.exists(hgtfile):
-        try:
-            inhgt = load_tif2xr(hgtfile)
-            ifg['hgt'] = ifg['pha']
-            ifg['hgt'].values = inhgt.values
-        except:
-            print('ERROR in importing heights!')
-            hgtcorr = False
-    if cliparea_geo:
-        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
-        minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
-        if minclipy > maxclipy:
-            print('you switched min max in crop coordinates (latitude). fixing')
-            tmpcl = minclipy
-            minclipy=maxclipy
-            maxclipy=tmpcl
-        if minclipx > maxclipx:
-            print('you switched min max in crop coordinates (longitude). fixing')
-            tmpcl = minclipx
-            minclipx=maxclipx
-            maxclipx=tmpcl
-        # now will clip it - lat is opposite-sorted, so need to slice from max to min in y
-        ifg = ifg.sel(lon=slice(minclipx, maxclipx), lat=slice(maxclipy, minclipy))
-    return ifg
-
-
-def gaussfill(dapha, sigma=2):
-    tempar_mag1 = np.ones_like(dapha)
-    kernel = Gaussian2DKernel(x_stddev=sigma)
-    cpxarr = magpha2RI_array(tempar_mag1, dapha.values)
-    i=1
-    while np.max(np.isnan(dapha.values)):
-        i = i+1
-        print('gapfilling iteration '+str(i))
-        if i>3:
-            # no need to add more heavy iterations
-            print('filling by nearest neighbours')
-            dapha.values = interpolate_nans(dapha.values, method='nearest')
-        else:
-            tofill = magpha2RI_array(tempar_mag1, dapha.values)
-            tofillR = np.real(tofill)
-            tofillI = np.imag(tofill)
-            filledR = interpolate_replace_nans(tofillR, kernel)
-            filledI = interpolate_replace_nans(tofillI, kernel)
-            dapha.values = np.angle(filledR + 1j*filledI)
-    # but i need to finally smooth it a bit
-    cpxarr = magpha2RI_array(tempar_mag1, dapha.values)
-    gauss_cpx = filter_nan_gaussian_conserving(cpxarr, sigma=sigma*1.5, trunc=4)
-    dapha.values = np.angle(gauss_cpx)
-    return dapha
-
-
-def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
-    radius = 15*get_resolution(ifg_ml)  #in 30x30 window.. should be ok to do
-    ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
-    ifg_ml['pha'] = ifg_ml['gauss_pha']  # pha is to unwrap
-    mask = (ifg_ml.gauss_coh>thres).fillna(0).values
-    #dapha = ifg_ml.pha.where(mask*ifg_ml.mask_full != 0)
-    dapha = ifg_ml.pha.where(mask != 0)
-    ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
-    #ifg_ml['pha'].values = gaussfill(dapha, sigma=2)   # low pass filter   # gives ugly results
-    # unwrap and reduce that
-    coh = ifg_ml.coh.fillna(0).values
-    tempar_mag1 = np.ones_like(ifg_ml.pha)
-    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
-    cpx = np.complex64(magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values))
-    #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)
-    unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True)
-    unw = filter_nan_gaussian_conserving(unw, sigma=4, trunc=4) # a stronger filter should help...
-    ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
-    ifg_ml['origpha'].values = wrap2phase(ifg_ml['origpha']-unw)
-    ifg_ml['pha'].values = ifg_ml['origpha'].values  # needed in later stage
-    ifg_ml['cpx'].values = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha.values)
-    ifg_ml['unwlow'] = ifg_ml['pha']
-    ifg_ml['unwlow'].values = unw
-    return ifg_ml
-
-
-
 def process_ifg(frame, pair, procdir = os.getcwd(), 
         ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, defomax = 0.3,
         hgtcorr = False, gacoscorr = True, pre_detrend = True,
@@ -296,6 +155,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         fillby (string): algorithm to fill gaps. use one of values: ``'gauss'``, ``'nearest'``, ``'none'`` (where ``'none'`` would only fill NaNs by zeroes)
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
         smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
+        lowpass (boolean): additional large-window Gaussian low-pass filtering (recommended to use)
         defomax (float): parameter to snaphu for maximum deformation in rad per 2pi cycle (DEFOMAX_CYCLE)
         
         hgtcorr (boolean): switch to perform correction for height-phase correlation
@@ -1174,6 +1034,147 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
 ################################################################################
 # Helping functions
 ################################################################################
+
+
+def load_tif(frame,pair,dtype='unw',cliparea_geo=None):
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+    infile = os.path.join(geoifgdir,pair+'.geo.'+dtype+'.tif')
+    return  load_tif2xr(infile,cliparea_geo=cliparea_geo)
+
+
+def get_resolution(ifg, in_m=True):
+    """Gets resolution of the xr.dataset (or dataarray), either in metres or degrees
+    """
+    resdeg = (np.abs(ifg.lat[1]-ifg.lat[0])+np.abs(ifg.lon[1]-ifg.lon[0]))/2
+    if in_m:
+        latres = 111.32 * np.cos(np.radians(ifg.lat.mean())) * 1000 # in m
+        return float(latres * resdeg)
+    else:
+        return float(resdeg)
+
+
+def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    if dolocal:
+        geoifgdir = os.path.join('GEOC',pair)
+    else:
+        geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+    #orig files
+    # will use only the filtered ifgs now..
+    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
+    coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
+    landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
+    hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
+    # load the files
+    inpha = load_tif2xr(ifg_pha_file)
+    incoh = load_tif2xr(coh_file)
+    incoh.values = incoh.values/255
+    inmask = incoh.copy(deep=True)
+    inmask.values = np.byte(incoh > 0)
+    if os.path.exists(landmask_file):
+        landmask = load_tif2xr(landmask_file)
+        #landmask = xr.open_dataset(landmasknc)
+        inmask.values = landmask.values * inmask.values
+    else:
+        landmask = None
+    # create datacube
+    ifg = xr.Dataset()
+    ifg['pha'] = inpha
+    ifg['coh'] = ifg['pha']
+    ifg['coh'].values = incoh.values
+    ifg['mask'] = ifg['pha']
+    ifg['mask'].values = inmask.values
+    # just to clean from memory
+    inpha=''
+    incoh=''
+    # to load orig unw_file
+    if unw:
+        unw_file = os.path.join(geoifgdir,pair+'.geo.unw.tif')
+        inunw = load_tif2xr(unw_file)
+        ifg['unw'] = ifg['pha']
+        ifg['unw'].values = inunw.values
+    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
+    # including hgt anyway - would be useful later
+    if os.path.exists(hgtfile):
+        try:
+            inhgt = load_tif2xr(hgtfile)
+            ifg['hgt'] = ifg['pha']
+            ifg['hgt'].values = inhgt.values
+        except:
+            print('ERROR in importing heights!')
+            hgtcorr = False
+    if cliparea_geo:
+        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
+        minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
+        if minclipy > maxclipy:
+            print('you switched min max in crop coordinates (latitude). fixing')
+            tmpcl = minclipy
+            minclipy=maxclipy
+            maxclipy=tmpcl
+        if minclipx > maxclipx:
+            print('you switched min max in crop coordinates (longitude). fixing')
+            tmpcl = minclipx
+            minclipx=maxclipx
+            maxclipx=tmpcl
+        # now will clip it - lat is opposite-sorted, so need to slice from max to min in y
+        ifg = ifg.sel(lon=slice(minclipx, maxclipx), lat=slice(maxclipy, minclipy))
+    return ifg
+
+
+def gaussfill(dapha, sigma=2):
+    tempar_mag1 = np.ones_like(dapha)
+    kernel = Gaussian2DKernel(x_stddev=sigma)
+    cpxarr = magpha2RI_array(tempar_mag1, dapha.values)
+    i=1
+    while np.max(np.isnan(dapha.values)):
+        i = i+1
+        print('gapfilling iteration '+str(i))
+        if i>3:
+            # no need to add more heavy iterations
+            print('filling by nearest neighbours')
+            dapha.values = interpolate_nans(dapha.values, method='nearest')
+        else:
+            tofill = magpha2RI_array(tempar_mag1, dapha.values)
+            tofillR = np.real(tofill)
+            tofillI = np.imag(tofill)
+            filledR = interpolate_replace_nans(tofillR, kernel)
+            filledI = interpolate_replace_nans(tofillI, kernel)
+            dapha.values = np.angle(filledR + 1j*filledI)
+    # but i need to finally smooth it a bit
+    cpxarr = magpha2RI_array(tempar_mag1, dapha.values)
+    gauss_cpx = filter_nan_gaussian_conserving(cpxarr, sigma=sigma*1.5, trunc=4)
+    dapha.values = np.angle(gauss_cpx)
+    return dapha
+
+
+def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
+    radius = 15*get_resolution(ifg_ml)  #in 30x30 window.. should be ok to do
+    ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
+    ifg_ml['pha'] = ifg_ml['gauss_pha']  # pha is to unwrap
+    mask = (ifg_ml.gauss_coh>thres).fillna(0).values
+    #dapha = ifg_ml.pha.where(mask*ifg_ml.mask_full != 0)
+    dapha = ifg_ml.pha.where(mask != 0)
+    ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
+    #ifg_ml['pha'].values = gaussfill(dapha, sigma=2)   # low pass filter   # gives ugly results
+    # unwrap and reduce that
+    coh = ifg_ml.coh.fillna(0).values
+    tempar_mag1 = np.ones_like(ifg_ml.pha)
+    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
+    cpx = np.complex64(magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values))
+    #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)
+    unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True)
+    unw = filter_nan_gaussian_conserving(unw, sigma=4, trunc=4) # a stronger filter should help...
+    ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
+    ifg_ml['origpha'].values = wrap2phase(ifg_ml['origpha']-unw)
+    ifg_ml['pha'].values = ifg_ml['origpha'].values  # needed in later stage
+    ifg_ml['cpx'].values = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha.values)
+    ifg_ml['unwlow'] = ifg_ml['pha']
+    ifg_ml['unwlow'].values = unw
+    return ifg_ml
+
 
 def interpolate_nans(array, method='cubic'):
     """Interpolation of NaN values in a grid
