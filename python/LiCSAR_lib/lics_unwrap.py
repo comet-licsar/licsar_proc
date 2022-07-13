@@ -71,12 +71,6 @@ except:
 
 
 try:
-    import framecare as fc
-except:
-    print('framecare not loaded - amplitude stability will not work')
-
-
-try:
     from LiCSAR_lib.LiCSAR_misc import *
 except:
     print('licsar misc not loaded')
@@ -180,7 +174,7 @@ def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
     # load the files
     inpha = load_tif2xr(ifg_pha_file)
     incoh = load_tif2xr(coh_file)
-    incoh = incoh/255
+    incoh.values = incoh.values/255
     inmask = incoh.copy(deep=True)
     inmask.values = np.byte(incoh > 0)
     if os.path.exists(landmask_file):
@@ -499,9 +493,12 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         #ifg_ml['pha'].values = interpolate_replace_nans(tofillpha.values, kernel)
     elif fillby == 'none':
         print('skipping any nan filling')
-        ifg_ml['pha'] = ifg_ml.gauss_pha
+        if smooth and not lowpass:
+            ifg_ml['pha'] = ifg_ml.gauss_pha
     else:
         print('filling by nearest neighbours')
+        if smooth and not lowpass:
+            ifg_ml['pha'] = ifg_ml.gauss_pha
         #tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         #tofillpha = ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
         tofillpha = ifg_ml.pha.where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
@@ -512,7 +509,9 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if smooth:
         #ifg_ml = filter_ifg_ml(ifg_ml)
         # 2022/07: adding strong filter, say radius 1.5 km ... or... rather 15 pixels - this way it should be relatively long-wave signal
-        radius = 15*get_resolution(ifg_ml)
+        # actually i prepared 'low-pass' solution, so keep it calm... and also change it to Goldstein!
+        #radius = 15*get_resolution(ifg_ml)
+        radius = 5*get_resolution(ifg_ml)
         print('an extra Gaussian smoothing here, of '+str(int(radius))+' m radius')
         #ifg_ml = filter_ifg_ml(ifg_ml, radius = 1500)
         ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
@@ -612,7 +611,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         RI2cpx(r, i, binCPX)
         #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax/2)
         # ok, just hold the defomax low - discontinuities are not wanted or expected here..or not?
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.8, printout = False)
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.3, printout = False)
         unw1 = np.fromfile(binfile,dtype=dtype)
         unw1 = unw1.reshape(ifg_ml.pha.shape)
         ifg_ml[daname] = ifg_ml['pha'] #.copy()
@@ -1960,6 +1959,11 @@ def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, radius = 1000, trunc = 4)
     return ifg_ml
 
 
+def pha2cpx(pha):
+    """Creates normalised cpx interferogram from phase
+    """
+    return np.exp(1j*pha)
+
 
 def wrap2phase(A):
     """Wraps array to -pi,pi (or 0,2pi?)
@@ -2061,6 +2065,11 @@ def get_date_matrix(pairs):
 def build_amp_avg_std(frame, return_ampstab = False):
     """Builds amplitude stability map (or just avg/std amplitude) of a frame
     """
+    try:
+        import framecare as fc
+    except:
+        print('framecare not loaded - amplitude stability will not work')
+        return False
     track=str(int(frame[:3]))
     epochsdir = os.path.join(os.environ['LiCSAR_public'], track, frame, 'epochs')
     hgtfile = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.hgt.tif')
