@@ -287,7 +287,7 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.35, smooth = False, lowpass = False, defomax = 0.3,
+        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, defomax = 0.3,
         hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = True, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
@@ -611,8 +611,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binI)
         RI2cpx(r, i, binCPX)
         #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax/2)
-        # ok, just hold the defomax low - discontinuities are not wanted or expected here
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.3, printout = False)
+        # ok, just hold the defomax low - discontinuities are not wanted or expected here..or not?
+        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.8, printout = False)
         unw1 = np.fromfile(binfile,dtype=dtype)
         unw1 = unw1.reshape(ifg_ml.pha.shape)
         ifg_ml[daname] = ifg_ml['pha'] #.copy()
