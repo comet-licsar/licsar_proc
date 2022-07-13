@@ -88,7 +88,7 @@ except:
 ################################################################################
 
 def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
-                   only10 = True, smooth = False, thres=0.3, hgtcorr = True, 
+                   only10 = True, smooth = False, thres=0.3, hgtcorr = True, defomax = 0.3,
                    outtif = None, cliparea_geo = None, subtract_gacos = False, dolocal = False):
     """Main function to unwrap a geocoded LiCSAR interferogram using a cascade approach.
     
@@ -119,7 +119,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
             # avoiding gauss proc, as seems heavy for memory
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
         else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = 0.3, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
     else:
         ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
         for i in [10, 5, 3]:
@@ -128,9 +128,9 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
                 ifg_mlc = ifg_mla.copy(deep=True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_mlc['unw'], defomax = 0.3, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_mlc['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal)
         else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], thres = thres, defomax = 0.4, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
     elapsed_time = time.time()-starttime
     hour = int(elapsed_time/3600)
     minite = int(np.mod((elapsed_time/60),60))
