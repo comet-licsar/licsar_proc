@@ -11,3 +11,5 @@ for tr in `seq 1 175`; do
    fi
  done
 done
+
+du -hs $outdir
