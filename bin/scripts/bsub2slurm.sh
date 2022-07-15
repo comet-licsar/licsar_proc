@@ -36,7 +36,7 @@ cmd='sbatch '
 # now enjoy the options in order and nicely split until we see --
 addedextrapost=''
 addedextrapre=''
-v=1
+v=0
 while true; do
     case "$1" in
         -q)

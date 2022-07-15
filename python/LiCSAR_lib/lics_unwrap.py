@@ -35,7 +35,7 @@ from scipy.ndimage import generic_filter
 from scipy import stats
 import scipy.signal as sps
 import scipy.linalg as spl
-from astropy.convolution import Gaussian2DKernel, interpolate_replace_nans, convolve_fft
+from astropy.convolution import Gaussian2DKernel, interpolate_replace_nans, convolve_fft, convolve
 from sklearn.linear_model import HuberRegressor
 
 import time
@@ -1960,6 +1960,42 @@ def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, radius = 1000, trunc = 4)
     return ifg_ml
 
 
+# implementation of the Goldstein filter here:
+def goldstein_AH(block, alpha=0.8, kernelsigma=1):
+    kernel = Gaussian2DKernel(x_stddev=kernelsigma) #sigma 1 gives 9x9 gaussian kernel
+    # just in case we use phase directly, should be in cpx already...
+    #if not(block.dtype.type == np.complex128 or block.dtype.type == np.complex64):
+    #    block=pha2cpx(block)
+    ph_fft = np.fft.fft2(block)
+    H=np.abs(ph_fft)
+    H=np.fft.ifftshift(convolve(np.fft.fftshift(H), kernel))
+    meanH=np.median(H)
+    if meanH != 0:
+        H=H/meanH
+    H=H**alpha
+    phfilt=np.fft.ifft2(ph_fft*H)
+    return phfilt
+
+
+def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=8, nproc=1):
+    """Goldstein filtering of phase
+    
+    Args:
+        inpha (xr.DataArray): array of phase (for now, the script will create cpx from phase)
+        other arguments are clear
+        
+    Returns:
+        xr.DataArray: filtered phase (not cpx!)
+    """
+    outpha=inpha.copy()
+    incpx=pha2cpx(inpha.fillna(0).values)
+    winsize = (blocklen, blocklen)
+    cpxb = da.from_array(incpx, chunks=winsize)
+    f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlwin, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
+    outpha.values=np.angle(f.compute(num_workers=nproc))
+    return outpha
+
+
 def pha2cpx(pha):
     """Creates normalised cpx interferogram from phase
     """
@@ -2167,7 +2203,101 @@ def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outno
         return cohavg, cohstd
 
 
+# Solution by Andy and Karsten to recalculate costs for masked (NN-filled) areas - not used here yet
 
+################################################################################
+# Get edges function
+################################################################################
+def get_edges(ph,zeroix):
+    length, width = ph.shape
+    i,j = np.where(~zeroix)
+    datapoints = np.array((i,j)).T
+    ix = np.ones(ph.shape,dtype=bool)
+    iq,jq = np.where(ix)
+    dq = np.array((iq,jq)).T
+    nntree = spat.cKDTree(datapoints,leafsize=10,compact_nodes=False,balanced_tree=False)
+    distq, gridix = nntree.query(dq,n_jobs=-1)
+    rowedges = np.array((gridix[:-width],
+                         gridix[width:])).T
+    gridixT = np.reshape(gridix,(length,width)).T.flatten()
+    coledges = np.array((gridixT[:-length],
+                         gridixT[length:])).T
+    grid_edges = np.vstack((rowedges,coledges))
+    sortix = np.argsort(grid_edges, axis=1)
+    sort_edges = np.sort(grid_edges,axis=1)
+    edge_sign = sortix[:,1]-sortix[:,0]
+    sort_edges_flat = sort_edges[:,0]+sort_edges[:,1]*sort_edges.shape[0]
+    dummy, alledge_ix, inverse_ix = np.unique(sort_edges_flat,
+                                              return_index=True, 
+                                              return_inverse=True)
+    alledges = sort_edges[alledge_ix,:]
+    alledges[alledges[:,0] == alledges[:,1]] = -1
+    alledges_flat = alledges[:,0]+alledges[:,1]*alledges.shape[0]
+    dummy, edge_ix, inverse_ix2 = np.unique(alledges_flat,
+                                            return_index=True, 
+                                            return_inverse=True)
+    edges = alledges[edge_ix,:]
+    edges = np.delete(edges,0,axis=0)
+    n_edge = edges.shape[0]
+    edges = np.hstack((np.arange(n_edge)[:,None]+1,edges))
+    gridedgeix = (inverse_ix2[inverse_ix]-1)
+    sameixval = gridedgeix.max()+1
+    gridedgeix[gridedgeix == -1] = sameixval
+    gridedgeix *= edge_sign
+    rowix = np.ma.array(np.reshape(gridedgeix[:width*
+                                              (length-1)],
+                       (length-1,width)))
+    rowix = np.ma.masked_where(abs(rowix) == sameixval,rowix)
+    colix = np.ma.array(np.reshape(gridedgeix[width*
+                                              (length-1):],
+                       (width-1,length)).T)
+    colix = np.ma.masked_where(abs(colix) == sameixval,colix)
+    return edges, n_edge, rowix, colix, gridix
+
+
+################################################################################
+# Get costs
+################################################################################
+def get_costs(edges, n_edge, rowix, colix, zeroix):
+    length, width = zeroix.shape
+    maxshort = 32000
+    costscale = 40
+    nshortcycle = 100
+    i,j = np.where(~zeroix)
+    grid_edges = np.vstack((rowix.compressed()[:,None],colix.compressed()[:,None]))
+    n_edges =  np.histogram(abs(grid_edges),n_edge,(0,n_edge))[0]
+    edge_length = np.sqrt(np.diff(i[edges[:,1:]],axis=1)**2+
+                          np.diff(j[edges[:,1:]],axis=1)**2)
+    sigsq_noise = np.zeros(edge_length.shape,dtype=np.float32)
+    aps_range = 20000
+    sigsq_aps = (2*np.pi)**2
+    sigsq_noise += sigsq_aps*(1-np.exp(-edge_length
+                                       * 80
+                                       * 3 / aps_range))
+    sigsq_noise /= 10
+    sigsq = np.int16((sigsq_noise*nshortcycle**2)/costscale*n_edges[:,None])
+    sigsq[sigsq<1] = 1
+    rowcost = np.zeros((length-1,width*4),dtype=np.int16)
+    colcost = np.zeros((length,(width-1)*4),dtype=np.int16)
+    rowstdgrid = np.ones(rowix.shape,dtype=np.int16)
+    colstdgrid = np.ones(colix.shape,dtype=np.int16)
+    rowcost[:,2::4] = maxshort
+    colcost[:,2::4] = maxshort
+    rowcost[:,3::4] = (-1-maxshort)+1
+    colcost[:,3::4] = (-1-maxshort)+1
+    if hasattr(rowix.mask,"__len__"):
+        rowstdgrid[~rowix.mask] = sigsq[abs(rowix.compressed())].squeeze()
+    else:
+        mask = np.ones(rowstdgrid.shape,dtype=np.bool_)
+        rowstdgrid[mask] = sigsq[abs(rowix.compressed())].squeeze()
+    rowcost[:,1::4] = rowstdgrid
+    if hasattr(colix.mask,"__len__"):
+        colstdgrid[~colix.mask] = sigsq[abs(colix.compressed())].squeeze()
+    else:
+        mask = np.ones(colstdgrid.shape,dtype=np.bool_)
+        colstdgrid[mask] = sigsq[abs(colix.compressed())].squeeze()
+    colcost[:,1::4] = colstdgrid
+    return rowcost, colcost
 
 
 
