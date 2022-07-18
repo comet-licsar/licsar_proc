@@ -140,10 +140,10 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, defomax = 0.3,
+        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, goldstein = True, defomax = 0.3,
         hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
-        coh2var = True, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
+        coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
         cohratio = None, keep_coh_debug = True):
     """Main function to unwrap a geocoded LiCSAR interferogram. Works on JASMIN (but can be easily adapted for local use)
 
@@ -167,7 +167,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         prevest (xarray.DataArray or None): a previous rough estimate to be used by snaphu as the ESTFILE
         prev_ramp (xarray.DataArray or None): a previous estimate or a ramp that will be removed prior to unwrapping (and added back)
         
-        coh2var (boolean): convert coherence to variance for weighting. could be useful, but need to change from squared, something to try...
+        coh2var (boolean): convert coherence to variance for weighting. now used wrongly, for experimentation - please avoid
         add_resid (boolean): switch to add back residuals from spatially filtered unwrapping (makes sense if smooth is ON)
         rampit (boolean): perform an extra strong gaussian filter to get a very rough unwrapping result. basically a longwave signal ramp. used by cascade approach
         subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
@@ -188,13 +188,15 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     # prepare tmp dir structure
     tmpdir = os.path.join(procdir,pair,'temp_'+str(ml))
     tmpgendir = os.path.join(procdir,pair,'temp_gen')
+    tmpunwdir = os.path.join(procdir,pair,'temp_unw')
     if not os.path.exists(os.path.join(procdir,pair)):
         os.mkdir(os.path.join(procdir,pair))
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
     if not os.path.exists(tmpgendir):
         os.mkdir(tmpgendir)
-    
+    if not os.path.exists(tmpunwir):
+        os.mkdir(tmpunwdir)
     # do gacos if exists
     if gacoscorr:
         gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
@@ -262,41 +264,82 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
     ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug)
-    ifg_ml['consistence'] = ifg_ml['gauss_coh'].copy()
     width = len(ifg_ml.lon)
     length = len(ifg_ml.lat)
-    #here we should keep the (not wrapped) phase we remove due to corrections - here, heights, and gacos
-    #mask it ... this worked ok here:
-    #thres = 0.5
-    #gmmm.... it works better if i use the 'trick on gauss of normalised ifg....'
-    #thres = 0.25
-    mask_gauss = (ifg_ml.gauss_coh > thres)*1
-    #return (unmask) pixels that have coh > 0.25
-    mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > 0.25).values[mask_gauss.values == 0]
-    ifg_ml['mask_coh'] = mask_gauss.fillna(0)
-    # additionally remove islands of size over 7x7 km
-    # how many pixels are in 7x7 km region?
-    lenthres = 7000 # m
-    # resolution of orig ifg is expected 0.1 km
-    mlres = get_resolution(ifg_ml, in_m=True)
-    pixels = int(round(lenthres/mlres))
-    #origres = 0.1
-    #resdeg = np.abs(ifg.lat[1]-ifg.lat[0])
-    #latres = 111.32 * np.cos(np.radians(ifg_ml.lat.mean()))
-    #origres = float(latres * resdeg) # in km
-    #
-    #pixels = int(round(lenthres/origres/ml))
-    pixelsno = pixels**2
-    npa = ifg_ml['mask_coh'].where(ifg_ml['mask_coh']==1).where(ifg_ml['mask']==1).values
-    ifg_ml['mask_full'] = ifg_ml['mask_coh']
-    ifg_ml['mask_full'].values = remove_islands(npa, pixelsno)
-    ifg_ml['mask_full'] = ifg_ml['mask_full'].fillna(0).astype(np.int8)
-    #ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).where(ifg_ml.coh > thres).fillna(0)
-    #here the origpha is just before the gapfilling filter
-    ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     if lowpass:
-        # now we have the high gradients masked and filled. let's do longwave filtering also:
+        # let's do longwave filtering:
         ifg_ml = lowpass_gauss(ifg_ml)
+    #updat the origpha to keep state before filtering
+    ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
+    if goldstein:
+        print('filtering by goldstein filter')
+        ifg_ml['filtpha'], specmag = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1)
+        #get mask from specmag:
+        sp=np.log10(specmag.values)
+        sp[sp<0]=0
+        sp[sp>1]=1
+        spmask=sp>0.25
+        # and remove islands
+        npa=spmask*1.0
+        npa[npa==0]=np.nan
+        spmask=remove_islands(npa, 49)
+        #delta = np.angle(np.exp(1j*(ifg_ml['filtpha'] - ifg_ml['pha'])))
+        #mask = np.abs(delta<1)*1
+        ifg_ml['mask_filt'] = ifg_ml['mask_extent']
+        #ifg_ml['mask_filt'].values=mask
+        ifg_ml['mask_filt'].values=spmask.astype(np.int8)
+        ifg_ml['mask_full']=ifg_ml['mask_filt']*ifg_ml['mask_extent']
+        # need to properly assess variance (or coherence-like measure) - but cannot use gaussian!
+        #tofillpha = ifg_ml.filtpha.where(ifg_ml.mask_filt.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
+        #ifg_ml['pha'].values = interpolate_nans(tofillpha.values, method='nearest')
+        # no gapfilling here!
+        # ok, so now unwrap it!
+        cpx=pha2cpx(ifg_ml['filtpha'].values)
+        coh=sp
+        mask=ifg_ml['mask_full'].fillna(0).values
+        unw=unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,deltemp=True)
+        ifg_ml['unw']=ifg_ml['pha']
+        ifg_ml.unw.values=unw
+        ifg_ml['pha']=ifg_ml['filtpha']
+        # add residuals, using orig coh
+        cpx=pha2cpx(wrap2phase((ifg_ml['filtpha']-ifg_ml['origpha']).fillna(0).values)) # fillna probably not needed
+        coh=ifg_ml.coh.fillna(0.001).values
+        unw=unwrap_np(cpx,coh,defomax=0,tmpdir=tmpunwdir,mask=mask,deltemp=True)
+        ifg_ml.unw.values=ifg_ml.unw.values+unw
+        # so now we have it all done - let's return origpha from pre-filt state
+        ifg_ml['pha']=ifg_ml['origpha']
+    else:
+        # if not, do the original 'smooth' approach, just to get proper mask
+        #print('finally, filter using (adapted) gauss filter')
+        if ml > 2:
+            calc_coh_from_delta = True
+        else:
+            # that part takes ages and it is not that big improvement..
+            calc_coh_from_delta = False
+        # calculate gauss_coh, as a measure of spatial consistence
+        # ok, but let's have the radius of Gaussian kernel tightier - just 10x10 pixels, i.e.
+        radius = 5*get_resolution(ifg_ml)
+        ifg_ml = filter_ifg_ml(ifg_ml, calc_coh_from_delta = calc_coh_from_delta, radius = radius)
+        ifg_ml['consistence'] = ifg_ml['gauss_coh'].copy()
+        mask_gauss = (ifg_ml.consistence > thres)*1
+        #return (unmask) pixels that have coh > 0.25
+        mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > 0.25).values[mask_gauss.values == 0]
+        ifg_ml['mask_coh'] = mask_gauss.fillna(0)
+        # additionally remove islands of size smaller than... 2x2 km...?
+        #lenthres = 2000 # m
+        #mlres = get_resolution(ifg_ml, in_m=True)
+        #pixels = int(round(lenthres/mlres))
+        #pixelsno = pixels**2
+        # ok, actually scale it just in pixels, so 7x7 px^2 area
+        pixelsno = 7*7
+        npa = ifg_ml['mask_coh'].where(ifg_ml['mask_coh']==1).where(ifg_ml['mask']==1).values
+        ifg_ml['mask_full'] = ifg_ml['mask_coh']
+        ifg_ml['mask_full'].values = remove_islands(npa, pixelsno)
+        ifg_ml['mask_full'] = ifg_ml['mask_full'].fillna(0).astype(np.int8)
+        #ifg_ml['mask_coh'] = ifg_ml['mask'].where(ifg_ml.gauss_coh > thres).where(ifg_ml.coh > thres).fillna(0)
+    #if lowpass:
+        # let's do longwave filtering also:
+        #ifg_ml = lowpass_gauss(ifg_ml)
     #try without modal filter..
     #ifg_ml = filter_mask_modal(ifg_ml, 'mask_coh', 'mask_coh', 8)
     print('interpolate coh-based masked areas of gauss pha')
@@ -367,6 +410,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     #print('debug: now pha is fine-filled layer but with some noise at edges - why is that? not resolved. so adding one extra gauss filter')
     # ok, i see some high freq signal is still there.. so filtering once more (should also help after the nan filling)
     if smooth:
+        # OBSOLETE - do not use with lowpass!
         #ifg_ml = filter_ifg_ml(ifg_ml)
         # 2022/07: adding strong filter, say radius 1.5 km ... or... rather 15 pixels - this way it should be relatively long-wave signal
         # actually i prepared 'low-pass' solution, so keep it calm... and also change it to Goldstein!
@@ -376,127 +420,130 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         #ifg_ml = filter_ifg_ml(ifg_ml, radius = 1500)
         ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
         ifg_ml['pha'] = ifg_ml['gauss_pha']
-    #exporting for snaphu
-    #normalise mag from the final pha
-    tempar_mag1 = np.ones_like(ifg_ml.pha)
-    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values) #no need to fillna, but just in case...
-    ifg_ml['gauss_cpx'].values = cpxarr
-    print('unwrapping by snaphu')
-    binmask= os.path.join(tmpdir,'gaussmask.bin')
-    #bincoh = os.path.join(tmpdir,'gausscoh.bin')
-    bincoh = os.path.join(tmpdir,'coh.bin')
-    #binR = os.path.join(tmpdir,'gaussR.bin')
-    #binI = os.path.join(tmpdir,'gaussI.bin')
-    binCPX = os.path.join(tmpdir,'cpxgaussifg.bin')
-    outunwbin = os.path.join(tmpdir,'gaussunwrapped.bin')
-    #print('exporting to bin files')
-    #ifg_ml.mask_coh.fillna(0).values.astype(np.byte).tofile(binmask)
-    # full masking may be too much for snaphu here:
-    #ifg_ml.mask_full.fillna(0).values.astype(np.byte).tofile(binmask)
-    ifg_ml.mask.fillna(0).values.astype(np.byte).tofile(binmask)
-    #ifg_ml.gauss_coh.fillna(0.001).values.astype(np.float32).tofile(bincoh)
-    # we should use the orig coh for weights... and perhaps very low coh values instead of 0
-    ifg_ml.coh.fillna(0.001).values.astype(np.float32).tofile(bincoh)
-    r = np.real(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values #.tofile(binR)
-    i = np.imag(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values #.tofile(binI)
-    RI2cpx(r, i, binCPX)
-    #unwrapping itself
-    if type(prevest) != type(None):
-        #resizing previous ML step and using to unwrap
-        bin_pre = os.path.join(tmpdir,'prevest.bin')
-        bin_est = os.path.join(tmpdir,'prevest.rescaled.bin')
-        bin_pre_remove = os.path.join(tmpdir,'prevest.rescaled.remove.bin')
-        #binI_pre = os.path.join(tmpdir,'prevest.I.bin')
-        
-        kernel = Gaussian2DKernel(x_stddev=2)
-        prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
-        #prevest.values = interpolate_replace_nans(prevest.values, kernel)
-        #filling other nans to 0 - this can happen if null regions are too large (larger than the kernel accepts)
-        prevest.astype(np.float32).fillna(0).values.tofile(bin_pre)
-        width_pre = len(prevest.lon)
-        length_pre = len(prevest.lat)
-        #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_CUBIC)
-        resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
-        ifg_ml['toremove'].astype(np.float32).fillna(0).values.tofile(bin_pre_remove)
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax)
-    else:
-        #print('unwrapping')
-        #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
-        # 2022-01-14 - avoiding mask here - it does only worse
-        #main_unwrap(binCPX, bincoh, None, outunwbin, width, defomax = defomax, printout=False)
-        # 2022-04-04 - returning the mask! result is really bad with it, at least at islands!
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
-    print('importing snaphu result to ifg_ml')
-    binfile = outunwbin
-    #toxr = ifg_ml
-    daname = 'unw'
-    dtype = np.float32
-    unw1 = np.fromfile(binfile,dtype=dtype)
-    unw1 = unw1.reshape(ifg_ml.pha.shape)
-    #unw1 = np.flip(unw1,axis=0)
-    ifg_ml[daname] = ifg_ml['pha'] #.copy(deep=True)
-    ifg_ml[daname].values = unw1
-    #ok, so the gauss-based coh mask is not the best to do... so exporting 'all pixels'
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
-    #print('20210722 - testing now - using gauss-based coh mask, ignore the next message:')
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
-    #this would do median correction, not doing it now:
-    #ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask
-    #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
-    ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
-    #print('unwrap also residuals from the filtered cpx, and add to the final unw - mask only waters..')
-    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.origpha.fillna(0).where(ifg_ml.mask == 1).values)
-    ifg_ml['origcpx'] = ifg_ml['gauss_cpx'] #.copy(deep=True)
-    ifg_ml['origcpx'].values = cpxarr
-    if add_resid:
-        print('unwrapping residuals and adding back to the final unw output')
-        # maybe can use this somehow? by yma. i checked and it is correct
-        # delta = np.angle(np.exp(np.complex(0+1j)*( np.angle(ifg_filt) - np.angle(ifg_unfilt))))
-        # delta = np.angle(np.exp(0+1j)*( np.angle(ifg_filt) - np.angle(ifg_unfilt)))
-        # delta = np.angle(np.exp(0+1j)*( pha_filt - pha_unfilt ) )
-        # ifg_unw_unfilt = ifg_unw_filt - delta
-        ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate() #* ifg_ml.mask_full
-        incpx = 'resid_cpx'
-        #binR = os.path.join(tmpdir,incpx+'.R.bin')
-        #binI = os.path.join(tmpdir,incpx+'.I.bin')
-        binCPX = os.path.join(tmpdir,incpx+'.cpx.bin')
-        outunwbin = os.path.join(tmpdir,incpx+'.unw.bin')
-        binfile = outunwbin
-        daname = incpx+'.unw'
-        #
-        r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binR)
-        i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binI)
+    if not goldstein:
+        # i did unw before...
+        print('goldstein is in use - need to update it to have prevest possible..')
+        #exporting for snaphu
+        #normalise mag from the final pha
+        tempar_mag1 = np.ones_like(ifg_ml.pha)
+        cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values) #no need to fillna, but just in case...
+        ifg_ml['gauss_cpx'].values = cpxarr
+        print('unwrapping by snaphu')
+        binmask= os.path.join(tmpdir,'gaussmask.bin')
+        #bincoh = os.path.join(tmpdir,'gausscoh.bin')
+        bincoh = os.path.join(tmpdir,'coh.bin')
+        #binR = os.path.join(tmpdir,'gaussR.bin')
+        #binI = os.path.join(tmpdir,'gaussI.bin')
+        binCPX = os.path.join(tmpdir,'cpxgaussifg.bin')
+        outunwbin = os.path.join(tmpdir,'gaussunwrapped.bin')
+        #print('exporting to bin files')
+        #ifg_ml.mask_coh.fillna(0).values.astype(np.byte).tofile(binmask)
+        # full masking may be too much for snaphu here:
+        #ifg_ml.mask_full.fillna(0).values.astype(np.byte).tofile(binmask)
+        ifg_ml.mask.fillna(0).values.astype(np.byte).tofile(binmask)
+        #ifg_ml.gauss_coh.fillna(0.001).values.astype(np.float32).tofile(bincoh)
+        # we should use the orig coh for weights... and perhaps very low coh values instead of 0
+        ifg_ml.coh.fillna(0.001).values.astype(np.float32).tofile(bincoh)
+        r = np.real(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values #.tofile(binR)
+        i = np.imag(ifg_ml.gauss_cpx).astype(np.float32).fillna(0).values #.tofile(binI)
         RI2cpx(r, i, binCPX)
-        #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax/2)
-        # ok, just hold the defomax low - discontinuities are not wanted or expected here..or not?
-        main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.3, printout = False)
+        #unwrapping itself
+        if type(prevest) != type(None):
+            #resizing previous ML step and using to unwrap
+            bin_pre = os.path.join(tmpdir,'prevest.bin')
+            bin_est = os.path.join(tmpdir,'prevest.rescaled.bin')
+            bin_pre_remove = os.path.join(tmpdir,'prevest.rescaled.remove.bin')
+            #binI_pre = os.path.join(tmpdir,'prevest.I.bin')
+            
+            kernel = Gaussian2DKernel(x_stddev=2)
+            prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
+            #prevest.values = interpolate_replace_nans(prevest.values, kernel)
+            #filling other nans to 0 - this can happen if null regions are too large (larger than the kernel accepts)
+            prevest.astype(np.float32).fillna(0).values.tofile(bin_pre)
+            width_pre = len(prevest.lon)
+            length_pre = len(prevest.lat)
+            #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_CUBIC)
+            resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
+            ifg_ml['toremove'].astype(np.float32).fillna(0).values.tofile(bin_pre_remove)
+            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax)
+        else:
+            #print('unwrapping')
+            #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
+            # 2022-01-14 - avoiding mask here - it does only worse
+            #main_unwrap(binCPX, bincoh, None, outunwbin, width, defomax = defomax, printout=False)
+            # 2022-04-04 - returning the mask! result is really bad with it, at least at islands!
+            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
+        print('importing snaphu result to ifg_ml')
+        binfile = outunwbin
+        #toxr = ifg_ml
+        daname = 'unw'
+        dtype = np.float32
         unw1 = np.fromfile(binfile,dtype=dtype)
         unw1 = unw1.reshape(ifg_ml.pha.shape)
-        ifg_ml[daname] = ifg_ml['pha'] #.copy()
+        #unw1 = np.flip(unw1,axis=0)
+        ifg_ml[daname] = ifg_ml['pha'] #.copy(deep=True)
         ifg_ml[daname].values = unw1
+        #ok, so the gauss-based coh mask is not the best to do... so exporting 'all pixels'
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
+        #print('20210722 - testing now - using gauss-based coh mask, ignore the next message:')
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
-        # ensure values are correctly surrounded by zeroes - i.e. shifting by points masked away
-        # 2022/02 - actually seems weird to me. skipping. also, i added mask binary to update snaphu cost solution..
-        #ifg_ml[daname] = ifg_ml[daname] - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_extent==0).values)
-        #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
-        #ifg_ml[daname] = ifg_ml[daname] - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_extent==1).values)
-        #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
-        #nanmed = np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
-        nanmed = np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_full>0).values)
-        ifg_ml[daname].values = ifg_ml[daname].values - nanmed
-        ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
-        #print('debug - avoiding median correction now, although maybe ok for add_resid: median was {} rad'.format(str(nanmed)))
+        #this would do median correction, not doing it now:
         #ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
-        #print('again, masking the final product by gauss coh threshold')
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
-        #
-        #
-        #ifg_ml['resid_'].plot()
-        #now the unw will have the residual phase added back
-        ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml[daname]
+        #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask
+        #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
+        ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
+        #print('unwrap also residuals from the filtered cpx, and add to the final unw - mask only waters..')
+        cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.origpha.fillna(0).where(ifg_ml.mask == 1).values)
+        ifg_ml['origcpx'] = ifg_ml['gauss_cpx'] #.copy(deep=True)
+        ifg_ml['origcpx'].values = cpxarr
+        if add_resid:
+            print('unwrapping residuals and adding back to the final unw output')
+            # maybe can use this somehow? by yma. i checked and it is correct
+            # delta = np.angle(np.exp(np.complex(0+1j)*( np.angle(ifg_filt) - np.angle(ifg_unfilt))))
+            # delta = np.angle(np.exp(0+1j)*( np.angle(ifg_filt) - np.angle(ifg_unfilt)))
+            # delta = np.angle(np.exp(0+1j)*( pha_filt - pha_unfilt ) )
+            # ifg_unw_unfilt = ifg_unw_filt - delta
+            ifg_ml['resid_cpx'] = ifg_ml.origcpx * ifg_ml.gauss_cpx.conjugate() #* ifg_ml.mask_full
+            incpx = 'resid_cpx'
+            #binR = os.path.join(tmpdir,incpx+'.R.bin')
+            #binI = os.path.join(tmpdir,incpx+'.I.bin')
+            binCPX = os.path.join(tmpdir,incpx+'.cpx.bin')
+            outunwbin = os.path.join(tmpdir,incpx+'.unw.bin')
+            binfile = outunwbin
+            daname = incpx+'.unw'
+            #
+            r = np.real(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binR)
+            i = np.imag(ifg_ml[incpx]).astype(np.float32).fillna(0).values #.tofile(binI)
+            RI2cpx(r, i, binCPX)
+            #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax/2)
+            # ok, just hold the defomax low - discontinuities are not wanted or expected here..or not?
+            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = 0.3, printout = False)
+            unw1 = np.fromfile(binfile,dtype=dtype)
+            unw1 = unw1.reshape(ifg_ml.pha.shape)
+            ifg_ml[daname] = ifg_ml['pha'] #.copy()
+            ifg_ml[daname].values = unw1
+            #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
+            #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_coh']
+            # ensure values are correctly surrounded by zeroes - i.e. shifting by points masked away
+            # 2022/02 - actually seems weird to me. skipping. also, i added mask binary to update snaphu cost solution..
+            #ifg_ml[daname] = ifg_ml[daname] - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_extent==0).values)
+            #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
+            #ifg_ml[daname] = ifg_ml[daname] - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_extent==1).values)
+            #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
+            #nanmed = np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
+            nanmed = np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_full>0).values)
+            ifg_ml[daname].values = ifg_ml[daname].values - nanmed
+            ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask_full']
+            #print('debug - avoiding median correction now, although maybe ok for add_resid: median was {} rad'.format(str(nanmed)))
+            #ifg_ml[daname].values = ifg_ml[daname].values - np.nanmedian(ifg_ml[daname].where(ifg_ml.mask_coh>0).values)
+            #print('again, masking the final product by gauss coh threshold')
+            #ifg_ml[daname] = ifg_ml[daname]*ifg_ml.mask_coh
+            #
+            #
+            #ifg_ml['resid_'].plot()
+            #now the unw will have the residual phase added back
+            ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml[daname]
     #if gacoscorr:
     #    #we have removed GACOS estimate from unw, now time to add it back!
     #    ifg_ml['unw'] = ifg_ml['unw'] + ifg_ml['gacos']
@@ -1015,16 +1062,6 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
         ifg_ml['cpx'] = ifg_ml['cpx'].where(ifg_ml.mask>0)
         ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
-    #print('finally, filter using (adapted) gauss filter')
-    if ml > 2:
-        calc_coh_from_delta = True
-    else:
-        # that part takes ages and it is not that big improvement..
-        calc_coh_from_delta = False
-    # calculate gauss_coh, as a measure of spatial consistence
-    # ok, but let's have the radius of Gaussian kernel tightier - just 10x10 pixels, i.e.
-    radius = 5*get_resolution(ifg_ml)
-    ifg_ml = filter_ifg_ml(ifg_ml, calc_coh_from_delta = calc_coh_from_delta, radius = radius)
     if not keep_coh_debug:
         ifg_ml['coh'] = ifg_ml['orig_coh']
         ifg_ml['coh'] = ifg_ml['coh'].where(ifg_ml.mask>0)
@@ -1152,9 +1189,23 @@ def gaussfill(dapha, sigma=2):
 
 def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     radius = 15*get_resolution(ifg_ml)  #in 30x30 window.. should be ok to do
+    ifg_ml['origpha'] = ifg_ml['pha']
     ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
     ifg_ml['pha'] = ifg_ml['gauss_pha']  # pha is to unwrap
     mask = (ifg_ml.gauss_coh>thres).fillna(0).values
+    
+    # additionally remove islands that are smaller than 2x2 km
+    #lenthres = 2000 # m
+    # resolution of orig ifg is expected 0.1 km
+    #mlres = get_resolution(ifg_ml, in_m=True)
+    #pixels = int(round(lenthres/mlres))
+    #pixelsno = pixels**2
+    pixelsno = 7*7 # let's just have it in pixels
+    npa=mask*1.0
+    npa[npa==0]=np.nan
+    mask=remove_islands(npa, pixelsno)
+    mask=mask.astype(np.int8)
+    
     #dapha = ifg_ml.pha.where(mask*ifg_ml.mask_full != 0)
     dapha = ifg_ml.pha.where(mask != 0)
     ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
@@ -1162,9 +1213,9 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     # unwrap and reduce that
     coh = ifg_ml.coh.fillna(0).values
     tempar_mag1 = np.ones_like(ifg_ml.pha)
-    cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
+    #cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
     cpx = np.complex64(magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values))
-    #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)
+    #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)      # it doesn't work well with mask!
     unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True)
     unw = filter_nan_gaussian_conserving(unw, sigma=4, trunc=4) # a stronger filter should help...
     ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
@@ -1392,6 +1443,7 @@ def RI2cpx(R, I, cpxfile):
     cpx.astype(np.float32).tofile(cpxfile)
 
 
+from scipy import ndimage
 def remove_islands(npa, pixelsno = 50):
     '''Removes isolated clusters of pixels from numpy array npa having less than pixelsno pixels.
     
@@ -1404,7 +1456,6 @@ def remove_islands(npa, pixelsno = 50):
     '''
     #check the mask - should be 1 for islands and 0 for nans
     mask = ~np.isnan(npa)
-    from scipy import ndimage
     islands, ncomp = ndimage.label(mask)
     for i in range(ncomp):
         #island = islands == i # need to get this one right
@@ -1853,6 +1904,35 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
         xrpha = xrpha.rename({'x': 'lon','y': 'lat'})
     return xrpha
 
+'''
+def detrend_block(phablock, maxfringes=4):
+    #if isphase:
+    cpx=pha2cpx(phablock)
+    #else:
+    #block=inblock
+    fftt = np.fft.fft2(cpx)
+    fftt = np.abs(fftt)
+    #remove zero line and column - often has too much of zeroes there..
+    fftt[0] = fftt[0]*0
+    fftt = fftt.transpose()
+    fftt[0] = fftt[0]*0
+    fftt = fftt.transpose()
+    numfringesx = np.argmax(np.sum(fftt,axis=0))
+    numfringesy = np.argmax(np.sum(fftt,axis=1))
+    [Y,X]=fftt.shape
+    if numfringesx > X/2:
+        numfringesx = numfringesx - X
+    if numfringesy > Y/2:
+        numfringesy = numfringesy - Y
+    if (abs(numfringesx) > maxfringes) or (abs(numfringesy) > maxfringes):
+        return phablock*0
+    trendx = np.linspace(0,2*np.pi,X) * numfringesx
+    trendy = np.linspace(0,2*np.pi,Y) * numfringesy
+    trendx = np.tile(trendx, (Y,1))
+    trendy = np.tile(trendy, (X,1)).transpose()
+    correction = trendx + trendy
+    return wrap2phase(phablock - correction)
+'''
 
 def detrend_ifg_xr(xrda, isphase=True, return_correction = False, maxfringes = 4):
     """Estimates ramp of (wrapped) interferogram and corrects it. Based on Doris InSARMatlab Toolbox
@@ -1939,7 +2019,7 @@ def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, radius = 1000, trunc = 4)
     if 'cpx' not in ifg_ml:
         ifg_ml['cpx'] = ifg_ml['pha'].copy()
     ifg_ml['cpx'].values = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
-    print('filter using (adapted) gauss filter')
+    print('filter using gauss filter')
     ifg_ml['gauss_cpx'] = filter_cpx_gauss(ifg_ml, sigma = sigma, trunc = trunc)
     ifg_ml['gauss_pha'] = 0*ifg_ml['pha']
     ifg_ml['gauss_pha'].values = np.angle(ifg_ml.gauss_cpx.values)
@@ -1966,18 +2046,18 @@ def goldstein_AH(block, alpha=0.8, kernelsigma=1):
     # just in case we use phase directly, should be in cpx already...
     #if not(block.dtype.type == np.complex128 or block.dtype.type == np.complex64):
     #    block=pha2cpx(block)
-    ph_fft = np.fft.fft2(block)
+    cpx_fft = np.fft.fft2(block)
     H=np.abs(ph_fft)
     H=np.fft.ifftshift(convolve(np.fft.fftshift(H), kernel))
     meanH=np.median(H)
     if meanH != 0:
         H=H/meanH
     H=H**alpha
-    phfilt=np.fft.ifft2(ph_fft*H)
-    return phfilt
+    cpxfilt=np.fft.ifft2(cpx_fft*H)
+    return cpxfilt
 
 
-def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=8, nproc=1):
+def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=None, nproc=1): #ovlwin=8, nproc=1):
     """Goldstein filtering of phase
     
     Args:
@@ -1987,13 +2067,18 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=8, nproc=1):
     Returns:
         xr.DataArray: filtered phase (not cpx!)
     """
+    if ovlwin==None:
+        ovlwin=int(blocklen/4) # does it make sense? gamma recommends /8 but this might be too much?
     outpha=inpha.copy()
     incpx=pha2cpx(inpha.fillna(0).values)
     winsize = (blocklen, blocklen)
     cpxb = da.from_array(incpx, chunks=winsize)
     f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlwin, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
-    outpha.values=np.angle(f.compute(num_workers=nproc))
-    return outpha
+    cpxb=f.compute(num_workers=nproc))
+    outpha.values=np.angle(cpxb)
+    outmag=outpha.copy()
+    outmag.values=np.abs(cpxb)
+    return outpha,outmag
 
 
 def pha2cpx(pha):
