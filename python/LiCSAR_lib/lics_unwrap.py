@@ -195,7 +195,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         os.mkdir(tmpdir)
     if not os.path.exists(tmpgendir):
         os.mkdir(tmpgendir)
-    if not os.path.exists(tmpunwir):
+    if not os.path.exists(tmpunwdir):
         os.mkdir(tmpunwdir)
     # do gacos if exists
     if gacoscorr:
