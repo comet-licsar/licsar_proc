@@ -278,7 +278,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         sp=np.log10(specmag.values)
         sp[sp<0]=0
         sp[sp>1]=1
-        spmask=sp>0.25
+        spmask=sp>thres # try 0.25
         # and remove islands
         npa=spmask*1.0
         npa[npa==0]=np.nan
