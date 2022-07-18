@@ -2074,7 +2074,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=None, nproc=1): #o
     winsize = (blocklen, blocklen)
     cpxb = da.from_array(incpx, chunks=winsize)
     f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlwin, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
-    cpxb=f.compute(num_workers=nproc))
+    cpxb=f.compute(num_workers=nproc)
     outpha.values=np.angle(cpxb)
     outmag=outpha.copy()
     outmag.values=np.abs(cpxb)
