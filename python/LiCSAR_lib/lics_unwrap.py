@@ -2047,7 +2047,7 @@ def goldstein_AH(block, alpha=0.8, kernelsigma=1):
     #if not(block.dtype.type == np.complex128 or block.dtype.type == np.complex64):
     #    block=pha2cpx(block)
     cpx_fft = np.fft.fft2(block)
-    H=np.abs(ph_fft)
+    H=np.abs(cpx_fft)
     H=np.fft.ifftshift(convolve(np.fft.fftshift(H), kernel))
     meanH=np.median(H)
     if meanH != 0:
