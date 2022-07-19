@@ -2058,7 +2058,8 @@ def goldstein_AH(block, alpha=0.8, kernelsigma=1):
     return cpxfilt
 
 
-def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=None, nproc=1): #ovlwin=8, nproc=1):
+
+def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1): #ovlwin=8, nproc=1):
     """Goldstein filtering of phase
     
     Args:
@@ -2068,13 +2069,15 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=None, nproc=1): #o
     Returns:
         xr.DataArray: filtered phase (not cpx!)
     """
-    if ovlwin==None:
-        ovlwin=int(blocklen/4) # does it make sense? gamma recommends /8 but this might be too much?
+    if ovlpx==None:
+        ovlpx=int(blocklen/4) # does it make sense? gamma recommends /8 but this might be too much?
+    # dask works by adding extra pixels around the block window. thus calculate the central window here:
+    blocklen=blocklen-ovlpx
     outpha=inpha.copy()
     incpx=pha2cpx(inpha.fillna(0).values)
     winsize = (blocklen, blocklen)
     cpxb = da.from_array(incpx, chunks=winsize)
-    f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlwin, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
+    f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
     cpxb=f.compute(num_workers=nproc)
     outpha.values=np.angle(cpxb)
     outmag=outpha.copy()
