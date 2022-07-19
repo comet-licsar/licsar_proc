@@ -420,9 +420,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         #ifg_ml = filter_ifg_ml(ifg_ml, radius = 1500)
         ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
         ifg_ml['pha'] = ifg_ml['gauss_pha']
-    if not goldstein:
+    if goldstein:
         # i did unw before...
         print('goldstein is in use - need to update it to have prevest possible..')
+    else:
         #exporting for snaphu
         #normalise mag from the final pha
         tempar_mag1 = np.ones_like(ifg_ml.pha)
