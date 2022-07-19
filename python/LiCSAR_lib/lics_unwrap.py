@@ -195,7 +195,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         os.mkdir(tmpdir)
     if not os.path.exists(tmpgendir):
         os.mkdir(tmpgendir)
-    if not os.path.exists(tmpunwir):
+    if not os.path.exists(tmpunwdir):
         os.mkdir(tmpunwdir)
     # do gacos if exists
     if gacoscorr:
@@ -278,7 +278,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         sp=np.log10(specmag.values)
         sp[sp<0]=0
         sp[sp>1]=1
-        spmask=sp>0.25
+        spmask=sp>thres # try 0.25
         # and remove islands
         npa=spmask*1.0
         npa[npa==0]=np.nan
@@ -2048,7 +2048,7 @@ def goldstein_AH(block, alpha=0.8, kernelsigma=1):
     #if not(block.dtype.type == np.complex128 or block.dtype.type == np.complex64):
     #    block=pha2cpx(block)
     cpx_fft = np.fft.fft2(block)
-    H=np.abs(ph_fft)
+    H=np.abs(cpx_fft)
     H=np.fft.ifftshift(convolve(np.fft.fftshift(H), kernel))
     meanH=np.median(H)
     if meanH != 0:
@@ -2075,7 +2075,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlwin=None, nproc=1): #o
     winsize = (blocklen, blocklen)
     cpxb = da.from_array(incpx, chunks=winsize)
     f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlwin, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
-    cpxb=f.compute(num_workers=nproc))
+    cpxb=f.compute(num_workers=nproc)
     outpha.values=np.angle(cpxb)
     outmag=outpha.copy()
     outmag.values=np.abs(cpxb)
