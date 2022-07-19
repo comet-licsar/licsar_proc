@@ -279,10 +279,14 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         sp[sp<0]=0
         sp[sp>1]=1
         spmask=sp>thres # try 0.25
-        # and remove islands
+        # and remove islands - let's keep the 2x2 km islands...
         npa=spmask*1.0
         npa[npa==0]=np.nan
-        spmask=remove_islands(npa, 49)
+        lenthres = 2000  # m
+        mlres = get_resolution(ifg_ml, in_m=True)
+        pixels = int(round(lenthres / mlres))
+        pixelsno = pixels ** 2
+        spmask=remove_islands(npa, pixelsno)
         #delta = np.angle(np.exp(1j*(ifg_ml['filtpha'] - ifg_ml['pha'])))
         #mask = np.abs(delta<1)*1
         ifg_ml['mask_filt'] = ifg_ml['mask_extent']
@@ -326,12 +330,12 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > 0.25).values[mask_gauss.values == 0]
         ifg_ml['mask_coh'] = mask_gauss.fillna(0)
         # additionally remove islands of size smaller than... 2x2 km...?
-        #lenthres = 2000 # m
-        #mlres = get_resolution(ifg_ml, in_m=True)
-        #pixels = int(round(lenthres/mlres))
-        #pixelsno = pixels**2
-        # ok, actually scale it just in pixels, so 7x7 px^2 area
-        pixelsno = 7*7
+        lenthres = 2000 # m
+        mlres = get_resolution(ifg_ml, in_m=True)
+        pixels = int(round(lenthres/mlres))
+        pixelsno = pixels**2
+        # or scale it just in pixels, so 7x7 px^2 area
+        #pixelsno = 7*7
         npa = ifg_ml['mask_coh'].where(ifg_ml['mask_coh']==1).where(ifg_ml['mask']==1).values
         ifg_ml['mask_full'] = ifg_ml['mask_coh']
         ifg_ml['mask_full'].values = remove_islands(npa, pixelsno)
@@ -1196,12 +1200,12 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     mask = (ifg_ml.gauss_coh>thres).fillna(0).values
     
     # additionally remove islands that are smaller than 2x2 km
-    #lenthres = 2000 # m
+    lenthres = 2000 # m
     # resolution of orig ifg is expected 0.1 km
-    #mlres = get_resolution(ifg_ml, in_m=True)
-    #pixels = int(round(lenthres/mlres))
-    #pixelsno = pixels**2
-    pixelsno = 7*7 # let's just have it in pixels
+    mlres = get_resolution(ifg_ml, in_m=True)
+    pixels = int(round(lenthres/mlres))
+    pixelsno = pixels**2
+    #pixelsno = 7*7 # let's just have it in pixels
     npa=mask*1.0
     npa[npa==0]=np.nan
     mask=remove_islands(npa, pixelsno)
@@ -1444,9 +1448,8 @@ def RI2cpx(R, I, cpxfile):
     cpx.astype(np.float32).tofile(cpxfile)
 
 
-from scipy import ndimage
 def remove_islands(npa, pixelsno = 50):
-    '''Removes isolated clusters of pixels from numpy array npa having less than pixelsno pixels.
+    """Removes isolated clusters of pixels from numpy array npa having less than pixelsno pixels.
     
     Args:
         npa (np.array): (unwrapped) interferogram with NaNs
@@ -1454,7 +1457,7 @@ def remove_islands(npa, pixelsno = 50):
     
     Returns:
         np.array: array after removing islands
-    '''
+    """
     #check the mask - should be 1 for islands and 0 for nans
     mask = ~np.isnan(npa)
     islands, ncomp = ndimage.label(mask)
@@ -2064,10 +2067,13 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1): #ov
     
     Args:
         inpha (xr.DataArray): array of phase (for now, the script will create cpx from phase)
-        other arguments are clear
+        blocklen (int): size of rectangular window in pixels
+        alpha (float): Goldstein alpha parameter
+        ovlpx (int): how many pixels should overlap the window
+        nproc (int): number of processors to be used by dask
         
     Returns:
-        xr.DataArray: filtered phase (not cpx!)
+        xr.DataArray,xr.DataArray: filtered phase, magnitude (try np.log to use for masking)
     """
     if ovlpx==None:
         ovlpx=int(blocklen/4) # does it make sense? gamma recommends /8 but this might be too much?
