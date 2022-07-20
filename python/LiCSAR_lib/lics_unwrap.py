@@ -335,6 +335,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         # so now we have it all done - let's return origpha from pre-filt state
         ifg_ml['pha']=ifg_ml['origpha']
     else:
+        # now let's do the old way (not really recommended anymore, as the gaussian would not follow the phase gradient as fine as goldstein filter..
         # if not, do the original 'smooth' approach, just to get proper mask
         #print('finally, filter using (adapted) gauss filter')
         if ml > 2:
