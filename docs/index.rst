@@ -103,9 +103,10 @@ Finally, you may experiment with the updated (much improved) unwrapper, running 
 To provide a general overview of differences between those three options (using default parameters), see the image below (as presented at IGARSS 2022).
 Basically, unwrap_geo.sh would underestimate strong deformation but would not be that prone to general unwrapping errors.
 The third option is result of active development (and will further improve). So far the best option.
+
 .. image:: ../../licsar_proc/docs/images/lics_unwrap.png
    :width: 600
-   :alt: General comparison of the three unwrapping approaches
+   :alt: General comparison of the three unwrapping approaches by the triplet closure test
 
 
 5. geocoding results
