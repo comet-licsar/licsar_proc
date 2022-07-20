@@ -3,3 +3,8 @@
 
 doctrees/
 .buildinfo
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/licsar_proc.iml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/workspace.xml
