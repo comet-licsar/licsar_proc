@@ -139,6 +139,10 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
     return ifg_ml
 
 
+def get_cliparea_xr(xrd):
+    return str(float(xrd.lon.min()))+'/'+str(float(xrd.lon.max()))+'/'+str(float(xrd.lat.min()))+'/'+str(float(xrd.lat.max()))
+
+
 def process_ifg(frame, pair, procdir = os.getcwd(), 
         ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, goldstein = True, defomax = 0.3,
         hgtcorr = False, gacoscorr = True, pre_detrend = True,
@@ -189,14 +193,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     tmpdir = os.path.join(procdir,pair,'temp_'+str(ml))
     tmpgendir = os.path.join(procdir,pair,'temp_gen')
     tmpunwdir = os.path.join(procdir,pair,'temp_unw')
-    if not os.path.exists(os.path.join(procdir,pair)):
-        os.mkdir(os.path.join(procdir,pair))
-    if not os.path.exists(tmpdir):
-        os.mkdir(tmpdir)
-    if not os.path.exists(tmpgendir):
-        os.mkdir(tmpgendir)
-    if not os.path.exists(tmpunwdir):
-        os.mkdir(tmpunwdir)
+    for dodir in [os.path.join(procdir,pair), tmpdir, tmpgendir, tmpunwdir]:
+        if not os.path.exists(dodir):
+            os.mkdir(dodir)
+
     # do gacos if exists
     if gacoscorr:
         gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
@@ -207,6 +207,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             gacoscorrfile = False
     else:
         gacoscorrfile = False
+
+
     if gacoscorrfile:
         print('GACOS data found, using to improve unwrapping')
         #ingacos = xr.open_dataset(gacoscorrfile)
@@ -215,14 +217,20 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         ifg['gacos'].values = ingacos.values
     else:
         gacoscorr = False
+
+
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
     if ml == 1:
         cohthres = 0.15
         ifg['mask'] = ifg['mask'] * ifg['mask'].where(ifg['coh'] < cohthres).fillna(1)
+
+
     if hgtcorr:
         if not 'hgt' in ifg:
             print('ERROR in importing heights!')
             hgtcorr = False
+
+
     # now doing multilooking, using coh as mag...
     #make complex from coh and pha
     ifg['cpx'] = ifg.coh.copy()
@@ -234,14 +242,20 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             coh = ifg['coh']
         # if this is better, i will change it and have it fixed
         cohratio = (2*coh**2)/(1-coh**2)
+
+
     if type(cohratio) != type(None):
         ifg['cpx'].values = magpha2RI_array(cohratio.values, ifg.pha.values)
     else:
         ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
-    #fixing difference in xarray version... perhaps...
+
+
+    #fixing difference in xarray version...
     if 'lat' not in ifg.coords:
         print('warning - perhaps old xarray version - trying anyway')
         ifg = ifg.rename_dims({'x':'lon','y':'lat'})
+
+
     # now crop if needed:
     if cliparea_geo:
         minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
@@ -262,6 +276,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         # not the best here, as pixels might get slightly shifted, but perhaps not that big deal (anyway prev_ramp is 'blurred')
         if not type(prev_ramp) == type(None):
             prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
+
+
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
     ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug)
     width = len(ifg_ml.lon)
@@ -269,7 +285,9 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if lowpass:
         # let's do longwave filtering:
         ifg_ml = lowpass_gauss(ifg_ml)
-    #updat the origpha to keep state before filtering
+
+
+    #update the origpha to keep state before filtering
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     if goldstein:
         print('filtering by goldstein filter')
@@ -292,20 +310,24 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         ifg_ml['mask_filt'] = ifg_ml['mask_extent']
         #ifg_ml['mask_filt'].values=mask
         ifg_ml['mask_filt'].values=spmask.astype(np.int8)
-        ifg_ml['mask_full']=ifg_ml['mask_filt']*ifg_ml['mask_extent']
+        ifg_ml['mask_full']=ifg_ml['mask_filt']*ifg_ml['mask_extent']*ifg_ml['mask']
         # need to properly assess variance (or coherence-like measure) - but cannot use gaussian!
         #tofillpha = ifg_ml.filtpha.where(ifg_ml.mask_filt.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
         #ifg_ml['pha'].values = interpolate_nans(tofillpha.values, method='nearest')
-        # no gapfilling here!
-        # ok, so now unwrap it!
-        cpx=pha2cpx(ifg_ml['filtpha'].values)
-        coh=sp
+        # no gapfilling here! but then it gets wrong... so.. gapfilling:
+        print('gapfilling')
+        tofillpha = ifg_ml.filtpha.where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
+        pha2unw = interpolate_nans(tofillpha.values, method='nearest')
+        cpx = pha2cpx(pha2unw)
+        coh = sp
         mask=ifg_ml['mask_full'].fillna(0).values
+        print('unwrapping filtered phase')
         unw=unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,deltemp=True)
         ifg_ml['unw']=ifg_ml['pha']
         ifg_ml.unw.values=unw
         ifg_ml['pha']=ifg_ml['filtpha']
         # add residuals, using orig coh
+        print('unwrapping residuals')
         cpx=pha2cpx(wrap2phase((ifg_ml['filtpha']-ifg_ml['origpha']).fillna(0).values)) # fillna probably not needed
         coh=ifg_ml.coh.fillna(0.001).values
         unw=unwrap_np(cpx,coh,defomax=0,tmpdir=tmpunwdir,mask=mask,deltemp=True)
@@ -1190,6 +1212,7 @@ def gaussfill(dapha, sigma=2):
     gauss_cpx = filter_nan_gaussian_conserving(cpxarr, sigma=sigma*1.5, trunc=4)
     dapha.values = np.angle(gauss_cpx)
     return dapha
+
 
 
 def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
