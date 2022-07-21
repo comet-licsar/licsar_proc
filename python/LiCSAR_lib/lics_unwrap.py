@@ -291,12 +291,16 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     if goldstein:
         print('filtering by goldstein filter')
-        ifg_ml['filtpha'], specmag = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1)
+        # this line waits for super-truper improvement - as the spectral magnitude could be used as quality measure! i think..
+        # but i have to skip it for now
+        #ifg_ml['filtpha'], specmag = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1, returncoh=False)
         #get mask from specmag:
-        sp=np.log10(specmag.values)
-        sp[sp<0]=0
-        sp[sp>1]=1
-        spmask=sp>thres # try 0.25
+        # sp=np.log10(specmag.values)
+        # sp[sp<0]=0
+        # sp[sp>1]=1
+        # spmask=sp>thres # try 0.25
+        ifg_ml['filtpha'], sp = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1, returncoh=True)
+        spmask=sp>thres
         # and remove islands - let's keep the 2x2 km islands...
         npa=spmask*1.0
         npa[npa==0]=np.nan
@@ -322,7 +326,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         coh = sp
         mask=ifg_ml['mask_full'].fillna(0).values
         print('unwrapping filtered phase')
-        unw,conncomp=unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,conncomp=True,deltemp=True)
+        unw,conncomp =unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,conncomp=True, deltemp=True)
         ifg_ml['unw']=ifg_ml['pha']
         ifg_ml['conncomp'] = ifg_ml['pha']
         ifg_ml['conncomp'].values = conncomp
@@ -1262,10 +1266,16 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)      # it doesn't work well with mask!
     unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True)
     unw = filter_nan_gaussian_conserving(unw, sigma=4, trunc=4) # a stronger filter should help...
-    ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
-    ifg_ml['origpha'].values = wrap2phase(ifg_ml['origpha']-unw)
-    ifg_ml['pha'].values = ifg_ml['origpha'].values  # needed in later stage
-    ifg_ml['cpx'].values = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha.values)
+    if 'toremove' in ifg_ml:
+        ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
+    else:
+        ifg_ml['toremove'] = ifg_ml['pha']
+        ifg_ml.toremove.values = unw
+    if 'origpha' in ifg_ml:
+        ifg_ml['origpha'].values = wrap2phase(ifg_ml['origpha']-unw)
+        ifg_ml['pha'].values = ifg_ml['origpha'].values  # needed in later stage
+    if 'cpx' in ifg_ml:
+        ifg_ml['cpx'].values = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha.values)
     ifg_ml['unwlow'] = ifg_ml['pha']
     ifg_ml['unwlow'].values = unw
     return ifg_ml
@@ -2096,8 +2106,8 @@ def filter_ifg_ml(ifg_ml, calc_coh_from_delta = False, radius = 1000, trunc = 4)
 
 
 # implementation of the Goldstein filter here:
-def goldstein_AH(block, alpha=0.8, kernelsigma=1):
-    kernel = Gaussian2DKernel(x_stddev=kernelsigma) #sigma 1 gives 9x9 gaussian kernel
+def goldstein_AH(block, alpha=0.8, kernelsigma=0.75):
+    kernel = Gaussian2DKernel(x_stddev=kernelsigma) #sigma 1 gives 9x9 gaussian kernel, 0.75 gives 7x7 kernel
     # just in case we use phase directly, should be in cpx already...
     #if not(block.dtype.type == np.complex128 or block.dtype.type == np.complex64):
     #    block=pha2cpx(block)
@@ -2106,14 +2116,14 @@ def goldstein_AH(block, alpha=0.8, kernelsigma=1):
     H=np.fft.ifftshift(convolve(np.fft.fftshift(H), kernel))
     meanH=np.median(H)
     if meanH != 0:
-        H=H/meanH
+        H=H/meanH   # ok but it seems there is no real effect on this!
     H=H**alpha
     cpxfilt=np.fft.ifft2(cpx_fft*H)
     return cpxfilt
 
 
 
-def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1): #ovlwin=8, nproc=1):
+def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, returncoh=True): #ovlwin=8, nproc=1):
     """Goldstein filtering of phase
     
     Args:
@@ -2122,6 +2132,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1): #ov
         alpha (float): Goldstein alpha parameter
         ovlpx (int): how many pixels should overlap the window
         nproc (int): number of processors to be used by dask
+        returncoh (boolean): return coherence instead of the spectral magnitude
         
     Returns:
         xr.DataArray,xr.DataArray: filtered phase, magnitude (try np.log to use for masking)
@@ -2138,7 +2149,11 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1): #ov
     cpxb=f.compute(num_workers=nproc)
     outpha.values=np.angle(cpxb)
     outmag=outpha.copy()
-    outmag.values=np.abs(cpxb)
+    if returncoh:
+        phadiff = wrap2phase(outpha-inpha)
+        outmag.values = coh_from_phadiff(phadiff)
+    else:
+        outmag.values=np.abs(cpxb)
     return outpha,outmag
 
 
