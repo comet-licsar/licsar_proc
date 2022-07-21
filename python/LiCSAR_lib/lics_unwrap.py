@@ -322,8 +322,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         coh = sp
         mask=ifg_ml['mask_full'].fillna(0).values
         print('unwrapping filtered phase')
-        unw=unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,deltemp=True)
+        unw,conncomp=unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,conncomp=True,deltemp=True)
         ifg_ml['unw']=ifg_ml['pha']
+        ifg_ml['conncomp'] = ifg_ml['pha']
+        ifg_ml['conncomp'].values = conncomp
         ifg_ml.unw.values=unw
         ifg_ml['pha']=ifg_ml['filtpha']
         # add residuals, using orig coh
@@ -645,7 +647,7 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
             hgtcorr = True, gacoscorr = True,
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
-            nproc = 1, dolocal = False,
+            nproc = 1, dolocal = False, goldstein = True,
             use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
@@ -794,9 +796,22 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
                                  subtract_gacos = subtract_gacos, dolocal = dolocal)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
+                    if 'conncomp' in ifg_ml:
+                        ifg_ml.conncomp.values.tofile(pair+'/'+pair+'.conncomp')
                     # export 
                     width = len(ifg_ml.lon)
-                    create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
+                    try:
+                        # use LiCSBAS preview generator
+                        import SCM
+                        import LiCSBAS_plot_lib as plot_lib
+                        unwpngfile = os.path.join(pair+'/'+pair+'.unw.png')
+                        cmap_wrap = SCM.romaO
+                        cycle = 3
+                        plot_lib.make_im_png(np.angle(np.exp(1j * ifg_ml.unw.values / cycle) * cycle), unwpngfile, cmap_wrap,
+                                             pair + '.unw', vmin=-np.pi, vmax=np.pi, cbar=False)
+                    except:
+                        print('error with new preview, doing old way')
+                        create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
                     os.system('rm '+pair+'/'+pair+'.unw.ras')
                     os.system('rm -r '+pair+'/'+'temp_'+str(ml))
                     os.system('rm -r '+pair+'/'+'temp_gen')
@@ -1494,7 +1509,7 @@ def remove_islands(npa, pixelsno = 50):
     return npa
 
 
-def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', width = 0, est = None, bin_pre_remove = None, defomax = 0.6, printout = True):
+def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', width = 0, est = None, bin_pre_remove = None, conncomp=False, defomax = 0.6, printout = True):
     '''Main function to perform unwrapping with snaphu.
     
     Args:
@@ -1505,6 +1520,7 @@ def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', wid
         width (int): width of binary raster
         est (string or None): path to coarse estimate binary (float32)
         bin_pre_remove (string or None): path to float32 binary to remove from est, prior to unwrapping
+        conncomp (boolean): whether to save connected components
         defomax (float): max defo cycles
         printout (boolean): controls verbosity of text output
     '''
@@ -1526,6 +1542,9 @@ def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', wid
     extracmd = ''
     if est:
         extracmd = "-e {}".format(est)
+    if conncomp:
+        conncompfile=outunwbin+'.conncomp'
+        extracmd = extracmd+' -g {}'.format(conncompfile)
     starttime = time.time()
     if not maskbin:
         snaphucmd = 'snaphu -f {0} -o {1} -c {2} {3} {4} {5}'.format(snaphuconffile, outunwbin, cohbin, extracmd, cpxbin, str(width))
@@ -1743,7 +1762,7 @@ def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.getcwd()):
     return ifg
 
 
-def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp'), mask = False, deltemp = True):
+def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp'), mask = False, conncomp=False, deltemp = True):
     '''unwraps given numpy array
     
     Args:
@@ -1752,10 +1771,12 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp
         defomax (float): DEFOMAX to snaphu
         tmpdir (string): temp dir
         mask (boolean): whether to try use binary mask (if exists)
+        conncomp (boolean): whether to export connected components
         deltemp (boolean): clean temp dir after processing
     
     Returns:
         numpy.ndarray: unwrapped array
+        or + numpy.ndarray: connected components (if requested)
     '''
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
@@ -1782,14 +1803,20 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp
     # unwrap it
     width = coh.shape[1]
     #with nostdout():
-    main_unwrap(binCPX, bincoh, maskbin = binmask, outunwbin = unwbin, width = width, defomax = defomax, printout = False)
+    main_unwrap(binCPX, bincoh, maskbin = binmask, outunwbin = unwbin, width = width, conncomp = conncomp, defomax = defomax, printout = False)
     # and load it back
     unw1 = np.fromfile(unwbin,dtype=np.float32)
     unw1 = unw1.reshape(coh.shape)
+    if conncomp:
+        ccom = np.fromfile(unwbin+'.conncomp', dtype=np.uint8)
+        ccom = ccom.reshape(coh.shape)
     if deltemp:
         #shutil - delete tmpdir!!!!!
         shutil.rmtree(tmpdir)
-    return unw1
+    if conncomp:
+        return unw1, conncomp
+    else:
+        return unw1
 
 
 def correct_hgt(ifg_mlc, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_workers = 1, nonlinear=False, minheight=200, mingausscoh=0.4):
