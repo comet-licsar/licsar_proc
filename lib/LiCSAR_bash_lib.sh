@@ -42,7 +42,11 @@ function slurm_get_jobname() {
 
 function touchscratch() {
     dir=$1
-    if [ ! -d $1 ]; then echo "Usage: touchscratch \$BATCH_CACHE_DIR"; return 0; fi;
+    if [ `echo $dir | grep -c scratch` == 0 ]; then
+      echo "Usage: touchscratch \$BATCH_CACHE_DIR";
+      echo "(or another directory on scratch disk)"
+      return 0;
+    fi;
     echo "touching contents of directory "$dir
     for x in `find $dir`; do touch $x; done
     echo "done"
