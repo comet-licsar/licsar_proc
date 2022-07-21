@@ -40,6 +40,14 @@ function slurm_get_jobname() {
     scontrol show jobid $jobid | grep JobName | cut -d '=' -f3
 }
 
+function touchscratch() {
+    dir=$1
+    if [ ! -d $1 ]; then echo "Usage: touchscratch \$BATCH_CACHE_DIR"; return 0; fi;
+    echo "touching contents of directory "$dir
+    for x in `find $dir`; do touch $x; done
+    echo "done"
+}
+
 function clean_public() {
     cd $LiCSAR_public
     for track in `seq 1 175`; do echo $track; 
