@@ -863,78 +863,8 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
             nproc = 1
     if nproc == 1:
         for pair in pairset:
-            if os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
-                #check its dimensions..
-                raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
-                if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
-                    #use tolerance of max pixels
-                    maxpixels = 4
-                    if ((abs(framewid - raster.RasterXSize) > maxpixels) or (abs(framelen - raster.RasterYSize) > maxpixels)):
-                        print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                        continue
-                    print('ERROR - the file {} has unexpected dimensions, trying to fix'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                    for tif in glob.glob(os.path.join(geoifgdir, pair, pair+'.geo.*.tif')):
-                        outfile = tif+'.tmp.tif'
-                        try:
-                            filedone = reproject_to_match(tif, hgtfile, outfile)
-                            if os.path.exists(outfile):
-                                shutil.move(outfile, tif)
-                        except:
-                            print('something wrong during reprojection, skipping')
-                            continue
-                        #os.system('gmt grdsample {0} -G{1}')
-                try:
-                    raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
-                    if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
-                        print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                        continue
-                except:
-                    print('some error processing file {}'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
-                    continue
-                if not os.path.exists(os.path.join(pair,pair+'.unw')):
-                    print('processing pair '+pair)
-                    if export_to_tif:
-                        outtif = os.path.join(pair,pair+'.geo.unw.tif')
-                    else:
-                        outtif = None
-                    try:
-                        if cascade:
-                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, cliparea_geo = cliparea_geo, dolocal = dolocal)
-                        else:
-                            defomax = 0.3
-                            ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
-                                     thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, 
-                                     keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
-                                     subtract_gacos = subtract_gacos, dolocal = dolocal, smooth = smooth)
-                        (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
-                        ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
-                        # export 
-                        mlipar = 'slc.mli.par'
-                        if not os.path.exists(mlipar):
-                            f = open(mlipar, 'w')
-                            f.write('range_samples: '+str(len(ifg_ml.lon))+'\n')
-                            f.write('azimuth_lines: '+str(len(ifg_ml.lat))+'\n')
-                            f.write('radar_frequency: 5405000000.0 Hz\n')
-                            f.close()
-                        if not os.path.exists('hgt'):
-                            if 'hgt' in ifg_ml:
-                                ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
-                        if not os.path.exists('EQA.dem_par'):
-                            post_lon=np.round(float(ifg_ml.lon[1] - ifg_ml.lon[0]),6)
-                            post_lat=np.round(float(ifg_ml.lat[1] - ifg_ml.lat[0]),6)
-                            cor_lat = np.round(float(ifg_ml.lat[0]),6)
-                            cor_lon = np.round(float(ifg_ml.lon[0]),6)
-                            create_eqa_file('EQA.dem_par',len(ifg_ml.lon),len(ifg_ml.lat),cor_lat,cor_lon,post_lat,post_lon)
-                        width = len(ifg_ml.lon)
-                        create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
-                        os.system('rm -r '+pair+'/'+'temp_*')
-                    except:
-                        print('ERROR processing of pair '+pair)
-                        os.system('rm -r '+pair)
-                if not os.path.exists(os.path.join(pair,pair+'.unw')):
-                    print('some error occured and the unw was not processed')
-                    os.system('rm -r '+pair)
-
+            check_and_process_ifg(pair)
+        fix_additionals()
 
 
 def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True):
