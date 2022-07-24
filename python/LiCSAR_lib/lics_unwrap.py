@@ -833,19 +833,23 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
         mlipar = 'slc.mli.par'
         if not os.path.exists(mlipar):
             f = open(mlipar, 'w')
-            f.write('range_samples: '+str(len(ifg_ml.lon))+'\n')
-            f.write('azimuth_lines: '+str(len(ifg_ml.lat))+'\n')
+            f.write('range_samples: '+str(framewid)+'\n')
+            f.write('azimuth_lines: '+str(framelen)+'\n')
             f.write('radar_frequency: 5405000000.0 Hz\n')
             f.close()
+        hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
+        hgt = load_tif2xr(hgtfile)
         if not os.path.exists('hgt'):
-            if 'hgt' in ifg_ml:
-                ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
+            hgt.astype(np.float32).values.tofile('hgt')  # should work but i didn't test it (blind fix)
+            #np.array(raster).astype(np.float32).tofile('hgt')
+            #if 'hgt' in ifg_ml:
+            #    ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
         if not os.path.exists('EQA.dem_par'):
-            post_lon=np.round(float(ifg_ml.lon[1] - ifg_ml.lon[0]),6)
-            post_lat=np.round(float(ifg_ml.lat[1] - ifg_ml.lat[0]),6)
-            cor_lat = np.round(float(ifg_ml.lat[0]),6)
-            cor_lon = np.round(float(ifg_ml.lon[0]),6)
-            create_eqa_file('EQA.dem_par',len(ifg_ml.lon),len(ifg_ml.lat),cor_lat,cor_lon,post_lat,post_lon)
+            post_lon=np.round(float(hgt.lon[1] - hgt.lon[0]),6)
+            post_lat=np.round(float(hgt.lat[1] - hgt.lat[0]),6)
+            cor_lat = np.round(float(hgt.lat[0]),6)
+            cor_lon = np.round(float(hgt.lon[0]),6)
+            create_eqa_file('EQA.dem_par',framewid,framelen,cor_lat,cor_lon,post_lat,post_lon)
     if nproc>1:
         try:
             from pathos.multiprocessing import ProcessingPool as Pool
@@ -864,7 +868,10 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
     if nproc == 1:
         for pair in pairset:
             check_and_process_ifg(pair)
-        fix_additionals()
+        try:
+            fix_additionals()
+        except:
+            print('debug - should continue ok')
 
 
 def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True):
