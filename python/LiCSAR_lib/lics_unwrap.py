@@ -830,6 +830,9 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
             else:
                 return True
     def fix_additionals():
+        hgt = get_ml_hgt(frame, ml=ml, cliparea_geo = cliparea_geo)
+        framewid=len(hgt.lon)
+        framelen=len(hgt.lat)
         mlipar = 'slc.mli.par'
         if not os.path.exists(mlipar):
             f = open(mlipar, 'w')
@@ -837,10 +840,8 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
             f.write('azimuth_lines: '+str(framelen)+'\n')
             f.write('radar_frequency: 5405000000.0 Hz\n')
             f.close()
-        hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
-        hgt = load_tif2xr(hgtfile)
         if not os.path.exists('hgt'):
-            hgt.astype(np.float32).values.tofile('hgt')  # should work but i didn't test it (blind fix)
+            hgt.fillna(0).astype(np.float32).values.tofile('hgt')  # should work but i didn't test it (blind fix)
             #np.array(raster).astype(np.float32).tofile('hgt')
             #if 'hgt' in ifg_ml:
             #    ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
@@ -872,6 +873,21 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
             fix_additionals()
         except:
             print('debug - should continue ok')
+
+
+def get_ml_hgt(frame, ml=1, cliparea_geo = None):
+    """Support function to load DEM of frame, incl. multilook (downsample) and clipping
+    """
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir, str(int(frame[:3])), frame)
+    hgtfile = os.path.join(geoframedir, 'metadata', frame + '.geo.hgt.tif')
+    hgt = load_tif2xr(hgtfile)
+    if ml>1:
+        hgt = hgt.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()
+    if cliparea_geo:
+        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo2coords(cliparea_geo)
+        hgt = hgt.sel(lon=slice(minclipx, maxclipx), lat=slice(maxclipy, minclipy))
+    return hgt
 
 
 def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True):
@@ -1890,22 +1906,36 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
     xrpha = xrpha.drop('band')
     
     if cliparea_geo:
-        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
-        minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
-        if minclipy > maxclipy:
-            print('you switched min max in crop coordinates (latitude). fixing')
-            tmpcl = minclipy
-            minclipy=maxclipy
-            maxclipy=tmpcl
-        if minclipx > maxclipx:
-            print('you switched min max in crop coordinates (longitude). fixing')
-            tmpcl = minclipx
-            minclipx=maxclipx
-            maxclipx=tmpcl
+        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo2coords(cliparea_geo)
         xrpha = xrpha.sel(x=slice(minclipx, maxclipx), y=slice(maxclipy, minclipy))
     if tolonlat:
         xrpha = xrpha.rename({'x': 'lon','y': 'lat'})
     return xrpha
+
+
+def cliparea_geo2coords(cliparea_geo):
+    """Exports the string to min/max clip values
+
+    Args:
+        cliparea_geo (str): clip boundaries, e.g. 'lon1/lon2/lat1/lat2'
+
+    Returns:
+        float, float, float, float: minclipx, maxclipx, minclipy, maxclipy
+    """
+    minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
+    minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
+    if minclipy > maxclipy:
+        print('you switched min max in crop coordinates (latitude). fixing')
+        tmpcl = minclipy
+        minclipy = maxclipy
+        maxclipy = tmpcl
+    if minclipx > maxclipx:
+        print('you switched min max in crop coordinates (longitude). fixing')
+        tmpcl = minclipx
+        minclipx = maxclipx
+        maxclipx = tmpcl
+    return minclipx, maxclipx, minclipy, maxclipy
+
 
 '''
 def detrend_block(phablock, maxfringes=4):
