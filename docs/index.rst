@@ -167,6 +167,8 @@ and used to bind the final unwrapped result - therefore especially decorrelated 
 
 The data here will be prepared to folder GEOCml5GACOSclip.
 Then, the -T would use up-to-date LiCSBAS codes with their experimental functionality ON (in this case, e.g. nullification of pixels in unwrapped pairs with loop closure errors over pi is ON).
+Thus basically parameter -T would equal to ``LiCSBAS12 --nullify; LiCSBAS13 --fast --nopngs``, plus some fine-tuned parameters.
+
 The whole procedure will run in the background through JASMIN's LOTUS server (see generated .sh files) and once finished, results will be in TS_GEOCml5GACOSclip, plus additional files will be generated
 (e.g. geotiffs of velocity estimate, or standard NetCDF file that can be loaded to e.g. QGIS or ncview to plot time series from 'cum' layer, etc.)
 
