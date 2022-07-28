@@ -144,8 +144,8 @@ def get_cliparea_xr(xrd):
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, goldstein = True, defomax = 0.3,
-        hgtcorr = False, gacoscorr = True, pre_detrend = True,
+        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
         cohratio = None, keep_coh_debug = True):
@@ -158,8 +158,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         ml (int): multilooking factor used to reduce the interferogram in lon/lat
         fillby (string): algorithm to fill gaps. use one of values: ``'gauss'``, ``'nearest'``, ``'none'`` (where ``'none'`` would only fill NaNs by zeroes)
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
-        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
+        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping (not recommended anymore)
         lowpass (boolean): additional large-window Gaussian low-pass filtering (recommended to use)
+        goldstein (boolean): use Goldstein filter (recommended to use, but might slow down the procedure)
+        specmag (boolean): use spectral magnitude of the Goldstein filter (if it is on) as an experimental measure of coherence
         defomax (float): parameter to snaphu for maximum deformation in rad per 2pi cycle (DEFOMAX_CYCLE)
         
         hgtcorr (boolean): switch to perform correction for height-phase correlation
@@ -299,7 +301,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         # sp[sp<0]=0
         # sp[sp>1]=1
         # spmask=sp>thres # try 0.25
-        ifg_ml['filtpha'], sp = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1, returncoh=True)
+        ifg_ml['filtpha'], sp = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1, returncoh=(not specmag))
         sp=sp.fillna(0).values
         spmask=sp>thres
         # and remove islands - let's keep the 2x2 km islands...
