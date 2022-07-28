@@ -344,7 +344,11 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         cpx=pha2cpx(wrap2phase((ifg_ml['filtpha']-ifg_ml['origpha']).fillna(0).values)) # fillna probably not needed
         coh=ifg_ml.coh.fillna(0.001).values
         unw=unwrap_np(cpx,coh,defomax=0,tmpdir=tmpunwdir,mask=mask,deltemp=True)
+        unw = unw * ifg_ml.mask_full.values
+        unw[unw == 0] = np.nan
+        nanmed = np.nanmedian(unw)
         ifg_ml.unw.values=ifg_ml.unw.values+unw
+        ifg_ml['unw'] = ifg_ml['unw'] * ifg_ml['mask_full']
         # so now we have it all done - let's return origpha from pre-filt state
         ifg_ml['pha']=ifg_ml['origpha']
     else:
