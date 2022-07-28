@@ -653,7 +653,7 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
             lowpass = False, goldstein = True,
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
-            nproc = 1, dolocal = False, goldstein = True,
+            nproc = 1, dolocal = False,
             use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
