@@ -2094,8 +2094,24 @@ def goldstein_AH(block, alpha=0.8, kernelsigma=0.75):
     return cpxfilt
 
 
+def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75,mask_nyquist=False):
+    kernel = Gaussian2DKernel(x_stddev=kernelsigma) #sigma 1 gives 9x9 gaussian kernel
+    cpx_fft = np.fft.fft2(block)
+    H=np.abs(cpx_fft)
+    H=convolve(np.fft.fftshift(H), kernel)
+    if mask_nyquist:
+        mask=nyquistmask(block)
+        H=H*mask
+    H=np.fft.ifftshift(H)
+    meanH=np.median(H)
+    if meanH != 0:
+        H=H/meanH
+    H=H**alpha
+    cpxfilt=np.fft.ifft2(cpx_fft*H)
+    return cpxfilt
 
-def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, returncoh=True): #ovlwin=8, nproc=1):
+
+def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, returncoh=True, mask_nyquist=False): #ovlwin=8, nproc=1):
     """Goldstein filtering of phase
     
     Args:
@@ -2117,7 +2133,9 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     incpx=pha2cpx(inpha.fillna(0).values)
     winsize = (blocklen, blocklen)
     cpxb = da.from_array(incpx, chunks=winsize)
-    f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
+    # f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
+    f = cpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=mask_nyquist, depth=ovlpx, boundary='reflect',
+                         meta=np.array((), dtype=np.complex128), chunks=(1, 1))
     cpxb=f.compute(num_workers=nproc)
     outpha.values=np.angle(cpxb)
     outmag=outpha.copy()
@@ -2127,6 +2145,23 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     else:
         outmag.values=np.abs(cpxb)
     return outpha,outmag
+
+
+def unit_circle(r):
+    A = np.arange(-r,r+1)**2
+    dists = np.sqrt(A[:,None] + A)
+    return np.abs(dists<r).astype(int)
+    #return (np.abs(dists-r)<0.5).astype(int) # outline only
+
+
+def nyquistmask(block, extrapx=4):
+    mask=np.zeros(block.shape) #should be square
+    nyquistlen=int(mask.shape[0]/2+0.5) + 1 #+ extrapx
+    circle=unit_circle(int(nyquistlen/2+0.5)) #will contain +1 px for zero
+    i=int((mask.shape[0]-circle.shape[0])/2+0.5)
+    j=int((mask.shape[1]-circle.shape[1])/2+0.5)
+    mask[i:i+circle.shape[0],j:j+circle.shape[1]]=circle
+    return mask
 
 
 def pha2cpx(pha):
