@@ -303,6 +303,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         # spmask=sp>thres # try 0.25
         ifg_ml['filtpha'], sp = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1, returncoh=(not specmag))
         sp=sp.fillna(0).values
+        if specmag:
+            sp = np.log10(sp)
+            sp[sp > 1] = 1
+            sp[sp < 0] = 0
         spmask=sp>thres
         # and remove islands - let's keep the 2x2 km islands...
         npa=spmask*1.0
