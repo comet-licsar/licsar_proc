@@ -650,6 +650,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
 
 def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False, 
             hgtcorr = True, gacoscorr = True,
+            lowpass = False, goldstein = True,
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
             nproc = 1, dolocal = False, goldstein = True,
@@ -660,7 +661,9 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
         frame (string): LiCSAR frame ID
         ml (int): multilooking factor used to reduce the interferogram in lon/lat
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
-        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
+        smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping, can be wrong - not preferred anymore.
+        lowpass (boolean): switch to use lowpass filter (Gaussian-based, with masking high gradients and interpolating inbetween), preferred option
+        goldstein (boolean): switch to use extra Goldstein filter - would cause longer run, but it is very recommended option to use
         cascade (boolean): switch to perform cascade unwrapping
         
         hgtcorr (boolean): switch to perform correction for height-phase correlation
@@ -797,6 +800,7 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
                         defomax = 0.3
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
+                                 lowpass=lowpass, goldstein=goldstein,
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                  subtract_gacos = subtract_gacos, dolocal = dolocal)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
