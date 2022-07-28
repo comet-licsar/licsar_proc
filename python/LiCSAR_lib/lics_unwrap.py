@@ -346,7 +346,9 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         unw=unwrap_np(cpx,coh,defomax=0,tmpdir=tmpunwdir,mask=mask,deltemp=True)
         unw = unw * ifg_ml.mask_full.values
         unw[unw == 0] = np.nan
-        nanmed = np.nanmedian(unw)
+        # 2022-07-28: seems not good idea to correct by median...
+        #nanmed = np.nanmedian(unw)
+        #unw = unw - nanmed
         ifg_ml.unw.values=ifg_ml.unw.values+unw
         ifg_ml['unw'] = ifg_ml['unw'] * ifg_ml['mask_full']
         # so now we have it all done - let's return origpha from pre-filt state
@@ -604,7 +606,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     # but this may be wrong!
     # 2022-04-04 - ok, but gacos and some other corrections based on model would bring full shift,
     # including the one already inside range offsets during coreg. so we should indeed shift by median:
-    ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['unw'].median()
+    # 2022-07-28: seems not good idea to correct by median...
+    #ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['unw'].median()
     if rampit:
         ifg_ml['unw_orig'] = ifg_ml['unw'].copy()
         ifg_ml['unw'].values= interpolate_replace_nans(ifg_ml['unw'].values, kernel)
@@ -629,10 +632,11 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             ifg_ml['resid_final'] = ifg_ml.unwcpx * ifg_ml.origcpx.conjugate() #* ifg_ml.mask_full
             # but ignoring the overall shift as we do the median shifting before
             residpha = np.angle(ifg_ml['resid_final'].where(ifg_ml.mask_full>0))
-        medres = np.nanmedian(residpha)
-        residpha = residpha - medres
+        # 2022-07-28: seems not good idea to correct by median...
+        #medres = np.nanmedian(residpha)
+        #residpha = residpha - medres
         # ifg_ml['resid_final'].values = residpha; ifg_ml['resid_final'].plot(); plt.show()
-        print('final check for residuals: their std is '+str(np.nanstd(residpha)))
+        #print('final check for residuals: their std is '+str(np.nanstd(residpha)))
         # ok, so i assume that the unw would not help anymore, so just adding to unw as it is
         ifg_ml['unw'] = ifg_ml['unw'] - residpha
     # now, we may need to save without gacos itself:
