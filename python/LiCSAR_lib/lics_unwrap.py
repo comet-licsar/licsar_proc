@@ -2307,8 +2307,20 @@ def build_amp_avg_std(frame, return_ampstab = False):
         return ampavg, ampstd
 
 
-def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outnopx = False, do_std = True, do_tif = False):
+def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outnopx = False, do_std = False, do_tif = False):
     """Builds coherence stability map (or just avg/std coherence) of a frame
+    
+    Args:
+        frame (str):  frame id to generate coherence map(s) from
+        ifgdir (str): path to directory containing the input interferograms. By default None = set source directory from LiCSAR_public
+        days (str or int): for what Btemp to generate mean coherence map. By default 'all' = process all Btemps
+        monthly (boolean): if True, generate the coh maps per calendar month (generates 12 geotiff files). By default: False
+        outnopx (boolean): if True, outputs also map of number of non-NaN pixels used to generate the mean coh map. By default: False
+        do_std (boolean): if True, generates also std dev of coherence in time. By default: False
+        do_tif (boolean): if True, exports the output geotiff to LiCSAR_public (as e.g. FRAME.geo.meancoh.all.tif)
+    
+    Returns:
+        xr.DataArray [, xr.DataArray, xr.DataArray]
     """
     track=str(int(frame[:3]))
     if not ifgdir:
@@ -2351,6 +2363,15 @@ def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outno
                         cohavgA.attrs['number of input cohs'] = len(setA)
                         nameA = 'mean coh {0}-{1} days {2}'.format(daygroup[0], daygroup[1], setX_label)
                         coherences[nameA] = cohavgA
+                        if do_tif:
+                            # ok, export it to current folder
+                            outtif = frame+'.geo.meancoh.{0}-{1}days.{2}.tif'.format(daygroup[0], daygroup[1], setX_label)
+                            try:
+                                cohavgE = cohavgA.rename({'x': 'lon','y': 'lat'}).sortby(['lon','lat'])
+                            except:
+                                print('debug: cohavgA is already with lon, lat - check it further')
+                                cohavgE = cohavgA.sortby(['lon','lat'])
+                            export_xr2tif(cohavgE, outtif, debug = False)
                 # cohavgB.plot(vmin=0,vmax=0.9)
                 # plt.show()
                 #for ddays in days:
@@ -2372,7 +2393,8 @@ def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outno
             print('exporting to '+outtif)
             out.rio.write_crs("epsg:4326", inplace=True).rio.to_raster(outtif)
     if do_tif:
-        outtif = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.meancoh.'+str(days)+'.tif')
+        #outtif = os.path.join(os.environ['LiCSAR_public'], track, frame, 'metadata', frame+'.geo.meancoh.'+str(days)+'.tif')
+        outtif = frame+'.geo.meancoh.'+str(days)+'.tif'
         nopx = len(pairs)
         cohavg = (cohavg*255).astype(np.uint8)
         cohavg.attrs['NUMBER_OF_INPUT_FILES'] = nopx
@@ -2383,6 +2405,7 @@ def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outno
         return cohavg, cohstd, nopx
     else:
         return cohavg, cohstd
+
 
 
 # Solution by Andy and Karsten to recalculate costs for masked (NN-filled) areas - not used here yet
