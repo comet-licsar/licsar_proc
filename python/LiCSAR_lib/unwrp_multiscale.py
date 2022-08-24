@@ -381,6 +381,15 @@ def rad2mm_s1(inrad):
     return outmm
 
 
+def mm2rad_s1(inmm):
+    speed_of_light = 299792458 #m/s
+    radar_freq = 5.405e9  #for S1
+    wavelength = speed_of_light/radar_freq #meter
+    coef_r2m = -wavelength/4/np.pi*1000 #rad -> mm, positive is -LOS
+    outrad = inmm/coef_r2m
+    return outrad
+
+
 def rad2mm(pha, lam = 0.0312):
     coef_r2m = -lam/4/np.pi*1000 #rad -> mm, positive is -LOS
     outmm = pha*coef_r2m

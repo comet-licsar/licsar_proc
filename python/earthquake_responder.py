@@ -370,8 +370,10 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
     return selected_ifgs
 
 
-def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 12):
+def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6):
     '''Gets earliest expected acquisition time of given frame for given event (time)
+
+    Careful - not checking for S1A or S1B as reference epoch! thus keeping revisit days between satellites.
     '''
     if metafile:
         masterdate = fc.get_master(frame, asdatetime = True, metafile = metafile)
