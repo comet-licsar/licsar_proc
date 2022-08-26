@@ -144,7 +144,7 @@ def get_cliparea_xr(xrd):
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
@@ -286,7 +286,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     length = len(ifg_ml.lat)
     if lowpass:
         # let's do longwave filtering:
-        ifg_ml = lowpass_gauss(ifg_ml)
+        ifg_ml = lowpass_gauss(ifg_ml, thres=0.75, use_gold = False)
 
 
     #update the origpha to keep state before filtering
@@ -1016,7 +1016,11 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         else:
             ifg_ml['pha'].values = pha_no_gacos
         '''
+        stdbeforegacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
         ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
+        stdaftergacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
+        if stdaftergacos > stdbeforegacos:
+            print('WARNING, GACOS increases stddev here, from {0} to {1} rad - yet keeping it'.format(str(stdbeforegacos), str(stdaftergacos))
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
         ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
         ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
@@ -1207,12 +1211,23 @@ def gaussfill(dapha, sigma=2):
 
 
 
-def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
-    radius = 15*get_resolution(ifg_ml)  #in 30x30 window.. should be ok to do
+def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True):
     ifg_ml['origpha'] = ifg_ml['pha']
-    ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
-    ifg_ml['pha'] = ifg_ml['gauss_pha']  # pha is to unwrap
-    mask = (ifg_ml.gauss_coh>thres).fillna(0).values
+    if use_gold:
+        print('warning, switched fully from Gaussian filtering to Goldstein fashion, also for lowpass')
+        # change gauss filter to goldstein - takes longer but should be better
+        mask = ifg_ml.mask.values
+        dapha = ifg_ml.pha.where(mask != 0)
+        ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
+        dd,cc = goldstein_filter_xr(ifg_ml['pha'], blocklen=16)
+        ifg_ml['pha'].values = dd.values
+        mask = (cc>thres).fillna(0).values
+        mask = ifg_ml.mask.fillna(0).values*mask
+    else:
+        radius = 15*get_resolution(ifg_ml)  #in 30x30 window.. should be ok to do
+        ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
+        ifg_ml['pha'] = ifg_ml['gauss_pha']  # pha is to unwrap
+        mask = (ifg_ml.gauss_coh>thres).fillna(0).values
     
     # additionally remove islands that are smaller than 2x2 km
     lenthres = 2000 # m
@@ -1229,6 +1244,10 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0):
     #dapha = ifg_ml.pha.where(mask*ifg_ml.mask_full != 0)
     dapha = ifg_ml.pha.where(mask != 0)
     ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
+    #if not use_gold:
+    #    # second filter
+    #    ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
+    #    ifg_ml['pha'] = ifg_ml['gauss_pha']  # pha is to unwrap
     #ifg_ml['pha'].values = gaussfill(dapha, sigma=2)   # low pass filter   # gives ugly results
     # unwrap and reduce that
     coh = ifg_ml.coh.fillna(0).values
