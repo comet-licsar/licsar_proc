@@ -1506,6 +1506,8 @@ def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', wid
         defomax (float): max defo cycles
         printout (boolean): controls verbosity of text output
     '''
+    print('WARNING - we skip using mask here, as snaphu -M really does not do good job. need to change for AH+KS solution soon')
+    maskbin = None
     if width == 0:
         print('error - width is zero')
         return False
