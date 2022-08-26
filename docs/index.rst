@@ -137,13 +137,14 @@ Afterwards, you may just fine tune parameters of LiCSBAS step 15 (and 16) and re
   #e.g. 155D_02611_050400 20141001 20200205
   #parameters:
   #-M 10 .... this will do extra multilooking (in this example, 10x multilooking)
-  #-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)
+  #-u ....... use the reunwrapping procedure (useful if multilooking or with dataset with too many unwrapping errors)
+  #-l ....... if the reunwrapping is to be performed, support it by lowpass filter (recommended, unless in tricky areas as islands)
   #-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)
-  #-s ....... if the reunwrapping is to be performed, use smoothing (two-pass unw approach, similar effect as with cascade, only milder)
-  #-H ....... this will use hgt to support unwrapping (only if using reunwrapping)
-  #-T ....... use testing version of LiCSBAS
-  #-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u)
-  #-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs
+  #-s ....... if the reunwrapping is to be performed, use Gaussian smoothing (quite obsolete, changed for Goldstein-Werner filter)
+  #-H ....... if the reunwrapping is to be performed, use DEM to support unwrapping
+  #-T ....... use testing version of LiCSBAS (would nullify and use --fast, see/edit batch_LiCSBAS.py)
+  #-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u) - useful to control pixels coverage
+  #-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs. rather for debugging
   #-G lon1/lon2/lat1/lat2  .... clip to this AOI
   ##
   ## following is an ongoing work, for testing only:
@@ -163,7 +164,8 @@ Explaining on example, use of
 would grab **wrapped** interferograms of this (fictive) frame 100D that cover period of year 2015, then it will check for availability of GACOS corrections and use them if they exist for most of epochs
 (if you used -S, GACOS corrections would be applied only if they exist for ALL epochs). Then it would crop them to the coordinates given by -G, and then it will **reunwrap** them (-u) with 5x multilooking
 (so the resolution if using default LiCSAR data would become approx. 500 m), with support of cascade approach (-c) that means a longer wave signal is first estimated/unwrapped (using 10x the -M factor)
-and used to bind the final unwrapped result - therefore especially decorrelated areas would not induce unwrapping error.. hopefully.
+and used to bind the final unwrapped result - therefore especially decorrelated areas would not induce unwrapping error.. hopefully. The cascade approach should give comparable results to use of the
+(simpler) lowpass filter (parameter -l) that we actually recommend to be used by default.
 
 The data here will be prepared to folder GEOCml5GACOSclip.
 Then, the -T would use up-to-date LiCSBAS codes with their experimental functionality ON (in this case, e.g. nullification of pixels in unwrapped pairs with loop closure errors over pi is ON).
