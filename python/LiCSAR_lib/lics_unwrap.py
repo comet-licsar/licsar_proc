@@ -144,7 +144,7 @@ def get_cliparea_xr(xrd):
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'nearest', thres = 0.35, smooth = False, lowpass = True, goldstein = True, specmag = False,
+        ml = 10, fillby = 'nearest', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
@@ -286,7 +286,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     length = len(ifg_ml.lat)
     if lowpass:
         # let's do longwave filtering:
-        ifg_ml = lowpass_gauss(ifg_ml, thres=0.75, use_gold = False)
+        ifg_ml = lowpass_gauss(ifg_ml, thres=0.5, use_gold = False)
 
 
     #update the origpha to keep state before filtering
