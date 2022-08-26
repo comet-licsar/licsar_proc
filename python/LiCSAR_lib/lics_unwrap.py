@@ -144,7 +144,7 @@ def get_cliparea_xr(xrd):
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'nearest', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
@@ -1525,8 +1525,8 @@ def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', wid
         defomax (float): max defo cycles
         printout (boolean): controls verbosity of text output
     '''
-    print('WARNING - we skip using mask here, as snaphu -M really does not do good job. need to change for AH+KS solution soon')
-    maskbin = None
+    #print('WARNING - we skip using mask here, as snaphu -M really does not do good job. need to change for AH+KS solution soon')
+    #maskbin = None
     if width == 0:
         print('error - width is zero')
         return False
