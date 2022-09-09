@@ -216,10 +216,8 @@ def main(argv=None):
 
     cube = loadall2cube(cumfile)
     
-    #do filtered
-    cube['vel_filt'] = interp_and_smooth(cube['vel'], 0.5)
     
-    #reference cum to time
+    #reference cum to time (first date will be 0)
     if not imd_m:
         imd_m = cube.time.isel(time=0).astype('str')
     cube['cum'] = cube['cum'] - cube['cum'].sel(time=imd_m)
@@ -231,16 +229,20 @@ def main(argv=None):
         if len(ref.vel) == 0:
             print('warning, no points in the reference area - will export without referencing')
         else:
-            refcoh = ref.where(ref.coh >0.7)
+            refcoh = ref.where(ref.coh >0.6)
             if refcoh.vel.count() < 2:
                 print('warning, the ref area has low coherence! continuing anyway')
                 refcoh = ref
-            for v in refcoh.data_vars.variables:
+            #for v in refcoh.data_vars.variables:
+            for v in ['cum', 'vel', 'vel_filt']:
                 cube[v] = cube[v] - refcoh[v].median(["lat", "lon"])
     
     #only now will clip - this way the reference area can be outside the clip, if needed
     if cliparea_geo:
         cube = cube.sel(lon=slice(minclipx, maxclipx), lat=slice(minclipy, maxclipy))
+    
+    #do filtered (it is nice)
+    cube['vel_filt'] = interp_and_smooth(cube['vel'], 0.5)
     
     #masked = maskit(clipped)
     #masked['vel_filt'] = clipped['vel_filt']
