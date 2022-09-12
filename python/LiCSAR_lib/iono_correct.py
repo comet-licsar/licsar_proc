@@ -1,5 +1,9 @@
 import xarray as xr
 from daz_iono import *
+from scipy.constants import speed_of_light
+import numpy as np
+from scipy.interpolate import griddata
+
 
 
 def get_tecs_func(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 11:26:38'), pd.Timestamp('2014-11-29 11:26:38')]):
@@ -13,6 +17,23 @@ def get_diff_tecs(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 
     A,B = get_tecs(lat, lon, 800, acq_times[0:2], False)
     return B-A
 
+
+
+def get_resolution(ifg, in_m=True):
+        """Gets resolution of the xr.dataset (or dataarray), either in metres or degrees
+        """
+        resdeg = (np.abs(hgt.lat[1]-hgt.lat[0])+np.abs(hgt.lon[1]-hgt.lon[0]))/2
+        if in_m:
+            latres = 111.32 * np.cos(np.radians(hgt.lat.mean())) * 1000 # in m
+            return float(latres * resdeg)
+        else:
+            return float(resdeg)
+
+
+# now for the test in licsar_disk/iono:
+ifgg=xr.open_dataset('ionotest.nc')
+import matplotlib.pyplot as plt
+hgt = ifgg.hgt.where(ifgg.hgt != 0)
 
 
 # load metadata, i.e.:
@@ -31,10 +52,12 @@ frame='149A_11032_131313'
 pair='20180930_20181012'
 
 epochs = pair.split('_')
+
+# start using one epoch only
 acq = epochs[0]
 
 # 1. get middle point - just super approx. for now
-hgt = ifg.hgt.where(ifg.hgt != 0)
+#hgt = ifg.hgt.where(ifg.hgt != 0)
 scene_alt = float(hgt.median())
 scene_center_lon = float(hgt.lon.mean())
 scene_center_lat = float(hgt.lat.mean())
@@ -42,51 +65,173 @@ centre_range_m=880080.5691
 heading=-13.775063
 avg_incidence_angle=39.1918
 
-
-sat_alt_km = 800
-acqtime = pd.to_datetime(str(acq)+'T'+center_time)
-
-# this is to get point between sat and scene centre
-theta = np.radians(avg_incidence_angle)
-wgs84 = nv.FrameE(name='WGS84')
-Pscene_center = wgs84.GeoPoint(latitude=scene_center_lat, longitude=scene_center_lon, degrees=True)
-#    burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
-    ###### do the satg_lat, lon
-azimuthDeg = heading-90 #yes, azimuth is w.r.t. N (positive to E)
-elevationDeg = 90-avg_incidence_angle
-slantRange = centre_range_m
-# from daz_iono:
-x, y, z = aer2ecef(azimuthDeg, elevationDeg, slantRange, scene_center_lat, scene_center_lon, scene_alt)
-satg_lat, satg_lon, sat_alt = ecef2latlonhei(x, y, z)
-Psatg = wgs84.GeoPoint(latitude=satg_lat, longitude=satg_lon, degrees=True)
-# get middle point between scene and sat - and get F2 height for it
-path = nv.GeoPath(Pscene_center.to_nvector(), Psatg.to_nvector())
-# get point in the middle
-Pmid_scene_sat = path.interpolate(0.5).to_geo_point()
-# get hionos in that middle point:
-tecs, hionos = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime], returnhei = True)
-
-########################## CHECK THIS BELOW:
-hiono = hionos[0]*1000 # m
-tec = tecs[0]
-
-# first, get IPP - ionosphere pierce point
-# range to IPP can be calculated using:
-range_IPP = hiono/np.sin(theta)
-x, y, z = aer2ecef(azimuthDeg, elevationDeg, range_IPP, scene_center_lat, scene_center_lon, scene_alt)
-ippg_lat, ippg_lon, ipp_alt = ecef2latlonhei(x, y, z)
-Pippg = wgs84.GeoPoint(latitude=ippg_lat, longitude=ippg_lon, degrees=True)
-path_scenecenter_Pippg = nv.GeoPath(Pscene_center, Pippg)
-
-# now i need to shift all the points towards the satellite, by the path_scenecenter_to_IPP distance (direction)
-neco jako... displace..with geopath...
-def displace_scene(scene, geopath):
-    return newscene
+center_time='23:06:29.844585'
+#sat_alt_km = 800
+#acqtime = pd.to_datetime(str(acq)+'T'+center_time)
 
 
-ionoscene = hgt.copy()
-ionoscene = displace_scene(ionoscene)
+def get_tecphase(epoch):
+    acqtime = pd.to_datetime(str(epoch)+'T'+center_time)
+    # this is to get point between sat and scene centre
+    theta = np.radians(avg_incidence_angle)
+    wgs84 = nv.FrameE(name='WGS84')
+    Pscene_center = wgs84.GeoPoint(latitude=scene_center_lat, longitude=scene_center_lon, degrees=True)
+    #    burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
+        ###### do the satg_lat, lon
+    azimuthDeg = heading-90 #yes, azimuth is w.r.t. N (positive to E)
+    elevationDeg = 90-avg_incidence_angle
+    slantRange = centre_range_m
+    # from daz_iono:
+    x, y, z = aer2ecef(azimuthDeg, elevationDeg, slantRange, scene_center_lat, scene_center_lon, scene_alt)
+    satg_lat, satg_lon, sat_alt = ecef2latlonhei(x, y, z)
+    sat_alt_km = round(sat_alt/1000)
+    Psatg = wgs84.GeoPoint(latitude=satg_lat, longitude=satg_lon, degrees=True)
+    # get middle point between scene and sat - and get F2 height for it
+    path = nv.GeoPath(Pscene_center.to_nvector(), Psatg.to_nvector())
+    # get point in the middle
+    Pmid_scene_sat = path.interpolate(0.5).to_geo_point()
+    # get hionos in that middle point:
+    tecs, hionos = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime], returnhei = True)
+    hiono = hionos[0]*1000 # m
+    # first, get IPP - ionosphere pierce point
+    # range to IPP can be calculated using:
+    range_IPP = slantRange * hiono / sat_alt
+    #
+    # so now let's get the IPP coordinates, using the range to IPP --- BUT, first we need to update the elevationDeg, as the 
+    # ionospheric plasma would have similar effect to the projected scene as your leg projected inside water w.r.t. outside (a 'cut' appears, i.e. change in look angle)
+    # get inc angle at IPP - see iono. single layer model function
+    #earth_radius = 6378160 # m
+    #sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
+    x, y, z = aer2ecef(azimuthDeg, elevationDeg, range_IPP, scene_center_lat, scene_center_lon, scene_alt)
+    ippg_lat, ippg_lon, ipp_alt = ecef2latlonhei(x, y, z)
+    #
+    dlat = ippg_lat-scene_center_lat
+    dlon = ippg_lon-scene_center_lon
+    #
+    # now i need to shift all the points towards the satellite, by the path_scenecenter_to_IPP distance (direction)
+    #
+    # this is to grid to less points:
+    ionosampling=10000 # m  --- by default, 10 km sampling should be ok?
+    resolution = get_resolution(hgt, in_m=True)  # just mean avg in both lon, lat should be ok
+    # how large area is covered
+    lonextent = len(hgt.lon)*resolution
+    # so what is the multilook factor?
+    mlfactorlon = round(len(hgt.lon)/(lonextent/ionosampling))
+    latextent = len(hgt.lat)*resolution
+    mlfactorlat = round(len(hgt.lat)/(latextent/ionosampling))
+    hgtml = hgt.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
+    #
+    # so now use the shifted coordinates of decimated hgt to find tec:
+    fortec_lon = hgtml.lon.values + dlon
+    fortec_lat = hgtml.lat.values + dlat
+    #
+    # do it the good old way:
+    ionoxr = hgtml.copy(deep=True)
+    print('getting TEC values sampled by {} km. in latitude:'.format(str(round(ionosampling/1000))))
+    for i in range(len(fortec_lat)):
+        print(str(i)+'/'+str(len(fortec_lat)))
+        for j in range(len(fortec_lon)):
+            ilat, ilon = fortec_lat[i], fortec_lon[j]
+            ionoxr.values[i,j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]
+    #
+    # ok, now correct for geometric squinting through ionosphere, at the Hiono:
+    earth_radius = 6378160 # m
+    sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
+    ionoxr = ionoxr/np.sqrt(1-sin_thetaiono**2)
+    #
+    # now, convert TEC values into 'phase' - simplified here (?)
+    f0 = 5.4050005e9
+    inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
+    ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(inc))
+    # now the ionoxr contains phase in radians
+    return ionoxr
 
+# get tec phase for both epochs:
+tecphase1=get_tecphase(epochs[0])
+tecphase2=get_tecphase(epochs[1])
+# and their difference
+tecdiff = tecphase2-tecphase1
+
+# so the final step is to interpolate the result - use bilinear int. - and get it back to hgt (or ifg, perform correction)
+tecout=tecdiff.interp(lat=ifgxr.lat.values, lon=ifgxr.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
+tecout.to_netcdf('tecout.nc')
+
+
+
+# done!!!
+
+
+
+
+
+
+
+
+
+
+
+
+def interpolate_tecdiff2ifg(tecdiff, ifgxr): 
+    '''ifgxr must be just xr.dataarray!
+    '''
+    teclats = tecdiff.lat.values
+    teclons = tecdiff.lon.values
+    values = tecdiff.values.ravel()
+    points=list(zip(teclons, teclats))
+    X, Y = np.meshgrid(ifgxr.lon.values, ifgxr.lat.values)
+    vals = griddata(points, values, (X, Y), method='linear')
+    cube = ifgxr.copy()
+    cube.values = vals
+    return cube
+
+
+
+
+dsi = ds.interp(lat=new_lat, lon=new_lon)
+
+
+ifgg['ionocorr']=interpolate_tecdiff2ifg(tecdiff, ifgxr)
+
+
+
+
+
+data = merged_correction['x']
+    lat = merged_correction['lats']
+    lon = merged_correction['lons']
+    mask = data.mask
+    values = data.data[~mask].ravel()
+    lons = lon.data[~mask]
+    lats = lat.data[~mask]
+    points=list(zip(teclons, teclats))
+
+    # initialize the linear interpolator
+    #interp = LinearNDInterpolator(list(zip(lons, lats)), values)
+    X, Y = np.meshgrid(like.lon.values, like.lat.values)
+    #vals = interp(X, Y)
+    vals = griddata(points, values, (X, Y), method=method)
+    cube = like.copy()
+    cube.values = vals
+mask = data.mask
+values = data.data[~mask].ravel()
+lons = lon.data[~mask]
+lats = lat.data[~mask]
+#points=list(zip(lons, lats))
+points=list(zip(lons.ravel(), lats.ravel()))
+# initialize the linear interpolator
+#interp = LinearNDInterpolator(list(zip(lons, lats)), values)
+X, Y = np.meshgrid(like.lon.values, like.lat.values)
+#vals = interp(X, Y)
+vals = griddata(points, values, (X, Y), method=method)
+cube = like.copy()
+cube.values = vals
+    return cube
+    
+    
+    
+
+a['tecphase'] = -4*np.pi*40.308193/speed_of_light/f0*a['tecdiffs']/np.cos(np.radians(inc))
+a['tecphase'].plot()
 
 
 
