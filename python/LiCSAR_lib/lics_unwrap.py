@@ -640,9 +640,9 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         # ok, so i assume that the unw would not help anymore, so just adding to unw as it is
         ifg_ml['unw'] = ifg_ml['unw'] - residpha
     # now, we may need to save without gacos itself:
-    if subtract_gacos:
+    if subtract_gacos:    # so even if we did not use gacos to support unwrapping, we should remove it if subtract_gacos is on. and that's just for loop closures!
         if 'gacos' in ifg_ml:
-            ifg_ml['unw'] = ifg_ml['unw'] - (ifg_ml['gacos'] - ifg_ml['gacos'].median())
+            ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['gacos']   # (ifg_ml['gacos'] - ifg_ml['gacos'].median())    # better not remove median
             ifg_ml['unw'] = ifg_ml['unw'].where(ifg_ml.mask_full>0)
     if outtif:
         #ifg_ml.pha.fillna(0).where(ifg_ml.mask_coh.where(ifg_ml.mask == 1).fillna(1) == 1)
@@ -1020,9 +1020,12 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
         stdaftergacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
         if stdaftergacos > stdbeforegacos:
-            print('WARNING, GACOS increases stddev here, from {0} to {1} rad - yet keeping it'.format(str(stdbeforegacos), str(stdaftergacos)))
-        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-        ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
+            print('WARNING, GACOS increases stddev here, from {0} to {1} rad - not using GACOS to help unwrapping'.format(str(stdbeforegacos), str(stdaftergacos)))
+            # just .. returning it back..
+            ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] + ifg_ml['gacos'])
+        else:
+            ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
+        ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask > 0)
         ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
         #ok, return coh, phase back to cpx
         cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)

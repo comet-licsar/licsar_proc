@@ -18,6 +18,29 @@ def get_diff_tecs(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 
     return B-A
 
 
+def get_inc_frame(frame, heading=False):
+    '''will get the incidence angle 2d xr.datarray
+    if heading==True: return also heading raster
+    '''
+    metadir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata')
+    Ufile = os.path.join(metadir, frame + '.geo.U.tif')
+    U = load_tif2xr(Ufile)
+    U = U.where(U != 0)
+    inc = U.copy()
+    inc.values = np.degrees(np.arccos(U.values))
+    if heading:
+        Efile = os.path.join(metadir, frame + '.geo.E.tif')
+        Nfile = os.path.join(metadir, frame + '.geo.N.tif')
+        E = load_tif2xr(Efile)
+        N = load_tif2xr(Nfile)
+        E = E.where(E != 0)
+        N = N.where(N != 0)
+        heading = N.copy(deep=True)
+        heading.values = np.degrees(np.arctan2(E, N)) + 90
+        return inc, heading
+    else:
+        return inc
+
 
 def get_resolution(ifg, in_m=True):
         """Gets resolution of the xr.dataset (or dataarray), either in metres or degrees
@@ -65,6 +88,7 @@ centre_range_m=880080.5691
 heading=-13.775063
 avg_incidence_angle=39.1918
 
+inc=get_inc_frame(frame)
 center_time='23:06:29.844585'
 #sat_alt_km = 800
 #acqtime = pd.to_datetime(str(acq)+'T'+center_time)
@@ -79,7 +103,7 @@ def get_tecphase(epoch):
     #    burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
         ###### do the satg_lat, lon
     azimuthDeg = heading-90 #yes, azimuth is w.r.t. N (positive to E)
-    elevationDeg = 90-avg_incidence_angle
+    elevationDeg = 90-avg_incidence_angle # this is to get the avg sat altitude/range
     slantRange = centre_range_m
     # from daz_iono:
     x, y, z = aer2ecef(azimuthDeg, elevationDeg, slantRange, scene_center_lat, scene_center_lon, scene_alt)
@@ -119,30 +143,35 @@ def get_tecphase(epoch):
     mlfactorlon = round(len(hgt.lon)/(lonextent/ionosampling))
     latextent = len(hgt.lat)*resolution
     mlfactorlat = round(len(hgt.lat)/(latextent/ionosampling))
-    hgtml = hgt.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
+    #hgtml = hgt.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
+    incml = inc.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
     #
     # so now use the shifted coordinates of decimated hgt to find tec:
-    fortec_lon = hgtml.lon.values + dlon
-    fortec_lat = hgtml.lat.values + dlat
+    fortec_lon = incml.lon.values + dlon
+    fortec_lat = incml.lat.values + dlat
     #
     # do it the good old way:
-    ionoxr = hgtml.copy(deep=True)
+    # also correct for geometric squinting through ionosphere, at the Hiono:
+    earth_radius = 6378160  # m
+    ionoxr = incml.copy(deep=True)
     print('getting TEC values sampled by {} km. in latitude:'.format(str(round(ionosampling/1000))))
     for i in range(len(fortec_lat)):
         print(str(i)+'/'+str(len(fortec_lat)))
         for j in range(len(fortec_lon)):
             ilat, ilon = fortec_lat[i], fortec_lon[j]
-            ionoxr.values[i,j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]
+            theta = float(np.radians(incml.values[i,j]))
+            # now for the iono-squint fix:
+            sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
+            ionoxr.values[i,j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]/np.sqrt(1-sin_thetaiono**2)
     #
     # ok, now correct for geometric squinting through ionosphere, at the Hiono:
-    earth_radius = 6378160 # m
-    sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
-    ionoxr = ionoxr/np.sqrt(1-sin_thetaiono**2)
+    #sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
+    #ionoxr = ionoxr/np.sqrt(1-sin_thetaiono**2)
     #
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
-    inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
-    ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(inc))
+    #inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
+    ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
     # now the ionoxr contains phase in radians
     return ionoxr
 
@@ -153,7 +182,7 @@ tecphase2=get_tecphase(epochs[1])
 tecdiff = tecphase2-tecphase1
 
 # so the final step is to interpolate the result - use bilinear int. - and get it back to hgt (or ifg, perform correction)
-tecout=tecdiff.interp(lat=ifgxr.lat.values, lon=ifgxr.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
+tecout=tecdiff.interp(lat=inc.lat.values, lon=inc.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
 tecout.to_netcdf('tecout.nc')
 
 

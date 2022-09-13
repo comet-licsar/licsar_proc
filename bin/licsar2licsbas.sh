@@ -16,6 +16,7 @@ if [ -z $1 ]; then
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u)"
+ echo "-g ....... use GACOS if available - NOTE THIS WAS ON BY DEFAULT TILL SEP 2022, BUT NOT ANYMORE"
  echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "----------------"
@@ -26,6 +27,7 @@ fi
 
 thres=0.3
 dolocal=0
+dogacos=0
 multi=1
 run_jasmin=1
 #dogacos=0
@@ -42,7 +44,7 @@ lowpass=0
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsSClkG:t:" option; do
+while getopts ":M:HucTsSClgkG:t:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -54,6 +56,8 @@ while getopts ":M:HucTsSClkG:t:" option; do
      #shift
      ;;
   c) cascade=1;
+     ;;
+  g) dogacos=1;
      ;;
   C) use_coh_stab=1;
      #shift
@@ -125,6 +129,9 @@ if [ -d GEOC ]; then
 fi
 
 mkdir GEOC GACOS 2>/dev/null
+if [ $dogacos == 1 ]; then
+  mkdir GACOS 2>/dev/null
+fi
 cd GEOC
 for meta in E N U hgt; do
  ln -s $metadir/$frame.geo.$meta.tif
@@ -147,6 +154,7 @@ else
  ln -s $lastimg
 fi
 
+if [ $dogacos == 1 ]; then
 for epoch in `ls $epochdir`; do
   if [ $epoch -ge $startdate ] && [ $epoch -le $enddate ]; then
     gacosfile=$epochdir/$epoch/$epoch.sltd.geo.tif
@@ -155,6 +163,7 @@ for epoch in `ls $epochdir`; do
     fi
   fi
 done
+fi
 
 if [ $dolocal == 0 ]; then
 if [ ! -z $2 ]; then
@@ -173,6 +182,8 @@ else
 fi
 fi
 
+
+if [ $dogacos == 1 ]; then
 # strict means gacos will be used only if available for ALL data
  #using GACOS only if there is at least for half of the files
  numf=`ls -d 20*[0-9] | cut -d '_' -f2 | sort -u| wc -l`
@@ -181,6 +192,7 @@ if [ $strict == 0 ]; then
  if [ `ls ../GACOS | wc -l` -lt $half ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
 else
  if [ `ls ../GACOS | wc -l` -lt $numf ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
+fi
 fi
 
 cd $workdir
