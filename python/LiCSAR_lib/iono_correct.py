@@ -167,11 +167,21 @@ def get_tecphase(epoch):
     # ok, now correct for geometric squinting through ionosphere, at the Hiono:
     #sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
     #ionoxr = ionoxr/np.sqrt(1-sin_thetaiono**2)
-    #
+    #def mm2rad_s1(inmm):
+    #speed_of_light = 299792458 #m/s
+    #radar_freq = 5.405e9  #for S1
+    #wavelength = speed_of_light/radar_freq #meter
+    #coef_r2m = -wavelength/4/np.pi*1000 #rad -> mm, positive is -LOS
+    #outrad = inmm/coef_r2m
+    #return outrad
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
     #inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
     ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+    # ionodelay in seconds: dT=2*40.308193/speed_of_light/f0^2 * ionoxr/np.cos(np.radians(incml))
+    # so the diff phase would be: pha[rad] = -2 pi * dT * f0;
+    # while distance would be: d[m] = pha * -speed_of_light/f0 /(4 pi) = 0.5 dT * speed_of_light       ; v=s/t -> d=c*dT <- in both ways
+    # BUT! i might have wrong IPP angle values - just because i don't scale lons, only shift them!
     # now the ionoxr contains phase in radians
     return ionoxr
 
