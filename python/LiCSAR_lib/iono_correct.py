@@ -54,42 +54,56 @@ def get_resolution(ifg, in_m=True):
 
 
 # now for the test in licsar_disk/iono:
-ifgg=xr.open_dataset('ionotest.nc')
+#ifgg=xr.open_dataset('ionotest.nc')
 import matplotlib.pyplot as plt
-hgt = ifgg.hgt.where(ifgg.hgt != 0)
+#hgt = ifgg.hgt.where(ifgg.hgt != 0)
+
+
+
+
+frame='149A_11032_131313'
+frame='149A_11107_091009'
+pair='20180930_20181012'
 
 
 # load metadata, i.e.:
 
-master=20190504
+#master=20190504
 
-heading=-13.775063
-avg_incidence_angle=39.1918
-azimuth_resolution=14.068910
-range_resolution=2.329562
-
-avg_height=3165.176
-
-
-frame='149A_11032_131313'
-pair='20180930_20181012'
+#heading=-13.775063
+#avg_incidence_angle=39.1918
+#azimuth_resolution=14.068910
+#range_resolution=2.329562
+#avg_height=3165.176
 
 epochs = pair.split('_')
 
 # start using one epoch only
-acq = epochs[0]
+#acq = epochs[0]
 
 # 1. get middle point - just super approx. for now
 #hgt = ifg.hgt.where(ifg.hgt != 0)
+
+#centre_range_m=880080.5691
+#heading=-13.775063
+#avg_incidence_angle=39.1918
+
+inc=get_inc_frame(frame)
+# get hgt
+metadir = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata')
+hgtfile=os.path.join(metadir, frame+'.geo.hgt.tif')
+hgt = load_tif2xr(hgtfile)
+hgt = hgt.where(U != 0)
+
 scene_alt = float(hgt.median())
 scene_center_lon = float(hgt.lon.mean())
 scene_center_lat = float(hgt.lat.mean())
-centre_range_m=880080.5691
-heading=-13.775063
-avg_incidence_angle=39.1918
 
-inc=get_inc_frame(frame)
-center_time='23:06:29.844585'
+from LiCSAR_misc import *
+center_time=grep1line('center_time',metafile).split('=')[1]
+heading=float(grep1line('heading',metafile).split('=')[1])
+centre_range_m=float(grep1line('centre_range_m',metafile).split('=')[1])
+#center_time='23:06:29.844585'
 #sat_alt_km = 800
 #acqtime = pd.to_datetime(str(acq)+'T'+center_time)
 
@@ -143,12 +157,31 @@ def get_tecphase(epoch):
     mlfactorlon = round(len(hgt.lon)/(lonextent/ionosampling))
     latextent = len(hgt.lat)*resolution
     mlfactorlat = round(len(hgt.lat)/(latextent/ionosampling))
-    #hgtml = hgt.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
+    hgtml = hgt.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
     incml = inc.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
-    #
+    # get range towards iono single-layer in the path to the satellite
+    range2iono = (hiono - hgtml) / np.cos(np.radians(incml))
+    earth_radius = 6378160  # m
+    ionoxr = incml.copy(deep=True)
+    print('getting TEC values sampled by {} km. in latitude:'.format(str(round(ionosampling / 1000))))
+    for i in range(len(range2iono.lat.values)):
+        print(str(i) + '/' + str(len(range2iono.lat.values)))
+        for j in range(len(range2iono.lon.values)):
+            if ~np.isnan(incml.values[i, j]):
+                #theta = float(np.radians(incml.values[i, j]))
+                eledeg = float(90 - incml.values[i, j])
+                ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
+                x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, float(hgtml.values[i,j]))
+                ilat, ilon, ialt = ecef2latlonhei(x, y, z)
+                theta = float(np.radians(incml.values[i, j]))
+                sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
+                ionoxr.values[i, j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0] / np.sqrt(1 - sin_thetaiono ** 2) # maybe no need for the last term??
+    '''
     # so now use the shifted coordinates of decimated hgt to find tec:
-    fortec_lon = incml.lon.values + dlon
-    fortec_lat = incml.lat.values + dlat
+    #fortec_lon = incml.lon.values + dlon
+    #fortec_lat = incml.lat.values + dlat
+    # actually, we can do it (much) better than that! see above... test
+    #
     #
     # do it the good old way:
     # also correct for geometric squinting through ionosphere, at the Hiono:
@@ -164,6 +197,7 @@ def get_tecphase(epoch):
             sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
             ionoxr.values[i,j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]/np.sqrt(1-sin_thetaiono**2)
     #
+    '''
     # ok, now correct for geometric squinting through ionosphere, at the Hiono:
     #sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
     #ionoxr = ionoxr/np.sqrt(1-sin_thetaiono**2)
@@ -199,16 +233,7 @@ tecout.to_netcdf('tecout.nc')
 
 # done!!!
 
-
-
-
-
-
-
-
-
-
-
+'''
 
 def interpolate_tecdiff2ifg(tecdiff, ifgxr): 
     '''ifgxr must be just xr.dataarray!
@@ -443,3 +468,4 @@ acq_times = []
 for e in epochs[0]:
     acq_times.append(pd.to_datetime(str(e)+'T'+dtime))
 #acq_times
+'''
