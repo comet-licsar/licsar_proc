@@ -1016,9 +1016,13 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         else:
             ifg_ml['pha'].values = pha_no_gacos
         '''
-        stdbeforegacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
+        cpx = magpha2RI_array(ifg_ml.coh.where(ifg_ml.mask>0).values, ifg_ml.pha.where(ifg_ml.mask>0).values)
+        stdbeforegacos = np.nanstd(cpx)
+        #stdbeforegacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
         ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
-        stdaftergacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
+        cpx = magpha2RI_array(ifg_ml.coh.where(ifg_ml.mask > 0).values, ifg_ml.pha.where(ifg_ml.mask > 0).values)
+        #stdaftergacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
+        stdaftergacos = np.nanstd(cpx)
         if stdaftergacos > stdbeforegacos:
             print('WARNING, GACOS increases stddev here, from {0} to {1} rad - not using GACOS to help unwrapping'.format(str(stdbeforegacos), str(stdaftergacos)))
             # just .. returning it back..

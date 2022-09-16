@@ -89,11 +89,13 @@ epochs = pair.split('_')
 #avg_incidence_angle=39.1918
 
 inc=get_inc_frame(frame)
+avg_incidence_angle = float(inc.mean())
 # get hgt
 metadir = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata')
+metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata','metadata.txt')
 hgtfile=os.path.join(metadir, frame+'.geo.hgt.tif')
 hgt = load_tif2xr(hgtfile)
-hgt = hgt.where(U != 0)
+hgt = hgt.where(hgt != 0)
 
 scene_alt = float(hgt.median())
 scene_center_lon = float(hgt.lon.mean())
@@ -211,7 +213,8 @@ def get_tecphase(epoch):
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
     #inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
-    ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+    #ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+    ionoxr = -2 * np.pi * 40.308193 / speed_of_light / f0 * ionoxr / np.cos(np.radians(incml))
     # ionodelay in seconds: dT=2*40.308193/speed_of_light/f0^2 * ionoxr/np.cos(np.radians(incml))
     # so the diff phase would be: pha[rad] = -2 pi * dT * f0;
     # while distance would be: d[m] = pha * -speed_of_light/f0 /(4 pi) = 0.5 dT * speed_of_light       ; v=s/t -> d=c*dT <- in both ways
