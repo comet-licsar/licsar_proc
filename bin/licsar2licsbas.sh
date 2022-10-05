@@ -9,7 +9,6 @@ if [ -z $1 ]; then
  echo "-M 10 .... this will do extra multilooking (in this example, 10x multilooking)"
  echo "-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)"
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
- echo "-s ....... if the reunwrapping is to be performed, use smooth operation before adding back residuals (could be wrong - rather use lowpass+Goldstein)"
  echo "-l ....... if the reunwrapping is to be performed, would do lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
  #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
  #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
@@ -17,9 +16,12 @@ if [ -z $1 ]; then
  echo "-T ....... use testing version of LiCSBAS"
  echo "-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u)"
  echo "-g ....... use GACOS if available - NOTE THIS WAS ON BY DEFAULT TILL SEP 2022, BUT NOT ANYMORE"
- echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
+ echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "----------------"
+ echo "some older (not recommended anymore) parameters:"
+ echo "-s ....... if the reunwrapping is to be performed, use smooth operation before adding back residuals (could be wrong - rather use lowpass+Goldstein)"
+ echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
  exit
@@ -41,10 +43,11 @@ LB_version=LiCSBAS
 cascade=0
 smooth=0
 lowpass=0
+wls=0
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsSClgkG:t:" option; do
+while getopts ":M:HucTsSClWgkG:t:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -64,6 +67,8 @@ while getopts ":M:HucTsSClgkG:t:" option; do
      ;;
   s) smooth=1;
      #shift
+     ;;
+  W) wls=1;
      ;;
   l) lowpass=1;
      #shift
@@ -289,6 +294,10 @@ else
  sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
 # sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
  sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"20/' batch_LiCSBAS.sh
+fi
+
+if [ $wls == 1 ]; then
+ sed -i 's/p13_inv_alg=\"\"/p13_inv_alg=\"WLS\"/' batch_LiCSBAS.sh
 fi
 
 # setting those values 'everywhere' (originally it was in the modified approach):
