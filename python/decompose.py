@@ -74,9 +74,9 @@ def decompose(asctif, desctif, aschead, deschead, ascinc, descinc):
     for ii in np.arange(0,vel_E.shape[0]):
         for jj in np.arange(0,vel_E.shape[1]):
             # create the design matrix
-            if type(U_asc)==float:
+            if np.isscalar(U_asc)  # in case of only values
                 G = np.array([[U_asc, E_asc], [U_desc, E_desc]])
-            else:
+            else:  # in case this is array
                 G = np.array([[U_asc[ii,jj], E_asc[ii,jj]], [U_desc[ii,jj], E_desc[ii,jj]]])
             # velocities
             d = np.array([[vel_asc[ii,jj], vel_desc[ii,jj]]]).T

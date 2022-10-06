@@ -26,14 +26,12 @@ def Conn_db():
     sqldb = parser.get('sqlinfo', 'dbname')
     sqluser = parser.get('sqlinfo', 'dbuser')
     sqlpass = parser.get('sqlinfo', 'dbpass')
-
     try:
         # Connect to the database
         conn = pymysql.connect(host=sqlhost,
                                user=sqluser,
                                password=sqlpass,
                                db=sqldb)
-
         cur = conn.cursor()
         rc = conn.ping(reconnect=True) 
         cur.execute('SELECT VERSION();')
@@ -43,11 +41,9 @@ def Conn_db():
         if not res:
             print("Error in database communication")
             return 'MYSQL ERROR'
-
     except pymysql.err.OperationalError as E:
         print('MySQL ERROR:\n%s\n' % E)
         conn = 'MYSQL ERROR'
-
     return conn
 
 
