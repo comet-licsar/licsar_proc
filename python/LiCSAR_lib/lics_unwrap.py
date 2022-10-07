@@ -223,7 +223,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
         cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
         coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos, dolocal = dolocal,
-        cohratio = cohratio, keep_coh_debug = keep_coh_debug, tmpdir = tmpdir))
+        cohratio = cohratio, keep_coh_debug = keep_coh_debug, tmpdir = tmpdir)
     
     return ifg_ml
 
