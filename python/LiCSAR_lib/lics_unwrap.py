@@ -1433,14 +1433,15 @@ def filter_cpx_gauss(ifg_ml, sigma = 2, trunc = 4):
         xr.Dataarray: filtered complex numbers dataarray
     """
     # tried with R, I separately --- EXACT same result as if using cpx numbers...
-    #R = np.real(ifg_ml.cpx.values)
-    #I = np.imag(ifg_ml.cpx.values)
+    R = np.real(ifg_ml.cpx.values)
+    I = np.imag(ifg_ml.cpx.values)
     #
-    #gR = filter_nan_gaussian_conserving(R, sigma=sigma, trunc=trunc)
-    #gI = filter_nan_gaussian_conserving(I, sigma=sigma, trunc=trunc)
+    gR = filter_nan_gaussian_conserving(R, sigma=sigma, trunc=trunc)
+    gI = filter_nan_gaussian_conserving(I, sigma=sigma, trunc=trunc)
     #
-    #gauss_cpx = gR + 1j*gI
-    gauss_cpx = filter_nan_gaussian_conserving(ifg_ml.cpx.values, sigma=sigma, trunc=trunc)
+    gauss_cpx = gR + 1j*gI
+    # ok, but this is possible only with new numpy:
+    #gauss_cpx = filter_nan_gaussian_conserving(ifg_ml.cpx.values, sigma=sigma, trunc=trunc)
     gauss_xr = ifg_ml['cpx'].copy(deep=True)
     #
     gauss_xr.values = gauss_cpx
