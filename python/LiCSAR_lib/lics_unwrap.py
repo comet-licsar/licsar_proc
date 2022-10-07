@@ -150,7 +150,6 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
         cohratio = None, keep_coh_debug = True):
     """Main function to unwrap a geocoded LiCSAR interferogram. Works on JASMIN (but can be easily adapted for local use)
-
     Args:
         frame (string): LiCSAR frame ID
         pair (string): identifier of interferometric pair, e.g. ``'20200120_20200201'``
@@ -198,7 +197,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     for dodir in [os.path.join(procdir,pair), tmpdir, tmpgendir, tmpunwdir]:
         if not os.path.exists(dodir):
             os.mkdir(dodir)
-
+    
     # do gacos if exists
     if gacoscorr:
         gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
@@ -209,8 +208,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             gacoscorrfile = False
     else:
         gacoscorrfile = False
-
-
+    
     if gacoscorrfile:
         print('GACOS data found, using to improve unwrapping')
         #ingacos = xr.open_dataset(gacoscorrfile)
@@ -219,20 +217,61 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         ifg['gacos'].values = ingacos.values
     else:
         gacoscorr = False
+    
+    ifg_ml = process_ifg_core(ifg, procdir = procdir, 
+        ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
+        defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
+        cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
+        coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos, dolocal = dolocal,
+        cohratio = cohratio, keep_coh_debug = keep_coh_debug)
+    
+    return ifg_ml
 
 
+def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), 
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
+        cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
+        coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
+        cohratio = None, keep_coh_debug = True):
+    try:
+        ifg = load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = cliparea_geo)
+    except:
+        print('error in loading data')
+        return False
+    # prepare tmp dir structure
+    tmpdir = os.path.join(procdir,'tmp_unwrap','temp_'+str(ml))
+    tmpgendir = os.path.join(procdir,'tmp_unwrap','temp_gen')
+    tmpunwdir = os.path.join(procdir,'tmp_unwrap','temp_unw')
+    for dodir in [os.path.join(procdir,'tmp_unwrap'), tmpdir, tmpgendir, tmpunwdir]:
+        if not os.path.exists(dodir):
+            os.mkdir(dodir)
+    # not ready now for gacos or hgt correlation
+    gacoscorr = False
+    hgtcorr = False
+    ifg_ml = process_ifg_core(ifg, procdir = procdir, 
+        ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
+        defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
+        cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
+        coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos, dolocal = dolocal,
+        cohratio = cohratio, keep_coh_debug = keep_coh_debug)
+    return ifg_ml
+
+
+def process_ifg_core(ifg, procdir = os.getcwd(), 
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
+        cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
+        coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
+        cohratio = None, keep_coh_debug = True):
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
     if ml == 1:
         cohthres = 0.15
         ifg['mask'] = ifg['mask'] * ifg['mask'].where(ifg['coh'] < cohthres).fillna(1)
-
-
     if hgtcorr:
         if not 'hgt' in ifg:
             print('ERROR in importing heights!')
             hgtcorr = False
-
-
     # now doing multilooking, using coh as mag...
     #make complex from coh and pha
     ifg['cpx'] = ifg.coh.copy()
@@ -244,20 +283,14 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
             coh = ifg['coh']
         # if this is better, i will change it and have it fixed
         cohratio = (2*coh**2)/(1-coh**2)
-
-
     if type(cohratio) != type(None):
         ifg['cpx'].values = magpha2RI_array(cohratio.values, ifg.pha.values)
     else:
         ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
-
-
     #fixing difference in xarray version...
     if 'lat' not in ifg.coords:
         print('warning - perhaps old xarray version - trying anyway')
         ifg = ifg.rename_dims({'x':'lon','y':'lat'})
-
-
     # now crop if needed:
     if cliparea_geo:
         minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
@@ -278,8 +311,6 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         # not the best here, as pixels might get slightly shifted, but perhaps not that big deal (anyway prev_ramp is 'blurred')
         if not type(prev_ramp) == type(None):
             prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
-
-
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
     ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug)
     width = len(ifg_ml.lon)
@@ -287,8 +318,6 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if lowpass:
         # let's do longwave filtering:
         ifg_ml = lowpass_gauss(ifg_ml, thres=0.5, use_gold = False)
-
-
     #update the origpha to keep state before filtering
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     if goldstein:
@@ -1120,6 +1149,46 @@ def get_resolution(ifg, in_m=True):
         return float(latres * resdeg)
     else:
         return float(resdeg)
+
+
+
+def load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = None):
+    inpha = load_tif2xr(phatif)
+    incoh = load_tif2xr(cohtif)
+    if incoh.max() > 2:
+        incoh.values = incoh.values/255
+    inmask = incoh.copy(deep=True)
+    inmask.values = np.byte(incoh > 0)
+    if landmask_tif:
+        if os.path.exists(landmask_tif):
+            landmask = load_tif2xr(landmask_file)
+            inmask.values = landmask.values * inmask.values
+    ifg = xr.Dataset()
+    ifg['pha'] = inpha
+    ifg['coh'] = ifg['pha']
+    ifg['coh'].values = incoh.values
+    ifg['mask'] = ifg['pha']
+    ifg['mask'].values = inmask.values
+    # just to clean from memory
+    inpha=''
+    incoh=''
+    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
+    if cliparea_geo:
+        minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
+        minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
+        if minclipy > maxclipy:
+            print('you switched min max in crop coordinates (latitude). fixing')
+            tmpcl = minclipy
+            minclipy=maxclipy
+            maxclipy=tmpcl
+        if minclipx > maxclipx:
+            print('you switched min max in crop coordinates (longitude). fixing')
+            tmpcl = minclipx
+            minclipx=maxclipx
+            maxclipx=tmpcl
+        # now will clip it - lat is opposite-sorted, so need to slice from max to min in y
+        ifg = ifg.sel(lon=slice(minclipx, maxclipx), lat=slice(maxclipy, minclipy))
+    return ifg
 
 
 def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
