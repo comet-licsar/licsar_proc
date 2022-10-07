@@ -193,8 +193,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     # prepare tmp dir structure
     tmpdir = os.path.join(procdir,pair,'temp_'+str(ml))
     tmpgendir = os.path.join(procdir,pair,'temp_gen')
-    tmpunwdir = os.path.join(procdir,pair,'temp_unw')
-    for dodir in [os.path.join(procdir,pair), tmpdir, tmpgendir, tmpunwdir]:
+    #tmpunwdir = os.path.join(procdir,pair,'temp_unw')
+    for dodir in [os.path.join(procdir,pair), tmpdir, tmpgendir]:
         if not os.path.exists(dodir):
             os.mkdir(dodir)
     
@@ -223,7 +223,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
         cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
         coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos, dolocal = dolocal,
-        cohratio = cohratio, keep_coh_debug = keep_coh_debug)
+        cohratio = cohratio, keep_coh_debug = keep_coh_debug, tmpdir = tmpdir))
     
     return ifg_ml
 
@@ -241,11 +241,8 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         return False
     # prepare tmp dir structure
     tmpdir = os.path.join(procdir,'tmp_unwrap','temp_'+str(ml))
-    tmpgendir = os.path.join(procdir,'tmp_unwrap','temp_gen')
-    tmpunwdir = os.path.join(procdir,'tmp_unwrap','temp_unw')
-    for dodir in [os.path.join(procdir,'tmp_unwrap'), tmpdir, tmpgendir, tmpunwdir]:
-        if not os.path.exists(dodir):
-            os.mkdir(dodir)
+    if not os.path.exists(tmpdir):
+        os.mkdir(tmpdir)
     # not ready now for gacos or hgt correlation
     gacoscorr = False
     hgtcorr = False
@@ -254,7 +251,8 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
         cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
         coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos, dolocal = dolocal,
-        cohratio = cohratio, keep_coh_debug = keep_coh_debug)
+        cohratio = cohratio, keep_coh_debug = keep_coh_debug,
+        tmpdir = tmpdir)
     return ifg_ml
 
 
@@ -263,8 +261,13 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
-        cohratio = None, keep_coh_debug = True):
+        cohratio = None, keep_coh_debug = True,
+        tmpdir = None ):
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
+    tmpunwdir = os.path.join(tmpdir,'temp_unw')
+    for dodir in [tmpdir, tmpunwdir]:
+        if not os.path.exists(dodir):
+            os.mkdir(dodir)
     if ml == 1:
         cohthres = 0.15
         ifg['mask'] = ifg['mask'] * ifg['mask'].where(ifg['coh'] < cohthres).fillna(1)
