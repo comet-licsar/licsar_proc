@@ -242,7 +242,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
     # prepare tmp dir structure
     tmpdir = os.path.join(procdir,'tmp_unwrap','temp_'+str(ml))
     if not os.path.join(procdir,'tmp_unwrap'):
-        os.mkdir(os.path.join(procdir,'tmp_unwrap')
+        os.mkdir(os.path.join(procdir,'tmp_unwrap'))
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
     # not ready now for gacos or hgt correlation

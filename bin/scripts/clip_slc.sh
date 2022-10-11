@@ -1,6 +1,15 @@
 #!/bin/bash
 #this will clip the SLCs ...
-
+# you may get the lonlats as:
+# hgt=$LiCSAR_public/`track_from_frame $frame`/$frame/metadata/$frame.geo.hgt.tif
+# gdallocationinfo $hgt $lon $lat
+# so... if i have lon1, lon2 etc., i can just do... nah, let's do it through python, i.e.:
+# import xarray as xr; import rioxarray
+# a=rioxarray.open_rasterio(hgt)
+# lon=-71.377; lat=-36.863; radius_km=25/2; radius_deg=radius_km/111
+# a.sel(lon=(lon-radius_deg, lon+radius_deg), lat=(lat+radius_deg, lat-radius_deg))
+# medhgt=float(a.sel(x=(lon-radius_deg, lon+radius_deg), y=(lat+radius_deg, lat-radius_deg), method='nearest').median())
+# print(str(lon-radius_deg), lon+radius_deg, lat-radius_deg, lat+radius_deg, medhgt)
 
 if [ -z $7 ]; then echo "parameters are:";
 echo "clip_slc.sh SLCFOLDER OUTFOLDER lon1 lon2 lat1 lat2 hei"
@@ -11,14 +20,15 @@ echo "third (optional) parameter is an overwrite control - by default, this is 0
 exit;
 fi
 
-epoch=`echo $1 | rev | cut -d '/' -f1 | rev`
 slcpath=$1
-slc=$1/$epoch.slc $1/$epoch.rslc 2>/dev/null
-if [ -z $slcpar ]; then echo "the folder "$1" seems empty, or no mosaic exists - exiting"; exit; fi
+epoch=`echo $slcpath | rev | cut -d '/' -f1 | rev`
+slc=`ls $slcpath/$epoch.slc $slcpath/$epoch.rslc 2>/dev/null`
 slcpar=$slc.par
+if [ ! -f $slcpar ]; then echo "the folder "$1" seems empty, or no mosaic exists - exiting"; exit; fi
+
 
 outdir=$2
-mkdir -p $2 2>/dev/null
+mkdir -p $outdir 2>/dev/null
 
 lon1=$3
 lon2=$4
