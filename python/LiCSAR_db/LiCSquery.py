@@ -739,6 +739,30 @@ def store_frame_geometry(frameid, wkt):
     res = do_query(sql_q, True)
     return res
 
+
+'''
+CREATE TABLE s1bursts
+(id INT(8) UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
+ s1bid INT(8) UNSIGNED NOT NULL,
+ iw TINYINT(1) NOT NULL,
+ relorb TINYINT(3) UNSIGNED NOT NULL,
+ tanx FLOAT(11) NOT NULL,
+ opass CHAR(1) NOT NULL,
+ geometry POLYGON NOT NULL);
+
+.. then:
+for i,j in aa.iterrows():
+    print(i)
+    res = store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
+
+'''
+def store_burst_geom(s1bid, iw, relorb, tanx, opass, wkt):
+    sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', GeomFromText('{5}'));".format(str(s1bid), 
+                                    str(iw), str(relorb), str(tanx), opass, wkt)
+    res = do_query(sql_q, True)
+    return res
+
+
 def sqlout2list(insql):
     #in case we get only string, we assume it was an error
     if type(insql)=='str':

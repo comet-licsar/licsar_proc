@@ -19,6 +19,26 @@ gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 pubdir = os.environ['LiCSAR_public']
 procdir = os.environ['LiCSAR_procdir']
 
+
+'''
+# notes:
+# this is how i imported burst db - first i converted them from sqlite3 to geojson
+# then i did:
+aa=gpd.read_file('../sqlite/burst_map.geojson')
+aa['geometry']=aa['geometry'].convex_hull
+
+import geopandas as gpd
+import shapely
+def _to_2d(x, y, z):
+    return tuple(filter(None, [x, y]))
+aa['geometry'] = aa['geometry'].apply(lambda x: shapely.ops.transform(_to_2d, x))
+
+# now it is ready to import to database:
+for i,j in aa.iterrows():
+    print(i)
+    res = lq.store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
+'''
+
 def check_and_fix_burst(mburst, framebursts):
     # to get mbursts of a zip file, e.g.:
     # frame = '...'
