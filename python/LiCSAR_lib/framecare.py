@@ -23,20 +23,27 @@ procdir = os.environ['LiCSAR_procdir']
 '''
 # notes:
 # this is how i imported burst db - first i converted them from sqlite3 to geojson
-# then i did:
-aa=gpd.read_file('../sqlite/burst_map.geojson')
-aa['geometry']=aa['geometry'].convex_hull
+# then i did, in /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/burst_database/IW/sqlite:
 
 import geopandas as gpd
 import shapely
+import time
+import LiCSquery as lq
+
+aa=gpd.read_file('burst_map.geojson')
+aa['geometry']=aa['geometry'].convex_hull
+
 def _to_2d(x, y, z):
     return tuple(filter(None, [x, y]))
+
 aa['geometry'] = aa['geometry'].apply(lambda x: shapely.ops.transform(_to_2d, x))
 
 # now it is ready to import to database:
 for i,j in aa.iterrows():
     print(i)
     res = lq.store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
+    time.sleep(1)
+
 '''
 
 def check_and_fix_burst(mburst, framebursts):

@@ -1417,9 +1417,10 @@ def coh_from_phadiff(phadiff, winsize = 3):
 
     Returns:
         np.array: coherence based on the variance
+        
     """
     variance = ndimage.generic_filter(phadiff, np.var, size=winsize)
-    outcoh = 1/np.sqrt(1+winsize*winsize*variance)
+    outcoh = 1-1/np.sqrt(1+winsize*winsize*variance)
     return outcoh
 
 
