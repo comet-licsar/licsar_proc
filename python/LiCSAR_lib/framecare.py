@@ -31,6 +31,8 @@ import time
 import LiCSquery as lq
 
 aa=gpd.read_file('burst_map.geojson')
+aa=aa[aa.burst_id>56099]
+
 aa['geometry']=aa['geometry'].convex_hull
 
 def _to_2d(x, y, z):
@@ -41,8 +43,8 @@ aa['geometry'] = aa['geometry'].apply(lambda x: shapely.ops.transform(_to_2d, x)
 # now it is ready to import to database:
 for i,j in aa.iterrows():
     print(i)
-    res = lq.store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
-    time.sleep(1)
+    res = store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
+    time.sleep(0.25)
 
 '''
 

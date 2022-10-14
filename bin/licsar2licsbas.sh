@@ -10,6 +10,7 @@ if [ -z $1 ]; then
  echo "-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)"
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-l ....... if the reunwrapping is to be performed, would do lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
+ echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
  #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
  #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
@@ -46,10 +47,11 @@ smooth=0
 lowpass=0
 wls=0
 cometdev=0
+que='short_serial'
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsdSClWgkG:t:" option; do
+while getopts ":M:HucTsdSClWgPkG:t:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -71,6 +73,8 @@ while getopts ":M:HucTsdSClWgkG:t:" option; do
      ;;
   s) smooth=1;
      #shift
+     ;;
+  P) que='comet'
      ;;
   W) wls=1;
      ;;
@@ -354,7 +358,7 @@ if [ $run_jasmin -eq 1 ]; then
  if [ $multi -eq 1 ]; then
   hours=23
  fi
- cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W "$hours":00 -M 8192 -q comet ./jasmin_run.sh"
+ cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W "$hours":00 -M 8192 -q "$que" ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
  chmod 777 jasmin_run.sh
  chmod 777 jasmin_run_cmd.sh

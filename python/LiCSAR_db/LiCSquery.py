@@ -646,6 +646,14 @@ def is_in_polygs2geom(frameid):
     is_in_geom = res[0][0]
     return is_in_geom
 
+
+def is_in_bursts2geom(s1bid, iw):
+    is_in_geom_sql = "select count(*) from s1bursts where s1bid = {0} and iw = {1};".format(str(s1bid), str(iw))
+    res = do_query(is_in_geom_sql)
+    is_in_geom = res[0][0]
+    return is_in_geom
+
+
 def set_job_started(job_id):
     sql_q = "UPDATE jobs "\
         "SET licsar_version = '%s' , " \
@@ -757,10 +765,14 @@ for i,j in aa.iterrows():
 
 '''
 def store_burst_geom(s1bid, iw, relorb, tanx, opass, wkt):
-    sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', GeomFromText('{5}'));".format(str(s1bid), 
+    is_in_geom = is_in_bursts2geom(s1bid, iw)
+    if is_in_geom == 0:
+        sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', GeomFromText('{5}'));".format(str(s1bid), 
                                     str(iw), str(relorb), str(tanx), opass, wkt)
-    res = do_query(sql_q, True)
-    return res
+        res = do_query(sql_q, True)
+        return res
+    else:
+        return False
 
 
 def sqlout2list(insql):
