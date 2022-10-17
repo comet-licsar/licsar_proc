@@ -213,8 +213,8 @@ def get_tecphase(epoch):
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
     #inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
-    #ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
-    ionoxr = -2 * np.pi * 40.308193 / speed_of_light / f0 * ionoxr / np.cos(np.radians(incml))
+    ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+    #ionoxr = -2 * np.pi * 40.308193 / speed_of_light / f0 * ionoxr / np.cos(np.radians(incml))
     # ionodelay in seconds: dT=2*40.308193/speed_of_light/f0^2 * ionoxr/np.cos(np.radians(incml))
     # so the diff phase would be: pha[rad] = -2 pi * dT * f0;
     # while distance would be: d[m] = pha * -speed_of_light/f0 /(4 pi) = 0.5 dT * speed_of_light       ; v=s/t -> d=c*dT <- in both ways
@@ -232,7 +232,23 @@ tecdiff = tecphase2-tecphase1
 tecout=tecdiff.interp(lat=inc.lat.values, lon=inc.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
 tecout.to_netcdf('tecout.nc')
 
+# 2022-10-17:
+# something is missing - maybe the effect of range offsets due to ionosphere, mapped by range px offset tracking during coreg towards M?
+master=str(grep1line('master',metafile).split('=')[1])
+tecphaseM=get_tecphase(m)
+tecdiff2 = tecphaseM-tecphase1
+tecout2=tecdiff2.interp(lat=inc.lat.values, lon=inc.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
+tecdiff3 = tecphaseM-tecphase2
+tecout3=tecdiff3.interp(lat=inc.lat.values, lon=inc.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
 
+
+#frame='069A_06694_131402'
+#pair='20170304_20170316'
+
+ifg=load_ifg(frame,pair)
+bagr=ifg.pha.copy()
+bagr.values = wrap2phase(ifg.pha.values - tecout.values - tecout2.values - tecout3.values)
+bagr.plot()
 
 # done!!!
 
