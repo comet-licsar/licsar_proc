@@ -25,7 +25,7 @@
 # DEMDIR=$LiCSAR_proc..../DEM
 # geodir='geo'
 # masterslcdir='RSLC/'$master
-# outres=0.00027027 # for 15 m, or 30/111000 for 30 m res.
+# outres=0.00027027 # for 30 m, as 30/111000
 # in python:
 # python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
   geocode_dem('"$masterslcdir"', '"$geodir"', '"$DEMDIR"' , '.', '"$master"', "$outres")"
