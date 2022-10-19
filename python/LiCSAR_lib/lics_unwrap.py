@@ -907,24 +907,24 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
         try:
             from pathos.multiprocessing import ProcessingPool as Pool
         except:
-            print('pathos not installed - not parallelism')
+            print('pathos not installed - no parallelism')
             nproc = 1
     if nproc>1:
         try:
             p = Pool(nproc)
             outs = p.map(check_and_process_ifg, pairset)  # out is one output per pair -> list
             p.close()  # or not?
-            fix_additionals()
+            #fix_additionals()
         except:
             print('some error appeared - please try manually (debug). now, just returning to no parallelism')
             nproc = 1
     if nproc == 1:
         for pair in pairset:
             check_and_process_ifg(pair)
-        try:
-            fix_additionals()
-        except:
-            print('debug - should continue ok')
+    try:
+        fix_additionals()
+    except:
+        print('debug - function fix_additionals() failed')
 
 
 def get_ml_hgt(frame, ml=1, cliparea_geo = None):

@@ -11,6 +11,7 @@ if [ -z $1 ]; then
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-l ....... if the reunwrapping is to be performed, would do lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
+ echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping, although not tested well yet)"
  #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
  #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
@@ -47,14 +48,18 @@ smooth=0
 lowpass=0
 wls=0
 cometdev=0
+nproc=1
 que='short_serial'
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsdSClWgPkG:t:" option; do
+while getopts ":M:HucTsdSClWgPkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
+     ;;
+  n) nproc=${OPTARG};
+     que='par-single'; # unless changed to comet queue
      ;;
   H) hgts=1;
      #shift
@@ -261,6 +266,9 @@ if [ $reunw -gt 0 ]; then
   extraparam=$extraparam",  dolocal = True"
   echo "ln -s ../GEOC" >> multirun.sh
  fi
+ if [ $nproc -gt 1 ]; then
+   extraparam=$extraparam",  nproc = "$nproc
+ fi
  #cp $LiCSAR_procdir/$track/$frame/geo/EQA.dem_par GEOC/.
  echo "python3 -c \"from LiCSAR_lib.lics_unwrap import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
  # this seems not needed but in case of cropping, licsbas would try regenerate all missing data. so keeping this solution - may not be best if starting in local dir
@@ -286,7 +294,7 @@ else
 fi
 
 
-sed -i 's/n_para=\"\"/n_para=\"1\"/' batch_LiCSBAS.sh
+sed -i 's/n_para=\"\"/n_para=\"'$nproc'\"/' batch_LiCSBAS.sh
 sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
 
 
@@ -354,11 +362,16 @@ if [ $run_jasmin -eq 1 ]; then
  echo "cp TS_"$geocd"/mask_ts.png $frame'_mask_ts.png'" >> jasmin_run.sh
  #echo "LiCSBAS_out2nc.py -i TS_GEOCml"$multi"*/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
  echo "LiCSBAS_out2nc.py -i TS_"$geocd"/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
+
+
+ # setting for JASMIN processing
  hours=14
  if [ $multi -eq 1 ]; then
   hours=23
  fi
- cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n 1 -W "$hours":00 -M 8192 -q "$que" ./jasmin_run.sh"
+ memm=8192 # requesting 8GB RAM per processor
+ let memm=$nproc'*'$memm
+ cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":00 -M "$memm" -q "$que" ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
  chmod 777 jasmin_run.sh
  chmod 777 jasmin_run_cmd.sh
