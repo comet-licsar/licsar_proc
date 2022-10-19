@@ -79,7 +79,7 @@ for x in `ls RSLC | grep 20`; do
    echo "clipping "$x
    mkdir -p $outdir/RSLC/$x
    SLC_copy RSLC/$x/$x.rslc RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par - - $rg1 $rgdiff $azi1 $azidiff - - >/dev/null
-   multi_look RSLC/$x/$x.rslc RSLC/$x/$x.rslc.par RSLC/$x/$x.mli RSLC/$x/$x.mli.par $rgl $azl
+   multi_look $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.mli $outdir/RSLC/$x/$x.mli.par $rgl $azl
    # create_geoctiffs_to_pub.sh -M `pwd` $x >/dev/null   # to be improved
  fi
 done
