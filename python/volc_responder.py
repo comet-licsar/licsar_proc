@@ -123,10 +123,11 @@ def main():
             indate = get_indate(frame)
             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
             # we used -P before, now -R for comet_ ...responder
-            try:
-                volcpath = os.path.join(os.environ['LiCSAR_procdir'],'..','..','projects','LiCS','volc-proc')
-            except:
-                volcpath = '.'
+            #try:
+            #    volcpath = os.path.join(os.environ['LiCSAR_procdir'],'..','..','projects','LiCS','volc-proc')
+            #except:
+            #    volcpath = '.'
+            volcpath = os.path.join(os.environ['LiCSAR_procdir'],'..','..','volc-proc')
             cmd = 'licsar_make_frame.sh -S -R -N {0} 0 1 {1} {2} > {3}/volcresp.{0}.log 2> {3}/volcresp.{0}.err'.format(frame,str(indate),str(offdate.date()), volcpath)
             print(cmd)
             os.system(cmd)
