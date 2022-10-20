@@ -22,13 +22,13 @@
 
 # and then generate hires geo (if it doesn't exist)
 # cd volclip
-# DEMDIR=$LiCSAR_proc..../DEM
-# geodir='geo'
+# DEMDIR=$LiCSAR_proc/..../DEM
+# geodir='geo'; mkdir $geodir
 # masterslcdir='RSLC/'$master
 # outres=0.00027027 # for 30 m, as 30/111000
 # in python:
 # python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
-  geocode_dem('"$masterslcdir"', '"$geodir"', '"$DEMDIR"' , '.', '"$master"', "$outres")"
+# geocode_dem('"$masterslcdir"', '"$geodir"', '"$DEMDIR"' , '.', '"$master"', "$outres")"
 
 # ok, now time to generate ifgs and unws
 
@@ -40,7 +40,13 @@ fi
 
 if [ -d RSLC ]; then echo "you need to be in the frame proc folder, i.e. the one with RSLC folder"; exit; fi
 
-master=`basename RSLC/../geo/20??????.hgt | cut -d '.' -f1`
+source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+
+dizdir=`pwd`
+frame=`basename $dizdir`
+demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
+dempar=$demdir/dem_crop.dem_par
+master=`basename geo/20??????.hgt | cut -d '.' -f1`
 slc=`ls RSLC/$master/$master.rslc`
 slcpar=$slc.par
 if [ ! -f $slcpar ]; then echo "the folder "$1" seems empty, or no mosaic exists - exiting"; exit; fi
@@ -58,10 +64,10 @@ resol=$7
 rgl=`echo $resol"*111000/2.3" | bc`
 azl=`echo $resol"*111000/14" | bc`
 
-coord_to_sarpix $slcpar - - $lat1 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" > corners_clip.tmp
-coord_to_sarpix $slcpar - - $lat2 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
-coord_to_sarpix $slcpar - - $lat1 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
-coord_to_sarpix $slcpar - - $lat2 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
+coord_to_sarpix $slcpar - $dempar $lat1 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" > corners_clip.tmp
+coord_to_sarpix $slcpar - $dempar $lat2 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
+coord_to_sarpix $slcpar - $dempar $lat1 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
+coord_to_sarpix $slcpar - $dempar $lat2 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
 
 azi1=`cat corners_clip.tmp | rev | gawk {'print $1'} | rev | sort -n | head -n1`
 azi2=`cat corners_clip.tmp | rev | gawk {'print $1'} | rev | sort -n | tail -n1`
@@ -79,10 +85,12 @@ for x in `ls RSLC | grep 20`; do
    echo "clipping "$x
    mkdir -p $outdir/RSLC/$x
    SLC_copy RSLC/$x/$x.rslc RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par - - $rg1 $rgdiff $azi1 $azidiff - - >/dev/null
-   multi_look $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.mli $outdir/RSLC/$x/$x.mli.par $rgl $azl
+   multi_look $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.rslc.mli $outdir/RSLC/$x/$x.rslc.mli.par $rgl $azl
    # create_geoctiffs_to_pub.sh -M `pwd` $x >/dev/null   # to be improved
  fi
 done
 
 cd $outdir
+mkdir -p SLC/$master
+for x in `ls RSLC/$master/*`; do ln -s `pwd`/$x `pwd`/`echo $x | sed 's/RSLC/SLC/' | sed 's/rslc/slc/'`; done
 framebatch_gapfill.sh -l -P -o 5 120 $rgl $azl
