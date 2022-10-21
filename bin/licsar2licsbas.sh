@@ -49,7 +49,7 @@ lowpass=0
 wls=0
 cometdev=0
 nproc=1
-que='short_serial'
+que='short-serial'
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
