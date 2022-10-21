@@ -44,7 +44,7 @@ aa['geometry'] = aa['geometry'].apply(lambda x: shapely.ops.transform(_to_2d, x)
 for i,j in aa.iterrows():
     print(i)
     res = store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
-    time.sleep(0.25)
+    #time.sleep(0.25)
 
 '''
 

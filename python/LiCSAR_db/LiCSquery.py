@@ -764,15 +764,18 @@ for i,j in aa.iterrows():
     res = store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
 
 '''
-def store_burst_geom(s1bid, iw, relorb, tanx, opass, wkt):
-    is_in_geom = is_in_bursts2geom(s1bid, iw)
-    if is_in_geom == 0:
-        sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', GeomFromText('{5}'));".format(str(s1bid), 
-                                    str(iw), str(relorb), str(tanx), opass, wkt)
-        res = do_query(sql_q, True)
-        return res
-    else:
-        return False
+import time
+def store_burst_geom(s1bid, iw, relorb, tanx, opass, wkt, checkisin = False):
+    if checkisin:
+        is_in_geom = is_in_bursts2geom(s1bid, iw)
+        if is_in_geom != 0:
+            return False
+    sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', GeomFromText('{5}'));".format(str(s1bid), 
+                                str(iw), str(relorb), str(tanx), opass, wkt)
+    res = do_query(sql_q, True)
+    time.sleep(0.25)
+    return res
+
 
 
 def sqlout2list(insql):
