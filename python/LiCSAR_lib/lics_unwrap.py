@@ -2245,7 +2245,7 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
         H = H*mask
     if returncoh:
         # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
-        phadiff = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(Hm))))  # C[0])
+        phadiff = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(H))))  # C[0])
         cc = 1 - coh_from_phadiff(phadiff, 3)
         #cpxfilt = magpha2RI_array(cc, np.angle(cpxfilt))
         return cc
