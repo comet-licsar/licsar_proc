@@ -2305,9 +2305,9 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     outpha = inpha.copy()
     incpx = pha2cpx(inpha.fillna(0).values)
     winsize = (blocklen, blocklen)
-    cpxb = da.from_array(incpx, chunks=winsize)
+    incpxb = da.from_array(incpx, chunks=winsize)
     # f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
-    f = cpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=False, returncoh = False,
+    f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=False, returncoh = False,
                          depth=ovlpx, boundary='reflect',
                          meta=np.array((), dtype=np.complex128), chunks=(1, 1))
     cpxb = f.compute(num_workers=nproc)
@@ -2315,7 +2315,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     outmag = outpha.copy()
     if returncoh:
         # calculating the fake coh from freqs below nyquist, proper way (although longer - need to improve it:
-        f = cpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=True, returncoh=True,
+        f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=True, returncoh=True,
                              depth=ovlpx, boundary='reflect',
                              meta=np.array((), dtype=np.float32), chunks=(1, 1))
         outmag.values = f.compute(num_workers=nproc)
