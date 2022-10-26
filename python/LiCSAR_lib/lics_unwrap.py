@@ -2233,7 +2233,7 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75,mask_nyquist=False):
 '''
 
 
-def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, returncoh=True):
+def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, returnphadiff=True):
     cpx_fft = np.fft.fft2(block)
     # get 2d spectral magnitude of the block
     H = np.abs(cpx_fft)
@@ -2243,12 +2243,12 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     if mask_nyquist:
         mask = nyquistmask(block)
         H = H*mask
-    if returncoh:
+    if returnphadiff:
         # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
         phadiff = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(H))))  # C[0])
-        cc = 1 - coh_from_phadiff(phadiff, 3)
+        #cc = 1 - coh_from_phadiff(phadiff, 3)
         #cpxfilt = magpha2RI_array(cc, np.angle(cpxfilt))
-        return cc
+        return phadiff
     # phase ramps using masked H (i.e. low pass)
     # cpxm=np.fft.ifft2(cpx_fft*np.fft.fftshift(Hm))
     '''
@@ -2307,7 +2307,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     winsize = (blocklen, blocklen)
     incpxb = da.from_array(incpx, chunks=winsize)
     # f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
-    f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=False, returncoh = False,
+    f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=False, returnphadiff = False,
                          depth=ovlpx, boundary='reflect',
                          meta=np.array((), dtype=np.complex128), chunks=(1, 1))
     cpxb = f.compute(num_workers=nproc)
@@ -2315,10 +2315,11 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     outmag = outpha.copy()
     if returncoh:
         # calculating the fake coh from freqs below nyquist, proper way (although longer - need to improve it:
-        f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=True, returncoh=True,
+        f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=True, returnphadiff=True,
                              depth=ovlpx, boundary='reflect',
                              meta=np.array((), dtype=np.float32), chunks=(1, 1))
-        outmag.values = f.compute(num_workers=nproc)
+        phadiff = f.compute(num_workers=nproc)
+        outmag.values = 1 - coh_from_phadiff(phadiff, 3)
     else:
         outmag.values = np.abs(cpxb)
     return outpha, outmag
