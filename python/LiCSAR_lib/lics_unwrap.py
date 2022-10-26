@@ -144,7 +144,7 @@ def get_cliparea_xr(xrd):
 
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
@@ -229,7 +229,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
 
 
 def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
@@ -259,7 +259,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
 
 
 def process_ifg_core(ifg, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
@@ -2212,7 +2212,7 @@ def goldstein_AH(block, alpha=0.8, kernelsigma=0.75):
     cpxfilt=np.fft.ifft2(cpx_fft*H)
     return cpxfilt
 
-
+'''
 def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75,mask_nyquist=False):
     kernel = Gaussian2DKernel(x_stddev=kernelsigma) #sigma 1 gives 9x9 gaussian kernel
     cpx_fft = np.fft.fft2(block)
@@ -2228,8 +2228,93 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75,mask_nyquist=False):
     H=H**alpha
     cpxfilt=np.fft.ifft2(cpx_fft*H)
     return cpxfilt
+'''
 
 
+def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, returncoh=True):
+    kernel = Gaussian2DKernel(x_stddev=kernelsigma)  # sigma 1 gives 9x9 gaussian kernel
+    cpx_fft = np.fft.fft2(block)
+    # get 2d spectral magnitude of the block
+    H = np.abs(cpx_fft)
+    #firstfreq = H[0][0]   # useful to get avg coh if /block.shape
+    H = np.fft.fftshift(H)
+    # mask frequencies above Nyquist frequency
+    mask = nyquistmask(block)
+    Hm = H * mask
+    # phase ramps using masked H (i.e. low pass)
+    # cpxm=np.fft.ifft2(cpx_fft*np.fft.fftshift(Hm))
+    '''
+    # perform cross-correlation of the original cpx block with the low-pass result
+    cc = cpx_fft * np.conj(np.fft.fftshift(Hm))
+    cc = cpx_fft * np.conj(np.fft.fftshift(H))
+    cc = np.abs(np.fft.ifft2(cc))  # now i need to somehow normalise cc - not solved yet
+    #
+    # horrible solution, but maybe works?
+    gh = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(Hm))))  # C[0])
+    bgr = 1 - coh_from_phadiff(gh, 3)
+    # avgcc=np.max(Hm)/32/32
+    # avgcc=firstfreq/32/32
+    # cc=cc/32/32
+    # cc=10*np.log10(cc)*avgcc/32/32
+    '''
+    # only now convolve with Gaussian kernel to filter (not masking here, although we might consider it)
+    if mask_nyquist:
+        H = Hm
+    H = convolve(H, kernel)
+    H = np.fft.ifftshift(H)
+    # centering not needed
+    #if meanH:
+    #    meanH = np.median(H)
+    #    if meanH != 0:
+    #        H = H / meanH
+    H = H ** alpha
+    cpxfilt = np.fft.ifft2(cpx_fft * H)
+    # cc=np.abs(cpxfilt)
+    # cc = cpx_fft*np.conj(np.fft.fftshift(Hm))
+    # cc = np.abs(np.fft.ifft2(cc))
+    # now put cc instead of the filtered spectral magnitude
+    if returncoh:
+        # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
+        phadiff = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(Hm))))  # C[0])
+        cc = 1 - coh_from_phadiff(phadiff, 3)
+        cpxfilt = magpha2RI_array(cc, np.angle(cpxfilt))
+    return cpxfilt
+
+
+def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, returncoh=True,
+                        mask_nyquist=False):  # ovlwin=8, nproc=1):
+    """Goldstein filtering of phase
+
+    Args:
+        inpha (xr.DataArray): array of phase (for now, the script will create cpx from phase)
+        blocklen (int): size of rectangular window in pixels
+        alpha (float): Goldstein alpha parameter
+        ovlpx (int): how many pixels should overlap the window
+        nproc (int): number of processors to be used by dask
+        returncoh (boolean): return coherence instead of the spectral magnitude
+
+    Returns:
+        xr.DataArray,xr.DataArray: filtered phase, magnitude (try np.log to use for masking)
+    """
+    if ovlpx == None:
+        ovlpx = int(blocklen / 4)  # does it make sense? gamma recommends /8 but this might be too much?
+    # dask works by adding extra pixels around the block window. thus calculate the central window here:
+    blocklen = blocklen - ovlpx
+    outpha = inpha.copy()
+    incpx = pha2cpx(inpha.fillna(0).values)
+    winsize = (blocklen, blocklen)
+    cpxb = da.from_array(incpx, chunks=winsize)
+    # f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
+    f = cpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=mask_nyquist, returncoh = returncoh,
+                         depth=ovlpx, boundary='reflect',
+                         meta=np.array((), dtype=np.complex128), chunks=(1, 1))
+    cpxb = f.compute(num_workers=nproc)
+    outpha.values = np.angle(cpxb)
+    outmag = outpha.copy()
+    outmag.values = np.abs(cpxb)
+    return outpha, outmag
+
+'''
 def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, returncoh=True, mask_nyquist=False): #ovlwin=8, nproc=1):
     """Goldstein filtering of phase
     
@@ -2264,7 +2349,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     else:
         outmag.values=np.abs(cpxb)
     return outpha,outmag
-
+'''
 
 def unit_circle(r):
     A = np.arange(-r,r+1)**2
