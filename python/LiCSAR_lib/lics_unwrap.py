@@ -342,6 +342,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             sp = np.log10(sp)
             sp[sp > 1] = 1
             sp[sp < 0] = 0
+        ifg_ml['gold_coh'].values=sp
         spmask=sp>thres
         # and remove islands - let's keep the 2x2 km islands...
         npa=spmask*1.0
