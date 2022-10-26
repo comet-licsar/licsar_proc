@@ -15,6 +15,7 @@ if [ -z $1 ]; then
  #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
  #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
+ echo "-m ....... with reunwrapping, use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence)"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --fast, --nopngs and --nullify)"
  echo "-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u)"
@@ -48,12 +49,13 @@ smooth=0
 lowpass=0
 wls=0
 cometdev=0
+specmag=0
 nproc=1
 que='short-serial'
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsdSClWgPkG:t:n:" option; do
+while getopts ":M:HucTsdSClWgmPkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -63,6 +65,8 @@ while getopts ":M:HucTsdSClWgPkG:t:n:" option; do
      ;;
   H) hgts=1;
      #shift
+     ;;
+  m) specmag=1;
      ;;
   u) reunw=1;
      #shift
@@ -253,6 +257,9 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $clip == 1 ]; then
   extraparam=$extraparam", cliparea_geo = '"$aoi"'" 
+ fi
+ if [ $specmag == 1 ]; then
+  extraparam=$extraparam", specmag = True"
  fi
  if [ $dogacos == 1 ]; then
   extraparam=$extraparam", subtract_gacos = True" 

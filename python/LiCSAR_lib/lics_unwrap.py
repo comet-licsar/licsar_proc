@@ -696,12 +696,12 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
     return ifg_ml
 
 
-def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False, 
+def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
             hgtcorr = True, gacoscorr = True,
             lowpass = False, goldstein = True,
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
-            nproc = 1, dolocal = False,
+            nproc = 1, dolocal = False, specmag = False,
             use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
@@ -848,7 +848,7 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
                         defomax = 0.3
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
-                                 lowpass=lowpass, goldstein=goldstein,
+                                 lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                  subtract_gacos = subtract_gacos)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
