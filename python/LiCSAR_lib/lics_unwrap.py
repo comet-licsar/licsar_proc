@@ -336,6 +336,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         # sp[sp>1]=1
         # spmask=sp>thres # try 0.25
         ifg_ml['filtpha'], sp = goldstein_filter_xr(ifg_ml.pha, blocklen=16, alpha=0.8, nproc=1, returncoh=(not specmag))
+        ifg_ml['gold_coh']=sp
         sp=sp.fillna(0).values
         if specmag:
             sp = np.log10(sp)
