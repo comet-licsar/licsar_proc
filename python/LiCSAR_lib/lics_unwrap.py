@@ -2234,15 +2234,21 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75,mask_nyquist=False):
 
 
 def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, returncoh=True):
-    kernel = Gaussian2DKernel(x_stddev=kernelsigma)  # sigma 1 gives 9x9 gaussian kernel
     cpx_fft = np.fft.fft2(block)
     # get 2d spectral magnitude of the block
     H = np.abs(cpx_fft)
     #firstfreq = H[0][0]   # useful to get avg coh if /block.shape
     H = np.fft.fftshift(H)
     # mask frequencies above Nyquist frequency
-    mask = nyquistmask(block)
-    Hm = H * mask
+    if mask_nyquist:
+        mask = nyquistmask(block)
+        H = H*mask
+    if returncoh:
+        # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
+        phadiff = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(Hm))))  # C[0])
+        cc = 1 - coh_from_phadiff(phadiff, 3)
+        #cpxfilt = magpha2RI_array(cc, np.angle(cpxfilt))
+        return cc
     # phase ramps using masked H (i.e. low pass)
     # cpxm=np.fft.ifft2(cpx_fft*np.fft.fftshift(Hm))
     '''
@@ -2260,8 +2266,7 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     # cc=10*np.log10(cc)*avgcc/32/32
     '''
     # only now convolve with Gaussian kernel to filter (not masking here, although we might consider it)
-    if mask_nyquist:
-        H = Hm
+    kernel = Gaussian2DKernel(x_stddev=kernelsigma)  # sigma 1 gives 9x9 gaussian kernel
     H = convolve(H, kernel)
     H = np.fft.ifftshift(H)
     # centering not needed? but maybe yes for mag/specmag
@@ -2275,11 +2280,6 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     # cc = cpx_fft*np.conj(np.fft.fftshift(Hm))
     # cc = np.abs(np.fft.ifft2(cc))
     # now put cc instead of the filtered spectral magnitude
-    if returncoh:
-        # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
-        phadiff = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(Hm))))  # C[0])
-        cc = 1 - coh_from_phadiff(phadiff, 3)
-        cpxfilt = magpha2RI_array(cc, np.angle(cpxfilt))
     return cpxfilt
 
 
@@ -2307,13 +2307,20 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     winsize = (blocklen, blocklen)
     cpxb = da.from_array(incpx, chunks=winsize)
     # f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
-    f = cpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=mask_nyquist, returncoh = returncoh,
+    f = cpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=False, returncoh = False,
                          depth=ovlpx, boundary='reflect',
                          meta=np.array((), dtype=np.complex128), chunks=(1, 1))
     cpxb = f.compute(num_workers=nproc)
     outpha.values = np.angle(cpxb)
     outmag = outpha.copy()
-    outmag.values = np.abs(cpxb)
+    if returncoh:
+        # calculating the fake coh from freqs below nyquist, proper way (although longer - need to improve it:
+        f = cpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=True, returncoh=True,
+                             depth=ovlpx, boundary='reflect',
+                             meta=np.array((), dtype=np.float32), chunks=(1, 1))
+        outmag.values = f.compute(num_workers=nproc)
+    else:
+        outmag.values = np.abs(cpxb)
     return outpha, outmag
 
 '''
