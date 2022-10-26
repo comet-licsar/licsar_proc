@@ -2263,11 +2263,11 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
         H = Hm
     H = convolve(H, kernel)
     H = np.fft.ifftshift(H)
-    # centering not needed
+    # centering not needed? but maybe yes for mag/specmag
     #if meanH:
-    #    meanH = np.median(H)
-    #    if meanH != 0:
-    #        H = H / meanH
+    meanH = np.median(H)
+    if meanH != 0:
+        H = H / meanH
     H = H ** alpha
     cpxfilt = np.fft.ifft2(cpx_fft * H)
     # cc=np.abs(cpxfilt)
