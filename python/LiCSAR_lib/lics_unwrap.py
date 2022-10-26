@@ -232,7 +232,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
-        coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
+        coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
         cohratio = None, keep_coh_debug = True):
     try:
         ifg = load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = cliparea_geo)
@@ -241,7 +241,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         return False
     # prepare tmp dir structure
     tmpdir = os.path.join(procdir,'tmp_unwrap','temp_'+str(ml))
-    if not os.path.join(procdir,'tmp_unwrap'):
+    if not os.path.exists(os.path.join(procdir,'tmp_unwrap')):
         os.mkdir(os.path.join(procdir,'tmp_unwrap'))
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
@@ -252,7 +252,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
         defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
         cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
-        coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos, dolocal = dolocal,
+        coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos,
         cohratio = cohratio, keep_coh_debug = keep_coh_debug,
         tmpdir = tmpdir)
     return ifg_ml
@@ -262,7 +262,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = True,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
-        coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
+        coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
         cohratio = None, keep_coh_debug = True,
         tmpdir = None ):
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
@@ -850,7 +850,7 @@ def process_frame(frame, ml = 10, thres = 0.35, smooth = False, cascade=False,
                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
                                  lowpass=lowpass, goldstein=goldstein,
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
-                                 subtract_gacos = subtract_gacos, dolocal = dolocal)
+                                 subtract_gacos = subtract_gacos)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     if 'conncomp' in ifg_ml:
