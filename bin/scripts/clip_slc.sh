@@ -2,6 +2,9 @@
 #this will clip the SLCs ...
 
 # you may get hgt value as:
+# source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# framedir=`pwd`
+# frame=`basename $framedir`
 # hgt=$LiCSAR_public/`track_from_frame $frame`/$frame/metadata/$frame.geo.hgt.tif
 # gdallocationinfo $hgt $lon $lat
 
@@ -10,15 +13,11 @@
 # frame='083D_12636_131313'
 # hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif')
 # a=rioxarray.open_rasterio(hgt)
-# lon=-71.377; lat=-36.863; radius_km=25/2; radius_deg=radius_km/111
+# lon=-71.377; lat=-36.863; radius_km=25/2; radius_deg=radius_km/111; resol=0.00027;
 # # a.sel(lon=(lon-radius_deg, lon+radius_deg), lat=(lat+radius_deg, lat-radius_deg))
 # medhgt=float(a.sel(x=(lon-radius_deg, lon+radius_deg), y=(lat+radius_deg, lat-radius_deg), method='nearest').median())
-# print(str(lon-radius_deg), lon+radius_deg, lat-radius_deg, lat+radius_deg, medhgt)
+# print('clip_slc.sh', 'outdir', str(lon-radius_deg), lon+radius_deg, lat-radius_deg, lat+radius_deg, medhgt, resol)
 
-# now we can clip all RSLCs (if they do not exist)
-# for x in `ls RSLC/* -d`; do 
-# if [ ! -d $x ]; then clip_slc.sh $x $outdir $lon1 $lon2 $lat1 $lat2 $hei; fi
-# done
 
 # and then generate hires geo (if it doesn't exist)
 # cd volclip
@@ -31,14 +30,14 @@
 # geocode_dem('"$masterslcdir"', '"$geodir"', '"$DEMDIR"' , '.', '"$master"', "$outres")"
 
 # ok, now time to generate ifgs and unws
-
+echo "warning, the outfolder should be unique name (sorry for that, it is due to ifg generator) - so use e.g. VOLCID_008A etc."
 if [ -z $7 ]; then echo "parameters are:";
 echo "clip_slc.sh OUTFOLDER lon1 lon2 lat1 lat2 hei resolution"
 echo "so e.g. clip_slc.sh CLIPPED -28.36 -27.3 38.49 38.8 600 0.00027"
 exit;
 fi
 
-if [ -d RSLC ]; then echo "you need to be in the frame proc folder, i.e. the one with RSLC folder"; exit; fi
+if [ ! -d RSLC ]; then echo "you need to be in the frame proc folder, i.e. the one with RSLC folder"; exit; fi
 
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
@@ -60,9 +59,12 @@ lon2=$3
 lat1=$4
 lat2=$5
 hei=$6
-resol=$7
+resol=$7   # in degrees, so e.g. 0.00027 for 30 m
 rgl=`echo $resol"*111000/2.3" | bc`
 azl=`echo $resol"*111000/14" | bc`
+
+# e.g. for cz:
+# clip_slc.sh czclip 18.51884 18.6357 49.7937 49.8515 293.784423828125 0.00027
 
 coord_to_sarpix $slcpar - $dempar $lat1 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" > corners_clip.tmp
 coord_to_sarpix $slcpar - $dempar $lat2 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
@@ -76,6 +78,7 @@ let azidiff=azi2-azi1+1
 rg1=`cat corners_clip.tmp | rev | gawk {'print $2'} | rev | sort -n | head -n1`
 rg2=`cat corners_clip.tmp | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
 let rgdiff=rg2-rg1+1
+
 
 # ok, now clip the mosaics
 
@@ -93,4 +96,26 @@ done
 cd $outdir
 mkdir -p SLC/$master
 for x in `ls RSLC/$master/*`; do ln -s `pwd`/$x `pwd`/`echo $x | sed 's/RSLC/SLC/' | sed 's/rslc/slc/'`; done
-framebatch_gapfill.sh -l -P -o 5 120 $rgl $azl
+
+# prepare the geo folder
+
+geodir='geo'; mkdir -p $geodir
+masterslcdir='RSLC/'$master
+rm log/geo.err 2>/dev/null
+
+# in python:
+python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
+ geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$outres")" > log/geo.log 2> log/geo.err
+
+if [ `grep -c 'Something' log/geo.err` -gt 0 ]; then 
+echo "some error in DEM fitting, skipping it now"
+python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
+ geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$outres", skip_fit = True)"
+fi
+
+
+# generate 'standard' connections ifgs
+
+framebatch_gapfill.sh -l -P 5 120 $rgl $azl
+
+echo "wait a bit and check.. tomorrow... for GEOC outputs"
