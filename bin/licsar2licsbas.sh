@@ -18,7 +18,7 @@ if [ -z $1 ]; then
  echo "-m ....... with reunwrapping, use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence)"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --fast, --nopngs and --nullify)"
- echo "-t 0.5 ... change coherence threshold to 0.5 (default: 0.3) during reunwrapping (-u)"
+ echo "-t 0.35 ... change coherence threshold to 0.35 (default: 0.2, good with specmag) during reunwrapping (-u)"
  echo "-g ....... use GACOS if available - NOTE THIS WAS ON BY DEFAULT TILL SEP 2022, BUT NOT ANYMORE"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "-W ....... use WLS for the inversion (coherence-based)"
@@ -31,7 +31,7 @@ if [ -z $1 ]; then
  exit
 fi
 
-thres=0.3
+thres=0.2
 dolocal=0
 dogacos=0
 multi=1

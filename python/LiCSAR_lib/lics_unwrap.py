@@ -369,7 +369,12 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         tofillpha = ifg_ml.filtpha.where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
         pha2unw = interpolate_nans(tofillpha.values, method='nearest')
         cpx = pha2cpx(pha2unw)
-        coh = sp
+        #coh = sp  # actually ,let's use the phasediff if we use specmag...
+        if specmag:
+            phadiff=wrap2phase((ifg_ml['filtpha']-ifg_ml['pha']).values)
+            coh = coh_from_phadiff(phadiff, 3)
+        else:
+            coh = sp
         mask=ifg_ml['mask_full'].fillna(0).values
         print('unwrapping filtered phase')
         unw,conncomp =unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,conncomp=True, deltemp=True)
@@ -1425,7 +1430,7 @@ def coh_from_phadiff(phadiff, winsize = 3):
         
     """
     variance = ndimage.generic_filter(phadiff, np.var, size=winsize)
-    outcoh = 1-1/np.sqrt(1+winsize*winsize*variance)
+    outcoh = 1/np.sqrt(1+winsize*winsize*variance)
     return outcoh
 
 
@@ -2333,7 +2338,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     outmag = outpha.copy()
     outmag.values = np.abs(cpxb)
     if returncoh:
-        outmag.values = 1 - coh_from_phadiff(outmag.values-np.pi, 3)
+        outmag.values = coh_from_phadiff(outmag.values-np.pi, 3)
         '''
         # calculating the fake coh from freqs below nyquist, proper way (although longer - need to improve it:
         f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=True, returnphadiff=True,
