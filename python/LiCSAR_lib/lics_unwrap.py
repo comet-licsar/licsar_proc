@@ -2246,15 +2246,15 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     if mask_nyquist:
         mask = nyquistmask(block)
         H = H*mask
-    if returnphadiff:
+    # phase ramps using masked H (i.e. low pass)
+    # cpxm=np.fft.ifft2(cpx_fft*np.fft.fftshift(Hm))
+    '''
+    if returnphadiff: 
         # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
         phadiff = wrap2phase(np.angle(block) - np.angle(np.fft.ifft2(cpx_fft * np.fft.ifftshift(H))))  # C[0])
         #cc = 1 - coh_from_phadiff(phadiff, 3)
         #cpxfilt = magpha2RI_array(cc, np.angle(cpxfilt))
         return phadiff
-    # phase ramps using masked H (i.e. low pass)
-    # cpxm=np.fft.ifft2(cpx_fft*np.fft.fftshift(Hm))
-    '''
     # perform cross-correlation of the original cpx block with the low-pass result
     cc = cpx_fft * np.conj(np.fft.fftshift(Hm))
     cc = cpx_fft * np.conj(np.fft.fftshift(H))
@@ -2279,6 +2279,21 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
         H = H / meanH
     H = H ** alpha
     cpxfilt = np.fft.ifft2(cpx_fft * H)
+    if returnphadiff:  # Oct 28, 2022: using the goldstein-filtered block to get the phadiff (for coh measure, later)
+        # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
+        # recalc now, from the filtered version
+        mask = nyquistmask(block)
+        cpx_fft = np.fft.fft2(pha2cpx(np.angle(cpxfilt)))
+        H = np.abs(cpx_fft)
+        H = np.fft.fftshift(H)
+        H = H * mask
+        cpxnyquistfilt = np.fft.ifft2(cpx_fft * np.fft.ifftshift(H))
+        # nah the phase difference can be done easier, just.. for now this:
+        #phadiff = wrap2phase(np.angle(block) - np.angle(cpxnyquistfilt))  # C[0])
+        phadiff = wrap2phase(np.angle(cpxfilt) - np.angle(cpxnyquistfilt))  # C[0])
+        #cc = 1 - coh_from_phadiff(phadiff, 3) # will calc this only later, to avoid ovlps aliasing
+        cpxfilt = magpha2RI_array(phadiff+np.pi, np.angle(cpxfilt))  # can mag be negative? i don't think so
+        #return phadiff
     # cc=np.abs(cpxfilt)
     # cc = cpx_fft*np.conj(np.fft.fftshift(Hm))
     # cc = np.abs(np.fft.ifft2(cc))
@@ -2310,24 +2325,25 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     winsize = (blocklen, blocklen)
     incpxb = da.from_array(incpx, chunks=winsize)
     # f=cpxb.map_overlap(goldstein_AH, alpha=alpha, depth=ovlpx, boundary='reflect', meta=np.array((), dtype=np.complex128), chunks = (1,1))
-    f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=False, returnphadiff = False,
+    f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=mask_nyquist, returnphadiff = returncoh,
                          depth=ovlpx, boundary='reflect',
                          meta=np.array((), dtype=np.complex128), chunks=(1, 1))
     cpxb = f.compute(num_workers=nproc)
     outpha.values = np.angle(cpxb)
     outmag = outpha.copy()
+    outmag.values = np.abs(cpxb)
     if returncoh:
+        outmag.values = 1 - coh_from_phadiff(outmag.values-np.pi, 3)
+        '''
         # calculating the fake coh from freqs below nyquist, proper way (although longer - need to improve it:
         f = incpxb.map_overlap(goldstein_AHML, alpha=alpha, mask_nyquist=True, returnphadiff=True,
                              depth=ovlpx, boundary='reflect',
                              meta=np.array((), dtype=np.float32), chunks=(1, 1))
         phadiff = f.compute(num_workers=nproc)
         outmag.values = 1 - coh_from_phadiff(phadiff, 3)
+        '''
         #outmag[outmag==1]=0
-    else:
-        outmag.values = np.abs(cpxb)
     return outpha, outmag
-
 '''
 def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, returncoh=True, mask_nyquist=False): #ovlwin=8, nproc=1):
     """Goldstein filtering of phase
@@ -2372,7 +2388,7 @@ def unit_circle(r):
     #return (np.abs(dists-r)<0.5).astype(int) # outline only
 
 
-def nyquistmask(block, extrapx=4):
+def nyquistmask(block):
     mask=np.zeros(block.shape) #should be square
     nyquistlen=int(mask.shape[0]/2+0.5) + 1 #+ extrapx
     circle=unit_circle(int(nyquistlen/2+0.5)) #will contain +1 px for zero
