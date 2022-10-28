@@ -343,6 +343,9 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             sp[sp > 1] = 1
             sp[sp < 0] = 0
         ifg_ml['gold_coh'].values=sp
+        # this is just to have the masked pixels zeroes...
+        ifg_ml['gold_coh']=ifg_ml['gold_coh']*ifg_ml['mask']
+        sp=ifg_ml['gold_coh'].values
         spmask=sp>thres
         # and remove islands - let's keep the 2x2 km islands...
         npa=spmask*1.0
@@ -2320,6 +2323,7 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
                              meta=np.array((), dtype=np.float32), chunks=(1, 1))
         phadiff = f.compute(num_workers=nproc)
         outmag.values = 1 - coh_from_phadiff(phadiff, 3)
+        #outmag[outmag==1]=0
     else:
         outmag.values = np.abs(cpxb)
     return outpha, outmag
