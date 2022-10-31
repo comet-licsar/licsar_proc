@@ -251,6 +251,10 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $cascade == 1 ]; then
   extraparam=$extraparam", cascade = True"
+  if [ $multi -gt 2 ]; then
+   echo "setting cascade start from ML20 (10 5 3 1)"
+   extraparam=$extraparam", "
+  fi
  fi
  if [ $use_coh_stab == 1 ]; then
   extraparam=$extraparam", use_coh_stab = True"

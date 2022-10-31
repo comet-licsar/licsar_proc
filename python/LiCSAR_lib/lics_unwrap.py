@@ -707,7 +707,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
 
 
 def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
-            hgtcorr = True, gacoscorr = True,
+            hgtcorr = True, gacoscorr = True, only10 = True,
             lowpass = False, goldstein = True,
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
@@ -853,7 +853,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
                     outtif = None
                 try:
                     if cascade:
-                        ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
+                        ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                     else:
                         defomax = 0.3
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
