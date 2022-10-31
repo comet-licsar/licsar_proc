@@ -61,7 +61,7 @@ while getopts ":M:HucTsdSClWgmPkG:t:n:" option; do
      #shift
      ;;
   n) nproc=${OPTARG};
-     que='par-single'; # unless changed to comet queue
+     #que='par-single'; # unless changed to comet queue
      ;;
   H) hgts=1;
      #shift
@@ -113,7 +113,11 @@ while getopts ":M:HucTsdSClWgmPkG:t:n:" option; do
 done
 shift $((OPTIND -1))
 
-
+if [ $nproc -gt 1 ]; then
+ if [ que == 'short-serial' ]; then
+  que='par-single';
+ fi 
+fi
 
 frame=$1
 if [ `echo $frame | grep -c '_'` -lt 1 ]; then
