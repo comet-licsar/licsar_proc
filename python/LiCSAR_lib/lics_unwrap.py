@@ -1302,7 +1302,7 @@ def gaussfill(dapha, sigma=2):
 
 
 
-def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True):
+def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True, goldwin=16):
     ifg_ml['origpha'] = ifg_ml['pha']
     if use_gold:
         print('warning, switched fully from Gaussian filtering to Goldstein fashion, also for lowpass')
@@ -1310,7 +1310,7 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True):
         mask = ifg_ml.mask.values
         dapha = ifg_ml.pha.where(mask != 0)
         ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
-        dd,cc = goldstein_filter_xr(ifg_ml['pha'], blocklen=16)
+        dd,cc = goldstein_filter_xr(ifg_ml['pha'], blocklen=goldwin)
         ifg_ml['pha'].values = dd.values
         mask = (cc>thres).fillna(0).values
         mask = ifg_ml.mask.fillna(0).values*mask

@@ -111,6 +111,9 @@ if [ `grep -c 'Something' log/geo.err` -gt 0 ]; then
 echo "some error in DEM fitting, skipping it now"
 python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
  geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$outres", skip_fit = True)"
+cd $geodir
+ln -s $master.lt $master.lt_fine
+cd -
 fi
 
 
