@@ -87,8 +87,8 @@ for x in `ls RSLC | grep 20`; do
  if [ ! -d $outdir/RSLC/$x ]; then
    echo "clipping "$x
    mkdir -p $outdir/RSLC/$x
-   SLC_copy RSLC/$x/$x.rslc RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par - - $rg1 $rgdiff $azi1 $azidiff - - >/dev/null
-   multi_look $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.rslc.mli $outdir/RSLC/$x/$x.rslc.mli.par $rgl $azl
+   SLC_copy RSLC/$x/$x.rslc RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par - - $rg1 $rgdiff $azi1 $azidiff - - >/dev/null 2>/dev/null
+   multi_look $outdir/RSLC/$x/$x.rslc $outdir/RSLC/$x/$x.rslc.par $outdir/RSLC/$x/$x.rslc.mli $outdir/RSLC/$x/$x.rslc.mli.par $rgl $azl >/dev/null 2>/dev/null
    # create_geoctiffs_to_pub.sh -M `pwd` $x >/dev/null   # to be improved
  fi
 done
@@ -105,12 +105,12 @@ rm log/geo.err 2>/dev/null
 
 # in python:
 python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
- geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$outres")" > log/geo.log 2> log/geo.err
+ geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol")" > log/geo.log 2> log/geo.err
 
 if [ `grep -c 'Something' log/geo.err` -gt 0 ]; then 
 echo "some error in DEM fitting, skipping it now"
 python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
- geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$outres", skip_fit = True)"
+ geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol", skip_fit = True)"
 cd $geodir
 ln -s $master.lt $master.lt_fine
 cd -
