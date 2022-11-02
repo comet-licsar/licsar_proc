@@ -40,7 +40,7 @@ from sklearn.linear_model import HuberRegressor
 
 import time
 import matplotlib.pyplot as plt
-
+import glob
 
 # avoid cv2 in ipynb
 def in_ipynb():
@@ -214,7 +214,10 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         #ingacos = xr.open_dataset(gacoscorrfile)
         ingacos = load_tif2xr(gacoscorrfile)
         ifg['gacos'] = ifg.pha
-        ifg['gacos'].values = ingacos.values
+        if dolocal:
+            ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
+        else:
+            ifg['gacos'].values = ingacos.values
     else:
         gacoscorr = False
     
@@ -724,7 +727,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
             lowpass = False, goldstein = True,
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
-            nproc = 1, dolocal = False, specmag = False,
+            nproc = 1, dolocal = False, specmag = False, defomax = 0.3,
             use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
@@ -765,7 +768,6 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
         if not os.path.exists(geoifgdir):
             print('ERROR: the GEOC directory does not exist, cancelling')
             exit()
-        import glob
         hgtfile = glob.glob('GEOC/*.geo.hgt.tif')
         try:
             hgtfile=hgtfile[0]
@@ -779,6 +781,33 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
     raster = gdal.Open(hgtfile)
     framewid = raster.RasterXSize
     framelen = raster.RasterYSize
+    
+    if dolocal:
+        landmask_file = os.path.join('GEOC',frame+'.geo.landmask.tif')
+        if not os.path.exists(landmask_file):
+            print('preparing land mask clip')
+            landmask_frame = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
+            landmask_frame = load_tif2xr(landmask_frame)
+            hgt = load_tif2xr(hgtfile)
+            landmask = landmask_frame.interp_like(hgt,method='nearest')
+            export_xr2tif(landmask, landmask_file, dogdal=False)
+    
+    #orig files
+    # will use only the filtered ifgs now..
+    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
+    coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
+    #landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
+    # load the files
+    inpha = load_tif2xr(ifg_pha_file)
+    incoh = load_tif2xr(coh_file)
+    incoh.values = incoh.values/255
+    inmask = incoh.copy(deep=True)
+    inmask.values = np.byte(incoh > 0)
+    if os.path.exists(landmask_file):
+        landmask = load_tif2xr(landmask_file)
+        
+        
+        
     #if cliparea_geo:
     #    import rioxarray as rio
     #    hgt = xr.open_dataarray(hgtfile)
@@ -877,12 +906,11 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
                     if cascade:
                         ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                     else:
-                        defomax = 0.3
                         ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'gauss', 
                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
                                  lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
-                                 subtract_gacos = subtract_gacos)
+                                 subtract_gacos = subtract_gacos, dolocal=dolocal)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     if 'conncomp' in ifg_ml:
@@ -1233,14 +1261,17 @@ def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     if dolocal:
         geoifgdir = os.path.join('GEOC',pair)
+        hgtfile = glob.glob('GEOC/*.geo.hgt.tif')[0]
+        landmask_file = os.path.join('GEOC',frame+'.geo.landmask.tif')
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+        hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
+        landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     #orig files
     # will use only the filtered ifgs now..
     ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
     coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
-    landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
-    hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
+    #landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     # load the files
     inpha = load_tif2xr(ifg_pha_file)
     incoh = load_tif2xr(coh_file)
