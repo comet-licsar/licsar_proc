@@ -155,6 +155,7 @@ indir=$LiCSAR_public/$track/$frame/interferograms
 epochdir=$LiCSAR_public/$track/$frame/epochs
 metadir=$LiCSAR_public/$track/$frame/metadata
 workdir=`pwd`
+source $metadir/metadata.txt #this will bring 'master=' info
 
 mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
@@ -177,7 +178,6 @@ if [ $dolocal == 1 ]; then
 fi
 ln -s $metadir/baselines
 
-source $metadir/metadata.txt #this will bring 'master=' info
 if [ -f $workdir/GEOC.MLI/$master/$master.geo.mli.tif ]; then
  ln -s $workdir/GEOC.MLI/$master/$master.geo.mli.tif
 else
