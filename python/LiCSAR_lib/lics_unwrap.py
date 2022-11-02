@@ -765,10 +765,17 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
         if not os.path.exists(geoifgdir):
             print('ERROR: the GEOC directory does not exist, cancelling')
             exit()
+        import glob
+        hgtfile = glob.glob('GEOC/*.geo.hgt.tif')
+        try:
+            hgtfile=hgtfile[0]
+        else:
+            print('ERROR: GEOC/*.geo.hgt.tif is not existing, cancelling (although might just avoid it?)')
+            exit()
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms')
+        hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
     inputifgdir = geoifgdir
-    hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
     raster = gdal.Open(hgtfile)
     framewid = raster.RasterXSize
     framelen = raster.RasterYSize
