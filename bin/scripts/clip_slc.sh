@@ -116,6 +116,10 @@ ln -s $master.lt $master.lt_fine
 cd -
 fi
 
+# create mli file and geo geotiffs if needed
+create_geoctiffs_to_pub.sh -M `pwd` $master
+create_geoctiff_lookangles.sh `pwd` $master
+
 
 # generate 'standard' connections ifgs
 

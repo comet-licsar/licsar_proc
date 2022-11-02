@@ -15,7 +15,7 @@ if [ -z $1 ]; then
  #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
  #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
- echo "-m ....... with reunwrapping, use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence)"
+ echo "-m ....... with reunwrapping, use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence) - recommended param"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --fast, --nopngs and --nullify)"
  echo "-t 0.35 ... change coherence threshold to 0.35 (default) during reunwrapping (-u)"
@@ -121,13 +121,20 @@ fi
 
 frame=$1
 if [ `echo $frame | grep -c '_'` -lt 1 ]; then
- echo "this is not a frame - check your input parameters please"
+ echo "this is not a frame - check your input parameters please, yet continuing"
+fi
+
+if [ -d GEOC ]; then
+ echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
+ dolocal=1;
 fi
 
 thisdir=`pwd`
+if [ $dolocal == 0 ]; then
 if [ ! `pwd | rev | cut -d '/' -f1 | rev` == $frame ]; then
  mkdir $frame
  cd $frame
+fi
 fi
 
 defdates=1
@@ -149,28 +156,41 @@ epochdir=$LiCSAR_public/$track/$frame/epochs
 metadir=$LiCSAR_public/$track/$frame/metadata
 workdir=`pwd`
 
-if [ -d GEOC ]; then
- echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
- dolocal=1;
-fi
-
-mkdir GEOC GACOS 2>/dev/null
+mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
   mkdir GACOS 2>/dev/null
 fi
 cd GEOC
 for meta in E N U hgt; do
- ln -s $metadir/$frame.geo.$meta.tif
+ if [ -f lookangles/$master.geo.$meta.tif ]; then
+  echo "getting metafiles from GEOC/lookangles - might need updating in future"
+  ln -s `pwd`/lookangles/$master.geo.$meta.tif `pwd`/$master.geo.$meta.tif
+ else
+  ln -s $metadir/$frame.geo.$meta.tif
+ fi
 done
+if [ $dolocal == 1 ]; then
+ if [ ! -f $frame.geo.hgt.tif ]; then
+  echo "warning, doing local proc only - avoiding possible problems by just removing ENU files"
+  rm $frame.geo.?.tif
+ fi
+fi
 ln -s $metadir/baselines
 
 source $metadir/metadata.txt #this will bring 'master=' info
+if [ -f $workdir/GEOC.MLI/$master/$master.geo.mli.tif ]; then
+ ln -s $workdir/GEOC.MLI/$master/$master.geo.mli.tif
+else
 if [ ! -f $epochdir/$master/$master.geo.mli.tif ]; then
+ if [ -d $LiCSAR_procdir/$track/$frame ]; then
  echo "regenerating missing master MLI geotiff"
  create_geoctiffs_to_pub.sh -M $LiCSAR_procdir/$track/$frame $master
  mkdir -p $epochdir/$master
  mv $LiCSAR_procdir/$track/$frame/GEOC.MLI/$master/* $epochdir/$master/.
  rmdir $LiCSAR_procdir/$track/$frame/GEOC.MLI/$master
+ else
+  echo "warning, frame dir does not exist, not linking master mli file"
+ fi
 fi
 if [ -f $epochdir/$master/$master.geo.mli.tif ]; then
  ln -s $epochdir/$master/$master.geo.mli.tif
@@ -179,6 +199,8 @@ else
  lastimg=`ls $epochdir/*/*.geo.mli.tif | tail -n1`
  ln -s $lastimg
 fi
+fi
+
 
 if [ $dogacos == 1 ]; then
 for epoch in `ls $epochdir`; do
