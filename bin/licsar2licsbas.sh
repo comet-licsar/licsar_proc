@@ -26,6 +26,7 @@ if [ -z $1 ]; then
  echo "some older (not recommended anymore) parameters:"
  echo "-s ....... if the reunwrapping is to be performed, use smooth operation before adding back residuals (could be wrong - rather use lowpass+Goldstein)"
  echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
+ echo "(-R ....... prioritise through comet responder)"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
  exit
@@ -55,7 +56,7 @@ que='short-serial'
 #LB_version=licsbas_comet_dev
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsdSClWgmPkG:t:n:" option; do
+while getopts ":M:HucTsdSClWgmPRkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -83,7 +84,9 @@ while getopts ":M:HucTsdSClWgmPkG:t:n:" option; do
   s) smooth=1;
      #shift
      ;;
-  P) que='comet'
+  P) que='comet';
+     ;;
+  R) que='comet_responder';
      ;;
   W) wls=1;
      ;;
