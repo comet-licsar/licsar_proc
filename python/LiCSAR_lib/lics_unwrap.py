@@ -835,6 +835,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
             return False
         else:
             #check its dimensions..
+            '''
             raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
             if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
                 #use tolerance of max pixels
@@ -855,6 +856,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
                             #continue
                             return False
                     #os.system('gmt grdsample {0} -G{1}')
+            '''
             try:
                 raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
                 if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
