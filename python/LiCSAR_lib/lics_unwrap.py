@@ -769,7 +769,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
         hgtfile = glob.glob('GEOC/*.geo.hgt.tif')
         try:
             hgtfile=hgtfile[0]
-        else:
+        except:
             print('ERROR: GEOC/*.geo.hgt.tif is not existing, cancelling (although might just avoid it?)')
             exit()
     else:
