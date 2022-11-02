@@ -792,22 +792,6 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
             landmask = landmask_frame.interp_like(hgt,method='nearest')
             export_xr2tif(landmask, landmask_file, dogdal=False)
     
-    #orig files
-    # will use only the filtered ifgs now..
-    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
-    coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
-    #landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
-    # load the files
-    inpha = load_tif2xr(ifg_pha_file)
-    incoh = load_tif2xr(coh_file)
-    incoh.values = incoh.values/255
-    inmask = incoh.copy(deep=True)
-    inmask.values = np.byte(incoh > 0)
-    if os.path.exists(landmask_file):
-        landmask = load_tif2xr(landmask_file)
-        
-        
-        
     #if cliparea_geo:
     #    import rioxarray as rio
     #    hgt = xr.open_dataarray(hgtfile)
