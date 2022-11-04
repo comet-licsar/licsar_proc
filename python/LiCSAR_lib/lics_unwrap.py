@@ -2322,6 +2322,7 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     if meanH != 0:
         H = H / meanH
     H = H ** alpha
+    '''
     # try maxx it
     mask = nyquistmask(block)
     Hm = np.fft.ifftshift(H)*mask  # but here i am masking from centre, not from freq that appears most (max H)...
@@ -2334,6 +2335,9 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     ratioH = 1/maxH
     #x = 1024/maxH  * valH
     H = H* ratioH *snr # / 1024)
+    '''
+    ratioH = 1/maxH
+    H = H* ratioH 
     cpxfilt = np.fft.ifft2(cpx_fft * H)
     #cpxfilt = magpha2RI_array(np.abs(cpxfilt)*(1-nsr), np.angle(cpxfilt))
     if returnphadiff:  # Oct 28, 2022: using the goldstein-filtered ck to get the phadiff (for coh measure, later)
