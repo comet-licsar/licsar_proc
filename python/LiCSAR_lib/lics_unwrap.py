@@ -1454,7 +1454,7 @@ def magpha2RI_array(mag, pha):
     out = R + 1j*I
     return out
 
-
+'''
 def coh_from_phadiff(phadiff, winsize = 3):
     """Calculates coherence based on variance of interferogram, computed in window with given size
 
@@ -1469,6 +1469,25 @@ def coh_from_phadiff(phadiff, winsize = 3):
     variance = ndimage.generic_filter(phadiff, np.var, size=winsize)
     outcoh = 1/np.sqrt(1+winsize*winsize*variance)
     return outcoh
+'''
+
+def coh_from_phadiff(phadiff, winsize=3):
+    """Calculates coherence based on variance of interferogram, computed in window with given size
+
+    Args:
+        phadiff (np.array): interferogram
+        winsize (int): window size
+
+    Returns:
+        np.array: coherence based on the variance
+
+    """
+    cpxdiff = pha2cpx(phadiff)
+    variance = ndimage.generic_filter(np.real(cpxdiff), np.var, size=winsize)
+    outcohr = 1 / np.sqrt(1 + winsize * winsize * variance)
+    variance = ndimage.generic_filter(np.imag(cpxdiff), np.var, size=winsize)
+    outcohi = 1 / np.sqrt(1 + winsize * winsize * variance)
+    return (outcohr + outcohi) / 2
 
 
 def filter_cpx_gauss(ifg_ml, sigma = 2, trunc = 4):
