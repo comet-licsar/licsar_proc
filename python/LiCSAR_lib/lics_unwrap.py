@@ -2347,12 +2347,13 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     nsr = 1-noisesum/H.sum()
     Hs = H *snr
     Hn = H *nsr
-    #H = Hn #* Hn * Hr #s * H
+    Hb = Hn * Hr #s * H
     H=Hr
     
     cpxfilt = np.fft.ifft2(cpx_fft * H)
+    cpxfiltbad = np.fft.ifft2(cpx_fft * Hb)
     #cpxfilt = magpha2RI_array(np.abs(cpxfilt)*(1-nsr), np.angle(cpxfilt))
-    cpxfilt = magpha2RI_array(np.abs(cpxfilt)*nsr, np.angle(cpxfilt))
+    cpxfilt = magpha2RI_array(np.abs(cpxfilt)*np.abs(cpxfiltbad), np.angle(cpxfilt))
     if returnphadiff:  # Oct 28, 2022: using the goldstein-filtered ck to get the phadiff (for coh measure, later)
         # this is based on phase difference after convolution within Nyquist freq range - needs improvement, but it works
         # recalc now, from the filtered version
