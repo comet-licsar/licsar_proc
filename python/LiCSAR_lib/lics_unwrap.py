@@ -2336,6 +2336,9 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     #x = 1024/maxH  * valH
     H = H* ratioH *snr # / 1024)
     '''
+    mask = nyquistmask(block)
+    Hm = np.fft.ifftshift(H)*mask
+    maxH = np.max(Hm)
     ratioH = 1/maxH
     H = H* ratioH 
     cpxfilt = np.fft.ifft2(cpx_fft * H)
