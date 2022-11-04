@@ -2338,15 +2338,15 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     '''
     mask = nyquistmask(block)
     Hm = np.fft.ifftshift(H)*mask
-    maxH = np.max(Hm)
-    maxH = np.fft.ifftshift(H)[0][0]
+    kernel2 = Gaussian2DKernel(x_stddev=kernelsigma*5, x_size = H.shape[1], y_size = H.shape[0] )
+    Hm = np.fft.ifftshift(H) * kernel2.array  # just really the peak only
+    am = np.argmax(Hm) # where is max value after the gauss filt
+    maxH=np.fft.ifftshift(H).ravel()[am]
+    #maxH = np.max(Hm)
+    #maxH = np.fft.ifftshift(H)[0][0]
     ratioH = 1/maxH
-    Hr = H* ratioH 
+    H = H* ratioH  # not bad try! but then some real dark areas as too bright then
     
-    noisesum = H.sum() - Hm.sum() + 0.001
-    snr = Hm.sum()/noisesum
-    Hs = H *snr
-    H = Hr #* Hs
     cpxfilt = np.fft.ifft2(cpx_fft * H)
     #cpxfilt = magpha2RI_array(np.abs(cpxfilt)*(1-nsr), np.angle(cpxfilt))
     if returnphadiff:  # Oct 28, 2022: using the goldstein-filtered ck to get the phadiff (for coh measure, later)
