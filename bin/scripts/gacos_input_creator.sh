@@ -11,6 +11,10 @@ if [ ! -z $2 ]; then
  input=`realpath $2`
 fi
 
+source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# request gacos only for epochs older than $minbtemp
+minbtemp=10
+
 prod_dir=$LiCSAR_public
 work_dir="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/GACOS"
 
@@ -75,7 +79,9 @@ else
 fi
 for epoch in `cat $frame.inp.tmp2`; do
     if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.ztd.geo.tif ]; then
-     echo $epoch >> $frame.inp
+     if [ `datediff $epoch` -ge $minbtemp ]; then
+      echo $epoch >> $frame.inp
+     fi
     fi
 done
 rm $frame.inp.tmp $frame.inp.tmp2 2>/dev/null
