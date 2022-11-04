@@ -2407,9 +2407,17 @@ def goldstein_filter_xr(inpha, blocklen=16, alpha=0.8, ovlpx=None, nproc=1, retu
     outpha.values = np.angle(cpxb)
     outmag = outpha.copy()
     outmag.values = np.abs(cpxb)
-    outmag.values[outmag.values > 1] = 1
+    outmag.values[outmag.values > 1] = 1 # just in case..
     if returncoh:
+        # obsolete, will probably remove it
+        print('better use specmag - we will probably remove the returncoh function')
         outmag.values = coh_from_phadiff(outmag.values-np.pi, 3)
+    else:
+        phadiff = outpha.copy()
+        phadiff.values = wrap2phase(np.angle(incpx) - outpha.values)
+        phadiff.values = coh_from_phadiff(phadiff.values)
+        phadiff.values[np.isnan(phadiff.values)] = 0
+        outmag = phadiff * outmag
     return outpha, outmag
 
 '''
