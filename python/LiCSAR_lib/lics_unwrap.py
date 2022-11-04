@@ -2346,7 +2346,7 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     noisesum = H.sum() - Hm.sum() + 0.001
     snr = Hm.sum()/noisesum
     Hs = H *snr
-    H = Hr * Hs
+    H = Hr #* Hs
     cpxfilt = np.fft.ifft2(cpx_fft * H)
     #cpxfilt = magpha2RI_array(np.abs(cpxfilt)*(1-nsr), np.angle(cpxfilt))
     if returnphadiff:  # Oct 28, 2022: using the goldstein-filtered ck to get the phadiff (for coh measure, later)
