@@ -160,6 +160,16 @@ metadir=$LiCSAR_public/$track/$frame/metadata
 workdir=`pwd`
 source $metadir/metadata.txt #this will bring 'master=' info
 
+
+ # setting for JASMIN processing
+ hours=14
+ if [ $multi -eq 1 ]; then
+  hours=23
+ fi
+ memm=8192 # requesting 8GB RAM per processor
+ let memm=$nproc'*'$memm
+ 
+ 
 mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
   mkdir GACOS 2>/dev/null
@@ -336,7 +346,9 @@ fi
 
 sed -i 's/n_para=\"\"/n_para=\"'$nproc'\"/' batch_LiCSBAS.sh
 sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
-
+# fix memory values
+sed -i 's/p13_mem_size=\"\"/p13_mem_size=\"'$memm'\"/' batch_LiCSBAS.sh
+sed -i 's/p14_mem_size=\"\"/p14_mem_size=\"'$memm'\"/' batch_LiCSBAS.sh
 
 if [ $reunw -gt 0 ]; then
  sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
@@ -404,13 +416,7 @@ if [ $run_jasmin -eq 1 ]; then
  echo "LiCSBAS_out2nc.py -i TS_"$geocd"/cum_filt.h5 -o "$frame".nc" >> jasmin_run.sh
 
 
- # setting for JASMIN processing
- hours=14
- if [ $multi -eq 1 ]; then
-  hours=23
- fi
- memm=8192 # requesting 8GB RAM per processor
- let memm=$nproc'*'$memm
+ # jasmin proc
  cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":00 -M "$memm" -q "$que" ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
  chmod 777 jasmin_run.sh

@@ -2343,9 +2343,9 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     Hr = H* ratioH # not bad try! but then some real dark areas as too bright then
     
     noisesum = H.sum() - Hm.sum() + 0.001
-    snr = Hm.sum()/noisesum
+    #snr = Hm.sum()/noisesum
     nsr = 1-noisesum/H.sum()
-    Hs = H *snr
+    #Hs = H *snr
     Hn = H *nsr
     Hb = Hn * Hr #s * H
     H=Hr
