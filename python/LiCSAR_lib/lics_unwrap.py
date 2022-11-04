@@ -2336,14 +2336,14 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     #x = 1024/maxH  * valH
     H = H* ratioH *snr # / 1024)
     '''
-    #mask = nyquistmask(block)
-    #Hm = np.fft.ifftshift(H)*mask
+    mask = nyquistmask(block)
+    Hm = np.fft.ifftshift(H)*mask
     ##am = np.argmax(Hm) # where is max value after the gauss filt
     ##maxH=np.fft.ifftshift(H).ravel()[am]
-    #maxH = np.max(Hm)
+    maxH = np.max(Hm)
     #maxH = np.fft.ifftshift(H)[0][0]
-    #ratioH = 1/maxH
-    #H = H* ratioH  # not bad try! but then some real dark areas as too bright then
+    ratioH = 1/maxH
+    H = H* ratioH  # not bad try! but then some real dark areas as too bright then
     
     cpxfilt = np.fft.ifft2(cpx_fft * H)
     #cpxfilt = magpha2RI_array(np.abs(cpxfilt)*(1-nsr), np.angle(cpxfilt))
