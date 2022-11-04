@@ -2344,8 +2344,10 @@ def goldstein_AHML(block, alpha=0.8, kernelsigma=0.75, mask_nyquist=False, retur
     
     noisesum = H.sum() - Hm.sum() + 0.001
     snr = Hm.sum()/noisesum
+    nsr = 1-noisesum/H.sum()
     Hs = H *snr
-    H = Hr * Hs * H
+    Hn = H *nsr
+    H = Hr * Hn #s * H
     
     cpxfilt = np.fft.ifft2(cpx_fft * H)
     #cpxfilt = magpha2RI_array(np.abs(cpxfilt)*(1-nsr), np.angle(cpxfilt))
