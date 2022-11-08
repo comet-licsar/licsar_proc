@@ -913,7 +913,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
                     except:
                         print('error with new preview, doing old way')
                         create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
-                    os.system('rm '+pair+'/'+pair+'.unw.ras')
+                    #os.system('rm '+pair+'/'+pair+'.unw.ras')
                     os.system('rm -r '+pair+'/'+'temp_'+str(ml))
                     os.system('rm -r '+pair+'/'+'temp_gen')
                 except:
