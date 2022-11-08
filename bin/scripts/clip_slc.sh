@@ -108,7 +108,9 @@ python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
  geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol")" > log/geo.log 2> log/geo.err
 
 if [ `grep -c 'Something' log/geo.err` -gt 0 ]; then 
-echo "some error in DEM fitting, skipping it now"
+echo "some error in DEM fitting, skipping it now (might keep some slight DEM/geocoding shift)"
+rm -r $geodir; mkdir $geodir
+
 python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
  geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol", skip_fit = True)"
 cd $geodir
@@ -117,8 +119,9 @@ cd -
 fi
 
 # create mli file and geo geotiffs if needed
+echo "geocoding master mli and hgt"
 create_geoctiffs_to_pub.sh -M `pwd` $master
-create_geoctiff_lookangles.sh `pwd` $master
+create_geoctiff_lookangles.sh `pwd` $master >/dev/null
 
 
 # generate 'standard' connections ifgs
