@@ -926,7 +926,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
             else:
                 return True
     def fix_additionals():
-        hgt = get_ml_hgt(frame, ml=ml, cliparea_geo = cliparea_geo)
+        hgt = get_ml_hgt(hgtfile, ml=ml, cliparea_geo = cliparea_geo)
         framewid=len(hgt.lon)
         framelen=len(hgt.lat)
         mlipar = 'slc.mli.par'
@@ -971,12 +971,12 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
         print('debug - function fix_additionals() failed')
 
 
-def get_ml_hgt(frame, ml=1, cliparea_geo = None):
+def get_ml_hgt(hgtfile, ml=1, cliparea_geo = None):
     """Support function to load DEM of frame, incl. multilook (downsample) and clipping
     """
-    pubdir = os.environ['LiCSAR_public']
-    geoframedir = os.path.join(pubdir, str(int(frame[:3])), frame)
-    hgtfile = os.path.join(geoframedir, 'metadata', frame + '.geo.hgt.tif')
+    #pubdir = os.environ['LiCSAR_public']
+    #geoframedir = os.path.join(pubdir, str(int(frame[:3])), frame)
+    #hgtfile = os.path.join(geoframedir, 'metadata', frame + '.geo.hgt.tif')
     hgt = load_tif2xr(hgtfile)
     if ml>1:
         hgt = hgt.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()
