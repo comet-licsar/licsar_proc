@@ -325,7 +325,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
     length = len(ifg_ml.lat)
     if lowpass:
         # let's do longwave filtering:
-        ifg_ml = lowpass_gauss(ifg_ml, thres=0.5, use_gold = False)
+        ifg_ml = lowpass_gauss(ifg_ml, thres=0.35, use_gold = False)
     #update the origpha to keep state before filtering
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     if goldstein:
@@ -367,8 +367,10 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         npa[npa==0]=np.nan
         lenthres = 2000  # m
         mlres = get_resolution(ifg_ml, in_m=True)
+        # ok, but we can trust clusters of maxpx pixels (2 km might be overshoot)
+        maxpx = 16 * 16
         pixels = int(round(lenthres / mlres))
-        pixelsno = pixels ** 2
+        pixelsno = min(pixels ** 2, maxpx)
         spmask=remove_islands(npa, pixelsno)
         #delta = np.angle(np.exp(1j*(ifg_ml['filtpha'] - ifg_ml['pha'])))
         #mask = np.abs(delta<1)*1
@@ -434,8 +436,9 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         # additionally remove islands of size smaller than... 2x2 km...?
         lenthres = 2000 # m
         mlres = get_resolution(ifg_ml, in_m=True)
-        pixels = int(round(lenthres/mlres))
-        pixelsno = pixels**2
+        maxpx = 8*8
+        pixels = int(round(lenthres / mlres))
+        pixelsno = min(pixels ** 2, maxpx)
         # or scale it just in pixels, so 7x7 px^2 area
         #pixelsno = 7*7
         npa = ifg_ml['mask_coh'].where(ifg_ml['mask_coh']==1).where(ifg_ml['mask']==1).values
