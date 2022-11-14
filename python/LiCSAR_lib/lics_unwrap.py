@@ -265,7 +265,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         ifg_ml10 = process_ifg_core(ifg, procdir = procdir, 
             ml = ml10, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
-            cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
+            cliparea_geo = cliparea_geo, outtif = None, prevest = prevest, prev_ramp = prev_ramp,
             coh2var = coh2var, add_resid = False,  rampit=True, subtract_gacos = subtract_gacos,
             cohratio = cohratio, keep_coh_debug = keep_coh_debug,
             tmpdir = tmpdir)
