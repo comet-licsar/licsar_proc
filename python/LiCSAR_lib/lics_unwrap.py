@@ -692,6 +692,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
     #ifg_ml['unw'] = ifg_ml['unw'] - ifg_ml['unw'].median()
     if rampit:
         ifg_ml['unw_orig'] = ifg_ml['unw'].copy()
+        kernel = Gaussian2DKernel(x_stddev=1.5)
         ifg_ml['unw'].values= interpolate_replace_nans(ifg_ml['unw'].values, kernel)
         ifg_ml['unw'].values = filter_nan_gaussian_conserving(ifg_ml['unw'].values, sigma=2, trunc=4)
         ifg_ml['unw'] = ifg_ml['unw'].fillna(0).where(ifg_ml.mask_extent>0)
