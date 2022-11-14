@@ -236,7 +236,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
-        cohratio = None, keep_coh_debug = True):
+        cohratio = None, keep_coh_debug = True, cascade = False):
     try:
         ifg = load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = cliparea_geo)
     except:
@@ -251,13 +251,32 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
     # not ready now for gacos or hgt correlation
     gacoscorr = False
     hgtcorr = False
-    ifg_ml = process_ifg_core(ifg, procdir = procdir, 
-        ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
-        defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
-        cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
-        coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos,
-        cohratio = cohratio, keep_coh_debug = keep_coh_debug,
-        tmpdir = tmpdir)
+    if not cascade:
+        ifg_ml = process_ifg_core(ifg, procdir = procdir, 
+            ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
+            defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
+            cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
+            coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos,
+            cohratio = cohratio, keep_coh_debug = keep_coh_debug,
+            tmpdir = tmpdir)
+    else:
+        print('performing 1 step cascade')
+        ml10=10*ml
+        ifg_ml10 = process_ifg_core(ifg, procdir = procdir, 
+            ml = ml10, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
+            defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
+            cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
+            coh2var = coh2var, add_resid = False,  rampit=True, subtract_gacos = subtract_gacos,
+            cohratio = cohratio, keep_coh_debug = keep_coh_debug,
+            tmpdir = tmpdir)
+        ifg_ml = process_ifg_core(ifg, procdir = procdir, 
+            ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
+            defomax = defomax, hgtcorr = False, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
+            cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = ifg_ml10['unw'],
+            coh2var = coh2var, add_resid = True,  rampit=rampit, subtract_gacos = subtract_gacos,
+            cohratio = cohratio, keep_coh_debug = keep_coh_debug,
+            tmpdir = tmpdir)
+        ifg_ml10 = 0
     return ifg_ml
 
 
@@ -905,23 +924,23 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                 else:
                     outtif = None
                 try:
-                    if cascade:
-                        ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
-                    else:
-                        if not dolocal:
-                            ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
-                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
-                                 lowpass=lowpass, goldstein=goldstein, specmag = specmag,
-                                 keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
-                                 subtract_gacos = subtract_gacos, dolocal=dolocal)
+                    if not dolocal:
+                        if cascade:
+                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                         else:
-                            phatif=os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')
-                            cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
-                            ifg_ml = process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
-                                                     thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
-                                                     lowpass=lowpass, goldstein=goldstein, specmag = specmag,
-                                                     keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
-                                                     subtract_gacos = subtract_gacos)
+                            ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
+                                thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
+                                lowpass=lowpass, goldstein=goldstein, specmag = specmag,
+                                keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
+                                subtract_gacos = subtract_gacos, dolocal=dolocal)
+                    else:
+                        phatif=os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')
+                        cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
+                        ifg_ml = process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
+                                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
+                                                 lowpass=lowpass, goldstein=goldstein, specmag = specmag,
+                                                 keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
+                                                 subtract_gacos = subtract_gacos, cascade = cascade)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     if 'conncomp' in ifg_ml:
