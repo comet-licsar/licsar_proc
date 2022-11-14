@@ -725,7 +725,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
     return ifg_ml
 
 
-def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
+def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade=False,
             hgtcorr = True, gacoscorr = True, only10 = True,
             lowpass = False, goldstein = True,
             cliparea_geo = None, pairsetfile = None, 
@@ -765,7 +765,15 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
     #    return False
     #the best to run in directory named by the frame id
     pubdir = os.environ['LiCSAR_public']
-    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    try:
+        geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    except:
+        if dolocal:
+            print('using fake frame id, continuing (local proc.)')
+            geoframedir=frame
+        else:
+            print('provided wrong frame id')
+            exit()
     if dolocal:
         geoifgdir = 'GEOC'
         if not os.path.exists(geoifgdir):
