@@ -791,10 +791,13 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
         if not os.path.exists(landmask_file):
             print('preparing land mask clip')
             landmask_frame = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
-            landmask_frame = load_tif2xr(landmask_frame)
-            hgt = load_tif2xr(hgtfile)
-            landmask = landmask_frame.interp_like(hgt,method='nearest')
-            export_xr2tif(landmask, landmask_file, dogdal=False)
+            if not os.path.exists(landmask_frame):
+                print('WARNING: landmask does not exist for this frame, will continue without it')
+            else:
+                landmask_frame = load_tif2xr(landmask_frame)
+                hgt = load_tif2xr(hgtfile)
+                landmask = landmask_frame.interp_like(hgt,method='nearest')
+                export_xr2tif(landmask, landmask_file, dogdal=False)
     
     #if cliparea_geo:
     #    import rioxarray as rio
@@ -949,7 +952,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
             f = open(mlipar, 'w')
             f.write('range_samples: '+str(framewid)+'\n')
             f.write('azimuth_lines: '+str(framelen)+'\n')
-            f.write('radar_frequency: 5405000000.0 Hz\n')
+            f.write('radar_frequency: 5405000000.0 Hz\n')  # for S1. It would be 9650000000.0 Hz for TSX
             f.close()
         if not os.path.exists('hgt'):
             hgt.fillna(0).astype(np.float32).values.tofile('hgt')  # should work but i didn't test it (blind fix)
