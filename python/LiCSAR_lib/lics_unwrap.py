@@ -776,6 +776,7 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
             hgtfile=hgtfile[0]
         except:
             print('ERROR: GEOC/*.geo.hgt.tif is not existing, cancelling (although might just avoid it?)')
+            print('please generate this file first - tip: use gdal2warp.py $anydem.tif $anygoodfile.tif GEOC/any.geo.hgt.tif')
             exit()
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms')
@@ -850,6 +851,8 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
         if not os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
             return False
         else:
+            if not os.path.exists(pair):
+                os.mkdir(pair)
             #check its dimensions..
             '''
             raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
@@ -893,11 +896,20 @@ def process_frame(frame, ml = 10, thres = 0.3, smooth = False, cascade=False,
                     if cascade:
                         ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                     else:
-                        ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
+                        if not dolocal:
+                            ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
                                  lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                  subtract_gacos = subtract_gacos, dolocal=dolocal)
+                        else:
+                            phatif=os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')
+                            cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
+                            ifg_ml = process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
+                                                     thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
+                                                     lowpass=lowpass, goldstein=goldstein, specmag = specmag,
+                                                     keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
+                                                     subtract_gacos = subtract_gacos)
                     (ifg_ml.unw.where(ifg_ml.mask_full > 0).values).astype(np.float32).tofile(pair+'/'+pair+'.unw')
                     ((ifg_ml.coh.where(ifg_ml.mask > 0)*255).astype(np.byte).fillna(0).values).tofile(pair+'/'+pair+'.cc')
                     if 'conncomp' in ifg_ml:
