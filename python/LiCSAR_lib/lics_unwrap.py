@@ -1365,7 +1365,8 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True, goldwin=16):
     # resolution of orig ifg is expected 0.1 km
     mlres = get_resolution(ifg_ml, in_m=True)
     pixels = int(round(lenthres/mlres))
-    pixelsno = pixels**2
+    maxpx = 16 * 16
+    pixelsno = min(pixels ** 2, maxpx)
     #pixelsno = 7*7 # let's just have it in pixels
     npa=mask*1.0
     npa[npa==0]=np.nan
@@ -1374,7 +1375,16 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True, goldwin=16):
     
     #dapha = ifg_ml.pha.where(mask*ifg_ml.mask_full != 0)
     dapha = ifg_ml.pha.where(mask != 0)
-    ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
+    cpx = pha2cpx(dapha)
+    real = np.real(cpx)
+    imag = np.imag(cpx)
+    # linearly interpolate in both real and imag - better than nearest but not perfect (gaussian fill would do better job)
+    real = interpolate_nans(real, method='linear')
+    imag = interpolate_nans(imag, method='linear')
+    cpx = real + 1j * imag
+    ifg_ml['pha'].values = np.angle(cpx)
+    #ifg_ml['pha'].values = interpolate_nans(dapha.values, method='nearest')
+    #ifg_ml['pha'].values = interpolate_nans(dapha.values, method='linear') # should be better here..
     #if not use_gold:
     #    # second filter
     #    ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
