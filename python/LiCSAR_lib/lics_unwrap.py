@@ -766,7 +766,8 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
     #the best to run in directory named by the frame id
     pubdir = os.environ['LiCSAR_public']
     try:
-        geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+        track=int(frame[:3])
+        geoframedir = os.path.join(pubdir,str(track),frame)
     except:
         if dolocal:
             print('using fake frame id, continuing (local proc.)')
