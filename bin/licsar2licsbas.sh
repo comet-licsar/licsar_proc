@@ -167,7 +167,7 @@ source $metadir/metadata.txt #this will bring 'master=' info
   hours=23
  fi
  memm=8192 # requesting 8GB RAM per processor
- let memm=$nproc'*'$memm
+ let memmfull=$nproc'*'$memm
  
  
 mkdir GEOC 2>/dev/null
@@ -422,7 +422,7 @@ if [ $run_jasmin -eq 1 ]; then
 
 
  # jasmin proc
- cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":00 -M "$memm" -q "$que" ./jasmin_run.sh"
+ cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":00 -M "$memmfull" -q "$que" ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
  chmod 777 jasmin_run.sh
  chmod 777 jasmin_run_cmd.sh
