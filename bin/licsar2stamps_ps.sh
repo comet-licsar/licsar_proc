@@ -33,7 +33,9 @@ if [ ! -f DEM/dem_crop.dem ]; then
  echo "please include DEM in this folder"
  exit
 fi
-gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1
+
+echo 'preparing data for geocoding'
+gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
 dem_par_file=tostamps.demseg.par
 input_lookuptable=tostamps.lt
 
