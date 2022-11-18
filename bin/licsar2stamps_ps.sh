@@ -120,7 +120,7 @@ for x in `cat slist.txt`; do
  create_offset RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off 1 1 1 0 >/dev/null # for PS - keep no multilooking
  phase_sim_orb RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $hgt $pair.simorb >/dev/null
  #SLC_diff_intf RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $pair.simorb $ifg 1 1 0 0 >/dev/null
- SLC_intf2 RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg.2 INSAR_$master/diff0/$pair.cc 1 1 - - - - $pair.simorb
+ SLC_intf2 RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg INSAR_$master/diff0/$pair.cc 1 1 - - - - $pair.simorb
  #cc_wave $ifg
  base_init RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $ifg INSAR_$master/diff0/$pair.base 0 >/dev/null
  rm $pair.off $pair.simorb
