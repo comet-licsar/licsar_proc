@@ -19,6 +19,9 @@ __EOFHD
   exit 1
 fi
 #maxdate=20180501
+
+source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+
 master=`get_master`
 master_date=$master
 
@@ -37,9 +40,6 @@ input_lookuptable=tostamps.lt
 width=`grep range_samples RSLC/$master/$master.rslc.par | gawk {'print $2'}`
 length=`grep azimuth_lines RSLC/$master/$master.rslc.par | gawk {'print $2'}`
 
-###########################################################################
-# Swap back for Andy
-#master_date=`ls ./geo/*.hgt | awk '{if(NR==1) print substr($1,7,8)}'`
 
 # Extract geocoding information to generate the lon and lat matrices
 lat=`awk '$1 == "corner_lat:" {print $2}' ${dem_par_file}`
