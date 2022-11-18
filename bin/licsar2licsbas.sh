@@ -22,9 +22,9 @@ if [ -z $1 ]; then
  echo "-g ....... use GACOS if available - NOTE THIS WAS ON BY DEFAULT TILL SEP 2022, BUT NOT ANYMORE"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "-W ....... use WLS for the inversion (coherence-based)"
+ echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter - better for higher gradients)"
  echo "----------------"
  echo "some older (not recommended anymore) parameters:"
- echo "-s ....... if the reunwrapping is to be performed, use smooth operation before adding back residuals (could be wrong - rather use lowpass+Goldstein)"
  echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
  echo "(-R ....... prioritise through comet responder)"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
