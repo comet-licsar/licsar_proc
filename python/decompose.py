@@ -4,15 +4,9 @@
 import subprocess as subp
 import numpy as np
 from scipy import interpolate
-import interseis_lib as lib
-import matplotlib.pyplot as plt
-import importlib
+from lics_unwrap import *
+import dask.array as da
 
-# these packages are only needed for the final multivariate plot
-import seaborn as sns
-import pandas as pd
-
-importlib.reload(lib)
 
 
 '''
@@ -45,7 +39,7 @@ cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_
 '''
 
 
-from lics_unwrap import *
+
 def get_frame_inc_heading(frame):
     geoframedir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
     # look angle (inc) / heading - probably ok, but needs check:
@@ -64,7 +58,7 @@ def get_frame_inc_heading(frame):
     return inc, heading
 
 
-import dask.array as da
+
 def decompose_dask(cube, blocklen=5, num_workers=5):
     winsize = (blocklen, blocklen)
     asc = da.from_array(cube['asc'].astype(np.float32), chunks=winsize)
@@ -76,6 +70,8 @@ def decompose_dask(cube, blocklen=5, num_workers=5):
     #f = da.map_blocks(decompose_np, asc, desc, aschead, deschead, ascinc, descinc, beta=0, meta=np.array((),())) #, chunks = (1,1))
     f = da.map_blocks(decompose_np, asc, desc, aschead, deschead, ascinc, descinc, beta=0, meta=(np.array((), dtype=np.float32), np.array((), dtype=np.float32)))
     return f.compute(num_workers=num_workers)
+
+
 
 # 2022-10-18 - this should be pretty good one (next only use weights or something)
 def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0):
@@ -256,6 +252,16 @@ descinc=34.240
 
 
 
+'''
+orig AW approach:
+import matplotlib.pyplot as plt
+
+
+# these packages are only needed for the final multivariate plot
+import seaborn as sns
+import pandas as pd
+import interseis_lib as lib
+
 
 
 # setup file names
@@ -350,3 +356,4 @@ for ii in np.arange(0,len(lat_regrid)):
         vel_U[ii,jj] = m[0]
         vel_E[ii,jj] = m[1]
         
+'''
