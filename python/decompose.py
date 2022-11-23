@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# this is to decompose two unw ifgs - very basic way
+# these are functions for decomposition into E,U vectors from 2 or more tracks
+
 import subprocess as subp
 import numpy as np
 from scipy import interpolate
@@ -14,7 +15,7 @@ import pandas as pd
 importlib.reload(lib)
 
 
-
+'''
 # 2022-10-18 starts here
 
 frame_desc = '082D_05128_030500'
@@ -41,6 +42,8 @@ cube['desc_heading'] = heading_desc.interp_like(asc, method='linear'); heading_d
 cube['U']=cube.asc.copy()
 cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
+'''
+
 
 from lics_unwrap import *
 def get_frame_inc_heading(frame):
@@ -224,6 +227,9 @@ export_xr2tif(D,'D.tif', dogdal=False)
 os.system('gdalwarp2match.py A.tif D.tif Aok.tif')
 os.system('gdalwarp2match.py D.tif Aok.tif Dok.tif')
 '''
+
+
+''' (old) usage example:
 #def decompose_xr(asc, desc, aschead, deschead, ascinc, descinc):
 #    
 U,E = decompose('Aok.tif', 'Dok.tif', aschead, deschead, ascinc, descinc)
@@ -245,7 +251,7 @@ deschead=190.3898
 ascinc=34.403
 descinc=34.240
 
-
+'''
 
 
 
