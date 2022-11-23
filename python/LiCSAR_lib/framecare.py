@@ -506,7 +506,7 @@ def make_bperp_file(frame, bperp_file):
     if not mid:
         return False
     mid=mid[0].split('.')[0]
-    bpd = get_bperps_asf(mid)
+    bpd = s1.get_bperps_asf(mid)
     bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
 
 
