@@ -113,6 +113,98 @@ def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0):
 
 
 '''
+this is to load 3 datasets and decompose them:
+dirpath='/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla'
+#for frame in []
+nc1 = os.path.join(dirpath, '051D_03973_131313.nc')
+nc1=xr.open_dataset(nc1)
+vel1 = nc1.vel.values
+heading1 = -169.87
+inc1 = 43.64
+
+nc2 = os.path.join(dirpath, '124D_04017_131313.nc')
+nc2=xr.open_dataset(nc2)
+vel2 = nc2.vel.interp_like(nc1.vel).values
+heading2 = -169.88
+inc2 = 34.98
+
+nc3 = os.path.join(dirpath, '175A_03997_131313.nc')
+nc3=xr.open_dataset(nc3)
+vel3 = nc3.vel.interp_like(nc1.vel).values
+heading3 = -10.16
+inc3 = 38.42
+
+years = np.array([2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022])
+vUxr = nc1.vel_annual.sel(year = years).copy().rename('vU')
+vExr = nc1.vel_annual.sel(year = years).copy().rename('vE')
+for year in years:
+    vel1 = nc1.vel_annual.sel(year = year).values
+    vel2 = nc2.vel_annual.sel(year = year).values
+    vel3 = nc3.vel_annual.sel(year = year).values
+    input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
+    print('decomposing year '+str(year))
+    vU, vE = decompose_np_multi(input_data, beta = 0)
+    vUxr.loc[year,:,:] = vU
+    vExr.loc[year,:,:] = vE
+
+
+decomposedxr = xr.Dataset()
+decomposedxr['vU'] = vUxr
+decomposedxr['vE'] = vExr
+decomposedxr.to_netcdf('decomposed_s1.nc')
+'''
+
+def decompose_np_multi(input_data, beta = 0):
+    '''Decompose more than 2 frames
+    input data is a list of tuples, e.g.
+    input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
+    where velX is np.array and headingX/incX is in degrees, either a number or np.array
+    '''
+    #
+    template = input_data[0][0]
+    vel_E = np.zeros(template.shape)
+    vel_U = np.zeros(template.shape)
+    #
+    Us = np.array(())
+    Es = np.array(())
+    vels = []
+    for frame in input_data:
+        vel = frame[0]
+        heading = frame[1]
+        incangle = frame[2]
+        Us = np.append(Us, np.cos(np.radians(incangle)))
+        Es = np.append(Es, -np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
+        vels.append(vel)
+    # run for each pixel
+    numframes = len(vels)
+    for ii in np.arange(0,vel_E.shape[0]):
+        for jj in np.arange(0,vel_E.shape[1]):
+            # prepare template for d = G m
+            d = np.array(())
+            for i in range(numframes):
+                d = np.append(d, np.array([vels[i][ii,jj]]))
+            d = np.array([d]).T
+            if np.isnan(d).all():
+                # if at least one is nan, skip it:
+                #if np.isnan(np.max(d)):
+                vel_U[ii,jj] = np.nan
+                vel_E[ii,jj] = np.nan
+            else:
+                # create the design matrix
+                if np.isscalar(Us[0]):  # in case of only values (i.e. one inc and heading per each frame)
+                    G = np.vstack([Us, Es]).T              
+                else:  # in case this is array  # not tested!
+                    G = np.vstack([Us[:,ii,jj], Es[:,ii,jj]]).T
+                # solve the linear system for the Up and East velocities
+                #m = np.linalg.solve(G, d)
+                m = np.linalg.lstsq(G, d)[0]
+                # save to arrays
+                vel_U[ii,jj] = m[0]
+                vel_E[ii,jj] = m[1]
+    return vel_U, vel_E
+
+
+'''
 
 aschead=-9.918319
 deschead=-169.61931

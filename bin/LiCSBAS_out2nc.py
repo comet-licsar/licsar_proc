@@ -234,7 +234,10 @@ def main(argv=None):
                 print('warning, the ref area has low coherence! continuing anyway')
                 refcoh = ref
             #for v in refcoh.data_vars.variables:
-            for v in ['cum', 'vel', 'vel_filt']:
+            cols = ['cum', 'vel']
+            if 'vel_filt' in cube.data_vars:
+                cols.append('vel_filt')
+            for v in cols:
                 cube[v] = cube[v] - refcoh[v].median(["lat", "lon"])
     
     #only now will clip - this way the reference area can be outside the clip, if needed
