@@ -72,10 +72,26 @@ def decompose_dask(cube, blocklen=5, num_workers=5):
     return f.compute(num_workers=num_workers)
 
 
+def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, beta=0):
+    '''inputs are xr.dataarrays - this will also check/interpolate them to fit'''
+    cube=xr.Dataset()
+    cube['asc'] = asc
+    cube['desc'] = desc.interp_like(asc, method='linear'); desc=None
+    cube['U']=cube.asc.copy()
+    cube['E']=cube.asc.copy()
+    if not np.isscalar(heading_asc):
+        cube['asc_heading'] = heading_asc.interp_like(asc, method='linear'); heading_asc=cube.asc_heading.values
+        cube['desc_heading'] = heading_desc.interp_like(asc, method='linear'); heading_desc=cube.desc_heading.values
+    if not np.isscalar(inc_asc):
+        cube['asc_inc'] = inc_asc.interp_like(asc, method='linear'); inc_asc=cube.asc_inc.values
+        cube['desc_inc'] = inc_desc.interp_like(asc, method='linear'); inc_desc=cube.desc_inc.values
+    cube['U'].values, cube['E'].values = decompose_np(cube.asc.values, cube.desc.values, heading_asc, heading_desc, inc_asc , inc_desc)
+    return cube[['U', 'E']]
+
 
 # 2022-10-18 - this should be pretty good one (next only use weights or something)
 def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0):
-    '''Decomposes values from ascending and descending geotiffs, using heading and inc. angle
+    '''Decomposes values from ascending and descending np (or xr) arrays, using heading and inc. angle
     (these might be arrays of same size of just float values)
     
     Args:

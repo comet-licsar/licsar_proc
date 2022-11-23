@@ -195,19 +195,29 @@ if os.path.exists(gapfile):
 ifgdates = tools_lib.get_ifgdates(ifgdir)
 imdates = tools_lib.ifgdates2imdates(ifgdates)
 
-if not os.path.exists(bperp_file):
-    print('Make dummy bperp')
-    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
-    io_lib.make_dummy_bperp(bperp_file, imdates)
+
+#if not os.path.exists(bperp_file):
+#    print('Make dummy bperp')
+#    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
+#    io_lib.make_dummy_bperp(bperp_file, imdates)
 
 
 try:
     bperp = read_bperp_file(bperp_file, imdates)
 except:
-    print('error reading baslines files! Making dummy bperp')
-    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
-    io_lib.make_dummy_bperp(bperp_file, imdates)
-    bperp = read_bperp_file(bperp_file, imdates)
+    print('error reading baselines file! trying to recreate through ASF')
+    try:
+        if os.path.exists(bperp_file):
+            os.remove(bperp_file)
+        frame=os.path.basename(framedir)
+        import framecare as fc
+        rc = fc.make_bperp_file(frame, bperp_file)
+        bperp = read_bperp_file(bperp_file, imdates)
+    except:
+        print('some error occurred. Making dummy bperp')
+        bperp_file = os.path.join(framedir,'baselines_tmp.txt')
+        io_lib.make_dummy_bperp(bperp_file, imdates)
+        bperp = read_bperp_file(bperp_file, imdates)
 
 
 frame = os.path.basename(framedir)
