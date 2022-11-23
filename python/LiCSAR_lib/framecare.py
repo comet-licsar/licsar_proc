@@ -501,7 +501,16 @@ def get_bidtanxs_from_xy_file(intxt, relorb = None):
     return bidtanxs
 
 
-def get_master(frame, asdate = False, asdatetime = False, metafile = None):
+def make_bperp_file(frame, bperp_file):
+    mid = get_master(frame, asfilenames = True)
+    if not mid:
+        return False
+    mid=mid[0].split('.')[0]
+    bpd = get_bperps_asf(mid)
+    bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
+
+
+def get_master(frame, asfilenames = False, asdate = False, asdatetime = False, metafile = None):
     if not metafile:
         track=str(int(frame[0:3]))
         metafile = os.path.join(pubdir,track,frame,'metadata','metadata.txt')
@@ -513,6 +522,17 @@ def get_master(frame, asdate = False, asdatetime = False, metafile = None):
         print('error parsing information from metadata.txt')
         return False
     masterdate = master.split('=')[1]
+    if asfilenames:
+        slcpath = os.path.join(procdir, track, frame, 'SLC', str(masterdate))
+        try:
+            zipfiles = []
+            for zipfile in glob.glob(slcpath+'/S1*zip'):
+                zipfiles.append(os.path.basename(zipfile))
+            return zipfiles
+        except:
+            print('error finding zip files in the frame SLC directory')
+            return False
+        
     if asdate:
         a = masterdate
         masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))

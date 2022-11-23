@@ -230,6 +230,20 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     
     return ifg_ml
 
+'''
+import glob
+pairs=glob.glob('2*')
+for p in pairs:
+    print(p)
+    phatif=os.path.join(p,p+'.geo.diff_pha.tif')
+    cohtif=os.path.join(p,p+'.geo.cc.tif')
+    outtif=os.path.join(p,p+'.geo.unw.tif')
+    b=process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), ml = 1, fillby = 'nearest', 
+        thres = 0.3, smooth = False, lowpass = True, goldstein = True, specmag = True, defomax = 0.6, hgtcorr = False, outtif=outtif, gacoscorr = False)
+
+'''
+
+
 
 def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), 
         ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,

@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
-# this is to decompose two unw ifgs - very basic way
+# these are functions for decomposition into E,U vectors from 2 or more tracks
+
 import subprocess as subp
 import numpy as np
 from scipy import interpolate
-import interseis_lib as lib
-import matplotlib.pyplot as plt
-import importlib
-
-# these packages are only needed for the final multivariate plot
-import seaborn as sns
-import pandas as pd
-
-importlib.reload(lib)
+from lics_unwrap import *
+import dask.array as da
 
 
 
+'''
 # 2022-10-18 starts here
 
 frame_desc = '082D_05128_030500'
@@ -41,8 +36,10 @@ cube['desc_heading'] = heading_desc.interp_like(asc, method='linear'); heading_d
 cube['U']=cube.asc.copy()
 cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
+'''
 
-from lics_unwrap import *
+
+
 def get_frame_inc_heading(frame):
     geoframedir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
     # look angle (inc) / heading - probably ok, but needs check:
@@ -61,7 +58,7 @@ def get_frame_inc_heading(frame):
     return inc, heading
 
 
-import dask.array as da
+
 def decompose_dask(cube, blocklen=5, num_workers=5):
     winsize = (blocklen, blocklen)
     asc = da.from_array(cube['asc'].astype(np.float32), chunks=winsize)
@@ -74,9 +71,27 @@ def decompose_dask(cube, blocklen=5, num_workers=5):
     f = da.map_blocks(decompose_np, asc, desc, aschead, deschead, ascinc, descinc, beta=0, meta=(np.array((), dtype=np.float32), np.array((), dtype=np.float32)))
     return f.compute(num_workers=num_workers)
 
+
+def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, beta=0):
+    '''inputs are xr.dataarrays - this will also check/interpolate them to fit'''
+    cube=xr.Dataset()
+    cube['asc'] = asc
+    cube['desc'] = desc.interp_like(asc, method='linear'); desc=None
+    cube['U']=cube.asc.copy()
+    cube['E']=cube.asc.copy()
+    if not np.isscalar(heading_asc):
+        cube['asc_heading'] = heading_asc.interp_like(asc, method='linear'); heading_asc=cube.asc_heading.values
+        cube['desc_heading'] = heading_desc.interp_like(asc, method='linear'); heading_desc=cube.desc_heading.values
+    if not np.isscalar(inc_asc):
+        cube['asc_inc'] = inc_asc.interp_like(asc, method='linear'); inc_asc=cube.asc_inc.values
+        cube['desc_inc'] = inc_desc.interp_like(asc, method='linear'); inc_desc=cube.desc_inc.values
+    cube['U'].values, cube['E'].values = decompose_np(cube.asc.values, cube.desc.values, heading_asc, heading_desc, inc_asc , inc_desc)
+    return cube[['U', 'E']]
+
+
 # 2022-10-18 - this should be pretty good one (next only use weights or something)
 def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0):
-    '''Decomposes values from ascending and descending geotiffs, using heading and inc. angle
+    '''Decomposes values from ascending and descending np (or xr) arrays, using heading and inc. angle
     (these might be arrays of same size of just float values)
     
     Args:
@@ -113,6 +128,98 @@ def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0):
 
 
 '''
+this is to load 3 datasets and decompose them:
+dirpath='/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla'
+#for frame in []
+nc1 = os.path.join(dirpath, '051D_03973_131313.nc')
+nc1=xr.open_dataset(nc1)
+vel1 = nc1.vel.values
+heading1 = -169.87
+inc1 = 43.64
+
+nc2 = os.path.join(dirpath, '124D_04017_131313.nc')
+nc2=xr.open_dataset(nc2)
+vel2 = nc2.vel.interp_like(nc1.vel).values
+heading2 = -169.88
+inc2 = 34.98
+
+nc3 = os.path.join(dirpath, '175A_03997_131313.nc')
+nc3=xr.open_dataset(nc3)
+vel3 = nc3.vel.interp_like(nc1.vel).values
+heading3 = -10.16
+inc3 = 38.42
+
+years = np.array([2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022])
+vUxr = nc1.vel_annual.sel(year = years).copy().rename('vU')
+vExr = nc1.vel_annual.sel(year = years).copy().rename('vE')
+for year in years:
+    vel1 = nc1.vel_annual.sel(year = year).values
+    vel2 = nc2.vel_annual.sel(year = year).values
+    vel3 = nc3.vel_annual.sel(year = year).values
+    input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
+    print('decomposing year '+str(year))
+    vU, vE = decompose_np_multi(input_data, beta = 0)
+    vUxr.loc[year,:,:] = vU
+    vExr.loc[year,:,:] = vE
+
+
+decomposedxr = xr.Dataset()
+decomposedxr['vU'] = vUxr
+decomposedxr['vE'] = vExr
+decomposedxr.to_netcdf('decomposed_s1.nc')
+'''
+
+def decompose_np_multi(input_data, beta = 0):
+    '''Decompose more than 2 frames
+    input data is a list of tuples, e.g.
+    input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
+    where velX is np.array and headingX/incX is in degrees, either a number or np.array
+    '''
+    #
+    template = input_data[0][0]
+    vel_E = np.zeros(template.shape)
+    vel_U = np.zeros(template.shape)
+    #
+    Us = np.array(())
+    Es = np.array(())
+    vels = []
+    for frame in input_data:
+        vel = frame[0]
+        heading = frame[1]
+        incangle = frame[2]
+        Us = np.append(Us, np.cos(np.radians(incangle)))
+        Es = np.append(Es, -np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
+        vels.append(vel)
+    # run for each pixel
+    numframes = len(vels)
+    for ii in np.arange(0,vel_E.shape[0]):
+        for jj in np.arange(0,vel_E.shape[1]):
+            # prepare template for d = G m
+            d = np.array(())
+            for i in range(numframes):
+                d = np.append(d, np.array([vels[i][ii,jj]]))
+            d = np.array([d]).T
+            if np.isnan(d).all():
+                # if at least one is nan, skip it:
+                #if np.isnan(np.max(d)):
+                vel_U[ii,jj] = np.nan
+                vel_E[ii,jj] = np.nan
+            else:
+                # create the design matrix
+                if np.isscalar(Us[0]):  # in case of only values (i.e. one inc and heading per each frame)
+                    G = np.vstack([Us, Es]).T              
+                else:  # in case this is array  # not tested!
+                    G = np.vstack([Us[:,ii,jj], Es[:,ii,jj]]).T
+                # solve the linear system for the Up and East velocities
+                #m = np.linalg.solve(G, d)
+                m = np.linalg.lstsq(G, d)[0]
+                # save to arrays
+                vel_U[ii,jj] = m[0]
+                vel_E[ii,jj] = m[1]
+    return vel_U, vel_E
+
+
+'''
 
 aschead=-9.918319
 deschead=-169.61931
@@ -132,6 +239,9 @@ export_xr2tif(D,'D.tif', dogdal=False)
 os.system('gdalwarp2match.py A.tif D.tif Aok.tif')
 os.system('gdalwarp2match.py D.tif Aok.tif Dok.tif')
 '''
+
+
+''' (old) usage example:
 #def decompose_xr(asc, desc, aschead, deschead, ascinc, descinc):
 #    
 U,E = decompose('Aok.tif', 'Dok.tif', aschead, deschead, ascinc, descinc)
@@ -153,10 +263,20 @@ deschead=190.3898
 ascinc=34.403
 descinc=34.240
 
+'''
 
 
 
 
+'''
+orig AW approach:
+import matplotlib.pyplot as plt
+
+
+# these packages are only needed for the final multivariate plot
+import seaborn as sns
+import pandas as pd
+import interseis_lib as lib
 
 
 
@@ -252,3 +372,4 @@ for ii in np.arange(0,len(lat_regrid)):
         vel_U[ii,jj] = m[0]
         vel_E[ii,jj] = m[1]
         
+'''

@@ -29,6 +29,36 @@ def download(uuid, slcdir):
     return rc
 
 
+
+def get_bperps_asf(product_id):
+    try:
+        import asf_search as asf
+        mdate=product_id.split('T')[0].split('_')[-1]
+        print('searching for stack through ASF')
+        reference = asf.product_search(product_id+'-SLC')[0]
+        stack = reference.stack()
+        bls=asf.get_baseline_from_stack(reference, stack)
+        bperps=[]
+        btemps=[]
+        bdates=[]
+        mdates=[]
+        for prod in bls[0]:
+            bperp=prod.properties.get('perpendicularBaseline')
+            btemp=prod.properties.get('temporalBaseline')
+            bdate=prod.properties.get('fileID').split('T')[0].split('_')[-1]
+            btemps.append(btemp)
+            bperps.append(bperp)
+            bdates.append(bdate)
+            mdates.append(mdate)
+        pdict = {'ref_date': mdates, 'date': bdates, 'bperp': bperps, 'btemp': btemps}
+        bperpd = pd.DataFrame(pdict)
+        return bperpd
+    except:
+        print('ERROR: perhaps install asf_search, or it did not find the data')
+        return False
+    
+
+
 def download_asf(filename, slcdir = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC', ingest = False):
     # slcdir = os.environ['LiCSAR_SLC']
     wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_alaska'
