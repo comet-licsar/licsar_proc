@@ -57,9 +57,9 @@ def read_bperp_file(bperp_file, imdates, return_missflag = False):
                 print('WARNING: bperp for {} not found, nullifying'.format(imd))
             #return False
     if return_missflag:
-		return bperp, missflag
-	else:
-		return bperp
+        return bperp, missflag
+    else:
+        return bperp
 
 
 
@@ -211,7 +211,7 @@ imdates = tools_lib.ifgdates2imdates(ifgdates)
 try:
     bperp, ismissing = read_bperp_file(bperp_file, imdates, return_missflag = True)
     if ismissing:
-		print('some epochs have missing bperps, trying to find them through ASF')
+        print('some epochs have missing bperps, trying to find them through ASF')
         frame=os.path.basename(framedir)
         import framecare as fc
         rc = fc.make_bperp_file(frame, bperp_file)
