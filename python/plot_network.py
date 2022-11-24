@@ -14,7 +14,7 @@ import datetime as dt
 import s1data as s1
 
 #%%
-def read_bperp_file(bperp_file, imdates):
+def read_bperp_file(bperp_file, imdates, return_missflag = False):
     """
     updated from LiCSBAS io_lib function to give 0 for missing imdates
     
@@ -31,6 +31,7 @@ def read_bperp_file(bperp_file, imdates):
     Return: bperp
     """
     bperp = []
+    missflag = False
     bperp_dict = {}
     ### Determine type of bperp_file; old or not
     with open(bperp_file) as f:
@@ -51,9 +52,14 @@ def read_bperp_file(bperp_file, imdates):
             bperp.append(float(bperp_dict[imd]))
         else: ## If no key exists
             bperp.append(0)
-            print('WARNING: bperp for {} not found, nullifying'.format(imd))
+            missflag = True
+            if not return_missflag:
+				print('WARNING: bperp for {} not found, nullifying'.format(imd))
             #return False
-    return bperp
+    if return_missflag:
+		return bperp, missflag
+	else:
+		return bperp
 
 
 
@@ -203,7 +209,13 @@ imdates = tools_lib.ifgdates2imdates(ifgdates)
 
 
 try:
-    bperp = read_bperp_file(bperp_file, imdates)
+    bperp, ismissing = read_bperp_file(bperp_file, imdates, return_missflag = True)
+    if ismissing:
+		print('some epochs have missing bperps, trying to find them through ASF')
+        frame=os.path.basename(framedir)
+        import framecare as fc
+        rc = fc.make_bperp_file(frame, bperp_file)
+        bperp = read_bperp_file(bperp_file, imdates)
 except:
     print('error reading baselines file! trying to recreate through ASF')
     try:
