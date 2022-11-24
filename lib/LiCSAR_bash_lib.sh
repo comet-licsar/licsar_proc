@@ -292,6 +292,33 @@ function create_colourbar_unw() {
   echo $scalebarfile
 }
 
+
+function create_preview_vel() {
+	# so the colour scale was generated as:
+	# 
+  if [ ! -z $1 ]; then
+    local velfile=$1
+    echo "generating preview for "$velfile
+    outfile=`echo $velfile | rev | cut -c 4- | rev`png
+    extracmd_convert=''
+    if [ ! -z $2 ]; then
+     if [ $2 == 0 ]; then
+      extracmd_convert='-resize 30%'
+     fi
+    fi
+    gmt grdimage $velfile -C$LiCSARpath/misc/vel.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
+    #to flatten it (and fix transparency...sometimes needed..):
+    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
+    rm $outfile.temp.png
+    rm gmt.history 2>/dev/null
+  else
+    echo "Usage: create_preview_vel velocity_tif_file [hires?]"
+    echo "(can be either geotiff or nc/grd; if hires=0, it will NOT keep hires..)"
+    return 0
+  fi
+}
+
+
 function create_preview_unwrapped() {
   if [ ! -z $1 ]; then
     local unwfile=$1
