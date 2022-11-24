@@ -54,7 +54,7 @@ def read_bperp_file(bperp_file, imdates, return_missflag = False):
             bperp.append(0)
             missflag = True
             if not return_missflag:
-				print('WARNING: bperp for {} not found, nullifying'.format(imd))
+                print('WARNING: bperp for {} not found, nullifying'.format(imd))
             #return False
     if return_missflag:
 		return bperp, missflag
