@@ -248,6 +248,10 @@ def main(argv=None):
         ############################################################ Link master slc dir in resample dir, regenerate mosaic
         masterslcdir = os.path.join(procdir, 'SLC', masterdate.strftime('%Y%m%d'))
         mastermosaic = os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc')
+        try:
+            rc = link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id=-1, overwrite = False)
+        except:
+            f.write('\nDEBUG: ERROR creating a link to master SLC directory in RSLC directory, but continuing.')
         if not os.path.exists(mastermosaic):
             print('regenerating master mosaic (some 2 minutes)')
             slctab = os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.mosaic.tab')

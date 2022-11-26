@@ -23,7 +23,7 @@ import global_config as gc
 ################################################################################
 #Link master rslc function
 ################################################################################
-def link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id):
+def link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id, overwrite = True):
     """ Creates RSLC dir and links master SLC images
     """
 ############################################################Create directories
@@ -32,9 +32,11 @@ def link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id):
     if not os.path.exists(rslcdir):
         os.mkdir(rslcdir)
     masterrslcdir = os.path.join(rslcdir,masterdate.strftime('%Y%m%d'))
-    if os.path.exists(masterrslcdir):
-        shutil.rmtree(masterrslcdir)
-    os.mkdir(masterrslcdir)
+    if overwrite:
+        if os.path.exists(masterrslcdir):
+            shutil.rmtree(masterrslcdir)
+    if not os.path.exists(masterrslcdir):
+        os.mkdir(masterrslcdir)
 ############################################################ Iterate through 
                                                         #and syslink master slcs
     filelist = [x for x in os.listdir(masterslcdir) if '{0}.'.format(
@@ -42,8 +44,9 @@ def link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id):
     filelistnew = [x.replace('.slc','.rslc') for x in filelist]
     try:
         for f1,f2 in zip(filelist,filelistnew):
-            os.symlink(os.path.join(masterslcdir,f1),
-                       os.path.join(masterrslcdir,f2))
+            if not os.path.exists(os.path.join(masterrslcdir,f2)):
+                os.symlink(os.path.join(masterslcdir,f1),
+                           os.path.join(masterrslcdir,f2))
     except:
         print('Something went wrong linking the master SLCs to the '\
                                                     'RSLC directory.')
