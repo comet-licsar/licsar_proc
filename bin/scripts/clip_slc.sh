@@ -29,6 +29,17 @@
 # python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
 # geocode_dem('"$masterslcdir"', '"$geodir"', '"$DEMDIR"' , '.', '"$master"', "$outres")"
 
+# however, we sometimes get the DEM with 'empty spaces' - so let's linear-interpolate and then nearest-neighbour interpolate the processed DEM
+# so better check, using rasdt_pwr, and if see holes, just... check
+# line 218 in coreg_lib and change geocode(lutfine,demseg,str(demwidth),hgtfile,str(width),str(length),'2','0',logfile) from '2' -> '1' (nearest neigh)
+# or reinterpolate through python if needed - happened once, thus only as a comment:
+#hgt=np.fromfile('GEOC/lookangles/20170311.geo.hgt', dtype=np.float32).byteswap()
+#hgt=hgt.reshape(1257,1543)
+#from lics_processing import *
+#hgt=interpolate_nans(hgt, method='nearest')
+#hgt.byteswap().tofile('GEOC/lookangles/20170311.geo.hgt')
+
+
 # ok, now time to generate ifgs and unws
 echo "warning, the outfolder should be unique name (sorry for that, it is due to ifg generator) - so use e.g. VOLCID_008A etc."
 if [ -z $7 ]; then echo "parameters are:";

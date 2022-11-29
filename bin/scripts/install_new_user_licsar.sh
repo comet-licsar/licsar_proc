@@ -1,17 +1,11 @@
 #!/bin/bash
 
-echo "this script might take long time to run - please run in tmux, i.e. do:"
-echo "module load licsar_framebatch"
-echo "source /gws/smf/j04/nceo_geohazards/software/mambalics/load_mambalics.rc"
-echo "tmux"
+echo "-----------------------------------------"
+echo "Welcome to the JASMIN residence of LiCSAR"
+echo "-----------------------------------------"
 echo ""
-echo "if you are already in tmux, just go on - if not, cancel by pressing CTRL-C"
-echo "(waiting 10 seconds before really starting)"
 
-sleep 10
-echo "ok, starting the procedure"
-
-sleep 2
+sleep 1
 
 echo "setting new default path to BATCH_CACHE_DIR and creating it: "
 source ~/.bashrc
@@ -49,3 +43,6 @@ fi
 fi
 
 echo "all done - thank you"
+echo "(you may check the \$BATCH_CACHE_DIR where all your processing will be performed)"
+echo "REMEMBER data stored in this folder (on scratch disk) are auto-deleted after 28 days"
+echo "so your task is to process data, inform us once done so we can store them, copy only necessary data to your work directory in vol1 or vol2 disk"
