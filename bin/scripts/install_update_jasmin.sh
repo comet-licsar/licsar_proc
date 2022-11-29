@@ -18,10 +18,11 @@ source ~/.bashrc
 sed -i 's/export BATCH_CACHE_DIR/\#export BATCH_CACHE_DIR/' ~/.bashrc
 
 if [ `grep -c "export oldbatch=" ~/.bashrc` -lt 1 ]; then
+ oldbatch=$BATCH_CACHE_DIR
  echo "export oldbatch="$oldbatch >> ~/.bashrc
  echo "export BATCH_CACHE_DIR=/work/scratch-pw3/licsar/"$USER"/batchdir" >> ~/.bashrc
 fi
-oldbatch=$BATCH_CACHE_DIR
+
 
 export BATCH_CACHE_DIR=/work/scratch-pw3/licsar/$USER/batchdir
 export LiCSAR_temp=/work/scratch-pw3/licsar/$USER/LiCSAR_temp
