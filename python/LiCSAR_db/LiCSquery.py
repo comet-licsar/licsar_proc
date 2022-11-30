@@ -654,6 +654,16 @@ def is_in_bursts2geom(s1bid, iw):
     return is_in_geom
 
 
+def is_in_table(value, column, table):
+    if type(value) == str:
+        is_in_sql = "select count(*) from {0} where {1} = '{2}';".format(str(table), str(column), str(value))
+    else:
+        is_in_sql = "select count(*) from {0} where {1} = {2};".format(str(table), str(column), str(value))
+    res = do_query(is_in_sql)
+    is_in= bool(res[0][0])
+    return is_in
+
+
 def set_job_started(job_id):
     sql_q = "UPDATE jobs "\
         "SET licsar_version = '%s' , " \
@@ -763,8 +773,48 @@ for i,j in aa.iterrows():
     print(i)
     res = store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
 
+
+
+CREATE TABLE volcanoes
+(volc_id INT(8) UNSIGNED PRIMARY KEY NOT NULL,
+ name VARCHAR(40) NOT NULL,
+ lat FLOAT(7,5) NOT NULL,
+ lon FLOAT(8,5) NOT NULL,
+ alt FLOAT(5,1) NULL,
+ priority CHAR(2) NULL,
+ geometry POINT NULL);
+
+for i,j in a.iterrows():
+    print(i)
+    res=store_volcano_to_db(j[0], j[1], j[2], j[3], j[4])
+
+
+for i,j in b.iterrows():
+    print(i)
+    res=store_volcano_to_db(j[0], j[1], j[2], j[3], j[4])
+
+
+    #, j.priority)
 '''
 import time
+
+def store_volcano_to_db(volcid, name, lat, lon, alt, priority = None):
+    if is_in_table(volcid, 'volc_id', 'volcanoes'):
+        print('volcano '+str(volcid)+' already exists in db')
+        return False
+    name = name.replace("'"," ")
+    name = name.replace('"'," ")
+    if priority:
+        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, priority, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, '{5}', GeomFromText('POINT {3} {2}'));".format(
+                                str(volcid), str(name), str(lat), str(lon), str(alt), str(priority))
+    else:
+        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, GeomFromText('POINT {3} {2}'));".format(
+                                str(volcid), str(name), str(lat), str(lon), str(alt))
+    res = do_query(sql_q, True)
+    time.sleep(0.25)
+    return res
+
+
 def store_burst_geom(s1bid, iw, relorb, tanx, opass, wkt, checkisin = False):
     if checkisin:
         is_in_geom = is_in_bursts2geom(s1bid, iw)
