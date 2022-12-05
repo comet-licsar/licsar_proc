@@ -1014,8 +1014,9 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
     """ Recoregister and resample slave to master geometry. This assumes lookup
     tables (and off files) are stored. keeping same parameters as the old version, for compatibility
     We expect lookup table to be in LUT/SLAVEDATE/MASTER_SLAVEDATE.slc.mli.lt (and off file should exist)
+    Note the lt is after both rdc_trans+ICC coregistration, and the ESD estimate is inside the off file (in the same LUT/DATE directory)
     """
-    print('\nRecoregistering slave {0}...'.format(slavedate.date()))
+    print('\nRecoregistering epoch {0}...'.format(slavedate.date()))
     
     #get/create slave slc directory paths
     slaveslcdir = os.path.join(slcdir,slavedate.strftime('%Y%m%d'))
@@ -1129,7 +1130,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
 
-        print('Resampling image (again)...')
+        print('Resampling the SLC using the existing LUT')
         if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,masterslctab,
                                      masterpar,lut,mastermlipar,slavemlipar,
                                      offfile,slaverslctab,slaverfilename,
@@ -1254,7 +1255,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
         logfile = os.path.join(procdir,'log','rdc_trans_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
-        print('Resampling image (again)...')
+        print('Resampling cropped SLC using the existing LUT')
         if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,croptab,
                                      cropfilename+'.par',lut,mastermlipar,
                                      slavemlipar,
