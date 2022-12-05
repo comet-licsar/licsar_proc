@@ -13,6 +13,7 @@ import datetime as dt
 #import pdb
 from numbers import Number
 from shapely.geometry import Polygon
+from shapely import wkt
 import pandas as pd
 
 # Local imports
@@ -343,6 +344,7 @@ def get_bursts_in_frame(frame):
             "where polygs.polyid_name='{0}';".format(frame)
         return do_query(sql_q)
 
+
 def get_bidtanxs_in_frame(frame):
     # takes frame, returns list with burstid, centre_lon and 
     # centre_lat of all bursts in frame
@@ -356,6 +358,25 @@ def get_bidtanxs_in_frame(frame):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
             "where polygs.polyid_name='{0}';".format(frame)
         return do_query(sql_q)
+
+
+def get_s1b_geom_from_bidtanx(bidtanx, opass = 'A'):
+    # e.g. '2_IW1_6220'
+    iw = int(bidtanx.split('_')[1][-1])
+    relorb = int(bidtanx.split('_')[0])
+    relorb1 = relorb-1
+    relorb2 = relorb+1
+    if relorb < 2:
+        extra_last = 'or relorb = 175'
+    else:
+        extra_last = ''
+    sql_q = "select centre_lat, centre_lon from bursts where bid_tanx = '{0}';".format(bidtanx)
+    center = do_query(sql_q)[0]
+    center = 'POINT('+str(center[1])+' '+str(center[0])+')'
+    sql_q = "select ST_AsText(geometry) from s1bursts where iw = {0} and (relorb between {1} and {2} {3}) and opass = '{4}' and \
+             ST_CONTAINS(geometry, ST_GEOMFROMTEXT('{5}'));".format(str(iw), str(relorb1), str(relorb2), extra_last, opass, center)
+    a = do_query(sql_q)[0][0]
+    return wkt.loads(a)
 
 
 def get_bidtanxs_in_track(track = '001A', onlyFrames = True):

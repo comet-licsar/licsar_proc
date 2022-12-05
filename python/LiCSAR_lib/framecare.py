@@ -587,31 +587,43 @@ def extract_bursts_by_track(bidtanxs, track):
     return newbids
 
 
-def bursts2geopandas(bidtanxs, merge = False):
+def bursts2geopandas(bidtanxs, merge = False, use_s1burst = False):
     # in order to export to KML:
     # frame_gpd.to_file('~/kmls/'+frame+'.kml', driver='KML')
     # or to SHP:
     # frame_gpd.to_file('~/shps/'+frame+'.shp', driver='ESRI Shapefile')
     geometry = []
     crs = {'init': 'epsg:4326'}
+    orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
     if merge == False:
+        #if use_s1burst:
         if type(bidtanxs)==list:
             for bid in bidtanxs:
-                geometry.append(lq.get_polygon_from_bidtanx(bid))
+                if use_s1burst:
+                    geometry.append(lq.get_s1b_geom_from_bidtanx(bid, opass = orbdir))
+                else:
+                    geometry.append(lq.get_polygon_from_bidtanx(bid))
             df_name = {'burstID': bidtanxs}
             aoi_gpd = gpd.GeoDataFrame(df_name, crs=crs, geometry=geometry)
         else:
-            geometry.append(lq.get_polygon_from_bidtanx(bidtanxs))
+            if use_s1burst:
+                geometry.append(lq.get_s1b_geom_from_bidtanx(bidtanxs, opass = orbdir))
+            else:
+                geometry.append(lq.get_polygon_from_bidtanx(bidtanxs))
             aoi_gpd = gpd.GeoDataFrame(index=[0], crs=crs, geometry=[geometry])
     else:
-        orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
         polygon = generate_frame_polygon(bidtanxs, orbdir)
         framename = generate_frame_name(bidtanxs)
         #aoi_gpd = gpd.GeoDataFrame(index=[0], crs=crs, geometry=[polygon])
         aoi_gpd = gpd.GeoDataFrame({'frameID': [framename]}, crs=crs, geometry=[polygon])
     return aoi_gpd
 
-def frame2geopandas(frame, brute = False):
+
+def frame2geopandas(frame, brute = False, use_s1burst = False, merge = False):
+    if use_s1burst:
+        bidtanxs=lq.get_bidtanxs_in_frame(frame)
+        bidtanxs=lq.sqlout2list(bidtanxs)
+        return bursts2geopandas(bidtanxs, merge = merge, use_s1burst = use_s1burst)
     if brute:
         gpan = frame2geopandas_brute(frame)
     else:
@@ -626,6 +638,7 @@ def frame2geopandas(frame, brute = False):
             #gpan['frameID'] = frame
             gpan = gpd.GeoDataFrame({'frameID': [frame]}, crs=crs, geometry=[geom])
     return gpan
+
 
 def frame2geopandas_brute(frame):
     bidtanxs = lq.get_bursts_in_frame(frame)
