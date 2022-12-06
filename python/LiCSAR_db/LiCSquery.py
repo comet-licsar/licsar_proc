@@ -1076,7 +1076,7 @@ def get_daz(polyid, epoch):
 
 
 def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = True):
-	'''Function to import ESD (etc.) values to the database
+	"""Function to import ESD (etc.) values to the database
 	
 	Args:
 		frame (str): 	frame ID
@@ -1086,7 +1086,8 @@ def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = True):
 		ccazi (float):	$\Delta a_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in azimuth
 		ccrg (float):	$\Delta r_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in range
 		orb (str):		orbit file used here (e.g. S1A_POE_.....zip) - special value 'fixed_as_in_GRL' means imported from older data and fixed
-	'''
+	
+	"""
     polyid = sqlout2list(get_frame_polyid(frame))[0]
     if get_daz(polyid, epoch):
 		if overwrite:
