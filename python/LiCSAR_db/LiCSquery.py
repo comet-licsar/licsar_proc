@@ -1075,15 +1075,31 @@ def get_daz(polyid, epoch):
 
 
 
-def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb):
+def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = True):
+	'''Function to import ESD (etc.) values to the database
+	
+	Args:
+		frame (str): 	frame ID
+		epoch (str): 	epoch, e.g. '20210122'
+		rslc3 (str):	epoch that was used as RSLC3, e.g. '20210110'
+		daz (float):	$\Delta a$ [px] offset w.r.t. orbits (i.e. total azimuth offset, sd_daz+icc_daz)
+		ccazi (float):	$\Delta a_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in azimuth
+		ccrg (float):	$\Delta r_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in range
+		orb (str):		orbit file used here (e.g. S1A_POE_.....zip) - special value 'fixed_as_in_GRL' means imported from older data and fixed
+	'''
     polyid = sqlout2list(get_frame_polyid(frame))[0]
     if get_daz(polyid, epoch):
-        #clean it first
-        sql_q = "delete from esd where polyid={} and epoch='{}';".format(polyid, epoch)
-        res = do_query(sql_q, 1)
+		if overwrite:
+			#clean it first
+			sql_q = "delete from esd where polyid={} and epoch='{}';".format(polyid, epoch)
+			res = do_query(sql_q, 1)
+        else:
+			print('the record exists, skipping')
+			return
     #the DATE in MySQL is pretty flexible... so using just the values directly:
     sql_q = "insert into esd values ({}, '{}', '{}', '{}', {}, {}, {})".format(polyid, epoch, rslc3, orb, daz, ccazi, ccrg)
     res = do_query(sql_q, 1)
+    return
 
 
 def get_usgsid(eqid):
