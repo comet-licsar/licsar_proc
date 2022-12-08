@@ -1064,29 +1064,34 @@ def get_eqid(eventid):
     return res
 
 
-def get_daz(polyid, epoch):
-    sql_q = "select daz from esd where polyid={} and epoch='{}';".format(polyid,epoch)
-    res = do_query(sql_q)
-    try:
-        daz = sqlout2list(res)[0]
-        return daz
-    except:
-        return False
+def get_daz(polyid, epoch, getall = False):
+    if not getall:
+        sql_q = "select daz from esd where polyid={} and epoch='{}';".format(polyid,epoch)
+        res = do_query(sql_q)
+        try:
+            daz = sqlout2list(res)[0]
+            return daz
+        except:
+            return False
+    else:
+        sql_q = "select * from esd where polyid={} and epoch='{}';".format(polyid,epoch)
+        res = do_query(sql_q)
+        return res[0]
 
 
 
 def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = True):
     """Function to import ESD (etc.) values to the database
-	
-	Args:
-		frame (str): 	frame ID
-		epoch (str): 	epoch, e.g. '20210122'
-		rslc3 (str):	epoch that was used as RSLC3, e.g. '20210110'
-		daz (float):	$\Delta a$ [px] offset w.r.t. orbits (i.e. total azimuth offset, sd_daz+icc_daz)
-		ccazi (float):	$\Delta a_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in azimuth
-		ccrg (float):	$\Delta r_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in range
-		orb (str):		orbit file used here (e.g. S1A_POE_.....zip) - special value 'fixed_as_in_GRL' means imported from older data and fixed
-	
+    
+    Args:
+        frame (str): 	frame ID
+        epoch (str): 	epoch, e.g. '20210122'
+        rslc3 (str):	epoch that was used as RSLC3, e.g. '20210110'
+        daz (float):	$\Delta a$ [px] offset w.r.t. orbits (i.e. total azimuth offset, sd_daz+icc_daz)
+        ccazi (float):	$\Delta a_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in azimuth
+        ccrg (float):	$\Delta r_{ICC}$ [px] offset from intensity/incoherent cross-correlation (ICC) in range
+        orb (str):		orbit file used here (e.g. S1A_POE_.....zip) - special value 'fixed_as_in_GRL' means imported from older data and fixed
+    
     """
     polyid = sqlout2list(get_frame_polyid(frame))[0]
     if get_daz(polyid, epoch):
@@ -1100,6 +1105,17 @@ def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = True):
     #the DATE in MySQL is pretty flexible... so using just the values directly:
     sql_q = "insert into esd values ({}, '{}', '{}', '{}', {}, {}, {})".format(polyid, epoch, rslc3, orb, daz, ccazi, ccrg)
     res = do_query(sql_q, 1)
+    return
+
+
+def update_esd(frame, epoch, colupdate = 'daz', valupdate = 0):
+    polyid = sqlout2list(get_frame_polyid(frame))[0]
+    if type(valupdate) == type('str'):
+        sql_q = "update esd set {0} = '{1}' where polyid={2} and epoch = '{3}';".format(colupdate, valupdate, polyid, epoch)
+    else:
+        sql_q = "update esd set {0} = {1} where polyid={2} and epoch = '{3}';".format(colupdate, valupdate, polyid, epoch)
+    # perform query, get result (should be blank), and then commit the transaction
+    res = do_query(sql_q, True)
     return
 
 
