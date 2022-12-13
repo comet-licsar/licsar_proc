@@ -1080,7 +1080,7 @@ def get_daz(polyid, epoch, getall = False):
 
 
 
-def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = True):
+def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = False):
     """Function to import ESD (etc.) values to the database
     
     Args:
