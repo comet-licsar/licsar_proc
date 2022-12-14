@@ -116,7 +116,7 @@ class UnwOptions(object):
         self.rampit=False
         self.subtract_gacos = False
         self.dolocal = False,
-        self.cohratio = None
+        self.extweights = None
         self.keep_coh_debug = True
         
         # parameters for cascade processing
@@ -190,7 +190,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
-        cohratio = None, keep_coh_debug = True):
+        extweights = None, keep_coh_debug = True):
     """Main function to unwrap a geocoded LiCSAR interferogram. Works on JASMIN (but can be easily adapted for local use)
     Args:
         frame (string): LiCSAR frame ID
@@ -220,8 +220,8 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         subtract_gacos (boolean): switch whether to return the interferograms with GACOS being subtracted (by default, GACOS is used only to support unwrapping and would be added back)
         dolocal (boolean): switch to use local directory to find interferograms, rather than search for LiCSAR_public directory in JASMIN
         
-        cohratio (xr.DataArray): coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
-        keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
+        extweights (xr.DataArray): external weights, e.g. amplitude stability or coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
+        keep_coh_debug (boolean): only in combination with use_coh_stab or use_amp_stab - whether or not to keep original (downsampled) ifg coherence after using the amp/coh_stab to weight the phase during multilooking
     
     Returns:
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
@@ -272,7 +272,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
         cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
         coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos,
-        cohratio = cohratio, keep_coh_debug = keep_coh_debug, tmpdir = tmpdir)
+        extweights = extweights, keep_coh_debug = keep_coh_debug, tmpdir = tmpdir)
     
     return ifg_ml
 
@@ -296,7 +296,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
-        cohratio = None, keep_coh_debug = True, cascade = False):
+        extweights = None, keep_coh_debug = True, cascade = False):
     try:
         ifg = load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = cliparea_geo)
     except:
@@ -317,7 +317,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
             coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos,
-            cohratio = cohratio, keep_coh_debug = keep_coh_debug,
+            extweights = extweights, keep_coh_debug = keep_coh_debug,
             tmpdir = tmpdir)
     else:
         print('performing 1 step cascade')
@@ -327,14 +327,14 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = None, prevest = prevest, prev_ramp = prev_ramp,
             coh2var = coh2var, add_resid = False,  rampit=True, subtract_gacos = subtract_gacos,
-            cohratio = cohratio, keep_coh_debug = keep_coh_debug,
+            extweights = extweights, keep_coh_debug = keep_coh_debug,
             tmpdir = tmpdir)
         ifg_ml = process_ifg_core(ifg, procdir = procdir, 
             ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
             defomax = defomax, hgtcorr = False, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = ifg_ml10['unw'],
             coh2var = coh2var, add_resid = True,  rampit=rampit, subtract_gacos = subtract_gacos,
-            cohratio = cohratio, keep_coh_debug = keep_coh_debug,
+            extweights = extweights, keep_coh_debug = keep_coh_debug,
             tmpdir = tmpdir)
         ifg_ml10 = 0
     return ifg_ml
@@ -345,7 +345,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
-        cohratio = None, keep_coh_debug = True,
+        extweights = None, keep_coh_debug = True,
         tmpdir = None ):
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
     tmpunwdir = os.path.join(tmpdir,'temp_unw')
@@ -363,17 +363,22 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
     #make complex from coh and pha
     ifg['cpx'] = ifg.coh.copy()
     if coh2var:
-        if type(cohratio) != type(None):
-            # use cohratio for better weights
-            coh = cohratio
+        if type(extweights) != type(None):
+            # use extweights for better weights - and calculate variance out of this
+            coh = extweights
         else:
             coh = ifg['coh']
         # if this is better, i will change it and have it fixed
-        cohratio = (2*coh**2)/(1-coh**2)
-    if type(cohratio) != type(None):
-        ifg['cpx'].values = magpha2RI_array(cohratio.values, ifg.pha.values)
+        extweights = (2*coh**2)/(1-coh**2)
+    if type(extweights) != type(None):
+        print('applying external weights - experimental.')
+        ifg['cpx'].values = magpha2RI_array(extweights.values, ifg.pha.values)
     else:
-        ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
+        if 'mag' in ifg:
+            ifg['cpx'].values = magpha2RI_array(ifg.mag.values, ifg.pha.values)
+        else:
+            print('magnitude not found, using coherence for weighting during multilook')
+            ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
     #fixing difference in xarray version...
     if 'lat' not in ifg.coords:
         print('warning - perhaps old xarray version - trying anyway')
@@ -901,7 +906,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
     #if cliparea_geo:
     #    import rioxarray as rio
     #    hgt = xr.open_dataarray(hgtfile)
-    cohratio = None
+    extweights = None
     if use_amp_stab:
         print('calculating amplitude stability')
         try:
@@ -914,10 +919,13 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                 ampstab = 1 - ampstd/ampavg
                 ampstab.values[ampstab<=0] = 0.00001
                 ampstab.to_netcdf(ampstabfile)
+                extweights = ampstab
         except:
             print('some error happened, disabling use of amplitude stability')
             use_amp_stab = False
     if use_coh_stab:
+        if use_amp_stab:
+            print('warning, you just computed amplitude stability but you flagged to use coh_stab that will then be applied instead of ampstab. perhaps you want turn this off?'
         cohstabdays = 12
         print('calculating coherence stability, using only {} days coherences'.format(str(cohstabdays)))
         try:
@@ -935,6 +943,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                 # but i want now to have it logarithmic, so:
                 #cohratio = cohavg/cohstd
                 #hmm... not really any difference. so using the orig way
+                extweights = cohratio
         except:
             print('some error happened, disabling use of coh stability')
             use_coh_stab = False
@@ -1000,7 +1009,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                             ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                         else:
                             ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
-                                thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
+                                thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
                                 lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                 keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                 subtract_gacos = subtract_gacos, dolocal=dolocal)
@@ -1008,7 +1017,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                         phatif=os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')
                         cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
                         ifg_ml = process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
-                                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, cohratio = cohratio, smooth = smooth,
+                                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
                                                  lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                                  subtract_gacos = subtract_gacos, cascade = cascade)
@@ -1125,9 +1134,10 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     """
     #landmask it and multilook it
     if ml > 1:
-        # that's for multilooking - in case of cohratio, we want to only weight phases based on that, and then return to coh
+        # that's for multilooking - in case of extweights, we want to only weight phases based on that, and then return to coh
         bagcpx = ifg[['cpx']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
         ifg_ml = bagcpx.sum() / bagcpx.count()   # this really equals np.nanmean, or, bagcpx.mean() - same result
+        # but for m
         # if we use coh instead of amplitude, it may get underestimated after ML (as found by Jack McG.), so just averaging it here:
         #if type(ml_weights) != type(None):
         bagcoh = ifg[['coh']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
@@ -1163,12 +1173,13 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
     #prepare 'toremove' layer
     ifg_ml['toremove'] = ifg_ml.cpx
     ifg_ml['toremove'].values = 0*np.angle(ifg_ml.cpx) # just make them zeroes
-    if keep_coh_debug:
-        #ok, return coh, phase back to cpx
-        cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha_noremovals.values)
-        ifg_ml['cpx'].values = cpxa
-    else:
-        #print('debug: trying to use the cohratio rather than current coh. maybe wrong?')
+    #if keep_coh_debug:
+    #    #ok, return coh, phase back to cpx
+    #    cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.origpha_noremovals.values)
+    #    ifg_ml['cpx'].values = cpxa
+    #else:
+    if not keep_coh_debug:
+        #print('debug: trying to use the extweights rather than current coh. maybe wrong?')
         ifg_ml['orig_coh'] = ifg_ml.coh.copy(deep=True)
         ifg_ml.coh.values = np.abs(ifg_ml['cpx'])
     #remove previous estimates
@@ -1370,7 +1381,7 @@ def load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = None):
     return ifg
 
 
-def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
+def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     if dolocal:
@@ -1414,6 +1425,23 @@ def load_ifg(frame, pair, unw=True, dolocal=False, cliparea_geo = None):
         inunw = load_tif2xr(unw_file)
         ifg['unw'] = ifg['pha']
         ifg['unw'].values = inunw.values
+    if mag:
+        geoepochsdir = os.path.join(geoframedir,'epochs')
+        inmag = False
+        for epoch in pair.split('_'):
+            epochmli = os.path.join(geoepochsdir, epoch, epoch+'.geo.mli.tif' )
+            if os.path.exists(epochmli):
+                if type(inmag) == type(False):
+                    inmag = load_tif2xr(epochmli)
+                else:
+                    # ifg magnitude should be complex conjugate, i.e. intensity 'squared'
+                    # but we will use only average here, for practical purposes - should be ok
+                    inmag = (load_tif2xr(epochmli)+inmag)/2
+        if type(inmag) == type(False):
+            print('no epoch mlis found, not using magnitude')
+        else:
+            ifg['mag'] = ifg['pha']
+            ifg['mag'].values = inmag.values
     ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
     # including hgt anyway - would be useful later
     if os.path.exists(hgtfile):
@@ -1730,7 +1758,7 @@ def create_preview_bin(binfile, width, ftype = 'unw'):
     rc = os.system('rm {0}'.format(binfile+'.ras'))
     return outfile
 
-
+'''
 try:
     def resize_bin(inbin, inwid, inlen, outbin, outwid, outlen, dtype = np.byte, intertype = cv2.INTER_NEAREST):
         """Use of cv2 to interpolate/resize binary file to new dimensions
@@ -1753,7 +1781,7 @@ try:
         return
 except:
     print('error loading resize_bin function - cascade will not work (install cv2)')
-
+'''
 
 
 def RI2cpx(R, I, cpxfile):
