@@ -925,7 +925,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             use_amp_stab = False
     if use_coh_stab:
         if use_amp_stab:
-            print('warning, you just computed amplitude stability but you flagged to use coh_stab that will then be applied instead of ampstab. perhaps you want turn this off?'
+            print('warning, you just computed amplitude stability but you flagged to use coh_stab that will then be applied instead of ampstab. perhaps you want turn this off?')
         cohstabdays = 12
         print('calculating coherence stability, using only {} days coherences'.format(str(cohstabdays)))
         try:
