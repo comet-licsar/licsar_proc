@@ -50,7 +50,7 @@ def in_ipynb():
     except NameError:
         return False
 
-
+'''
 if not in_ipynb():
     # some extra imports, used by additional functions
     try:
@@ -58,7 +58,9 @@ if not in_ipynb():
     except:
         print('cv2 not loaded - cascade will not work')
 else:
-    print('at JASMIN notebook service, cv2 does not load - cascade will not work')
+'''
+if in_ipynb():
+    #print('at JASMIN notebook service, cv2 does not load - cascade will not work')
     print('setting pyproj data directory')
     import pyproj
     pyproj.datadir.set_data_dir('/gws/smf/j04/nceo_geohazards/software/mambalics/share/proj')
@@ -86,7 +88,47 @@ except:
 ################################################################################
 # Main functions to perform the unwrapping
 ################################################################################
-
+'''
+class UnwOptions(object):
+    def __init__(self):
+        self.frame = None
+        self.pair = None
+        self.procdir = os.getcwd()
+        
+        # standard ifg processing parameters
+        self.ml = 10
+        self.fillby = 'nearest'
+        self.thres = 0.3
+        self.smooth = False
+        self.lowpass = True
+        self.goldstein = True
+        self.specmag = False
+        self.defomax = 0.6
+        self.hgtcorr = False
+        self.gacoscorr = True
+        self.pre_detrend = True
+        self.cliparea_geo = None
+        self.outtif = None
+        self.prevest = None
+        self.prev_ramp = None
+        self.coh2var = False
+        self.add_resid = True
+        self.rampit=False
+        self.subtract_gacos = False
+        self.dolocal = False,
+        self.cohratio = None
+        self.keep_coh_debug = True
+        
+        # parameters for cascade processing
+        self.downtoml = 1
+        self.only10 = True
+        #
+        
+        
+    def show_params(self):
+        for x in self.__dict__.items():
+            print(x[0]+': '+str(x[1]))
+'''
 def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
                    only10 = True, smooth = False, thres=0.3, hgtcorr = True, defomax = 0.3,
                    outtif = None, cliparea_geo = None, subtract_gacos = False, dolocal = False):
@@ -597,16 +639,26 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             bin_est = os.path.join(tmpdir,'prevest.rescaled.bin')
             bin_pre_remove = os.path.join(tmpdir,'prevest.rescaled.remove.bin')
             #binI_pre = os.path.join(tmpdir,'prevest.I.bin')
-            
+
+            # that is not the best we can do - need to change it
             kernel = Gaussian2DKernel(x_stddev=2)
             prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
             #prevest.values = interpolate_replace_nans(prevest.values, kernel)
+
+            # let's interpolate the (smaller?) prevest to ifg_ml shape
+            prevest = prevest.interp_like(ifg_ml, method='linear')
+            # in some cases it might still contain nans, so just.. interpolate them... how?:
+            if np.max(np.isnan(prevest)):
+                method = 'linear'
+                #method = 'nearest'
+                prevest.values = interpolate_nans(prevest.values, method=method)
             #filling other nans to 0 - this can happen if null regions are too large (larger than the kernel accepts)
-            prevest.astype(np.float32).fillna(0).values.tofile(bin_pre)
-            width_pre = len(prevest.lon)
-            length_pre = len(prevest.lat)
+            #prevest.astype(np.float32).fillna(0).values.tofile(bin_pre)
+            prevest.astype(np.float32).fillna(0).values.tofile(bin_est)
+            #width_pre = len(prevest.lon)
+            #length_pre = len(prevest.lat)
             #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_CUBIC)
-            resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
+            #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
             ifg_ml['toremove'].astype(np.float32).fillna(0).values.tofile(bin_pre_remove)
             main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax)
         else:
@@ -1123,6 +1175,7 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         #prev_length = len(prev_ramp.lat)
         prev_ramp = prev_ramp.fillna(0)
         resized = cv2.resize(prev_ramp.values,dsize=(width,length), interpolation=cv2.INTER_LINEAR) #or INTER_CUBIC ?
+        #prev_ramp = prev_ramp.interp_like(ifg_ml, method='linear')
         # if gacos is to be applied, need to remove its effect first here:
         if 'gacos' in ifg_ml.variables:
             resized = resized - ifg_ml['gacos'].values
@@ -1555,9 +1608,9 @@ def coh_from_phadiff(phadiff, winsize=3):
     """
     cpxdiff = pha2cpx(phadiff)
     variance = ndimage.generic_filter(np.real(cpxdiff), np.var, size=winsize)
-    outcohr = 1 / np.sqrt(1 + winsize * winsize * variance)
+    outcohr = 1 / np.sqrt(1 + 2*winsize * winsize * variance)
     variance = ndimage.generic_filter(np.imag(cpxdiff), np.var, size=winsize)
-    outcohi = 1 / np.sqrt(1 + winsize * winsize * variance)
+    outcohi = 1 / np.sqrt(1 + 2*winsize * winsize * variance)
     return (outcohr + outcohi) / 2
 
 
