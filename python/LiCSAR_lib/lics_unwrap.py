@@ -170,7 +170,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
                 ifg_mlc = ifg_mla.copy(deep=True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = False, prev_ramp = ifg_mlc['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal, smooth=smooth)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', prev_ramp = ifg_mlc['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal, smooth=smooth)
         else:
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
     elapsed_time = time.time()-starttime
