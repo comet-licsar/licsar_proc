@@ -276,13 +276,13 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $smooth == 1 ]; then
    echo "smooth run selected - disabling goldstein filter. better you disable smooth, it is considered obsolete now"
-  extraparam=", smooth = True, goldstein = False"
+  extraparam=$extraparam", smooth = True, goldstein = False"
  fi
  if [ lowpass == 1 ]; then
-  extraparam=", lowpass = True"
+  extraparam=$extraparam", lowpass = True"
  fi
  # adding possibility to change coh threshold here
- extraparam=", thres = "$thres
+ extraparam=$extraparam", thres = "$thres
  if [ $keep_coh_debug == 1 ]; then
   extraparam=$extraparam", keep_coh_debug = True";
  else
@@ -290,10 +290,10 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $cascade == 1 ]; then
   extraparam=$extraparam", cascade = True"
-  if [ $multi -gt 2 ]; then
-   echo "setting cascade start from ML20 (10 5 3 1)"
-   extraparam=$extraparam", "
-  fi
+  #if [ $multi -gt 2 ]; then
+  # echo "setting cascade start from ML20 (10 5 3 1)"
+  # extraparam=$extraparam", "
+  #fi
  fi
  if [ $use_coh_stab == 1 ]; then
   extraparam=$extraparam", use_coh_stab = True"
