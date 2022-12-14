@@ -1173,8 +1173,20 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre
         length = len(ifg_ml.lat)
         #prev_width = len(prev_ramp.lon)
         #prev_length = len(prev_ramp.lat)
-        prev_ramp = prev_ramp.fillna(0)
-        resized = cv2.resize(prev_ramp.values,dsize=(width,length), interpolation=cv2.INTER_LINEAR) #or INTER_CUBIC ?
+        #prev_ramp = prev_ramp.fillna(0)
+        #12/2022:
+        # let's interpolate the (smaller?) prevest to ifg_ml shape
+        prev_ramp = prev_ramp.interp_like(ifg_ml, method='linear')
+        # in some cases it might still contain nans, so just.. interpolate them... how?:
+        if np.max(np.isnan(prev_ramp)):
+            method = 'linear'
+            #method = 'nearest'
+            prev_ramp.values = interpolate_nans(prev_ramp.values, method=method)
+        if np.max(np.isnan(prev_ramp)):
+            prev_ramp.values = interpolate_nans(prev_ramp.values, method='nearest')
+        
+        resized = prev_ramp.values
+        #resized = cv2.resize(prev_ramp.values,dsize=(width,length), interpolation=cv2.INTER_LINEAR) #or INTER_CUBIC ?
         #prev_ramp = prev_ramp.interp_like(ifg_ml, method='linear')
         # if gacos is to be applied, need to remove its effect first here:
         if 'gacos' in ifg_ml.variables:
