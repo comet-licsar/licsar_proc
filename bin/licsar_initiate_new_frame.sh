@@ -106,6 +106,8 @@ if [ ! -d $curdir/$tr/$frame/SLC ]; then
  echo "Something got wrong with the initiation"
  cd - 2>/dev/null
 else
+ mkdir $curdir/$tr/$frame/LUT
+ chmod 775 $curdir/$tr/$frame/LUT
  m=`ls SLC`
  if [ ! -d RSLC/$m ]; then 
   mkdir -p RSLC/$m
