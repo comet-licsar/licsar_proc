@@ -468,7 +468,9 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         # no gapfilling here! but then it gets wrong... so.. gapfilling:
         print('gapfilling')
         tofillpha = ifg_ml.filtpha.where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
-        pha2unw = interpolate_nans(tofillpha.values, method='nearest')
+        #pha2unw = interpolate_nans(tofillpha.values, method='nearest')   # this takes 2 min 24 s for ml1
+        #pha2unw = interpolate_nans(tofillpha.values, method='nearest')   
+        pha2unw = tofillpha.fillna(0).rio.set_spatial_dims(x_dim='lon', y_dim='lat').rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - rio expects nan=0
         cpx = pha2cpx(pha2unw)
         #coh = sp  # actually ,let's use the phasediff if we use specmag...
         if specmag:
@@ -602,7 +604,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         #ifg_ml['gauss_pha'] = ifg_ml['gauss_pha'].fillna(0)
     #print('debug: now pha is fine-filled layer but with some noise at edges - why is that? not resolved. so adding one extra gauss filter')
     # ok, i see some high freq signal is still there.. so filtering once more (should also help after the nan filling)
-    if smooth:
+    if smooth and fillby == 'gauss':
         # OBSOLETE - do not use with lowpass!
         #ifg_ml = filter_ifg_ml(ifg_ml)
         # 2022/07: adding strong filter, say radius 1.5 km ... or... rather 15 pixels - this way it should be relatively long-wave signal
@@ -648,12 +650,10 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             bin_est = os.path.join(tmpdir,'prevest.rescaled.bin')
             bin_pre_remove = os.path.join(tmpdir,'prevest.rescaled.remove.bin')
             #binI_pre = os.path.join(tmpdir,'prevest.I.bin')
-
             # that is not the best we can do - need to change it
             kernel = Gaussian2DKernel(x_stddev=2)
             prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
             #prevest.values = interpolate_replace_nans(prevest.values, kernel)
-
             # let's interpolate the (smaller?) prevest to ifg_ml shape
             prevest = prevest.interp_like(ifg_ml, method='linear')
             # in some cases it might still contain nans, so just.. interpolate them... how?:
