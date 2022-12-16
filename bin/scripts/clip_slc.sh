@@ -139,4 +139,12 @@ create_geoctiff_lookangles.sh `pwd` $master >/dev/null
 
 framebatch_gapfill.sh -l -P 5 120 $rgl $azl
 
+echo 'generating MLI geotiffs'
+for x in `ls RSLC | grep 20`; do
+ if [ ! -d GEOC.MLI/$x/$x.geo.mli.tif ]; then
+   #echo "geocoding "$x
+   create_geoctiffs_to_pub.sh -M `pwd` $x >/dev/null   # to be improved
+ fi
+done
+
 echo "wait a bit and check.. tomorrow... for GEOC outputs"
