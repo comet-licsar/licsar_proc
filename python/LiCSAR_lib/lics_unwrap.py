@@ -2199,12 +2199,21 @@ def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True):
     """
     import rioxarray
     #coordsys = xrda.crs.split('=')[1]
+    coordsys = "epsg:4326"
     if debug:
         xrda = xrda.astype(np.float32)
-    coordsys = "epsg:4326"
+        # reset original spatial_ref
+        if 'spatial_ref' in xrda:
+            xrda = xrda.drop('spatial_ref')
+        # remove attributes
+        xrda.attrs = {}
     if lonlat:
+        if xrda.lat[1] > xrda.lat[0]:
+            xrda = xrda.sortby('lat',ascending=False)
         xrda = xrda.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
     else:
+        if xrda.y[1] > xrda.y[0]:
+            xrda = xrda.sortby('y',ascending=False)
         xrda = xrda.rio.set_spatial_dims(x_dim="x", y_dim="y", inplace=True)
     xrda = xrda.rio.write_crs(coordsys, inplace=True)
     if dogdal:
