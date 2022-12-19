@@ -38,10 +38,11 @@ cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
 '''
 
-def decompose_framencs(framencs):
+def decompose_framencs(framencs, extract_cum = False):
     ''' will decompose frame licsbas results
     the basenames in framencs should contain frame id, followed by '.', e.g.
     framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
+    extract_cum will use the first frame and convert to pseudo vertical
     '''
     frameset = []
     firstrun = True
@@ -54,6 +55,10 @@ def decompose_framencs(framencs):
         if firstrun:
             template = framevel.copy()
             firstrun = False 
+            if extract_cum:
+                cum_vert = xr.open_dataset(nc)['cum']
+                inc = inc.interp_like(framevel)
+                cum_vert = cum_vert/np.cos(np.radians(inc))
         else:
             framevel = framevel.interp_like(template)
         inc = inc.interp_like(framevel)
@@ -65,7 +70,10 @@ def decompose_framencs(framencs):
     dec = xr.Dataset()
     dec['U'] = U
     dec['E'] = E
+    dec['cum'] = cum_vert
     return dec
+
+
 
 
 def get_frame_inc_heading(frame):
