@@ -38,6 +38,34 @@ cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
 '''
 
+def decompose_framencs(framencs):
+    ''' will decompose frame licsbas results
+    the basenames in framencs should contain frame id, followed by '.', e.g.
+    framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
+    '''
+    frameset = []
+    firstrun = True
+    for nc in framencs:
+        frame = os.path.basename(nc).split('.')[0]
+        print('extracting frame '+frame)
+        inc, heading = get_frame_inc_heading(frame)
+        framevel = xr.open_dataset(nc)['vel']
+        framevel = framevel - framevel.median()
+        if firstrun:
+            template = framevel.copy()
+            firstrun = False 
+        else:
+            framevel = framevel.interp_like(template)
+        inc = inc.interp_like(framevel)
+        heading = heading.interp_like(framevel)
+        frameset.append((framevel.values, heading.values, inc.values))
+    U = template.copy()
+    E = template.copy()
+    U.values, E.values = decompose_np_multi(frameset)
+    dec = xr.Dataset()
+    dec['U'] = U
+    dec['E'] = E
+    return dec
 
 
 def get_frame_inc_heading(frame):
@@ -47,8 +75,10 @@ def get_frame_inc_heading(frame):
     #n=os.path.join(geoframedir,'metadata',frame+'.geo.N.tif') #no need for N
     u=os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
     e = load_tif2xr(e)
+    e = e.where(e != 0)
     #n = load_tif2xr(n, cliparea_geo=cliparea)
     u = load_tif2xr(u)
+    u = u.where(u != 0)
     #
     theta=np.arcsin(u)
     phi=np.arccos(e/np.cos(theta))
@@ -180,18 +210,22 @@ def decompose_np_multi(input_data, beta = 0):
     vel_E = np.zeros(template.shape)
     vel_U = np.zeros(template.shape)
     #
-    Us = np.array(())
-    Es = np.array(())
+    Us=list()
+    Es=list()
     vels = []
     for frame in input_data:
         vel = frame[0]
         heading = frame[1]
         incangle = frame[2]
-        Us = np.append(Us, np.cos(np.radians(incangle)))
-        Es = np.append(Es, -np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
+        #Us = np.append(Us, np.cos(np.radians(incangle)))
+        Us.append(np.cos(np.radians(incangle)))
+        #Es = np.append(Es, -np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
+        Es.append(-np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
         vels.append(vel)
-    # run for each pixel
+        # run for each pixel
     numframes = len(vels)
+    Us = np.array(Us)
+    Es = np.array(Es)
     for ii in np.arange(0,vel_E.shape[0]):
         for jj in np.arange(0,vel_E.shape[1]):
             # prepare template for d = G m
@@ -199,8 +233,8 @@ def decompose_np_multi(input_data, beta = 0):
             for i in range(numframes):
                 d = np.append(d, np.array([vels[i][ii,jj]]))
             d = np.array([d]).T
-            if np.isnan(d).all():
-                # if at least one is nan, skip it:
+            if np.isnan(d).any():
+                # if at least one is nan, skip it:  # can improve it but 'all' is not an option
                 #if np.isnan(np.max(d)):
                 vel_U[ii,jj] = np.nan
                 vel_E[ii,jj] = np.nan
