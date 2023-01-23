@@ -243,11 +243,11 @@ def main(argv=None):
                     return 1
         else:
             f.write('\nMaster geocode ignore flag given - skipping geocoding')
-            rslcdir = os.path.join(procdir,'RSLC')
 
         ############################################################ Link master slc dir in resample dir, regenerate mosaic
         masterslcdir = os.path.join(procdir, 'SLC', masterdate.strftime('%Y%m%d'))
         mastermosaic = os.path.join(masterslcdir,masterdate.strftime('%Y%m%d')+'.slc')
+        rslcdir = os.path.join(procdir,'RSLC')
         try:
             rc = link_master_rslc(masterslcdir, rslcdir, masterdate, lq, job_id=-1, overwrite = False)
         except:

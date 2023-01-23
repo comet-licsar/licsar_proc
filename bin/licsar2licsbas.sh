@@ -15,7 +15,7 @@ if [ -z $1 ]; then
  #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
  #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
  echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
- echo "-m ....... with reunwrapping, use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence) - recommended param"
+ #echo "-m ....... with reunwrapping, use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence) - recommended param"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --fast, --nopngs and --nullify)"
  echo "-t 0.35 ... change coherence threshold to 0.35 (default) during reunwrapping (-u)"
@@ -51,6 +51,8 @@ lowpass=0
 wls=0
 cometdev=0
 specmag=0
+# 2023 - keep it ON
+specmag=1
 nproc=1
 que='short-serial'
 #LB_version=licsbas_comet_dev
