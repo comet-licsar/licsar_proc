@@ -688,6 +688,15 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         #unw1 = np.flip(unw1,axis=0)
         ifg_ml[daname] = ifg_ml['pha'] #.copy(deep=True)
         ifg_ml[daname].values = unw1
+        # 2023: add also conn comp:
+        ccomfile = binfile + '.conncomp'
+        if os.path.exists(ccomfile):
+            ccom = np.fromfile(ccomfile, dtype=np.uint8)
+            ccom = ccom.reshape(ifg_ml.pha.shape)
+            ifg_ml['conncomp'] = ifg_ml['pha']
+            ifg_ml['conncomp'].values = ccom
+        else:
+            print('WARNING, connected components file does not exist, but it should')
         #ok, so the gauss-based coh mask is not the best to do... so exporting 'all pixels'
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
         #print('20210722 - testing now - using gauss-based coh mask, ignore the next message:')
