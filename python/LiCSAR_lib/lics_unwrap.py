@@ -11,7 +11,7 @@
 # Optional inputs: geotiffs with GACOS corrections, DEM, landmask (automatically found for LiCSAR)
 #
 # Pre-requisities: snaphu
-# Optional requisites: GMT, cpxfiddle (doris), ImageMagick
+# Optional requisites: GMT, cpxfiddle (doris), ImageMagick --- oh that was orig. version. it is much more pythonic now J
 #
 ################################################################################
 #Imports
@@ -605,7 +605,6 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
     #print('debug: now pha is fine-filled layer but with some noise at edges - why is that? not resolved. so adding one extra gauss filter')
     # ok, i see some high freq signal is still there.. so filtering once more (should also help after the nan filling)
     if smooth and fillby == 'gauss':
-        # OBSOLETE - do not use with lowpass!
         #ifg_ml = filter_ifg_ml(ifg_ml)
         # 2022/07: adding strong filter, say radius 1.5 km ... or... rather 15 pixels - this way it should be relatively long-wave signal
         # actually i prepared 'low-pass' solution, so keep it calm... and also change it to Goldstein!
@@ -669,14 +668,16 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_CUBIC)
             #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
             ifg_ml['toremove'].astype(np.float32).fillna(0).values.tofile(bin_pre_remove)
-            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax)
+            # 2023: adding conn comp, but TODO: check if cascade will work ok (rewrite will happen?)
+            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax, conncomp=True)
         else:
             #print('unwrapping')
             #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
             # 2022-01-14 - avoiding mask here - it does only worse
             #main_unwrap(binCPX, bincoh, None, outunwbin, width, defomax = defomax, printout=False)
             # 2022-04-04 - returning the mask! result is really bad with it, at least at islands!
-            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
+            # 2023: TODO - see above 'else'
+            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, conncomp=True, printout=False)
         print('importing snaphu result to ifg_ml')
         binfile = outunwbin
         #toxr = ifg_ml
