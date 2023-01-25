@@ -481,6 +481,10 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             coh = sp
         mask=ifg_ml['mask_full'].fillna(0).values
         print('unwrapping filtered phase')
+        print('debug:')
+        print(type(cpx))
+        print(type(coh))
+        print(type(mask))
         unw,conncomp =unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,conncomp=True, deltemp=True)
         ifg_ml['unw']=ifg_ml['pha']
         ifg_ml['conncomp'] = ifg_ml['pha']
