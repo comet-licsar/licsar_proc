@@ -222,7 +222,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         
         extweights (xr.DataArray): external weights, e.g. amplitude stability or coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
         keep_coh_debug (boolean): only in combination with use_coh_stab or use_amp_stab - whether or not to keep original (downsampled) ifg coherence after using the amp/coh_stab to weight the phase during multilooking
-		keep_coh_px (float or None): threshold for coherence upon which pixels would be unmasked (default: 0.25, use None or False to not add back coherent pixels). Practically, we mask based on consistence and then unmask coherent pixels.
+        keep_coh_px (float or None): threshold for coherence upon which pixels would be unmasked (default: 0.25, use None or False to not add back coherent pixels). Practically, we mask based on consistence and then unmask coherent pixels.
     Returns:
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
@@ -517,8 +517,8 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         ifg_ml['consistence'] = ifg_ml['gauss_coh'].copy()
         mask_gauss = (ifg_ml.consistence > thres)*1
         if keep_coh_px:
-			#return (unmask) pixels that have coh > keep_coh_px (default=0.25)
-			mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > keep_coh_px).values[mask_gauss.values == 0]
+            #return (unmask) pixels that have coh > keep_coh_px (default=0.25)
+            mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > keep_coh_px).values[mask_gauss.values == 0]
         ifg_ml['mask_coh'] = mask_gauss.fillna(0)
         # additionally remove islands of size smaller than... 2x2 km...?
         lenthres = 2000 # m
