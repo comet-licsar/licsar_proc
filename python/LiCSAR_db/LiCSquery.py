@@ -1138,10 +1138,7 @@ def get_daz(polyid, epoch, getall = False):
     else:
         sql_q = "select * from esd where polyid={} and epoch='{}';".format(polyid,epoch)
         res = do_query(sql_q)
-        try:
-            return res[0]
-        except:
-            return False
+        return res[0]
 
 
 

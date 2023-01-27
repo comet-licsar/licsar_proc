@@ -1195,18 +1195,18 @@ def export_all_frames_to_kmls(kmldirpath = '/gws/nopw/j04/nceo_geohazards_vol1/p
 
 
 def delete_bursts(bidtanxs, test = True):
-    if test:
-        print('WARNING, this will delete all bursts in the list FOREVER')
-        print('if any frame still uses the burst ids, it will cancel their deletion')
-        return
-    else:
-        for bidtanx in bidtanxs:
-            print('deleting burst '+bidtanx)
-            try:
-                rc = lq.delete_burst_from_db(bidtanx)
-            except:
-                print('some error occurred - cancelling')
-                return
+     if test:
+         print('WARNING, this will delete all bursts in the list FOREVER')
+         print('if any frame still uses the burst ids, it will cancel their deletion')
+         return
+     else:
+         for bidtanx in bidtanxs:
+             print('deleting burst '+bidtanx)
+             try:
+                 rc = lq.delete_burst_from_db(bidtanx)
+             except:
+                 print('some error occurred - cancelling')
+                 return
 
 
 def delete_frame(frame):
