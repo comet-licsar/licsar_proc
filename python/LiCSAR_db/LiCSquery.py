@@ -13,7 +13,7 @@ import datetime as dt
 #import pdb
 from numbers import Number
 from shapely.geometry import Polygon
-from shapely import wkt
+from shapely import wkt, wkb
 import pandas as pd
 
 # Local imports
@@ -360,7 +360,43 @@ def get_bidtanxs_in_frame(frame):
         return do_query(sql_q)
 
 
-def get_s1b_geom_from_bidtanx(bidtanx, opass = 'A'):
+def get_s1bursts_from_frame(frame):
+    opass=frame[3]
+    bidtanxs = sqlout2list(get_bidtanxs_in_frame(frame))
+    s1bids = []
+    for bidtanx in bidtanxs:
+        s1bid = get_s1burst_from_bidtanx(bidtanx, opass = opass).id.values[0]
+        s1bids.append(s1bid)
+    s1bids = list(set(s1bids))
+    return s1bids
+
+import warnings
+warnings.filterwarnings('ignore')
+
+def update_bids2S1():
+    # one off function to link all bursts to the S1 bursts
+    for orb in ['A','D']:
+        print('orb dir: '+orb)
+        for track in range(175):
+            print('doing track '+str(track+1))
+            trackstr = str(track+1)
+            while len(trackstr) < 3:
+                trackstr = '0'+trackstr
+            trackstr = trackstr+orb
+            # ok, but do it only for existing frames!
+            bidtanxs = get_bidtanxs_in_track(track=trackstr, onlyFrames=True)
+            bidtanxs = sqlout2list(bidtanxs)
+            for bidtanx in bidtanxs:
+                bid = get_bid_frombidtanx(bidtanx)
+                try:
+                    s1bid = get_s1burst_from_bidtanx(bidtanx, opass = orb).id.values[0]
+                    sql = 'insert into bursts2S1 values ({0}, {1});'.format(str(bid),str(s1bid))
+                    a = do_query(sql,True)
+                except:
+                    print('error with burst ID '+str(bid))
+
+
+def get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = False):
     # e.g. '2_IW1_6220'
     iw = int(bidtanx.split('_')[1][-1])
     relorb = int(bidtanx.split('_')[0])
@@ -370,6 +406,32 @@ def get_s1b_geom_from_bidtanx(bidtanx, opass = 'A'):
         extra_last = 'or relorb = 175'
     else:
         extra_last = ''
+    
+    tanx = int(bidtanx.split('_')[-1])/10
+    # set tolerance of 1.5 s
+    tol = 1.5
+    sql_q = "select id, s1bid, relorb, tanx, ST_AsText(geometry) as geometry from s1bursts where iw = {0} and (relorb between {1} and {2} {3}) and opass = '{4}' and \
+             (tanx between {5} and {6});".format(str(iw), str(relorb1), str(relorb2), extra_last, opass, str(tanx-tol), str(tanx+tol))
+    a = do_pd_query(sql_q)
+    a['geometry']=a.geometry.apply(wkt.loads)
+    if len(a) > 1:
+        # extra check using centre lat, lon:
+        sql_q = "select centre_lat, centre_lon from bursts where bid_tanx = '{0}';".format(bidtanx)
+        center = do_query(sql_q)[0]
+        center = wkt.loads('POINT('+str(center[1])+' '+str(center[0])+')')
+        burst_centres = a.geometry.apply(lambda x: x.centroid)
+        a['centre_distance'] = burst_centres.apply(lambda x: center.distance(x))
+        a = a.sort_values('centre_distance').head(1)
+    if only_geom:
+        return a.geometry.values[0]
+    else:
+        return a
+
+
+def get_s1b_geom_from_bidtanx(bidtanx, opass = 'A'):
+    # e.g. '2_IW1_6220'
+    return get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = True)
+    '''
     sql_q = "select centre_lat, centre_lon from bursts where bid_tanx = '{0}';".format(bidtanx)
     center = do_query(sql_q)[0]
     center = 'POINT('+str(center[1])+' '+str(center[0])+')'
@@ -377,7 +439,7 @@ def get_s1b_geom_from_bidtanx(bidtanx, opass = 'A'):
              ST_CONTAINS(geometry, ST_GEOMFROMTEXT('{5}'));".format(str(iw), str(relorb1), str(relorb2), extra_last, opass, center)
     a = do_query(sql_q)[0][0]
     return wkt.loads(a)
-
+    '''
 
 def get_bidtanxs_in_track(track = '001A', onlyFrames = True):
     # takes trackid (e.g. '001A'), returns list with burstid, centre_lon and 
