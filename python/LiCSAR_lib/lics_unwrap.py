@@ -11,7 +11,7 @@
 # Optional inputs: geotiffs with GACOS corrections, DEM, landmask (automatically found for LiCSAR)
 #
 # Pre-requisities: snaphu
-# Optional requisites: GMT, cpxfiddle (doris), ImageMagick
+# Optional requisites: GMT, cpxfiddle (doris), ImageMagick --- oh that was orig. version. it is much more pythonic now J
 #
 ################################################################################
 #Imports
@@ -190,7 +190,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
-        extweights = None, keep_coh_debug = True):
+        extweights = None, keep_coh_debug = True, keep_coh_px = 0.25):
     """Main function to unwrap a geocoded LiCSAR interferogram. Works on JASMIN (but can be easily adapted for local use)
     Args:
         frame (string): LiCSAR frame ID
@@ -222,7 +222,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         
         extweights (xr.DataArray): external weights, e.g. amplitude stability or coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
         keep_coh_debug (boolean): only in combination with use_coh_stab or use_amp_stab - whether or not to keep original (downsampled) ifg coherence after using the amp/coh_stab to weight the phase during multilooking
-    
+        keep_coh_px (float or None): threshold for coherence upon which pixels would be unmasked (default: 0.25, use None or False to not add back coherent pixels). Practically, we mask based on consistence and then unmask coherent pixels.
     Returns:
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
@@ -272,7 +272,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
         cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
         coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos,
-        extweights = extweights, keep_coh_debug = keep_coh_debug, tmpdir = tmpdir)
+        extweights = extweights, keep_coh_debug = keep_coh_debug, keep_coh_px = keep_coh_px, tmpdir = tmpdir)
     
     return ifg_ml
 
@@ -296,7 +296,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
-        extweights = None, keep_coh_debug = True, cascade = False):
+        extweights = None, keep_coh_debug = True, keep_coh_px = 0.25, cascade = False):
     try:
         ifg = load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = cliparea_geo)
     except:
@@ -317,7 +317,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
             coh2var = coh2var, add_resid = add_resid,  rampit=rampit, subtract_gacos = subtract_gacos,
-            extweights = extweights, keep_coh_debug = keep_coh_debug,
+            extweights = extweights, keep_coh_debug = keep_coh_debug, keep_coh_px = keep_coh_px,
             tmpdir = tmpdir)
     else:
         print('performing 1 step cascade')
@@ -327,14 +327,14 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = None, prevest = prevest, prev_ramp = prev_ramp,
             coh2var = coh2var, add_resid = False,  rampit=True, subtract_gacos = subtract_gacos,
-            extweights = extweights, keep_coh_debug = keep_coh_debug,
+            extweights = extweights, keep_coh_debug = keep_coh_debug, keep_coh_px = keep_coh_px,
             tmpdir = tmpdir)
         ifg_ml = process_ifg_core(ifg, procdir = procdir, 
             ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
             defomax = defomax, hgtcorr = False, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = ifg_ml10['unw'],
             coh2var = coh2var, add_resid = True,  rampit=rampit, subtract_gacos = subtract_gacos,
-            extweights = extweights, keep_coh_debug = keep_coh_debug,
+            extweights = extweights, keep_coh_debug = keep_coh_debug, keep_coh_px = keep_coh_px,
             tmpdir = tmpdir)
         ifg_ml10 = 0
     return ifg_ml
@@ -345,7 +345,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
-        extweights = None, keep_coh_debug = True,
+        extweights = None, keep_coh_debug = True, keep_coh_px = 0.25,
         tmpdir = None ):
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
     tmpunwdir = os.path.join(tmpdir,'temp_unw')
@@ -471,7 +471,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         #pha2unw = interpolate_nans(tofillpha.values, method='nearest')   # this takes 2 min 24 s for ml1
         #pha2unw = interpolate_nans(tofillpha.values, method='nearest')   
         pha2unw = tofillpha.fillna(0).rio.set_spatial_dims(x_dim='lon', y_dim='lat').rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - rio expects nan=0
-        cpx = pha2cpx(pha2unw)
+        cpx = pha2cpx(pha2unw.values)
         #coh = sp  # actually ,let's use the phasediff if we use specmag...
         if specmag:
             phadiff=wrap2phase((ifg_ml['filtpha']-ifg_ml['pha']).values)
@@ -481,6 +481,10 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             coh = sp
         mask=ifg_ml['mask_full'].fillna(0).values
         print('unwrapping filtered phase')
+        print('debug:')
+        print(type(cpx))
+        print(type(coh))
+        print(type(mask))
         unw,conncomp =unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,conncomp=True, deltemp=True)
         ifg_ml['unw']=ifg_ml['pha']
         ifg_ml['conncomp'] = ifg_ml['pha']
@@ -516,8 +520,9 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         ifg_ml = filter_ifg_ml(ifg_ml, calc_coh_from_delta = calc_coh_from_delta, radius = radius)
         ifg_ml['consistence'] = ifg_ml['gauss_coh'].copy()
         mask_gauss = (ifg_ml.consistence > thres)*1
-        #return (unmask) pixels that have coh > 0.25
-        mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > 0.25).values[mask_gauss.values == 0]
+        if keep_coh_px:
+            #return (unmask) pixels that have coh > keep_coh_px (default=0.25)
+            mask_gauss.values[mask_gauss.values == 0] = 1*(ifg_ml.coh > keep_coh_px).values[mask_gauss.values == 0]
         ifg_ml['mask_coh'] = mask_gauss.fillna(0)
         # additionally remove islands of size smaller than... 2x2 km...?
         lenthres = 2000 # m
@@ -605,7 +610,6 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
     #print('debug: now pha is fine-filled layer but with some noise at edges - why is that? not resolved. so adding one extra gauss filter')
     # ok, i see some high freq signal is still there.. so filtering once more (should also help after the nan filling)
     if smooth and fillby == 'gauss':
-        # OBSOLETE - do not use with lowpass!
         #ifg_ml = filter_ifg_ml(ifg_ml)
         # 2022/07: adding strong filter, say radius 1.5 km ... or... rather 15 pixels - this way it should be relatively long-wave signal
         # actually i prepared 'low-pass' solution, so keep it calm... and also change it to Goldstein!
@@ -669,14 +673,16 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
             #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_CUBIC)
             #resize_bin(bin_pre, width_pre, length_pre, bin_est, width, length, dtype = np.float32, intertype = cv2.INTER_LINEAR)
             ifg_ml['toremove'].astype(np.float32).fillna(0).values.tofile(bin_pre_remove)
-            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax)
+            # 2023: adding conn comp, but TODO: check if cascade will work ok (rewrite will happen?)
+            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est, bin_pre_remove = bin_pre_remove, defomax = defomax, conncomp=True)
         else:
             #print('unwrapping')
             #main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
             # 2022-01-14 - avoiding mask here - it does only worse
             #main_unwrap(binCPX, bincoh, None, outunwbin, width, defomax = defomax, printout=False)
             # 2022-04-04 - returning the mask! result is really bad with it, at least at islands!
-            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, printout=False)
+            # 2023: TODO - see above 'else'
+            main_unwrap(binCPX, bincoh, binmask, outunwbin, width, defomax = defomax, conncomp=True, printout=False)
         print('importing snaphu result to ifg_ml')
         binfile = outunwbin
         #toxr = ifg_ml
@@ -687,6 +693,15 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         #unw1 = np.flip(unw1,axis=0)
         ifg_ml[daname] = ifg_ml['pha'] #.copy(deep=True)
         ifg_ml[daname].values = unw1
+        # 2023: add also conn comp:
+        ccomfile = binfile + '.conncomp'
+        if os.path.exists(ccomfile):
+            ccom = np.fromfile(ccomfile, dtype=np.uint8)
+            ccom = ccom.reshape(ifg_ml.pha.shape)
+            ifg_ml['conncomp'] = ifg_ml['pha']
+            ifg_ml['conncomp'].values = ccom
+        else:
+            print('WARNING, connected components file does not exist, but it should')
         #ok, so the gauss-based coh mask is not the best to do... so exporting 'all pixels'
         #ifg_ml[daname] = ifg_ml[daname]*ifg_ml['mask']
         #print('20210722 - testing now - using gauss-based coh mask, ignore the next message:')
