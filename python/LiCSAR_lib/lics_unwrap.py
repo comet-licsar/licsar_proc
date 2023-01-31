@@ -192,6 +192,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
         extweights = None, keep_coh_debug = True, keep_coh_px = 0.25):
     """Main function to unwrap a geocoded LiCSAR interferogram. Works on JASMIN (but can be easily adapted for local use)
+    
     Args:
         frame (string): LiCSAR frame ID
         pair (string): identifier of interferometric pair, e.g. ``'20200120_20200201'``
@@ -223,6 +224,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         extweights (xr.DataArray): external weights, e.g. amplitude stability or coherence ratio (or another array) to be used for weighting the phase instead of the original coherence
         keep_coh_debug (boolean): only in combination with use_coh_stab or use_amp_stab - whether or not to keep original (downsampled) ifg coherence after using the amp/coh_stab to weight the phase during multilooking
         keep_coh_px (float or None): threshold for coherence upon which pixels would be unmasked (default: 0.25, use None or False to not add back coherent pixels). Practically, we mask based on consistence and then unmask coherent pixels.
+    
     Returns:
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
@@ -1971,9 +1973,8 @@ def make_gacos_ifg(frame, pair, outfile):
 
 
 def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = True, nonlinear=False):
-    '''Removes height-correlated signal
-    
-     first, correlate ```ifg_ml['pha']``` and ```ifg_ml['hgt']``` in blocks
+    '''Removes height-correlated signal.
+     First, correlate ```ifg_ml['pha']``` and ```ifg_ml['hgt']``` in blocks
       - better to keep dounw=True that unwraps each block by snaphu. but it can be slow
      get coefficient for correction of correlating areas
      interpolate the coefficient throughout whole raster
