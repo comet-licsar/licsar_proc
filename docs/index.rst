@@ -55,9 +55,8 @@ In order to force-skip the 180 days limit, use parameter '-E' (some extra tweaks
 In practice, to connect a cluster of epochs far in time, choose one SLC in that cluster that has no missing bursts (see e.g. their mli preview, or check size),
 and add its date to slclist.txt and try coregister that one by ``LiCSAR_02_coreg.py -f $frameid -d . -m $m -i -l slclist.txt -E``.
 Only then start the standard procedure (without -E) for all the SLCs left. This way you would make sure that the other epochs would use appropriate
-RSLC3 for the spectral diversity (see e.g. https://www.mdpi.com/2072-4292/12/15/2430 ).
+RSLC3 for the spectral diversity (see e.g. `https://www.mdpi.com/2072-4292/12/15/2430 <https://www.mdpi.com/2072-4292/12/15/2430>`_ ).
 This approach would be automatically run through the LiCSAR FrameBatch script with 'force' parameter: ``framebatch_postproc_coreg.sh -f``.
-
 
 3. create interferograms
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -100,7 +99,7 @@ Finally, you may experiment with the updated (much improved) unwrapper, running 
   help(unw.process_ifg)
 
 
-To provide a general overview of differences between those three options (using default parameters), see the image below (as presented at IGARSS 2022).
+To provide a general overview of differences between those three options (using default parameters), see the image below (as presented at `IGARSS 2022 <https://www.mdpi.com/2072-4292/12/15/2430>`_ ).
 Basically, unwrap_geo.sh would underestimate strong deformation but would not be that prone to general unwrapping errors.
 The third option is result of active development (and will further improve). So far the best option.
 
@@ -121,8 +120,8 @@ Post-processing
 
 Reunwrapping existing interferograms
 ^^^^^^^^^^^^^^^^^^^^^^^
-Standard LiCSAR products use general parameters for unwrapping. Here we document the python tool ``lics_unwrap.py``.
-We will soon augment it to allow processing directly from command line, for now you may check the :ref:`API documentation<apidoc_unwrap>`.
+Standard LiCSAR products use general parameters for unwrapping. Here we document the python tool ``lics_unwrap.py`` that performs `published procedures <https://ieeexplore.ieee.org/document/9884337>`_ .
+We will soon augment it to allow processing directly from command line as part of LiCSBAS, for now you may check the :ref:`API documentation<apidoc_unwrap>`.
 
 
 LiCSAR to LiCSBAS (JASMIN)
@@ -135,23 +134,27 @@ Afterwards, you may just fine tune parameters of LiCSBAS step 15 (and 16) and re
 ::
   licsar2licsbas.sh frame [startdate] [enddate]
   #e.g. 155D_02611_050400 20141001 20200205
-  #parameters:
+  #Parameters:
+  ### Basic parameters
   ##-M 10 .... this will do extra multilooking (in this example, 10x multilooking)
+  ##-g ....... use GACOS if available for most of the epochs
+  ##-S ....... (obsolete but still kept parameter) strict mode - in case of GACOS, use it only if available for ALL ifgs
+  ##-G lon1/lon2/lat1/lat2  .... clip to this AOI
+  ### Control over reunwrapping
   ##-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)
   ##-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)
   ##-l ....... if the reunwrapping is to be performed, would do lowpass filter (should be safe unless in tricky areas as islands; good to use by default)
-  ##-P ....... prioritise, i.e. use comet queue instead of short-serial
-  ##-n 1 ..... number of processors (by default: 1, used also for reunwrapping, although not tested well yet)
+  ##-m ....... with reunwrapping with Goldstein filter on (by defaule), use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence) - recommended param
+  ##-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter, and disable -m)
+  ##-t 0.35 .. change coherence threshold to 0.35 (default) during reunwrapping (-u)
   ##-H ....... this will use hgt to support unwrapping (only if using reunwrapping)
+  ### Control over LiCSBAS processing
   ##-T ....... use testing version of LiCSBAS
-  ##-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --fast, --nopngs and --nullify)
-  ##-t 0.35 ... change coherence threshold to 0.35 (default) during reunwrapping (-u)
-  ##-g ....... use GACOS if available - NOTE THIS WAS ON BY DEFAULT TILL SEP 2022, BUT NOT ANYMORE
-  ##-G lon1/lon2/lat1/lat2  .... clip to this AOI
+  ##-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future, this will also add --singular)
   ##-W ....... use WLS for the inversion (coherence-based)
-  ##-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter - better for higher gradients)
-  ##some older (not recommended anymore) parameters:
-  ##-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs
+  ### Processing tweaks
+  ##-P ....... prioritise, i.e. use comet queue instead of short-serial
+  ##-n 1 ..... number of processors (by default: 1, used also for reunwrapping)
 
 
 Explaining on example, use of
@@ -172,6 +175,10 @@ With the -W parameter, LiCSBAS13 performs weighted least squares for inversion w
 
 The whole procedure will run in the background through JASMIN's LOTUS server (see generated .sh files) and once finished, results will be in TS_GEOCml5GACOSclip, plus additional files will be generated
 (e.g. geotiffs of velocity estimate, or standard NetCDF file that can be loaded to e.g. QGIS or ncview to plot time series from 'cum' layer, etc.)
+
+Finally, note the biggest impact in the unwrapping here is the spatial filtering approach. While the Gaussian smooth should run very well, some high phase gradient areas would
+benefit from Goldstein filter. Therefore this filter is ON by default (it would be turned off with ``-s``) but it is recommended to add parameter ``-m`` and fine tune ``-t``.
+The negative aspect of this implementation is the longer processing time, and also the method to measure noise is still in development.
 
 
 Decomposition to E-U(+N) vectors

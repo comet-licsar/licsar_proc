@@ -421,6 +421,8 @@ def get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = False):
         center = wkt.loads('POINT('+str(center[1])+' '+str(center[0])+')')
         burst_centres = a.geometry.apply(lambda x: x.centroid)
         a['centre_distance'] = burst_centres.apply(lambda x: center.distance(x))
+        # units are degrees! so i will limit to up to 1 deg (VERY tolerant here, but might be important for polar areas?)
+        a = a[a.centre_distance < 1]
         a = a.sort_values('centre_distance').head(1)
     if only_geom:
         return a.geometry.values[0]

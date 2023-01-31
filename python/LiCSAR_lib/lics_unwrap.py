@@ -473,7 +473,7 @@ def process_ifg_core(ifg, procdir = os.getcwd(),
         pha2unw = tofillpha.fillna(0).rio.set_spatial_dims(x_dim='lon', y_dim='lat').rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - rio expects nan=0
         cpx = pha2cpx(pha2unw.values)
         #coh = sp  # actually ,let's use the phasediff if we use specmag...
-        if specmag:
+        if not specmag:
             phadiff=wrap2phase((ifg_ml['filtpha']-ifg_ml['pha']).values)
             coh = coh_from_phadiff(phadiff, 3)
             coh[np.isnan(coh)] = 0

@@ -1,32 +1,35 @@
 #!/bin/bash
 # parameters: frame [startdate] [enddate]
 # e.g. 155D_02611_050400 20141001 20200205
-
+  
 if [ -z $1 ]; then
  echo "parameters: frame [startdate] [enddate]"
  echo "e.g. 155D_02611_050400 20141001 20200205"
  echo "parameters:"
+ echo "-- Basic parameters --"
  echo "-M 10 .... this will do extra multilooking (in this example, 10x multilooking)"
- echo "-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)"
- echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
- echo "-l ....... if the reunwrapping is to be performed, would do lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
- echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
- echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping, although not tested well yet)"
- #echo "-C ....... use coherence stability index instead of orig coh per ifg (experimental - might help against loop closure errors, maybe)"
- #echo "-k ....... use cohratio everywhere (i.e. for unwrapping, rather than orig coh - this is experimental attempt)"
- echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
- #echo "-m ....... with reunwrapping, use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence) - recommended param"
- echo "-T ....... use testing version of LiCSBAS"
- echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --fast, --nopngs and --nullify)"
- echo "-t 0.35 ... change coherence threshold to 0.35 (default) during reunwrapping (-u)"
- echo "-g ....... use GACOS if available - NOTE THIS WAS ON BY DEFAULT TILL SEP 2022, BUT NOT ANYMORE"
+ echo "-g ....... use GACOS if available for most of the epochs"
+ echo "-S ....... (obsolete but still kept parameter) strict mode - in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
+ echo "-u ....... use the reunwrapping procedure (useful if multilooking..)"
+ echo "-- Control over reunwrapping --"
+ echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
+ echo "-l ....... if the reunwrapping is to be performed, would do Gaussian lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
+ echo "-m ....... with reunwrapping with Goldstein filter on (by default), use coh based on spectral magnitude - recommended param"
+ echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter, and disable -m)"
+ echo "-t 0.35 .. change coherence threshold to 0.35 (default) during reunwrapping (-u)"
+ echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
+ echo "-- Control over LiCSBAS processing --"
+ echo "-T ....... use testing version of LiCSBAS"
+ echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future, this will also add --singular)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
- echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter - better for higher gradients)"
- echo "----------------"
- echo "some older (not recommended anymore) parameters:"
- echo "-S ....... strict mode - e.g. in case of GACOS, use it only if available for ALL ifgs"
+ echo "-- Processing tweaks --"
+ echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
+ echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping)"
+ echo "(other params, for admins etc.)"
  echo "(-R ....... prioritise through comet responder)"
+ echo "-----------------"
+ echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
  exit
@@ -52,7 +55,7 @@ wls=0
 cometdev=0
 specmag=0
 # 2023 - keep it ON
-specmag=1
+#specmag=1
 nproc=1
 que='short-serial'
 #LB_version=licsbas_comet_dev
