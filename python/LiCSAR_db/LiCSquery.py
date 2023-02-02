@@ -443,6 +443,12 @@ def get_s1b_geom_from_bidtanx(bidtanx, opass = 'A'):
     return wkt.loads(a)
     '''
 
+'''
+ok, let's check which bursts were not mapped:
+sql = 'select bid_tanx from bursts where bid not in (select bid from bursts2S1);'
+
+
+'''
 def get_bidtanxs_in_track(track = '001A', onlyFrames = True):
     # takes trackid (e.g. '001A'), returns list with burstid, centre_lon and 
     if onlyFrames:
@@ -476,7 +482,7 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
             "where polygs.polyid_name='{0}' " \
             "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and files.pol='VV' "\
+            "and (files.pol='VV' or files.pol='HH') "\
             "order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
     else:
         sql_q = "select distinct files.name from files " \
@@ -485,7 +491,7 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
             "where polygs.polyid_name='{0}' " \
             "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and files.pol='VV' "\
+            "and (files.pol='VV' or files.pol='HH') "\
             "order by files.name asc;".format(frame,t1,t2)
     return do_query(sql_q)
 
@@ -509,7 +515,7 @@ def get_frame_files_date(frame,date):
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
         "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
-        "and pol='VV'"\
+        "and (pol='VV' or pol='HH')"\
         "order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
     return do_query(sql_q)
 
@@ -542,7 +548,7 @@ def get_burst_no(frame,date):
         "inner join bursts on polygs2bursts.bid=bursts.bid "\
         "where polygs.polyid_name='{0}' " \
         "and date(files.acq_date)='{1}' "\
-        "and pol='VV'"\
+        "and (pol='VV' or pol='HH')"\
         "order by files.acq_date;".format(frame,date)
     return do_query(sql_q)
 
@@ -562,7 +568,7 @@ def get_frame_bursts_on_date(frame,date):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
             "inner join files on files2bursts.fid=files.fid "\
             "where polygs.polyid_name='{0}'"\
-            "and files.pol='VV'"\
+            "and (files.pol='VV' or files.pol='HH')"\
             "and date(files.acq_date)='{1}';".format(frame,date)
         return do_query(sql_q)
 
