@@ -214,7 +214,7 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='i
         for f in filelist:
             # unzipcall = [ 'jar', '-xf', f[1] + '.zip' ]
             # unzipcall = [ 'unzip', f[1] + '.zip' ]
-            unzipcall = [ '7za', 'x', '-xr!*vh*', f[1] + '.zip' ]
+            unzipcall = [ '7za', 'x', '-xr!*vh*', '-xr!*hv*', f[1] + '.zip' ]
             try:
                 rc = subp.check_call( unzipcall )
             except subp.CalledProcessError:
@@ -233,19 +233,19 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='i
             for sw in [ 'iw1', 'iw2', 'iw3' ]:
                 tiff = glob(
                         os.path.join( safedir, 'measurement', 
-                            's1*-{0}-slc-vv-*.tiff'.format( sw ))
+                            's1*-{0}-slc-*-*.tiff'.format( sw ))
                         )
                 annot = glob(
                         os.path.join( safedir, 'annotation', 
-                            's1*-{0}-slc-vv-*.xml'.format( sw ))
+                            's1*-{0}-slc-*-*.xml'.format( sw ))
                         )
                 calib = glob(
                         os.path.join( safedir, 'annotation', 'calibration',
-                            'calibration-s1*-{0}-slc-vv-*.xml'.format( sw ))
+                            'calibration-s1*-{0}-slc-*-*.xml'.format( sw ))
                         )
                 noise = glob(
                         os.path.join( safedir, 'annotation', 'calibration',
-                            'noise-s1*-{0}-slc-vv-*.xml'.format( sw ))
+                            'noise-s1*-{0}-slc-*-*.xml'.format( sw ))
                         )
                 slcthis = os.path.join( imdirthis, 
                         f[1].split( '_' )[5] + '.' + sw.upper() + '.slc' )
