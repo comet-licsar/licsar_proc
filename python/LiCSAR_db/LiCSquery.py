@@ -37,6 +37,13 @@ else:
 
 
 def delete_burst_from_db(bidtanx):
+    """Deletes the burst from database if it does not appear in a frame definition.
+    Also cleans burst occurences in other tables, and removes all files related to the burst ID.
+    For admins only!
+    
+    Args:
+        bidtanx (str): LiCSAR Burst ID (e.g. '101_IW3_1360')
+    """
     bid = get_bid_frombidtanx(bidtanx)
     # check if the burst is not used
     sql='select * from polygs2bursts where bid={};'.format(bid)
@@ -44,12 +51,18 @@ def delete_burst_from_db(bidtanx):
     if num > 0:
         print('this burst is used within some frame(s) - cancelling')
         return False
-    # first of all, deleting all files that uses the burst
+    # first of all, deleting all files that uses the burst, and their connection
+    print('cleaning related files (LiCSAR will need to reingest them)')
+    sql='delete f from files f inner join files2bursts fb on f.fid=fb.fid where fb.bid={};'.format(bid)
+    #sql='delete from files2bursts where bid={};'.format(bid)
+    num = do_query(sql, True)
     sql='delete from files2bursts where bid={};'.format(bid)
     num = do_query(sql, True)
     if num > 0:
         print('deleted {} records of files using this burst'.format(str(num)))
     sql='delete from bursts2gis where bid={};'.format(bid)
+    num = do_query(sql, True)
+    sql='delete from bursts2S1 where bid={};'.format(bid)
     num = do_query(sql, True)
     sql='delete from bursts where bid={};'.format(bid)
     num = do_query(sql, True)
@@ -62,9 +75,15 @@ def delete_burst_from_db(bidtanx):
 
 
 def delete_file_from_db(ff, col = 'abs_path'):
-    '''
-    cols can be: fid, name, abs_path,...
-    '''
+    """Deletes all occurences of given file from the DB
+    (including links to jobs and bursts).
+    
+    Args:
+        ff (str): file identifier (specified by 'col')
+        col (str): specifies the identifier - options: fid, name, abs_path
+    
+    Note: col name is the filename without the tailing .zip
+    """
     sql='select fid from files where {0}="{1}";'.format(col, ff)
     out = do_pd_query(sql)
     for fid in out.fid:
@@ -85,9 +104,9 @@ def delete_frame_only(frame):
 
 
 def clone_frame(frameold, framenew, step = 1, oldpolyid = None, newpolyid = None):
-    '''
+    """
     copies frame definition to a new name ('cloning' of frame). not tested without admin rights...
-    '''
+    """
     if step ==1:
         sql = "DROP TABLE IF EXISTS temp_tb; CREATE TEMPORARY TABLE temp_tb ENGINE=MEMORY (SELECT * FROM polygs where polyid_name='{0}');".format(frameold)
         print(sql)
@@ -396,6 +415,28 @@ def update_bids2S1():
                     print('error with burst ID '+str(bid))
 
 
+def update_bids2S1_missing():
+    """Will try linking LiCSAR bursts to S1 burst definitions which are not linked yet
+    """
+    sql = "select b.bid_tanx from bursts b where b.bid not in ( select bid from bursts2S1 );"
+    aa = do_query(sql)
+    aa = sqlout2list(aa)
+    for bidtanx in aa:
+        print(bidtanx)
+        try:
+            opass = get_orbdir_from_bidtanx(bidtanx)
+        except:
+            print('this burst has no linked file - cannot extract orbdir, skipping')
+            continue
+        bid = get_bid_frombidtanx(bidtanx)
+        try:
+            s1bid = get_s1burst_from_bidtanx(bidtanx, opass = opass).id.values[0]
+            sql = 'insert into bursts2S1 values ({0}, {1});'.format(str(bid),str(s1bid))
+            a = do_query(sql,True)
+        except:
+            print('error with burst ID '+str(bid))
+
+
 def get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = False):
     # e.g. '2_IW1_6220'
     iw = int(bidtanx.split('_')[1][-1])
@@ -669,8 +710,12 @@ def get_filenames_from_burst(burstid):
     return do_query(sql_q)
 
 
-def get_orbit_from_bidtanx(bidtanx):
-    #e.g. bidtanx = '127_IW1_20509'
+def get_orbdir_from_bidtanx(bidtanx):
+    """Get string 'A' or 'D' for ascending/descending
+    
+    Args:
+        bidtanx (str): LiCSAR S1 Burst ID (e.g. '127_IW1_20509')
+    """
     sql_q = "select f.orb_dir from files f inner join files2bursts fb " \
         "on f.fid=fb.fid inner join bursts b on fb.bid=b.bid " \
         "where b.bid_tanx='{0}' limit 1;".format(bidtanx)

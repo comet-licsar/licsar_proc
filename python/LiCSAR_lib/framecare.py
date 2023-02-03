@@ -66,10 +66,10 @@ def check_and_fix_burst(mburst, framebursts):
         iwf=fburst.split('_')[1]
         if iwf == iw:
             tanxf=int(fburst.split('_')[2])
-            # checking in a 'relaxed' tolerance
+            # checking in a 'relaxed' tolerance (0.8 s)
             if abs(tanx - tanxf) < 8:
                 # just to make sure they are both of the same pass..
-                if lq.get_orbit_from_bidtanx(fburst) == lq.get_orbit_from_bidtanx(mburst):
+                if lq.get_orbdir_from_bidtanx(fburst) == lq.get_orbdir_from_bidtanx(mburst):
                     # check if their geometries overlap
                     fb_gpd = bursts2geopandas([fburst])
                     mb_gpd = bursts2geopandas([mburst])
@@ -594,7 +594,7 @@ def bursts2geopandas(bidtanxs, merge = False, use_s1burst = False):
     # frame_gpd.to_file('~/shps/'+frame+'.shp', driver='ESRI Shapefile')
     geometry = []
     crs = {'init': 'epsg:4326'}
-    orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
+    orbdir = lq.get_orbdir_from_bidtanx(bidtanxs[0])
     if merge == False:
         #if use_s1burst:
         if type(bidtanxs)==list:
@@ -837,7 +837,7 @@ def bursts_group_to_iws(bidtanxs):
 
 def generate_frame_polygon(bidtanxs, orbdir = None):
     if not orbdir:
-        orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
+        orbdir = lq.get_orbdir_from_bidtanx(bidtanxs[0])
     try:
         burstgpd = bursts2geopandas(bidtanxs)
     except:
@@ -923,7 +923,7 @@ def generate_frame_polygon_old(bidtanxs, orbdir):
 
 def generate_frame_name(bidtanxs):
     track = bidtanxs[0].split('_')[0]
-    orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
+    orbdir = lq.get_orbdir_from_bidtanx(bidtanxs[0])
     polyhon = generate_frame_polygon(bidtanxs, orbdir)
     if not polyhon:
         print('some error generating frame polygon - mysql access error?')
@@ -952,7 +952,7 @@ def generate_new_frame(bidtanxs,testonly = True, hicode = None):
     '''
     #and now i can generate the new frame:
     track = bidtanxs[0].split('_')[0]
-    orbdir = lq.get_orbit_from_bidtanx(bidtanxs[0])
+    orbdir = lq.get_orbdir_from_bidtanx(bidtanxs[0])
     polyhon = generate_frame_polygon(bidtanxs, orbdir)
     lat_center = polyhon.centroid.xy[1][0]
     colat = misc.get_colat10(lat_center)
