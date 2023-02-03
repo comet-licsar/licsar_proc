@@ -4,7 +4,7 @@ if [ -z `which squeue 2>/dev/null` ];
 then
   /usr/bin/bjobs
 else
-  squeue --user $USER --states=all -o "%.12i %.9P %.35j %.12T %.10M %.10m %.10l %.6D %R"'
+  squeue --user $USER --states=all -o "%.12i %.9P %.35j %.12T %.10M %.10m %.10l %.6D %R"
 fi
 
 
