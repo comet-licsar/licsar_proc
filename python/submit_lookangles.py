@@ -26,12 +26,13 @@ class Usage(Exception):
         self.msg = msg
 
 def main(argv=None):
+    dolocal = False
     if argv == None:
         argv = sys.argv
 
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "f:t:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "f:t:l", ["version", "help"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
@@ -39,6 +40,8 @@ def main(argv=None):
                 frame = a
             elif o == '-t':
                 track = a
+            elif o == '-l':
+                dolocal = True
 
     except Usage as err:
         print("\nERROR:", file=sys.stderr)
@@ -52,6 +55,8 @@ def main(argv=None):
     pubdir = os.environ['LiCSAR_public']
     trackdir = os.path.join(currentdir,track)
     framedir = os.path.join(trackdir,frame)
+    if dolocal:
+        framedir = os.getcwd()
     pubframedir = os.path.join(pubdir,track,frame,'metadata')
     if not os.path.exists(os.path.join(framedir,'log')):
         os.mkdir(os.path.join(framedir,'log'))
@@ -104,12 +109,13 @@ def main(argv=None):
         os.remove(phi+'.rc')
         #os.system('create_geoctiff_lookangles.sh {0} {1}'.format(framedir,origmasterdate))
         os.system('create_geoctiff_lookangles.sh {0} {1}'.format(framedir,origmasterdate))
-        for tif in glob.glob(os.path.join(pubframedir,'*.tif')):
-            os.remove(tif)
-        if not os.path.exists(pubframedir):
-            os.system('mkdir -p {0}'.format(pubframedir))
-        for tif in glob.glob(os.path.join(framedir,'GEOC','lookangles','*.tif')):
-            copy(tif,os.path.join(pubframedir,frame+'.geo.'+tif.split('.')[2]+'.tif'))
+        if not dolocal:
+            for tif in glob.glob(os.path.join(pubframedir,'*.tif')):
+                os.remove(tif)
+            if not os.path.exists(pubframedir):
+                os.system('mkdir -p {0}'.format(pubframedir))
+            for tif in glob.glob(os.path.join(framedir,'GEOC','lookangles','*.tif')):
+                copy(tif,os.path.join(pubframedir,frame+'.geo.'+tif.split('.')[2]+'.tif'))
 
 if __name__ == "__main__":
     sys.exit(main())

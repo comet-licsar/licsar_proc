@@ -438,6 +438,17 @@ def update_bids2S1_missing():
 
 
 def get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = False):
+    """Function to match official S1 burst with the LiCSAR burst ID.
+    It includes few checks: rel.orb. can be +-1, while keeping orbit direction,
+    timing tolerance 1.5 s to find most probable matching burst,
+    which centre is within 1 degree from the centre by the LiCSAR burst definition.
+    The tolerance values can be stricter.
+    
+    Args:
+        bidtanx (str): LiCSAR burst ID
+        opass (str): orbit direction ('A'/'D' for ascending/descending pass)
+        only_geom (bool): if True, function will return only polygon (shapely.geometry)
+    """
     # e.g. '2_IW1_6220'
     iw = int(bidtanx.split('_')[1][-1])
     relorb = int(bidtanx.split('_')[0])

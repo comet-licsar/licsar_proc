@@ -132,7 +132,21 @@ fi
 # create mli file and geo geotiffs if needed
 echo "geocoding master mli and hgt"
 create_geoctiffs_to_pub.sh -M `pwd` $master
-create_geoctiff_lookangles.sh `pwd` $master >/dev/null
+
+echo "testing now - do ENUs"
+LiCSAR_05_mk_angles_master
+submit_lookangles.py -f $frame -t `track_from_frame $frame` -l
+create_geoctiff_lookangles.sh `pwd` $master #>/dev/null
+
+echo "Generating land mask"
+landmask=GEOC/lookangles/$frame.geo.landmask.tif
+hgtgeo=GEOC/lookangles/$frame.geo.hgt.tif
+gmt grdlandmask -G$landmask=gd:GTiff -R$hgtgeo -Df -N0/1/0/1/0
+
+echo "testing now - store to GEOC.meta and deleting from GEOC - hope will not miss this"
+mkdir GEOC.meta
+mv GEOC/lookangles/*.tif GEOC.meta/.
+rm -r GEOC/lookangles GEOC/geo
 
 
 # generate 'standard' connections ifgs
