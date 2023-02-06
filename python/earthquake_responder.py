@@ -504,7 +504,15 @@ def get_eq_events(minmag = 5.5, max_days = 30):
         out = False
     return out
 
+
 def get_event_details(eventcode):
+    """Just renamed get_event_by_id function
+    
+    Args:
+        eventcode (str): USGS ID of the event
+    """
+    return get_event_by_id(eventcode)
+    '''
     eventlist = get_eq_events()
     for event in eventlist:
         if event.id == eventcode:
@@ -513,6 +521,8 @@ def get_event_details(eventcode):
         return selevent
     else:
         return None
+    '''
+
 
 def get_frames_in_event(event,radius = 9999):
     if radius == 9999:

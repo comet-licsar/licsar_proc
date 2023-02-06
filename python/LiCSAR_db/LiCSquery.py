@@ -46,6 +46,7 @@ def delete_burst_from_db(bidtanx, onlyprint=False):
         onlyprint (bool): if True, it will only print the parts to be run with SET FOREIGN_KEY_CHECKS=0/1 - not solved
     
     Note: if onlyprint is needed, you may also want to import sys; backout=sys.stdout; sys.stdout = open('output.txt','wt'); ...; sys.stdout=backout;
+    Note for me: this way i created sql file, and then see cat lics_mysql.sh, to do mysql ... licsar_live < sqlfile
     """
     bid = get_bid_frombidtanx(bidtanx)
     # check if the burst is not used
@@ -250,18 +251,19 @@ def do_query(query, commit=False):
     return res_list
 
 
-def close_db_and_tunnel():
+def close_db_and_tunnel(kill=False):
     if use_tunnel:
         #print('debug - closing connection')
         try:
             conn.close()
         except:
             print('') #'MySQL connection perhaps already closed?')
-        #print('debug - killing connection')
-        try:
-            conn.kill(conn.thread_id())
-        except:
-            print('')
+        if kill:
+            print('debug - killing connection')
+            try:
+                conn.kill(conn.thread_id())
+            except:
+                print('')
         #print('debug - closing tunnel')
         if tunnel.is_active:
             tunnel.close()
