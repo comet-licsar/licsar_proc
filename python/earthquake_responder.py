@@ -149,6 +149,7 @@ def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/publi
     return True
 
 
+
 def reset_frame(frame, eventid='us7000ckx5'):
     '''
     this will set the frame to coifg status 0 and frame status 2, i.e. copied2arc, checking for coseismic ifg
@@ -370,7 +371,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
     return selected_ifgs
 
 
-def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6):
+def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 12, only_s1a = True):
     '''Gets earliest expected acquisition time of given frame for given event (time)
 
     Careful - not checking for S1A or S1B as reference epoch! thus keeping revisit days between satellites.
@@ -380,8 +381,26 @@ def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6
     else:
         masterdate = fc.get_master(frame, asdatetime = True)
     if not masterdate:
-        print('error getting masterdate')
-        return False
+        print('error getting masterdate, trying to derive next one just using search in last few months')
+        try:
+            import s1data as s1
+            allimages=s1.get_images_for_frame(frame, enddate=(eventtime-dt.timedelta(days=1)).date(), outAspd=True)
+            latest = allimages.sort_values('missiondatatakeid').tail(1)
+            # fake masterdate from latest ones...
+            masterdate = latest['beginposition'].values[0]
+            masterdate = pd.Timestamp(masterdate)
+            masterdate = masterdate.to_pydatetime()
+        except:
+            print('not successful, cancelling')
+            return False
+    s1ab = fc.get_frame_master_s1ab(frame)
+    if s1ab == 'X':
+        allimages=s1.get_images_for_frame(frame, startdate=(masterdate-dt.timedelta(days=1)).date(), enddate=(masterdate+dt.timedelta(days=1)).date(), outAspd=False)
+        s1ab = allimages[0][2]
+    if only_s1a:
+        if s1ab == 'B':
+            print('prim epoch was of S1B, shifting by 6 days')
+            masterdate = masterdate-dt.timedelta(days=6)
     daysdiff = (eventtime - masterdate).days
     noepochs = int(np.floor(daysdiff/revisit_days))
     lastepoch = masterdate+dt.timedelta(days=noepochs*revisit_days)
@@ -516,9 +535,17 @@ def import_to_licsinfo_eq(event, active = True):
 
 
 def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True, active = True):
-    '''
-    checks and inserts frame of a particular event using insert_new_eq2framme
-    '''
+    """Checks and inserts frame of a particular event using insert_new_eq2frame.
+    
+    Args:
+        eqid (int)
+        event (usgs event)
+        frame (str)
+        postacq (bool): if True, get also postacq date - would work if frame data are in LiCSAR_procdir
+        active (bool): make active after the import
+    
+    WARNING, postacq will NOT WORK from ARC! (it needs access to the LiCSAR_public disk)
+    """
     fid = lq.get_frame_polyid(frame)
     try:
         fid = lq.sqlout2list(fid)[0]

@@ -36,24 +36,36 @@ else:
 #    print('No database connection could be established')
 
 
-def delete_burst_from_db(bidtanx):
+def delete_burst_from_db(bidtanx, onlyprint=False):
     """Deletes the burst from database if it does not appear in a frame definition.
     Also cleans burst occurences in other tables, and removes all files related to the burst ID.
     For admins only!
     
     Args:
         bidtanx (str): LiCSAR Burst ID (e.g. '101_IW3_1360')
+        onlyprint (bool): if True, it will only print the parts to be run with SET FOREIGN_KEY_CHECKS=0/1 - not solved
+    
+    Note: if onlyprint is needed, you may also want to import sys; backout=sys.stdout; sys.stdout = open('output.txt','wt'); ...; sys.stdout=backout;
     """
     bid = get_bid_frombidtanx(bidtanx)
     # check if the burst is not used
     sql='select * from polygs2bursts where bid={};'.format(bid)
     num = do_query(sql, True)
     if num > 0:
-        print('this burst is used within some frame(s) - cancelling')
+        if not onlyprint:
+            print('this burst is used within some frame(s) - cancelling')
         return False
     # first of all, deleting all files that uses the burst, and their connection
-    print('cleaning related files (LiCSAR will need to reingest them)')
+    if not onlyprint:
+        print('cleaning related files (LiCSAR will need to reingest them)')
     sql='delete f from files f inner join files2bursts fb on f.fid=fb.fid where fb.bid={};'.format(bid)
+    if onlyprint:
+        sql='delete fb,f from files f inner join files2bursts fb on fb.fid=f.fid where fb.bid={};'.format(bid)
+        print(sql)
+        return
+    #sql="SET FOREIGN_KEY_CHECKS=0;"; do_query(sql) , True)
+    #sql="SET FOREIGN_KEY_CHECKS=0; delete fb,f from files f inner join files2bursts fb on fb.fid=f.fid where fb.bid={}; SET FOREIGN_KEY_CHECKS=1;".format(bid)
+    #sql="SET FOREIGN_KEY_CHECKS=1;"
     #sql='delete from files2bursts where bid={};'.format(bid)
     num = do_query(sql, True)
     sql='delete from files2bursts where bid={};'.format(bid)
@@ -415,18 +427,23 @@ def update_bids2S1():
                     print('error with burst ID '+str(bid))
 
 
-def update_bids2S1_missing():
+def update_bids2S1_missing(onlyprint=False):
     """Will try linking LiCSAR bursts to S1 burst definitions which are not linked yet
     """
     sql = "select b.bid_tanx from bursts b where b.bid not in ( select bid from bursts2S1 );"
     aa = do_query(sql)
     aa = sqlout2list(aa)
+    if not onlyprint:
+        print('identified {} unmatched bursts'.format(str(len(aa))))
     for bidtanx in aa:
-        print(bidtanx)
+        if not onlyprint:
+            print(bidtanx)
         try:
             opass = get_orbdir_from_bidtanx(bidtanx)
         except:
-            print('this burst has no linked file - cannot extract orbdir, skipping')
+            if not onlyprint:
+                print('this burst has no linked file - cannot extract orbdir, trying to delete')
+            rc = delete_burst_from_db(bidtanx, onlyprint=onlyprint)
             continue
         bid = get_bid_frombidtanx(bidtanx)
         try:
@@ -434,7 +451,11 @@ def update_bids2S1_missing():
             sql = 'insert into bursts2S1 values ({0}, {1});'.format(str(bid),str(s1bid))
             a = do_query(sql,True)
         except:
-            print('error with burst ID '+str(bid))
+            if not onlyprint:
+                print('error with burst ID '+str(bid))
+                print('trying to delete')
+            rc = delete_burst_from_db(bidtanx, onlyprint=onlyprint)
+
 
 
 def get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = False):

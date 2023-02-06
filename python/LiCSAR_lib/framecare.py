@@ -5,6 +5,7 @@
 import os, glob
 import subprocess as subp
 import LiCSquery as lq
+from LiCSAR_misc import *
 import datetime as dt
 import fiona
 import pandas as pd
@@ -548,6 +549,23 @@ def get_master(frame, asfilenames = False, asdate = False, asdatetime = False, m
                         int(centime.split(':')[1]),
                         int(centime.split(':')[2]))
     return masterdate
+
+
+def get_frame_master_s1ab(frame):
+    tr = int(frame[:3])
+    metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
+    if not os.path.exists(metafile):
+        print('metadata file does not exist for frame '+frame)
+        return 'X'
+    primepoch = grep1line('master=',metafile).split('=')[1]
+    path_to_slcdir = os.path.join(os.environ['LiCSAR_procdir'], str(tr), frame, 'SLC', primepoch)
+    try:
+        out = os.path.basename(glob.glob(path_to_slcdir+'/S1*')[0])[2]
+    except:
+        print('error getting the value for frame '+frame)
+        out = 'X'
+    return out
+
 
 def vis_aoi(aoi):
     # to visualize a polygon element ('aoi')
