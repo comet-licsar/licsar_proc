@@ -50,7 +50,8 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
     if os.path.exists(ifgthisdir):
         if not os.path.islink(ifgthisdir):
             shutil.rmtree(ifgthisdir)
-    os.mkdir(ifgthisdir)
+            os.mkdir(ifgthisdir)
+
 ############################################################ remosaicking RSLCs (may not exist)
     for pomdate in [masterdate.strftime('%Y%m%d'),slavedate.strftime('%Y%m%d')]:
         if (not is_non_zero_file(os.path.join(procdir,'RSLC',pomdate,pomdate+'.rslc.par'))) \
