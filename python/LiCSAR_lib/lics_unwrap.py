@@ -1021,11 +1021,12 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                 else:
                     outtif = None
                 try:
+                    procdir = os.path.join(os.getcwd(), pair)
                     if not dolocal:
                         if cascade:
-                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = os.getcwd(), only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
+                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = procdir, only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
                         else:
-                            ifg_ml = process_ifg(frame, pair, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
+                            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
                                 lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                 keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
@@ -1033,7 +1034,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                     else:
                         phatif=os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')
                         cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
-                        ifg_ml = process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
+                        ifg_ml = process_ifg_pair(phatif, cohtif, procdir = procdir, ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
                                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
                                                  lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
