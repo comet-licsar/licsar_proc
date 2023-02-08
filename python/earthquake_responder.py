@@ -12,6 +12,7 @@ import numpy as np
 import LiCSAR_lib.LiCSAR_misc as misc
 import framecare as fc
 import time
+import s1data as s1
 
 public_path = os.environ['LiCSAR_public']
 procdir_path = os.environ['LiCSAR_procdir']
@@ -383,7 +384,6 @@ def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 1
     if not masterdate:
         print('error getting masterdate, trying to derive next one just using search in last few months')
         try:
-            import s1data as s1
             allimages=s1.get_images_for_frame(frame, enddate=(eventtime-dt.timedelta(days=1)).date(), outAspd=True)
             latest = allimages.sort_values('missiondatatakeid').tail(1)
             # fake masterdate from latest ones...
