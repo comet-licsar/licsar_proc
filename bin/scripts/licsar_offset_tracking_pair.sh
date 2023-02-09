@@ -10,8 +10,8 @@ fi
 
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
-m=`echo $1 | cut '_' -f1`
-s=`echo $1 | cut '_' -f2`
+m=`echo $1 | cut -d '_' -f1`
+s=`echo $1 | cut -d '_' -f2`
 pair=$1
 master=`get_master`
 outdir=IFG/$pair
