@@ -294,7 +294,7 @@ function create_colourbar_unw() {
 
 function create_colourbar_m() {
     infile=$1
-    #code=rangeoff or azioff
+    #code=rngoff or azioff
     code=$2
   minmaxcolour=`gmt grdinfo -T+a1+s $infile`
   #create legend
@@ -302,13 +302,13 @@ function create_colourbar_m() {
   #you know... the rounding here is not really important... just a colourbar.. or not?
   minval=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
   maxval=`echo $minmaxcolour | cut -d '/' -f2 `
-  #expecting sentinel
-  #minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
-  #maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
+  
+  minval=`python -c 'print(round('$mincol'))'` #'*5.546/(4*3.14159265)))'`
+  maxval=`python -c 'print(round('$maxcol'))'` #'*5.546/(4*3.14159265)))'`
   #add also real min and max values
   minmaxreal=`gmt grdinfo -T $infile`
-  minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
-  maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
+  minrealval=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
+  maxrealval=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
   #minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
   #maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
   #burn them to the scalebar
@@ -322,17 +322,73 @@ function create_colourbar_m() {
   else
    xsize=80
   fi
-  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_$code'_empty'.png temp_scale.png
-  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" m'" temp_scale.png scalebar_m.png
-  mv scalebar_m.png temp_scale.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_$code'_empty'.png $infile.temp_scale.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" m'" $infile.temp_scale.png $infile.scalebar_m.png
+  mv $infile.scalebar_m.png $infile.temp_scale.png
   #add real values
-  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" m]'" temp_scale.png scalebar_m.png
-  mv scalebar_m.png temp_scale.png
-  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" m]'" temp_scale.png scalebar_m.png
-  rm temp_scale.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" m]'" $infile.temp_scale.png $infile.scalebar_m.png
+  mv $infile.scalebar_m.png $infile.temp_scale.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" m]'" $infile.temp_scale.png $infile.scalebar_m.png
+  rm $infile.temp_scale.png
   
-  scalebarfile='scalebar_m.png'
+  scalebarfile=$infile.'scalebar_m.png'
   echo $scalebarfile
+}
+
+
+
+function create_preview_offsets() {
+    # usage: infile (either rng.geo.tif or azi.geo.tif) and frame
+  if [ ! -z $1 ]; then
+    local infile=$1
+    codeoff=`basename $infile | cut -d '.' -f2`off
+    echo "generating preview for "$infile
+    outfile=`echo $infile | rev | cut -c 4- | rev`png
+    #extracmd_convert='-resize 30%'
+    extracmd=''
+    extracmd_convert=''
+    #if [ ! -z $2 ]; then
+    # if [ $2 == 0 ]; then
+    #  extracmd_convert='-resize 30%'
+    # fi
+    #fi
+    if [ ! -z $2 ]; then
+       frame=$2
+       tr=`track_from_frame $frame`
+       #echo "trying mask and include hillshade"
+       maskedfile=`prepare_landmask $infile $frame`
+       if [ ! -z $maskedfile ]; then
+        infile=$maskedfile
+       fi
+    fi
+    minoff=-15
+    maxoff=15
+    echo "limiting offsets to "$minoff"/"$maxoff"m"
+    gmt grdclip $infile -G$infile.masked.nc -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
+    gmt grdconvert $infile.masked.nc -G$outfile.masked.tif:GTiff
+    infile=$infile.masked.nc
+    barpng=`create_colourbar_m $infile $codeoff`
+    minmaxcolour=`gmt grdinfo -T+a1+s $infile` # must remain same - see create_colourbar
+    gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.cpt
+    gmt grdimage $infile -C$outfile.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+    #convert $extracmd_convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
+    convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
+   if [ ! -z $frame ]; then
+    #convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
+    #if [ ! -z $frame ]; then
+    if [ `echo $frame | cut -c 4` == 'A' ]; then grav='southeast'; else grav='southwest'; fi
+   else
+    # no frame? firmly bottom left corner
+    grav='southwest'
+   fi
+   convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.temp.png
+   convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
+   rm $barpng $outfile.unw.cpt $outfile.temp.png
+  else
+    echo "Usage: create_preview_offsets ..rng/azi.geo.tif [frame]"
+    echo "(can be either geotiff or nc/grd)"
+    return 0
+  fi
 }
 
 function create_preview_vel() {
