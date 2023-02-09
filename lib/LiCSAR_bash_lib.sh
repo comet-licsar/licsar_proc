@@ -292,6 +292,48 @@ function create_colourbar_unw() {
   echo $scalebarfile
 }
 
+function create_colourbar_m() {
+    infile=$1
+    #code=rangeoff or azioff
+    code=$2
+  minmaxcolour=`gmt grdinfo -T+a1+s $infile`
+  #create legend
+  #need to prepare a colorbar based on these values!!!!
+  #you know... the rounding here is not really important... just a colourbar.. or not?
+  minval=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
+  maxval=`echo $minmaxcolour | cut -d '/' -f2 `
+  #expecting sentinel
+  #minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
+  #maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
+  #add also real min and max values
+  minmaxreal=`gmt grdinfo -T $infile`
+  minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
+  maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
+  #minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
+  #maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
+  #burn them to the scalebar
+  minvalsize=`echo $minval | wc -m `
+  if [ $minvalsize -gt 4 ]; then
+   xsize=20
+  elif [ $minvalsize -eq 4 ]; then
+   xsize=40
+  elif [ $minvalsize -eq 3 ]; then
+   xsize=60
+  else
+   xsize=80
+  fi
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_$code'_empty'.png temp_scale.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" m'" temp_scale.png scalebar_m.png
+  mv scalebar_m.png temp_scale.png
+  #add real values
+  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" m]'" temp_scale.png scalebar_m.png
+  mv scalebar_m.png temp_scale.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" m]'" temp_scale.png scalebar_m.png
+  rm temp_scale.png
+  
+  scalebarfile='scalebar_m.png'
+  echo $scalebarfile
+}
 
 function create_preview_vel() {
 	# so the colour scale was generated as:

@@ -14,6 +14,8 @@ m=`echo $1 | cut -d '_' -f1`
 s=`echo $1 | cut -d '_' -f2`
 pair=$1
 master=`get_master`
+frame=`pwd`
+frame=`basename $frame`
 outdir=IFG/$pair
 mkdir -p $outdir
 geopairdir=GEOC/$pair
@@ -34,7 +36,13 @@ create_offset $mpar $spar $outdir/tracking.off 1 1 1 0 >/dev/null
 # avoid oversample... impossible as this is integer, so keep only 2x oversample
 #offset_pwr_tracking $mslc $sslc $mpar $spar tracking.off tracking.offsets tracking.corr 32 8 - 1 - >/dev/null
 # do 4x oversample
+echo "performing pixel offset tracking"
+date
 offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 16 - 2 - >/dev/null
+echo "done: "
+date
+echo "extracting the data"
+date
 # keeping result in slant range/azimuth - useful for e.g. support in unwrapping:
 offset_tracking $outdir/tracking.offsets $outdir/tracking.corr $mpar $outdir/tracking.off $outdir/disp_map $outdir/disp_val 1 - 0 >/dev/null
 # now result will be in ground range/azimuth:
@@ -47,7 +55,7 @@ cpx_to_real $outdir/disp_map $outdir/disp_map.azi $widthoff 1 >/dev/null
 # resample towards orig size
 python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.rng"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.rng"')" 
 python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.azi"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.azi"')" 
-
+date
 #now geocode it
 mkdir -p $geopairdir
 dempar=geo/EQA.dem_par
@@ -62,3 +70,5 @@ data2geotiff $dempar $geopairdir/$pair.azi.geo 2 $geopairdir/$pair.azi.geo.tif
 chmod 777 $geopairdir/$pair.rng.geo.tif $geopairdir/$pair.azi.geo.tif
 
 # create previews for the offset geotiffs
+create_preview_offsets $geopairdir/$pair.rng.geo.tif $frame
+create_preview_offsets $geopairdir/$pair.azi.geo.tif $frame
