@@ -296,15 +296,16 @@ function create_colourbar_m() {
     infile=$1
     #code=rngoff or azioff
     code=$2
-  minmaxcolour=`gmt grdinfo -T+a1+s $infile`
+    cutoffperc=$3 # a=cutoff percentage for values - 25% can be ok
+  minmaxcolour=`gmt grdinfo -T+a$cutoffperc'+s' $infile`  
   #create legend
   #need to prepare a colorbar based on these values!!!!
   #you know... the rounding here is not really important... just a colourbar.. or not?
   minval=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
   maxval=`echo $minmaxcolour | cut -d '/' -f2 `
   
-  minval=`python -c 'print(round('$mincol'))'` #'*5.546/(4*3.14159265)))'`
-  maxval=`python -c 'print(round('$maxcol'))'` #'*5.546/(4*3.14159265)))'`
+  minval=`python -c 'print(round('$minval'))'` #'*5.546/(4*3.14159265)))'`
+  maxval=`python -c 'print(round('$maxval'))'` #'*5.546/(4*3.14159265)))'`
   #add also real min and max values
   minmaxreal=`gmt grdinfo -T $infile`
   minrealval=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
@@ -361,14 +362,15 @@ function create_preview_offsets() {
         infile=$maskedfile
        fi
     fi
-    minoff=-15
-    maxoff=15
-    echo "limiting offsets to "$minoff"/"$maxoff"m"
-    gmt grdclip $infile -G$infile.masked.nc -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
-    gmt grdconvert $infile.masked.nc -G$outfile.masked.tif:GTiff
-    infile=$infile.masked.nc
-    barpng=`create_colourbar_m $infile $codeoff`
-    minmaxcolour=`gmt grdinfo -T+a1+s $infile` # must remain same - see create_colourbar
+    minoff=-10
+    maxoff=10
+    cutoff=20
+    echo "limiting offsets to "$minoff"/"$maxoff" m, in preview cutting "$cutoff" percent of tails"
+    gmt grdclip $infile -G$outfile.masked.tif=gd:Gtiff -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
+    #gmt grdconvert $infile.masked.nc -G$outfile.masked.tif:GTiff
+    infile=$outfile.masked.tif
+    barpng=`create_colourbar_m $infile $codeoff $cutoff`
+    minmaxcolour=`gmt grdinfo -T+a$cutoff'+s' $infile` # must remain same as in create_colourbar_m !
     gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.cpt
     gmt grdimage $infile -C$outfile.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
     #convert $extracmd_convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
@@ -383,7 +385,7 @@ function create_preview_offsets() {
    fi
    convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.temp.png
    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
-   rm $barpng $outfile.unw.cpt $outfile.temp.png
+   rm $barpng $outfile.cpt $outfile.temp.png
   else
     echo "Usage: create_preview_offsets ..rng/azi.geo.tif [frame]"
     echo "(can be either geotiff or nc/grd)"
