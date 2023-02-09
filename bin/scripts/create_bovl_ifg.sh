@@ -81,4 +81,4 @@ create_preview_wrapped GEOC/$pair/$pair.bovldiff.geo.tif
 
 echo "done - check preview of:"
 ls GEOC/$pair/$pair.bovldiff.geo.png
-
+chmod 777 GEOC/$pair/*
