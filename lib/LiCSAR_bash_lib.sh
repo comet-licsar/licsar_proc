@@ -375,10 +375,10 @@ function create_preview_offsets() {
     gmt grdclip $infile -G`basename $outfile .png`.masked.tif=gd:Gtiff -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
     #gmt grdconvert $infile.masked.nc -G$outfile.masked.tif:GTiff
     infile=`basename $outfile .png`.masked.tif
-    barpng=`create_colourbar_m $infile $code'off' $cutoff`
+    barpng=`create_colourbar_m $infile $code $cutoff`
     minmaxcolour=`gmt grdinfo -T+a$cutoff'+s' $infile` # must remain same as in create_colourbar_m !
-    gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >`dirname $outfile`/$code'off'.cpt
-    gmt grdimage $infile -C`dirname $outfile`/$code'off'.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+    gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >`dirname $outfile`/$code.cpt
+    gmt grdimage $infile -C`dirname $outfile`/$code.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
     #convert $extracmd_convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
     convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
    if [ ! -z $frame ]; then
@@ -397,9 +397,10 @@ function create_preview_offsets() {
      else
       TN="azimuth_offsets"
      fi
-     gmt grd2kml -Ag -C`dirname $outfile`/$code'off'.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile 2>/dev/null
+     echo 'debug: generating kml for '$code
+     gmt grd2kml -Ag -C`dirname $outfile`/$code.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile 2>/dev/null
    else
-    rm `dirname $outfile`/$code'off'.cpt
+    rm `dirname $outfile`/$code.cpt
     rm $barpng $outfile.temp.png
    fi
   else
