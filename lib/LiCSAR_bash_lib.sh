@@ -390,7 +390,7 @@ function create_preview_offsets() {
    fi
    convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.temp.png
    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
-   if [ ! -z $3 ]; then
+   if [ ! -z $4 ]; then
      if [ $codeoff == 'rng' ]; then
       TN="range_offsets"
      else
