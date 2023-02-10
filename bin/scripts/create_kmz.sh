@@ -168,8 +168,8 @@ for topic in $todo; do
   maskit=0
  elif [ $topic == "rng" ]; then
   keyword="range_offsets"
-  create_preview_offsets `ls $pair.geo.rng.tif` $frame 1
-  cpt=$topic.cpt
+  create_preview_offsets `ls $pair.geo.rng.tif` $frame 20 1
+  cpt=$topic'off'.cpt
   scalebarfile=scalebar_rng.png
   tododirs=$tododirs" "$keyword
   visible=0
@@ -178,7 +178,7 @@ for topic in $todo; do
  elif [ $topic == "azi" ]; then
   keyword="azimuth_offsets"
   create_preview_offsets `ls $pair.geo.azi.tif` $frame 20 1
-  cpt=$topic.cpt
+  cpt=$topic'off'.cpt
   scalebarfile=scalebar_azi.png
   tododirs=$tododirs" "$keyword
   visible=0

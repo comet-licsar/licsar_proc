@@ -343,7 +343,7 @@ function create_preview_offsets() {
     # if third parameter is a number, it will be used as a cutoff + will not delete scale bar (for kmz use)
   if [ ! -z $1 ]; then
     local infile=$1
-    codeoff=`basename $infile | cut -d '.' -f3`off
+    code=`basename $infile | cut -d '.' -f3`
     echo "generating preview for "$infile
     outfile=`echo $infile | rev | cut -c 4- | rev`png
     #extracmd_convert='-resize 30%'
@@ -374,10 +374,10 @@ function create_preview_offsets() {
     gmt grdclip $infile -G`basename $outfile .png`.masked.tif=gd:Gtiff -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
     #gmt grdconvert $infile.masked.nc -G$outfile.masked.tif:GTiff
     infile=`basename $outfile .png`.masked.tif
-    barpng=`create_colourbar_m $infile $codeoff $cutoff`
+    barpng=`create_colourbar_m $infile $code'off' $cutoff`
     minmaxcolour=`gmt grdinfo -T+a$cutoff'+s' $infile` # must remain same as in create_colourbar_m !
-    gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >`dirname $outfile`/$codeoff.cpt
-    gmt grdimage $infile -C`dirname $outfile`/$codeoff.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+    gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >`dirname $outfile`/$code'off'.cpt
+    gmt grdimage $infile -C`dirname $outfile`/$code'off'.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
     #convert $extracmd_convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
     convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
    if [ ! -z $frame ]; then
@@ -391,14 +391,14 @@ function create_preview_offsets() {
    convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.temp.png
    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
    if [ ! -z $4 ]; then
-     if [ $codeoff == 'rng' ]; then
+     if [ $code == 'rng' ]; then
       TN="range_offsets"
      else
       TN="azimuth_offsets"
      fi
-     gmt grd2kml -Ag -C`dirname $outfile`/$codeoff.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile 2>/dev/null
+     gmt grd2kml -Ag -C`dirname $outfile`/$code'off'.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile 2>/dev/null
    else
-    rm `dirname $outfile`/$codeoff.cpt
+    rm `dirname $outfile`/$code'off'.cpt
     rm $barpng $outfile.temp.png
    fi
   else
