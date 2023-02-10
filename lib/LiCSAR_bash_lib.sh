@@ -323,7 +323,7 @@ function create_colourbar_m() {
   else
    xsize=80
   fi
-  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_$code'_empty'.png $infile.temp_scale.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_$code'off_empty'.png $infile.temp_scale.png
   convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" m'" $infile.temp_scale.png $infile.scalebar_m.png
   mv $infile.scalebar_m.png $infile.temp_scale.png
   #add real values
