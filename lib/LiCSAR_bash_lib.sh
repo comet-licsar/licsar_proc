@@ -398,7 +398,11 @@ function create_preview_offsets() {
       TN="azimuth_offsets"
      fi
      echo 'debug: generating kml for '$code
+     # overcoming the annoying gridline/pixel registration issue... finally
+     gmt grdconvert $infile -G$infile.nc
+     gmt grdedit -T $infile.nc
      gmt grd2kml -Ag -C`dirname $outfile`/$code.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile 2>/dev/null
+     rm $infile.nc
    else
     rm `dirname $outfile`/$code.cpt
     rm $barpng $outfile.temp.png
