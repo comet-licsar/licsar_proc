@@ -401,7 +401,6 @@ function create_preview_offsets() {
     rm `dirname $outfile`/$codeoff.cpt
     rm $barpng $outfile.temp.png
    fi
-   if
   else
     echo "Usage: create_preview_offsets ..geo.rng/azi.tif [frame] [cutoff] [tokml?]"
     echo "(can be either geotiff or nc/grd)"
