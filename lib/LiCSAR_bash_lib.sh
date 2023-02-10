@@ -333,6 +333,7 @@ function create_colourbar_m() {
   rm $infile.temp_scale.png
   
   scalebarfile=`dirname $infile`/'scalebar_'$code'.png'
+  mv $infile.scalebar_m.png $scalebarfile
   echo $scalebarfile
 }
 
