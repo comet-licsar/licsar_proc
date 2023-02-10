@@ -65,11 +65,11 @@ geolt=geo/$master.lt_fine
 geocode_back $outdir/$pair.rng $mliwid $geolt $geopairdir/$pair.rng.geo $demwid
 geocode_back $outdir/$pair.azi $mliwid $geolt $geopairdir/$pair.azi.geo $demwid
 #geocode_back disp_map.rng $widthoff $geolt disp_map.rng.geo $demwid
-data2geotiff $dempar $geopairdir/$pair.rng.geo 2 $geopairdir/$pair.rng.geo.tif
-data2geotiff $dempar $geopairdir/$pair.azi.geo 2 $geopairdir/$pair.azi.geo.tif
+data2geotiff $dempar $geopairdir/$pair.rng.geo 2 $geopairdir/$pair.geo.rng.tif
+data2geotiff $dempar $geopairdir/$pair.azi.geo 2 $geopairdir/$pair.geo.azi.tif
 #data2geotiff $dempar disp_map.rng.geo 2 $s.rng.geo2.tif
-chmod 777 $geopairdir/$pair.rng.geo.tif $geopairdir/$pair.azi.geo.tif
+chmod 777 $geopairdir/$pair.geo.rng.tif $geopairdir/$pair.geo.azi.tif
 
 # create previews for the offset geotiffs
-create_preview_offsets $geopairdir/$pair.rng.geo.tif $frame
-create_preview_offsets $geopairdir/$pair.azi.geo.tif $frame
+create_preview_offsets $geopairdir/$pair.geo.rng.tif $frame
+create_preview_offsets $geopairdir/$pair.geo.azi.tif $frame

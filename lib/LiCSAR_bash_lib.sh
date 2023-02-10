@@ -332,17 +332,18 @@ function create_colourbar_m() {
   convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" m]'" $infile.temp_scale.png $infile.scalebar_m.png
   rm $infile.temp_scale.png
   
-  scalebarfile=$infile.'scalebar_m.png'
+  scalebarfile=`dirname $infile`/'scalebar_'$code'.png'
   echo $scalebarfile
 }
 
 
 
 function create_preview_offsets() {
-    # usage: infile (either rng.geo.tif or azi.geo.tif) and frame
+    # usage: infile (either geo.rng.tif or geo.azi.tif) and frame
+    # if third parameter is a number, it will be used as a cutoff + will not delete scale bar (for kmz use)
   if [ ! -z $1 ]; then
     local infile=$1
-    codeoff=`basename $infile | cut -d '.' -f2`off
+    codeoff=`basename $infile | cut -d '.' -f3`off
     echo "generating preview for "$infile
     outfile=`echo $infile | rev | cut -c 4- | rev`png
     #extracmd_convert='-resize 30%'
@@ -353,6 +354,7 @@ function create_preview_offsets() {
     #  extracmd_convert='-resize 30%'
     # fi
     #fi
+   if [ ! -f `basename $outfile .png`.masked.tif ]; then
     if [ ! -z $2 ]; then
        frame=$2
        tr=`track_from_frame $frame`
@@ -362,17 +364,20 @@ function create_preview_offsets() {
         infile=$maskedfile
        fi
     fi
+   else
+    infile=`basename $outfile .png`.masked.tif
+   fi
+    if [ ! -z $3 ]; then cutoff=$3; else cutoff=20; fi
     minoff=-10
     maxoff=10
-    cutoff=20
     echo "limiting offsets to "$minoff"/"$maxoff" m, in preview cutting "$cutoff" percent of tails"
-    gmt grdclip $infile -G$outfile.masked.tif=gd:Gtiff -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
+    gmt grdclip $infile -G`basename $outfile .png`.masked.tif=gd:Gtiff -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
     #gmt grdconvert $infile.masked.nc -G$outfile.masked.tif:GTiff
-    infile=$outfile.masked.tif
+    infile=`basename $outfile .png`.masked.tif
     barpng=`create_colourbar_m $infile $codeoff $cutoff`
     minmaxcolour=`gmt grdinfo -T+a$cutoff'+s' $infile` # must remain same as in create_colourbar_m !
-    gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.cpt
-    gmt grdimage $infile -C$outfile.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+    gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >`dirname $outfile`/$codeoff.cpt
+    gmt grdimage $infile -C`dirname $outfile`/$codeoff.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
     #convert $extracmd_convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
     convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
    if [ ! -z $frame ]; then
@@ -385,10 +390,22 @@ function create_preview_offsets() {
    fi
    convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.temp.png
    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
-   rm $barpng $outfile.cpt $outfile.temp.png
+   if [ ! -z $3 ]; then
+     if [ $codeoff == 'rng' ]; then
+      TN="range_offsets"
+     else
+      TN="azimuth_offsets"
+     fi
+     gmt grd2kml -Ag -C`dirname $outfile`/$codeoff.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile 2>/dev/null
+   else
+    rm `dirname $outfile`/$codeoff.cpt
+    rm $barpng $outfile.temp.png
+   fi
+   if
   else
-    echo "Usage: create_preview_offsets ..rng/azi.geo.tif [frame]"
+    echo "Usage: create_preview_offsets ..geo.rng/azi.tif [frame] [cutoff] [tokml?]"
     echo "(can be either geotiff or nc/grd)"
+    echo "cutoff is 20 percent trim by default. tokml=1 means create kml"
     return 0
   fi
 }

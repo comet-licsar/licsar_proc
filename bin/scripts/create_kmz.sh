@@ -37,7 +37,8 @@ fi
 
 
 ### let's make it
-echo "version 10/2020 by ML - use of GMT GRD2KML"
+#echo "version 10/2020 by ML - use of GMT GRD2KML"
+echo "version 02/2023 by ML - adding rng/azi offsets if exist"
 echo "generating kmz file for pair "$pair
 
 cd $1
@@ -65,10 +66,19 @@ if [ $overwrite -eq 0 ]; then
 fi
 
 unw_tif=$pair.geo.unw.tif
+
 if [ -f $pair.geo.diff_unfiltered_pha.tif ]; then
  do_ifgu=1
 else
  do_ifgu=0
+fi
+
+if [ -f $pair.geo.rng.tif ]; then
+ do_off=1
+ echo "including offsets - not adding unfiltered ifgs"
+ do_ifgu=0
+else
+ do_off=0
 fi
 
 #we will do a parsed kml file
@@ -118,6 +128,9 @@ tododirs=''
 if [ $do_ifgu -eq 1 ]; then
  todo="diff_pha diff_unfiltered_pha cc unw"
 fi
+if [ $do_off -eq 1 ]; then
+ todo="diff_pha cc unw rng azi"
+fi
 
 for topic in $todo; do
  if [ $topic == "cc" ]; then
@@ -148,11 +161,28 @@ for topic in $todo; do
   keyword="unwrapped_ifg"
   create_preview_unwrapped $unw_tif $frame 1
   #cpt=unw.cpt
-  
   scalebarfile=scalebar_unwrapped.png
   tododirs=$tododirs" "$keyword
   visible=1
   #maskit is 0 here because it was already done by create_preview_unwrapped...
+  maskit=0
+ elif [ $topic == "rng" ]; then
+  keyword="range_offsets"
+  create_preview_offsets `ls $pair.geo.rng.tif` $frame 1
+  cpt=$topic.cpt
+  scalebarfile=scalebar_rng.png
+  tododirs=$tododirs" "$keyword
+  visible=0
+  #maskit is 0 here because it was already done...
+  maskit=0
+ elif [ $topic == "azi" ]; then
+  keyword="azimuth_offsets"
+  create_preview_offsets `ls $pair.geo.azi.tif` $frame 20 1
+  cpt=$topic.cpt
+  scalebarfile=scalebar_azi.png
+  tododirs=$tododirs" "$keyword
+  visible=0
+  #maskit is 0 here because it was already done...
   maskit=0
  fi
  
@@ -268,4 +298,4 @@ mv $outfilee.zip $outfilee.kmz
 
 
 #cleaning
-rm -r $tododirs logos gmt.history scalebar_unwrapped.png unw.cpt $kmlfile 2>/dev/null
+rm -r $tododirs logos gmt.history scalebar_*.png *.cpt $kmlfile 2>/dev/null

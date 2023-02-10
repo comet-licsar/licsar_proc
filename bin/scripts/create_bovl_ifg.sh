@@ -74,11 +74,11 @@ mkdir -p GEOC/$pair
 #geocode_back ddiff_coh $width geo/20220919.lt_fine ddiff_coh.geo 3867 - 0 0
 geocode_back IFG/$pair/ddiff_pha $width geo/$master.lt_fine GEOC/$pair/ddiff_pha.geo $widthgeo - 0 0
 #data2geotiff geo/EQA.dem_par ddiff_coh.geo 2 ddiff_coh.geo.tif 0.0
-data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.bovldiff.geo.tif 0.0
+data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
 
 #8. create preview
-create_preview_wrapped GEOC/$pair/$pair.bovldiff.geo.tif
+create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.tif
 
 echo "done - check preview of:"
-ls GEOC/$pair/$pair.bovldiff.geo.png
+ls GEOC/$pair/$pair.geo.bovldiff.png
 chmod 777 GEOC/$pair/*
