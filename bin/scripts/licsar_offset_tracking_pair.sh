@@ -56,6 +56,7 @@ cpx_to_real $outdir/disp_map $outdir/disp_map.azi $widthoff 1 >/dev/null
 # resample towards orig size
 python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.rng"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.rng"')" 
 python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.azi"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.azi"')" 
+python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/tracking.corr"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.offsettracking.corr"')" 
 date
 #now geocode it
 mkdir -p $geopairdir
@@ -64,11 +65,14 @@ demwid=`grep width $dempar | gawk {'print $2'}`
 geolt=geo/$master.lt_fine
 geocode_back $outdir/$pair.rng $mliwid $geolt $geopairdir/$pair.rng.geo $demwid
 geocode_back $outdir/$pair.azi $mliwid $geolt $geopairdir/$pair.azi.geo $demwid
+geocode_back $outdir/$pair.offsettracking.corr $mliwid $geolt $geopairdir/$pair.tracking_corr.geo $demwid
 #geocode_back disp_map.rng $widthoff $geolt disp_map.rng.geo $demwid
 data2geotiff $dempar $geopairdir/$pair.rng.geo 2 $geopairdir/$pair.geo.rng.tif
 data2geotiff $dempar $geopairdir/$pair.azi.geo 2 $geopairdir/$pair.geo.azi.tif
+data2geotiff $dempar $geopairdir/$pair.tracking_corr.geo 2 $geopairdir/$pair.geo.tracking_corr.tif
 #data2geotiff $dempar disp_map.rng.geo 2 $s.rng.geo2.tif
-chmod 777 $geopairdir/$pair.geo.rng.tif $geopairdir/$pair.geo.azi.tif
+chmod 777 $geopairdir/$pair.geo.rng.tif $geopairdir/$pair.geo.azi.tif $geopairdir/$pair.geo.tracking_corr.tif
+rm $geopairdir/$pair.rng.geo $geopairdir/$pair.azi.geo $geopairdir/$pair.tracking_corr.geo
 
 # create previews for the offset geotiffs
 create_preview_offsets $geopairdir/$pair.geo.rng.tif $frame
