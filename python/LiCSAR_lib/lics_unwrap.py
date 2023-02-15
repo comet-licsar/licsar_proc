@@ -185,6 +185,71 @@ def get_cliparea_xr(xrd):
     return str(float(xrd.lon.min()))+'/'+str(float(xrd.lon.max()))+'/'+str(float(xrd.lat.min()))+'/'+str(float(xrd.lat.max()))
 
 
+def mm2rad_s1(inmm):
+    """Converts from mm to radians (for Sentinel-1)
+    """
+    speed_of_light = 299792458 #m/s
+    radar_freq = 5.405e9  #for S1
+    wavelength = speed_of_light/radar_freq #meter
+    coef_r2m = -wavelength/4/np.pi*1000 #rad -> mm, positive is -LOS
+    outrad = inmm/coef_r2m
+    return outrad
+
+
+def load_rngoffsets_as_prevest(rngtif, thres_m = 9):
+    """Loads the range offsets result in the form to be used as prevest
+    
+    Args:
+        rngtif (str): path to the range offsets geotiff
+    
+    Returns:
+        prevest (xr.DataArray)
+    """
+    prevest = load_tif2xr(rngtif)
+    #prevest = prevest.fillna(0)
+    #themask = prevest.where(prevest == 0)
+    prevest = prevest.where(np.abs(prevest)<thres_m)
+    # filter .. .somehow..... mmmmmmmm remove the noise... important!
+    prevest.values = filter_nan_gaussian_conserving(prevest.values, sigma = 4, trunc = 4) # orig: sigma=2
+    # now fill the nans (NN?)
+    #prevest.values = interpolate_nans(prevest.values, method='nearest')
+    prevest = prevest.where(prevest !=0)  # maybe helps?
+    # recalculate to radians
+    prevest=mm2rad_s1(prevest*1000)
+    return prevest
+"""
+import cv2
+d=100
+sig_c=0.1
+sig_s=20
+prevest.values = cv2.bilateralFilter(prevest.values,d,sig_c,sig_s)
+
+pair='20230129_20230210'
+procdir = 'tmptmp'
+frame='021D_05266_252525'
+prevest = load_rngoffsets_as_prevest(rngtif)
+ddd= process_ifg(frame, pair, procdir = 'tmptmp', ml = 20, fillby = 'nearest',
+smooth = True, lowpass = False, goldstein = False,
+prevest = prevest, dolocal = True,
+thres = 0.3, specmag = True)
+
+ddd= process_ifg(frame, pair, procdir = 'tmptmp', ml = 20, fillby = 'nearest',
+smooth = True, lowpass = False, goldstein = False,
+prevest = prevest, dolocal = True,
+thres = 0.3, specmag = True)
+
+
+ifg_ml10 = process_ifg(frame, pair, procdir = 'tmptmp', ml = 10, fillby = 'nearest',
+smooth = True, lowpass = False, goldstein = False,
+prevest = prevest, dolocal = True, rampit=True,
+thres = 0.3, specmag = True)
+ifg_ml10[['unw','consistence','toremove']].to_netcdf('ifg_ml10.nc')
+
+ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = 1, 
+   fillby = 'nearest', smooth = smooth, prev_ramp = ifg_ml10['unw'], 
+   add_resid = True, hgtcorr = False, outtif='final_cascade.unw.tif', dolocal = True)
+"""
+
 def process_ifg(frame, pair, procdir = os.getcwd(), 
         ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,

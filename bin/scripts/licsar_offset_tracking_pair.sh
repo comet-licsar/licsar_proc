@@ -8,6 +8,8 @@ if [ -z $1 ]; then
  exit
 fi
 
+unset GOMP_CPU_AFFINITY KMP_AFFINITY   # might help with some parallelisation scaling (?)
+
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 m=`echo $1 | cut -d '_' -f1`
@@ -19,6 +21,12 @@ frame=`basename $frame`
 outdir=IFG/$pair
 mkdir -p $outdir
 geopairdir=GEOC/$pair
+
+if [ -f $geopairdir/$pair.geo.rng.tif ]; then
+  echo "the range offsets already exist, cancelling"
+  exit
+fi
+
 # idea is - perform the offset tracking without oversampling, with rg=32, az=8
 # then resample to the MLI dimensions (20/4 multilooking)
 # and geocode to geotiff

@@ -61,6 +61,8 @@ slc=`ls RSLC/$master/$master.rslc`
 slcpar=$slc.par
 if [ ! -f $slcpar ]; then echo "the folder "$1" seems empty, or no mosaic exists - exiting"; exit; fi
 
+process_clip=1
+process_ifgs=1
 
 outdir=$1
 mkdir -p $outdir 2>/dev/null
@@ -74,6 +76,11 @@ resol=$7   # in degrees, so e.g. 0.00027 for 30 m
 rgl=`echo $resol"*111000/2.3" | bc`
 azl=`echo $resol"*111000/14" | bc`
 
+
+
+if [ $process_clip == 1 ]; then
+
+echo "performing full clipping"
 # e.g. for cz:
 # clip_slc.sh czclip 18.51884 18.6357 49.7937 49.8515 293.784423828125 0.00027
 
@@ -148,9 +155,13 @@ mkdir GEOC.meta
 mv GEOC/lookangles/*.tif GEOC.meta/.
 rm -r GEOC/lookangles GEOC/geo
 
+fi
 
+
+
+if [ $process_ifgs == 1 ]; then
 # generate 'standard' connections ifgs
-
+echo "processing ifgs"
 framebatch_gapfill.sh -l -P 5 120 $rgl $azl
 
 echo 'generating MLI geotiffs'
@@ -162,3 +173,6 @@ for x in `ls RSLC | grep 20`; do
 done
 
 echo "wait a bit and check.. tomorrow... for GEOC outputs"
+
+fi
+
