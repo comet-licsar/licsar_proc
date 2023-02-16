@@ -129,7 +129,7 @@ if [ $do_ifgu -eq 1 ]; then
  todo="diff_pha diff_unfiltered_pha cc unw"
 fi
 if [ $do_off -eq 1 ]; then
- todo="diff_pha cc unw rng azi"
+ todo="diff_pha cc unw azi rng"
 fi
 
 for topic in $todo; do

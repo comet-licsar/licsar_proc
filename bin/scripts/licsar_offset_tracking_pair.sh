@@ -47,7 +47,8 @@ create_offset $mpar $spar $outdir/tracking.off 1 1 1 0 >/dev/null
 echo "performing pixel offset tracking"
 date
 #offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 16 - 2 - >/dev/null
-time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 32 - 2 - #>/dev/null
+#time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 32 - 2 - #>/dev/null
+time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 1 - #>/dev/null
 echo "done: "
 date
 echo "extracting the data"
