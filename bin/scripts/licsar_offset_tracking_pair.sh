@@ -56,15 +56,20 @@ for x in $m $s; do
  if [ ! -f tab/$x'R_tab' ]; then
   createSLCtab RSLC/$x/$x rslc 1 3 > tab/$x'R_tab'
  fi
+ extd='.deramp'
  if [ ! -f RSLC/$x/$x.rslc.deramp ]; then
-  echo "deramping "$x". ETA: 1 minute"
-  ScanSAR_deramp_2nd.py tab/$x'R_tab' $x tab/$master'_tab' 20 4 1
-  mv $x.rslc.deramp $x.rslc.deramp.par RSLC/$x/. 
+  if [ -z `which ScanSAR_deramp_2nd.py 2>/dev/null` ]; then echo "WARNING, old GAMMA - no deramping (but ok if no oversampling)";
+   extd=''
+  else
+   echo "deramping "$x". ETA: 1 minute"
+   ScanSAR_deramp_2nd.py tab/$x'R_tab' $x tab/$master'_tab' 20 4 1
+   mv $x.rslc.deramp $x.rslc.deramp.par RSLC/$x/. 
+  fi
  fi
 done
 
 # only 1 oversample
-time offset_pwr_tracking RSLC/$m/$m.rslc.deramp RSLC/$s/$s.rslc.deramp RSLC/$m/$m.rslc.deramp.par RSLC/$s/$s.rslc.deramp.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 1 - >/dev/null
+time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 1 - >/dev/null
 # 2^2 oversample
 #time offset_pwr_tracking RSLC/$m/$m.rslc.deramp RSLC/$s/$s.rslc.deramp RSLC/$m/$m.rslc.deramp.par RSLC/$s/$s.rslc.deramp.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 2 - >/dev/null
 # after Yasser's check: actually gives very very similar result as without deramping! but it is correct to deramp - as only then we can properly oversample, as i tested.
