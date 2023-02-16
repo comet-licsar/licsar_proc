@@ -48,7 +48,29 @@ echo "performing pixel offset tracking"
 date
 #offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 16 - 2 - >/dev/null
 #time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 32 - 2 - #>/dev/null
-time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 1 - #>/dev/null
+# deramp first??
+if [ ! -f tab/$master'_tab' ]; then
+  createSLCtab SLC/$master/$master slc 1 3 > tab/$master'_tab'
+fi
+for x in $m $s; do
+ if [ ! -f tab/$x'R_tab' ]; then
+  createSLCtab RSLC/$x/$x rslc 1 3 > tab/$x'R_tab'
+ fi
+ if [ ! -f RSLC/$x/$x.rslc.deramp ]; then
+  echo "deramping "$x". ETA: 1 minute"
+  ScanSAR_deramp_2nd.py tab/$x'R_tab' $x tab/$master'_tab' 20 4 1
+  mv $x.rslc.deramp $x.rslc.deramp.par RSLC/$x/. 
+ fi
+done
+
+# only 1 oversample
+time offset_pwr_tracking RSLC/$m/$m.rslc.deramp RSLC/$s/$s.rslc.deramp RSLC/$m/$m.rslc.deramp.par RSLC/$s/$s.rslc.deramp.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 1 - >/dev/null
+# 2^2 oversample
+#time offset_pwr_tracking RSLC/$m/$m.rslc.deramp RSLC/$s/$s.rslc.deramp RSLC/$m/$m.rslc.deramp.par RSLC/$s/$s.rslc.deramp.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 2 - >/dev/null
+# after Yasser's check: actually gives very very similar result as without deramping! but it is correct to deramp - as only then we can properly oversample, as i tested.
+# so will keep deramp, but only 2^1 oversample, since the 2^2 took much more time and no visible improvement, except for higher resolution
+#time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 1 - #>/dev/null
+
 echo "done: "
 date
 echo "extracting the data"
@@ -72,17 +94,18 @@ mkdir -p $geopairdir
 dempar=geo/EQA.dem_par
 demwid=`grep width $dempar | gawk {'print $2'}`
 geolt=geo/$master.lt_fine
-geocode_back $outdir/$pair.rng $mliwid $geolt $geopairdir/$pair.rng.geo $demwid
-geocode_back $outdir/$pair.azi $mliwid $geolt $geopairdir/$pair.azi.geo $demwid
-geocode_back $outdir/$pair.offsettracking.corr $mliwid $geolt $geopairdir/$pair.tracking_corr.geo $demwid
+echo "geocoding"
+geocode_back $outdir/$pair.rng $mliwid $geolt $geopairdir/$pair.rng.geo $demwid >/dev/null
+geocode_back $outdir/$pair.azi $mliwid $geolt $geopairdir/$pair.azi.geo $demwid >/dev/null
+geocode_back $outdir/$pair.offsettracking.corr $mliwid $geolt $geopairdir/$pair.tracking_corr.geo $demwid >/dev/null
 #geocode_back disp_map.rng $widthoff $geolt disp_map.rng.geo $demwid
-data2geotiff $dempar $geopairdir/$pair.rng.geo 2 $geopairdir/$pair.geo.rng.tif
-data2geotiff $dempar $geopairdir/$pair.azi.geo 2 $geopairdir/$pair.geo.azi.tif
-data2geotiff $dempar $geopairdir/$pair.tracking_corr.geo 2 $geopairdir/$pair.geo.tracking_corr.tif
+data2geotiff $dempar $geopairdir/$pair.rng.geo 2 $geopairdir/$pair.geo.rng.tif >/dev/null
+data2geotiff $dempar $geopairdir/$pair.azi.geo 2 $geopairdir/$pair.geo.azi.tif >/dev/null
+data2geotiff $dempar $geopairdir/$pair.tracking_corr.geo 2 $geopairdir/$pair.geo.tracking_corr.tif >/dev/null
 #data2geotiff $dempar disp_map.rng.geo 2 $s.rng.geo2.tif
 chmod 777 $geopairdir/$pair.geo.rng.tif $geopairdir/$pair.geo.azi.tif $geopairdir/$pair.geo.tracking_corr.tif
 rm $geopairdir/$pair.rng.geo $geopairdir/$pair.azi.geo $geopairdir/$pair.tracking_corr.geo
 
 # create previews for the offset geotiffs
-create_preview_offsets $geopairdir/$pair.geo.rng.tif $frame
-create_preview_offsets $geopairdir/$pair.geo.azi.tif $frame
+create_preview_offsets $geopairdir/$pair.geo.rng.tif $frame 10
+create_preview_offsets $geopairdir/$pair.geo.azi.tif $frame 10
