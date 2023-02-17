@@ -74,20 +74,18 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
                 framenc = framenc.interp_like(template)
         inc = inc.interp_like(framevel)
         heading = heading.interp_like(framevel)
-        if not annual:
-            frameset.append((framevel.values, heading.values, inc.values))
-        else:
+        frameset.append((framevel.values, heading.values, inc.values))
+        if annual:
             # doing the annuals!
             nc1 = calculate_annual_vels(framenc)
             frameset.append((nc1['vel_annual'], heading.values, inc.values))
     dec = xr.Dataset()
-    if not annual:
-        U = template.copy()
-        E = template.copy()
-        U.values, E.values = decompose_np_multi(frameset)
-        dec['U'] = U
-        dec['E'] = E
-    else:
+    U = template.copy()
+    E = template.copy()
+    U.values, E.values = decompose_np_multi(frameset)
+    dec['U'] = U
+    dec['E'] = E
+    if annual:
         # if annual, then frameset is from nc.vel_annual, heading.values, inc.values
         years = None
         for framedata in frameset:
