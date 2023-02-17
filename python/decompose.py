@@ -38,45 +38,131 @@ cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
 '''
 
-def decompose_framencs(framencs, extract_cum = False):
-    ''' will decompose frame licsbas results
-    the basenames in framencs should contain frame id, followed by '.', e.g.
+def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False):
+    """ will decompose frame licsbas results
+    the basenames in framencs should contain frame id, followed by '.', e.g.:
     framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
-    extract_cum will use the first frame and convert to pseudo vertical
-    '''
+    
+    Args:
+        framencs (list):  licsbas nc result files, named by their frame id
+        extract_cum (bool): if True, will use the first frame and convert to pseudo vertical
+        annual (bool):   if True, will decompose annual increments
+    
+    Returns:
+        xr.Dataset with U, E, [cum_vert] arrays
+    """
     frameset = []
     firstrun = True
     for nc in framencs:
         frame = os.path.basename(nc).split('.')[0]
         print('extracting frame '+frame)
         inc, heading = get_frame_inc_heading(frame)
-        framevel = xr.open_dataset(nc)['vel']
-        framevel = framevel - framevel.median()
+        framenc = xr.open_dataset(nc)
+        framevel = framenc['vel']
+        if medianfix:
+            framevel = framevel - framevel.median()
         if firstrun:
             template = framevel.copy()
             firstrun = False 
             if extract_cum:
-                cum_vert = xr.open_dataset(nc)['cum']
+                cum_vert = framenc['cum']
                 inc = inc.interp_like(framevel)
                 cum_vert = cum_vert/np.cos(np.radians(inc))
         else:
             framevel = framevel.interp_like(template)
+            if annual:
+                framenc = framenc.interp_like(template)
         inc = inc.interp_like(framevel)
         heading = heading.interp_like(framevel)
-        frameset.append((framevel.values, heading.values, inc.values))
-    U = template.copy()
-    E = template.copy()
-    U.values, E.values = decompose_np_multi(frameset)
+        if not annual:
+            frameset.append((framevel.values, heading.values, inc.values))
+        else:
+            # doing the annuals!
+            nc1 = calculate_annual_vels(framenc)
+            frameset.append((nc1['vel_annual'], heading.values, inc.values))
     dec = xr.Dataset()
-    dec['U'] = U
-    dec['E'] = E
-    dec['cum'] = cum_vert
+    if not annual:
+        U = template.copy()
+        E = template.copy()
+        U.values, E.values = decompose_np_multi(frameset)
+        dec['U'] = U
+        dec['E'] = E
+    else:
+        # if annual, then frameset is from nc.vel_annual, heading.values, inc.values
+        years = None
+        for framedata in frameset:
+            if not years:
+                years = list(framedata[0].year.values)
+            else:
+                yearst = list(framedata[0].year.values)
+                for year in years:
+                    if year not in yearst:
+                        years.remove(year)
+        # ok, now then decompose the annuals per year
+        vUxr = frameset[0][0].sel(year = years).copy().rename('vU')
+        vExr = frameset[0][0].sel(year = years).copy().rename('vE')
+        for year in years:
+            annualset = []
+            for framedata in frameset:
+                vel = framedata[0].sel(year = year).values
+                annualset.append((vel, framedata[1], framedata[2]))
+            print('decomposing year '+str(year))
+            vU, vE = decompose_np_multi(annualset) #, beta = 0)
+            vUxr.loc[year,:,:] = vU
+            vExr.loc[year,:,:] = vE
+        dec['vU'] = vUxr
+        dec['vE'] = vExr
+    if extract_cum:
+        dec['cum'] = cum_vert
     return dec
+
+
+
+import LiCSBAS_inv_lib as inv_lib
+def calculate_annual_vels(cube):
+    """Will calculate annual velocities from LiCSBAS results
+    
+    Args:
+        cube (xr.Dataset): loaded netcdf file, extracted using e.g. LiCSBAS_out2nc.py
+    
+    Returns:
+        xr.Dataset with new dataarray: vel_annual
+    """
+    annualset = cube.cum.resample(time='AS')
+    firstrun = True
+    for yeardt, yearcum in annualset:
+        year = str(yeardt).split('-')[0]
+        print('processing year '+year)
+        dt_cum = (np.array([tdate.toordinal() for tdate in yearcum.time.dt.date.values]) - pd.Timestamp(yeardt).date().toordinal())/365.25 # in fraction of a year
+        # see LiCSBAS_cum2vel.py:
+        cum_tmp = yearcum.values
+        n_im, length, width = cum_tmp.shape
+        bool_allnan = np.all(np.isnan(cum_tmp), axis=0)
+        vconst = np.zeros((length, width), dtype=np.float32)*np.nan
+        vel = np.zeros((length, width), dtype=np.float32)*np.nan
+        #
+        cum_tmp = cum_tmp.reshape(n_im, length*width)[:, ~bool_allnan.ravel()].transpose()
+        vel[~bool_allnan], vconst[~bool_allnan] = inv_lib.calc_vel(cum_tmp, dt_cum)
+        #vel[~bool_allnan], vconst[~bool_allnan] = calc_vel(cum_tmp, dt_cum)
+        vel_annual = cube.vel.copy()
+        vel_annual.values = vel
+        vel_annual = vel_annual.assign_coords({'year':int(year)}).expand_dims('year').rename('vel_annual')
+        if firstrun:
+            vel_annual_cube = vel_annual.copy()
+            firstrun = False
+            #dv = vel
+        else:
+            vel_annual_cube = xr.concat([vel_annual_cube,vel_annual], dim='year')
+            #dv = np.vstack(dv,vel)
+    cube['vel_annual'] = vel_annual_cube.copy()
+    return cube
 
 
 
 
 def get_frame_inc_heading(frame):
+    """Extracts inc and heading from E, U for given frame
+    """
     geoframedir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
     # look angle (inc) / heading - probably ok, but needs check:
     e=os.path.join(geoframedir,'metadata',frame+'.geo.E.tif')
@@ -98,6 +184,8 @@ def get_frame_inc_heading(frame):
 
 
 def decompose_dask(cube, blocklen=5, num_workers=5):
+    """Simple parallel decomposition of dec. datacube (must have asc,desc,asc_inc,desc_inc, asc_heading, desc_heading arrays)
+    """
     winsize = (blocklen, blocklen)
     asc = da.from_array(cube['asc'].astype(np.float32), chunks=winsize)
     desc = da.from_array(cube['desc'].astype(np.float32), chunks=winsize)
@@ -111,7 +199,9 @@ def decompose_dask(cube, blocklen=5, num_workers=5):
 
 
 def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, beta=0):
-    '''inputs are xr.dataarrays - this will also check/interpolate them to fit'''
+    """Perform simple decomposition for two frames in asc and desc.
+    inputs are xr.dataarrays - this will also check/interpolate them to fit
+    """
     cube=xr.Dataset()
     cube['asc'] = asc
     cube['desc'] = desc.interp_like(asc, method='linear'); desc=None
@@ -129,12 +219,12 @@ def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, beta=0
 
 # 2022-10-18 - this should be pretty good one (next only use weights or something)
 def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0):
-    '''Decomposes values from ascending and descending np (or xr) arrays, using heading and inc. angle
+    """Decomposes values from ascending and descending np (or xr) arrays, using heading and inc. angle
     (these might be arrays of same size of just float values)
     
     Args:
         beta (float): angle of expected horizontal motion direction, clockwise from the E, in degrees
-    '''
+    """
     vel_E = np.zeros(vel_desc.shape)
     vel_U = np.zeros(vel_desc.shape)
     #
@@ -207,12 +297,15 @@ decomposedxr['vE'] = vExr
 decomposedxr.to_netcdf('decomposed_s1.nc')
 '''
 
+
 def decompose_np_multi(input_data, beta = 0):
-    '''Decompose more than 2 frames
-    input data is a list of tuples, e.g.
-    input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
-    where velX is np.array and headingX/incX is in degrees, either a number or np.array
-    '''
+    """Decompose 2 or more frames
+    
+    Args:
+        input data (list of tuples) e.g. input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
+    
+    Note: velX is np.array and headingX/incX is in degrees, either a number or np.array
+    """
     #
     template = input_data[0][0]
     vel_E = np.zeros(template.shape)
