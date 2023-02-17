@@ -57,8 +57,6 @@ def delete_burst_from_db(bidtanx, onlyprint=False):
             print('this burst is used within some frame(s) - cancelling')
         return False
     # first of all, deleting all files that uses the burst, and their connection
-    if not onlyprint:
-        print('cleaning related files (LiCSAR will need to reingest them)')
     sql='delete f from files f inner join files2bursts fb on f.fid=fb.fid where fb.bid={};'.format(bid)
     if onlyprint:
         sql='delete fb,f from files f inner join files2bursts fb on fb.fid=f.fid where fb.bid={};'.format(bid)
@@ -68,11 +66,24 @@ def delete_burst_from_db(bidtanx, onlyprint=False):
     #sql="SET FOREIGN_KEY_CHECKS=0; delete fb,f from files f inner join files2bursts fb on fb.fid=f.fid where fb.bid={}; SET FOREIGN_KEY_CHECKS=1;".format(bid)
     #sql="SET FOREIGN_KEY_CHECKS=1;"
     #sql='delete from files2bursts where bid={};'.format(bid)
-    num = do_query(sql, True)
-    sql='delete from files2bursts where bid={};'.format(bid)
-    num = do_query(sql, True)
-    if num > 0:
-        print('deleted {} records of files using this burst'.format(str(num)))
+    # ok, needs a workaround!!!!
+    sql='select fid from files2bursts where bid={};'.format(bid)
+    fids=do_pd_query(sql)
+    if len(fids)>0:
+        print('cleaning related files (LiCSAR will need to reingest them)')
+        print('removing {0} records of files associated with burst {1}'.format(str(len(fids)), bidtanx))
+        #sql='delete from files2bursts where bid={};'.format(bid)
+        #num = do_query(sql, True)
+        # need to do it separately, otherwise foreign key errors
+        for fid in fids.fid.values:
+            sql='delete from files2bursts where fid={};'.format(fid)
+            num = do_query(sql, True)
+        for fid in fids.fid.values:
+            sql='delete from files where fid={};'.format(fid)
+            #sql='delete fb,f from files f inner join files2bursts fb on fb.fid=f.fid where f.fid={};'.format(fid)
+            num = do_query(sql, True)
+    #if num > 0:
+    #    print('deleted {} records of files using this burst'.format(str(num)))
     sql='delete from bursts2gis where bid={};'.format(bid)
     num = do_query(sql, True)
     sql='delete from bursts2S1 where bid={};'.format(bid)
