@@ -69,7 +69,7 @@ for x in $m $s; do
 done
 
 # only 1 oversample
-time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 64 - 2 0.1 40 16 - - - - - - 0 0 >/dev/null
+time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 64 - 2 0.1 40 16 - - - - - - 0 1 - - $outdir/tracking.corrstd >/dev/null
 # 2^2 oversample
 #time offset_pwr_tracking RSLC/$m/$m.rslc.deramp RSLC/$s/$s.rslc.deramp RSLC/$m/$m.rslc.deramp.par RSLC/$s/$s.rslc.deramp.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 2 - >/dev/null
 # after Yasser's check: actually gives very very similar result as without deramping! but it is correct to deramp - as only then we can properly oversample, as i tested.
@@ -93,6 +93,8 @@ cpx_to_real $outdir/disp_map $outdir/disp_map.azi $widthoff 1 >/dev/null
 python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.rng"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.rng"')" 
 python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.azi"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.azi"')" 
 python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/tracking.corr"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.offsettracking.corr"')" 
+python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/tracking.corrstd"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.offsettracking.corrstd"')" 
+
 date
 #now geocode it
 mkdir -p $geopairdir
@@ -103,13 +105,17 @@ echo "geocoding"
 geocode_back $outdir/$pair.rng $mliwid $geolt $geopairdir/$pair.rng.geo $demwid >/dev/null
 geocode_back $outdir/$pair.azi $mliwid $geolt $geopairdir/$pair.azi.geo $demwid >/dev/null
 geocode_back $outdir/$pair.offsettracking.corr $mliwid $geolt $geopairdir/$pair.tracking_corr.geo $demwid >/dev/null
+geocode_back $outdir/$pair.offsettracking.corrstd $mliwid $geolt $geopairdir/$pair.tracking_corrstd.geo $demwid >/dev/null
+
 #geocode_back disp_map.rng $widthoff $geolt disp_map.rng.geo $demwid
 data2geotiff $dempar $geopairdir/$pair.rng.geo 2 $geopairdir/$pair.geo.rng.tif >/dev/null
 data2geotiff $dempar $geopairdir/$pair.azi.geo 2 $geopairdir/$pair.geo.azi.tif >/dev/null
 data2geotiff $dempar $geopairdir/$pair.tracking_corr.geo 2 $geopairdir/$pair.geo.tracking_corr.tif >/dev/null
+data2geotiff $dempar $geopairdir/$pair.tracking_corrstd.geo 2 $geopairdir/$pair.geo.tracking_corrstd.tif >/dev/null
+
 #data2geotiff $dempar disp_map.rng.geo 2 $s.rng.geo2.tif
-chmod 777 $geopairdir/$pair.geo.rng.tif $geopairdir/$pair.geo.azi.tif $geopairdir/$pair.geo.tracking_corr.tif
-rm $geopairdir/$pair.rng.geo $geopairdir/$pair.azi.geo $geopairdir/$pair.tracking_corr.geo
+chmod 777 $geopairdir/$pair.geo.rng.tif $geopairdir/$pair.geo.azi.tif $geopairdir/$pair.geo.tracking_cor*.tif
+rm $geopairdir/$pair.rng.geo $geopairdir/$pair.azi.geo $geopairdir/$pair.tracking_corr.geo $geopairdir/$pair.tracking_corrstd.geo
 
 # create previews for the offset geotiffs
 create_preview_offsets $geopairdir/$pair.geo.rng.tif $frame 10
