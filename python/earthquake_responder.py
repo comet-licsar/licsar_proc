@@ -587,6 +587,15 @@ def import_to_licsinfo_eq2frame(eqid, event, frame, postacq = True, active = Tru
 
 
 def is_blacklisted(eventid, blacklistfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eq_blacklist.txt'):
+    """
+    Check if the event is blacklisted (i.e. to skip this EQ)
+    Args:
+        eventid: USGS ID (e.g. 'us6000bkr')
+        blacklistfile:
+
+    Returns:
+        boolean
+    """
     if os.path.exists(blacklistfile):
         if misc.grep1line(eventid,blacklistfile):
             print('the event {} is blacklisted'.format(eventid))
@@ -598,11 +607,32 @@ def is_blacklisted(eventid, blacklistfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         return False
 
 
-def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False):
+def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, ingestedonly = False):
+    """
+    This will process all earthquakes in given range:
+    Step 1 would perform full processing (licsar_make_frame),
+    step 2 would only check for existing ifgs and ingest them to the related html files, plus generate coseismic kmls.
+
+    Args:
+        minmag (float): minimum magnitude in the search
+        pastdays: minimum time to history in the search
+        step: see above (1 or 2)
+        overwrite: no comment
+        ingestedonly: SAFE SIDE - would work only with events that are already in the EIDP
+
+    Returns:
+
+    """
     eventlist = get_eq_events(minmag, pastdays)
     print('identified {} events to process'.format(len(eventlist)))
+    #
     for event in eventlist:
         if not is_blacklisted(event.id):
+            if ingestedonly:
+                eventfile = os.path.join(public_path, 'EQ', event.id + '.html')
+                if not os.path.exists(eventfile):
+                    print('not processed before - skipping')
+                    continue
             print(event.id)
             #keep them active if these are some late eqs..
             if event.time > dt.datetime.now()-timedelta(days=10):
@@ -616,6 +646,17 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False):
 
 
 def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False):
+    """
+    Perform the earthquake frames processing.
+
+    Args:
+        eventid: USGS ID
+        step: 1 for full processing, 2 for ingesting related data to event htmls (and generating coseismic kmzs if needed)
+        overwrite: if True will overwrite existing data
+        makeactive: if True, will also make the event active in EIDP
+        skipchecks: will skip some default checks, e.g. by default we limit processing by depth
+
+    """
     event =  get_event_by_id(eventid)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
     if not radius:
