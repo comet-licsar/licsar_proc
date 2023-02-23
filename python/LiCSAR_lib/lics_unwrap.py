@@ -2,9 +2,9 @@
 
 ################################################################################
 # LiCSAR Unwrapper
-# by Milan Lazecky, 2021-2022, University of Leeds
+# by Milan Lazecky, 2021-2023, University of Leeds
 #
-# version: 1.0.0 (2022-06-03)
+# version: 1.0.0 (2022-06-03) ---- with updates up to 02/2023 etc
 #
 # A tool to unwrap LiCSAR (or any other) interferogram, starting from geotiffs
 # Mandatory inputs: geotiffs of phase, coherence

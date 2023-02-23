@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Mar 2020 - Milan Lazecky
+# Mar 2020+ - Milan Lazecky
 
 import os, glob
 import subprocess as subp
@@ -356,6 +356,8 @@ def reingest_all_files_in_frame(frame):
 
 
 def vis_file(fileid):
+    """ Visualize bursts of given file.
+    """
     fbursts = lq.get_bursts_in_file(fileid)
     fbursts = lq.sqlout2list(fbursts)
     #filegpd = bursts2geopandas(fbursts)

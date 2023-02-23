@@ -1,6 +1,9 @@
 #!/bin/bash
 #this will clip the SLCs ...
 
+# note, for SAREZ:
+# 005D_05199_131313 100A_05236_141313
+
 # you may get hgt value as:
 # source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 # framedir=`pwd`
@@ -39,30 +42,36 @@
 #hgt=interpolate_nans(hgt, method='nearest')
 #hgt.byteswap().tofile('GEOC/lookangles/20170311.geo.hgt')
 
+export LiCSAR_subsets=$LiCSAR_procdir/subsets
 
 # ok, now time to generate ifgs and unws
 echo "warning, the outfolder should be unique name (sorry for that, it is due to ifg generator) - so use e.g. VOLCID_008A etc."
 if [ -z $7 ]; then echo "parameters are:";
-echo "clip_slc.sh OUTFOLDER lon1 lon2 lat1 lat2 hei resolution"
-echo "so e.g. clip_slc.sh CLIPPED -28.36 -27.3 38.49 38.8 600 0.00027"
+echo "clip_slc.sh OUTFOLDER lon1 lon2 lat1 lat2 hei resolution [processing_ifg]"
+echo "so e.g. clip_slc.sh CLIPPED -28.36 -27.3 38.49 38.8 600 0.00027 [0]"
+echo "where processing_ifg=1 means process data to ifgs after clipping"
 exit;
 fi
 
 if [ ! -d RSLC ]; then echo "you need to be in the frame proc folder, i.e. the one with RSLC folder"; exit; fi
+process_clip=1
+process_ifgs=1
+
+if [ ! -z $8 ]; then
+process_ifgs=$8;
+fi
 
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 dizdir=`pwd`
 frame=`basename $dizdir`
 demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
+if [ ! -d $demdir ]; then echo "something wrong with the frame "$frame". Fix this please"; exit; fi
 dempar=$demdir/dem_crop.dem_par
 master=`basename geo/20??????.hgt | cut -d '.' -f1`
 slc=`ls RSLC/$master/$master.rslc`
 slcpar=$slc.par
 if [ ! -f $slcpar ]; then echo "the folder "$1" seems empty, or no mosaic exists - exiting"; exit; fi
-
-process_clip=1
-process_ifgs=1
 
 outdir=$1
 mkdir -p $outdir 2>/dev/null
@@ -76,6 +85,21 @@ resol=$7   # in degrees, so e.g. 0.00027 for 30 m
 rgl=`echo $resol"*111000/2.3" | bc`
 azl=`echo $resol"*111000/14" | bc`
 
+
+if [ $hei == 0 ]; then
+echo "getting the avg height"
+hei=`python3 -c "import xarray as xr; import rioxarray; import os; frame='"$frame"'; \
+hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif'); \
+a=rioxarray.open_rasterio(hgt); medhgt=float(a.sel(x=("$lon1","$lon2"), y=("$lat1", "$lat2"), method='nearest').median()); \
+print(medhgt)"`
+fi
+
+# frame='083D_12636_131313'
+# hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif')
+# a=rioxarray.open_rasterio(hgt)
+# lon=-71.377; lat=-36.863; radius_km=25/2; radius_deg=radius_km/111; resol=0.00027;
+# # a.sel(lon=(lon-radius_deg, lon+radius_deg), lat=(lat+radius_deg, lat-radius_deg))
+# medhgt=float(a.sel(x=(lon-radius_deg, lon+radius_deg), y=(lat+radius_deg, lat-radius_deg), method='nearest').median())
 
 
 if [ $process_clip == 1 ]; then
@@ -145,9 +169,12 @@ LiCSAR_05_mk_angles_master
 submit_lookangles.py -f $frame -t `track_from_frame $frame` -l
 create_geoctiff_lookangles.sh `pwd` $master #>/dev/null
 
+for tif in `ls GEOC/lookangles/*tif`; do
+ mv $tif `echo $tif | sed 's/'$master'/'$frame'/'`
+done
 echo "Generating land mask"
 landmask=GEOC/lookangles/$frame.geo.landmask.tif
-hgtgeo=GEOC/lookangles/$frame.geo.hgt.tif
+hgtgeo=`ls GEOC/lookangles/*.geo.hgt.tif | head -n 1`
 gmt grdlandmask -G$landmask=gd:GTiff -R$hgtgeo -Df -N0/1/0/1/0
 
 echo "testing now - store to GEOC.meta and deleting from GEOC - hope will not miss this"
@@ -157,7 +184,15 @@ rm -r GEOC/lookangles GEOC/geo
 
 fi
 
+echo $frame >> sourceframe.txt
+echo "clip_slc.sh "$lon1 $lon2 $lat1 $lat2 $hei $resol > sourcecmd.txt
 
+procdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame
+mkdir -p $procdir/subsets
+echo "now copy it to: "$LiCSAR_subsets
+finalout=$LiCSAR_subsets/$outdir
+echo "e.g. as: "$finalout
+echo "ln -s $finalout $procdir/subsets"
 
 if [ $process_ifgs == 1 ]; then
 # generate 'standard' connections ifgs
