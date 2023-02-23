@@ -45,6 +45,7 @@ create_offset $mpar $spar $outdir/tracking.off 1 1 1 0 >/dev/null
 #offset_pwr_tracking $mslc $sslc $mpar $spar tracking.off tracking.offsets tracking.corr 32 8 - 1 - >/dev/null
 # do 4x oversample
 echo "performing pixel offset tracking"
+echo "WARNING, TABS ARE RECREATED BUT MIGHT BE WRONG IF NOT ON 3 SWATHS"
 date
 #offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 16 - 2 - >/dev/null
 #time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 32 - 2 - #>/dev/null
