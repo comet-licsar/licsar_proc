@@ -196,6 +196,23 @@ def mm2rad_s1(inmm):
     return outrad
 
 
+'''
+intif = 'GEOC/20230129_20230210/20230129_20230210.geo.azi.tif'
+'''
+def filter_gold_float(intif, thres_m = 5):
+    redfac = thres_m/np.pi
+    ml=10
+    outif = intif.replace('.tif','.filtered.tif')
+    azi = load_tif2xr(intif)
+    azi=azi.where(np.abs(azi)<thres_m)
+    azi = azi.coarsen({'lat': ml, 'lon': ml}, boundary='trim').median()
+    azi = goldstein_filter_xr(azi/redfac)[0]
+    azi.values = azi.values*redfac
+    azi=azi.interp_like(ifg, method='linear')
+    export_xr2tif(azi, outif)
+    return azi
+
+
 def load_rngoffsets_as_prevest(rngtif, thres_m = 9):
     """Loads the range offsets result in the form to be used as prevest
     
@@ -207,16 +224,24 @@ def load_rngoffsets_as_prevest(rngtif, thres_m = 9):
     """
     prevest = load_tif2xr(rngtif)
     #prevest = prevest.fillna(0)
-    #themask = prevest.where(prevest == 0)
+    prevest = prevest.where(prevest == 0)
     prevest = prevest.where(np.abs(prevest)<thres_m)
     # filter .. .somehow..... mmmmmmmm remove the noise... important!
-    prevest.values = filter_nan_gaussian_conserving(prevest.values, sigma = 4, trunc = 4) # orig: sigma=2
+    #prevest.values = filter_nan_gaussian_conserving(prevest.values, sigma = 4, trunc = 4) # orig: sigma=2
+    # making it smaller (2023-02: anyway oversampling the estimates
+    ml=10
+    prevest = prevest.coarsen({'lat': ml, 'lon': ml}, boundary='trim').median()
+    # mmmm... faking to do it through goldstein ))
+    # CAREFUL - will work only for values -3.14 to 3.14 [m], so need to scale it first!
+    filtrd = goldstein_filter_xr(prevest/2.5)[0]
+    prevest.values = filtrd.values*2.5
     # now fill the nans (NN?)
     #prevest.values = interpolate_nans(prevest.values, method='nearest')
     prevest = prevest.where(prevest !=0)  # maybe helps?
     # recalculate to radians
     prevest=mm2rad_s1(prevest*1000)
     return prevest
+
 """
 import cv2
 d=100
