@@ -16,23 +16,22 @@ pair=$1
 master=`get_master`
 frame=`pwd`
 frame=`basename $frame`
+if [ `echo $frame | wc -m` != 18 ]; then echo "not in frame folder"; exit; fi
 
 ## first of all, do tabs:
-if [ `ls RSLC/$master/$master.IW?.rslc | wc -l` -eq 3 ]; then
-createSLCtab RSLC/$m/$m rslc 1 3 > tab/$m'R_tab'
-createSLCtab RSLC/$s/$s rslc 1 3 > tab/$s'R_tab'
-else
-echo "for now, only full IWs are supported - check this script (and improve if needed)"
-exit
+if [ ! -f tab/$m'R_tab' ]; then
+createSLCtab_frame RSLC/$m/$m rslc $frame > tab/$m'R_tab'
 fi
-
+if [ ! -f tab/$s'R_tab' ]; then
+createSLCtab_frame RSLC/$s/$s rslc $frame > tab/$s'R_tab'
+fi
 
 mkdir -p IFG/$pair
 stab=tab/$s'R_tab'
 mtab=tab/$m'R_tab'
 mastertab=tab/$master'R_tab'
 if [ ! -f $mastertab ]; then
- createSLCtab RSLC/$master/$master rslc 1 3 > $mastertab
+ createSLCtab_frame RSLC/$master/$master rslc $frame > $mastertab
 fi
 
 movlfile=IFG/$pair/$m'_overlaps'
@@ -52,9 +51,25 @@ create_offset $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset
 SLC_intf $movlfile.bwd.slc $sovlfile.bwd.slc $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset IFG/$pair/bwd.ifg 20 4 0 - 0 0
 SLC_intf $movlfile.fwd.slc $sovlfile.fwd.slc $movlfile.fwd.slc.par $sovlfile.fwd.slc.par IFG/$pair/ovfwd.offset IFG/$pair/fwd.ifg 20 4 0 - 0 0
 
+#4.1 Make adf filtering to fwd adn bwd ifg
+width=`get_value IFG/$pair/ovbwd.offset interferogram_width`
+widthgeo=`get_value geo/EQA.dem_par width`
+
+adf IFG/$pair/bwd.ifg IFG/$pair/bwd.adf.ifg IFG/$pair/bwd.adf.cc $width 1 - - - - - -
+adf IFG/$pair/fwd.ifg IFG/$pair/fwd.adf.ifg IFG/$pair/fwd.adf.cc $width 1 - - - - - -
+# to clean - not needed
+rm IFG/$pair/?wd.adf.cc
+
 #5. Make their double difference
 
-python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.ifg', np.complex64).byteswap(); b=np.fromfile('"IFG/$pair/"bwd.ifg', np.complex64).byteswap(); c = a*np.conj(b);  c.byteswap().tofile('"IFG/$pair/"ddiff')"
+#python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.ifg', np.complex64).byteswap(); b=np.fromfile('"IFG/$pair/"bwd.ifg', np.complex64).byteswap(); c = a*np.conj(b);  c.byteswap().tofile('"IFG/$pair/"ddiff')"
+# now, ddiff is after adf (!)
+python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.adf.ifg', np.complex64).byteswap(); b=np.fromfile('"IFG/$pair/"bwd.adf.ifg', np.complex64).byteswap(); c = a*np.conj(b);  c.byteswap().tofile('"IFG/$pair/"ddiff')"
+
+#5.2 Make adf double difference 
+
+#adf IFG/$pair/ddiff.adf IFG/$pair/ddiff.adf.adf IFG/$pair/ddiff.adf.adf.cc $width 1 - - - - - -
+adf IFG/$pair/ddiff IFG/$pair/ddiff.adf IFG/$pair/ddiff.adf.cc $width 1 - - - - - -
 
 
 #6. To create coherence
@@ -65,16 +80,24 @@ python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.ifg', np.complex6
 
 #7. create geotiffs
 #width=`get_value RSLC/$master/$master.rslc.mli.par range_samples`
-width=`get_value IFG/$pair/ovbwd.offset interferogram_width`
-widthgeo=`get_value geo/EQA.dem_par width`
+#width=`get_value IFG/$pair/ovbwd.offset interferogram_width`
+#widthgeo=`get_value geo/EQA.dem_par width`
 
-cpx_to_real IFG/$pair/ddiff IFG/$pair/ddiff_pha $width 4
+#cpx_to_real IFG/$pair/ddiff IFG/$pair/ddiff_pha $width 4
+cpx_to_real IFG/$pair/ddiff.adf IFG/$pair/ddiff_pha.adf $width 4
 
 mkdir -p GEOC/$pair
 #geocode_back ddiff_coh $width geo/20220919.lt_fine ddiff_coh.geo 3867 - 0 0
-geocode_back IFG/$pair/ddiff_pha $width geo/$master.lt_fine GEOC/$pair/ddiff_pha.geo $widthgeo - 0 0
+#geocode_back IFG/$pair/ddiff_pha $width geo/$master.lt_fine GEOC/$pair/ddiff_pha.geo $widthgeo - 0 0
+geocode_back IFG/$pair/ddiff_pha.adf $width geo/$master.lt_fine IFG/$pair/ddiff_pha.adf.geo $widthgeo - 0 0
 #data2geotiff geo/EQA.dem_par ddiff_coh.geo 2 ddiff_coh.geo.tif 0.0
-data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
+#data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
+data2geotiff geo/EQA.dem_par IFG/$pair/ddiff_pha.adf.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
+
+## cc
+geocode_back IFG/$pair/ddiff.adf.cc $width geo/$master.lt_fine IFG/$pair/ddiff.adf.cc.geo $widthgeo - 0 0
+data2geotiff geo/EQA.dem_par IFG/$pair/ddiff.adf.cc.geo 2 GEOC/$pair/$pair.bovldiff.adf.cc.geo.tif 0.0
+
 
 #8. create preview
 create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.tif

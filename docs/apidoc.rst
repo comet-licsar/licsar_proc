@@ -19,3 +19,10 @@ Although now rather part of FrameBatch, we still keep this library as part of Li
 
 .. automodule:: licsar_proc.python.LiCSAR_lib.framecare
   :members:
+
+
+LiCSAR Decompose
+^^^^^^^^^^^^^^^^
+
+.. automodule:: licsar_proc.python.decompose
+  :members:

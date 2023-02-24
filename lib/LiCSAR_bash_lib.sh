@@ -1060,6 +1060,31 @@ function createSLCtab(){
   done
 }; export -f createSLCtab # End function definition
 
+
+function createSLCtab_frame(){
+  local frame=$3
+  if [ `echo $frame | wc -m` != 18 ]; then echo "not a frame ID"; return; fi
+  if [ `echo $frame | cut -d '_' -f3 | cut -c -2` == 00 ]; then
+    if [ `echo $frame | cut -d '_' -f3 | cut -c 3-4` == 00 ]; then
+     iniw=3
+    else
+     iniw=2
+    fi
+  else
+   iniw=1
+  fi
+  if [ `echo $frame | cut -d '_' -f3 | cut -c 5-` == 00 ]; then
+   if [ `echo $frame | cut -d '_' -f3 | cut -c 3-4` == 00 ]; then
+     outiw=1
+   else
+     outiw=2
+   fi
+  else
+    outiw=3
+  fi
+  createSLCtab $1 $2 $iniw $outiw
+}; export -f createSLCtab_frame # End function definition
+
 ########################################################################
 ########################################################################
 # 

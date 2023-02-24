@@ -18,6 +18,8 @@ pair=$1
 master=`get_master`
 frame=`pwd`
 frame=`basename $frame`
+if [ `echo $frame | wc -m` != 18 ]; then echo "not in frame folder"; exit; fi
+
 outdir=IFG/$pair
 mkdir -p $outdir
 geopairdir=GEOC/$pair
@@ -51,11 +53,11 @@ date
 #time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 32 - 2 - #>/dev/null
 # deramp first??
 if [ ! -f tab/$master'_tab' ]; then
-  createSLCtab SLC/$master/$master slc 1 3 > tab/$master'_tab'
+  createSLCtab_frame SLC/$master/$master slc $frame > tab/$master'_tab'
 fi
 for x in $m $s; do
  if [ ! -f tab/$x'R_tab' ]; then
-  createSLCtab RSLC/$x/$x rslc 1 3 > tab/$x'R_tab'
+  createSLCtab_frame RSLC/$x/$x rslc $frame > tab/$x'R_tab'
  fi
  extd='.deramp'
  if [ ! -f RSLC/$x/$x.rslc.deramp ]; then

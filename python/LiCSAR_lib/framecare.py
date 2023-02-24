@@ -553,9 +553,15 @@ def get_master(frame, asfilenames = False, asdate = False, asdatetime = False, m
     return masterdate
 
 
-def get_frame_master_s1ab(frame):
+def get_frame_master_s1ab(frame, metafile = None):
+    """ Gets information if the reference epoch of given frame is S1 'A' or 'B'.
+    Args:
+        frame (str)
+        metafile (str): if None, it will identify it on LiCSAR_public
+    """
     tr = int(frame[:3])
-    metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
+    if not metafile:
+        metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
     if not os.path.exists(metafile):
         print('metadata file does not exist for frame '+frame)
         return 'X'
@@ -1132,6 +1138,8 @@ def export_bidtanxs_to_kml(bidtanxs, outpath = '/gws/nopw/j04/nceo_geohazards_vo
         print('done. please edit the kmls - delete not wanted bursts, save and return')
 
 def export_frame_to_kml(frame, outpath = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/insar_temp/frames_redef/kmls', merge=False):
+    """ Exports the frame polygon to kml. Currently only the uglier version (coarse burst polygons)
+    """
     if not os.path.exists(outpath):
         os.mkdir(outpath)
     ai = lq.get_bursts_in_frame(frame)
