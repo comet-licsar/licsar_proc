@@ -518,7 +518,7 @@ def get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = False):
 
 def get_s1b_geom_from_bidtanx(bidtanx, opass = 'A'):
     # e.g. '2_IW1_6220'
-    return get_s1burst_from_bidtanx(bidtanx, opass = 'A', only_geom = True)
+    return get_s1burst_from_bidtanx(bidtanx, opass = opass, only_geom = True)
     '''
     sql_q = "select centre_lat, centre_lon from bursts where bid_tanx = '{0}';".format(bidtanx)
     center = do_query(sql_q)[0]
