@@ -212,8 +212,11 @@ def filter_gold_float(intif, thres_m = 5):
     export_xr2tif(azi, outif)
     return azi
 
+'''
 
-def load_rngoffsets_as_prevest(rngtif, thres_m = 9):
+ml10=process_ifg_core(ifg, tmpdir = 'bagrr', ml = 10, fillby = 'nearest',smooth = False, goldstein = True, lowpass =False, specmag = True); ml10.unw.plot(); plt.show()
+'''
+def load_rngoffsets_as_prevest(rngtif, thres_m = 9, golditer = 3):
     """Loads the range offsets result in the form to be used as prevest
     
     Args:
@@ -224,7 +227,7 @@ def load_rngoffsets_as_prevest(rngtif, thres_m = 9):
     """
     prevest = load_tif2xr(rngtif)
     #prevest = prevest.fillna(0)
-    prevest = prevest.where(prevest == 0)
+    prevest = prevest.where(prevest != 0)
     prevest = prevest.where(np.abs(prevest)<thres_m)
     # filter .. .somehow..... mmmmmmmm remove the noise... important!
     #prevest.values = filter_nan_gaussian_conserving(prevest.values, sigma = 4, trunc = 4) # orig: sigma=2
@@ -233,8 +236,11 @@ def load_rngoffsets_as_prevest(rngtif, thres_m = 9):
     prevest = prevest.coarsen({'lat': ml, 'lon': ml}, boundary='trim').median()
     # mmmm... faking to do it through goldstein ))
     # CAREFUL - will work only for values -3.14 to 3.14 [m], so need to scale it first!
-    filtrd = goldstein_filter_xr(prevest/2.5)[0]
-    prevest.values = filtrd.values*2.5
+    #redfac = 2.5
+    for i in range(golditer):
+        redfac = float(np.abs(prevest).max())/np.pi
+        filtrd = goldstein_filter_xr(prevest/redfac)[0]
+        prevest.values = filtrd.values*redfac
     # now fill the nans (NN?)
     #prevest.values = interpolate_nans(prevest.values, method='nearest')
     prevest = prevest.where(prevest !=0)  # maybe helps?
@@ -1223,7 +1229,8 @@ def get_ml_hgt(hgtfile, ml=1, cliparea_geo = None):
     return hgt
 
 
-def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True, pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True):
+def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
+        pre_detrend = True, prev_ramp = None, thres_pxcount = None, keep_coh_debug = True):
     """Multilooking function that does much more.
     
     This function is normally called by process_ifg. It would use coherence as weights to multilook interferometric phase, and downsample other layers if available to a final datacube.
@@ -1489,6 +1496,9 @@ def load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = None):
             maxclipx=tmpcl
         # now will clip it - lat is opposite-sorted, so need to slice from max to min in y
         ifg = ifg.sel(lon=slice(minclipx, maxclipx), lat=slice(maxclipy, minclipy))
+    ifg['cpx'] = ifg.coh.copy()
+    print('WARNING, using coherence to form cpx')
+    ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
     return ifg
 
 

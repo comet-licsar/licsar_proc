@@ -123,6 +123,21 @@ Reunwrapping existing interferograms
 Standard LiCSAR products use general parameters for unwrapping. Here we document the python tool ``lics_unwrap.py`` that performs `published procedures <https://ieeexplore.ieee.org/document/9884337>`_ .
 We will soon augment it to allow processing directly from command line as part of LiCSBAS, for now you may check the :ref:`API documentation<apidoc_unwrap>`.
 
+But to show an example here, this is how we could use range offsets to support unwrapping (in dev, but functional):
+::
+   from lics_unwrap import *
+   ifgdir = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/21/021D_05266_252525/interferograms/20230129_20230210'
+   phatif = os.path.join(ifgdir, '20230129_20230210.geo.diff_pha.tif')
+   cohtif = os.path.join(ifgdir, '20230129_20230210.geo.cc.tif')
+   rngtif = os.path.join(ifgdir, '20230129_20230210.geo.rng.tif')
+   ifg=load_from_tifs(phatif, cohtif)
+   prev_estimate=load_rngoffsets_as_prevest(rngtif, thres_m = 9, golditer = 3)
+   ml10 = process_ifg_core(ifg, ml=10, tmpdir = 'test', fillby = 'nearest', goldstein = False, smooth = False,
+                           lowpass = False, defomax = 1.2, gacoscorr = False, pre_detrend = False,
+                           prevest = prev_estimate)
+   ml10.unw.plot(); plt.show()
+
+
 
 LiCSAR to LiCSBAS (JASMIN)
 ^^^^^^^^^^^^^^^^^^^^^^^
