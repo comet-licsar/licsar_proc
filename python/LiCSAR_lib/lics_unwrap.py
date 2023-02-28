@@ -359,7 +359,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
         print('warning, both smooth and goldstein filter set - turning off goldstein filer. you may use goldstein+lowpass')
         goldstein = False
     
-    ifg_ml = process_ifg_core(ifg, procdir = procdir, 
+    ifg_ml = process_ifg_core(ifg, 
         ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
         defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
         cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
@@ -404,7 +404,7 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
     gacoscorr = False
     hgtcorr = False
     if not cascade:
-        ifg_ml = process_ifg_core(ifg, procdir = procdir, 
+        ifg_ml = process_ifg_core(ifg, 
             ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = prev_ramp,
@@ -414,14 +414,14 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
     else:
         print('performing 1 step cascade')
         ml10=10*ml
-        ifg_ml10 = process_ifg_core(ifg, procdir = procdir, 
+        ifg_ml10 = process_ifg_core(ifg, 
             ml = ml10, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = None, prevest = prevest, prev_ramp = prev_ramp,
             coh2var = coh2var, add_resid = False,  rampit=True, subtract_gacos = subtract_gacos,
             extweights = extweights, keep_coh_debug = keep_coh_debug, keep_coh_px = keep_coh_px,
             tmpdir = tmpdir)
-        ifg_ml = process_ifg_core(ifg, procdir = procdir, 
+        ifg_ml = process_ifg_core(ifg, 
             ml = ml, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
             defomax = defomax, hgtcorr = False, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = outtif, prevest = prevest, prev_ramp = ifg_ml10['unw'],
@@ -432,13 +432,13 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
     return ifg_ml
 
 
-def process_ifg_core(ifg, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,
+def process_ifg_core(ifg, tmpdir = os.getcwd(), 
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True,
+        goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
-        extweights = None, keep_coh_debug = True, keep_coh_px = 0.25,
-        tmpdir = None ):
+        extweights = None, keep_coh_debug = True, keep_coh_px = 0.25):
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
     tmpunwdir = os.path.join(tmpdir,'temp_unw')
     for dodir in [tmpdir, tmpunwdir]:
