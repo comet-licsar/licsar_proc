@@ -47,8 +47,8 @@ export LiCSAR_subsets=$LiCSAR_procdir/subsets
 # ok, now time to generate ifgs and unws
 echo "warning, the outfolder should be unique name (sorry for that, it is due to ifg generator) - so use e.g. VOLCID_008A etc."
 if [ -z $7 ]; then echo "parameters are:";
-echo "clip_slc.sh OUTFOLDER lon1 lon2 lat1 lat2 hei resolution [processing_ifg]"
-echo "so e.g. clip_slc.sh CLIPPED -28.36 -27.3 38.49 38.8 600 0.00027 [0]"
+echo "clip_slc.sh OUTFOLDER lon1 lon2 lat1 lat2 hei resolution [processing_ifg] [init_only]"
+echo "so e.g. clip_slc.sh CLIPPED -28.36 -27.3 38.49 38.8 600 0.00027 [0] [0]"
 echo "where processing_ifg=1 means process data to ifgs after clipping"
 exit;
 fi
@@ -187,12 +187,17 @@ fi
 echo $frame >> sourceframe.txt
 echo "clip_slc.sh "$lon1 $lon2 $lat1 $lat2 $hei $resol > sourcecmd.txt
 
+
 procdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame
 mkdir -p $procdir/subsets
 echo "now copy it to: "$LiCSAR_subsets
 finalout=$LiCSAR_subsets/$outdir
 echo "e.g. as: "$finalout
 echo "ln -s $finalout $procdir/subsets"
+
+
+
+
 
 if [ $process_ifgs == 1 ]; then
 # generate 'standard' connections ifgs
