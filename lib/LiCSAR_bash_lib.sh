@@ -368,7 +368,7 @@ function create_preview_offsets() {
    else
     infile=`basename $outfile .png`.masked.tif
    fi
-    if [ ! -z $3 ]; then cutoff=$3; else cutoff=20; fi
+   if [ ! -z $3 ]; then cutoff=$3; else cutoff=10; fi
     minoff=-10
     maxoff=10
     echo "limiting offsets to "$minoff"/"$maxoff" m, in preview cutting "$cutoff" percent of tails"

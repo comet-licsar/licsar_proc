@@ -156,23 +156,40 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
     starttime = time.time()
     if only10:
         # 01/2022: updating parameters:
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, dolocal = dolocal, smooth=True)
+        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
+                defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
+                dolocal = dolocal, smooth=True, specmag = True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', smooth = smooth, prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', 
+                    smooth = smooth, prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres,
+                    add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, 
+                    cliparea_geo = cliparea_geo,  dolocal = dolocal, specmag = True)
         else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', 
+                prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, 
+                outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, 
+                smooth=smooth, specmag = True)
     else:
-        ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
+        ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, 
+                add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal, specmag = True)
         for i in [10, 5, 3]:
             if downtoml < i:
-                ifg_mla = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
+                ifg_mla = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', 
+                        prev_ramp = ifg_mlc['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, 
+                        rampit=True,  dolocal = dolocal, specmag = True)
                 ifg_mlc = ifg_mla.copy(deep=True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', prev_ramp = ifg_mlc['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal, smooth=smooth)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', 
+                    prev_ramp = ifg_mlc['unw'], defomax = defomax, thres = thres, add_resid = True, 
+                    hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal, 
+                    smooth=smooth, specmag = True)
         else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth)
+            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss',
+                    prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, 
+                    hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, 
+                    cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth, specmag = True)
     elapsed_time = time.time()-starttime
     hour = int(elapsed_time/3600)
     minite = int(np.mod((elapsed_time/60),60))
@@ -204,12 +221,13 @@ def filter_gold_float(intif, thres_m = 5):
     ml=10
     outif = intif.replace('.tif','.filtered.tif')
     azi = load_tif2xr(intif)
-    azi=azi.where(np.abs(azi)<thres_m)
-    azi = azi.coarsen({'lat': ml, 'lon': ml}, boundary='trim').median()
-    azi = goldstein_filter_xr(azi/redfac)[0]
-    azi.values = azi.values*redfac
-    azi=azi.interp_like(ifg, method='linear')
-    export_xr2tif(azi, outif)
+    azi2=azi.where(np.abs(azi)<thres_m).copy()
+    azi2 = azi2.coarsen({'lat': ml, 'lon': ml}, boundary='trim').median()
+    azi2 = goldstein_filter_xr(azi2/redfac)[0]
+    azi2.values = azi2.values*redfac
+    azi2=azi2.interp_like(azi, method='linear')
+    # azi2=azi2.interp_like(azi, method='nearest')
+    export_xr2tif(azi2, outif)
     return azi
 
 '''
@@ -282,7 +300,8 @@ ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = 1,
 """
 
 def process_ifg(frame, pair, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,
+        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, 
+        goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False, dolocal = False,
@@ -390,7 +409,8 @@ for p in pairs:
 
 
 def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), 
-        ml = 10, fillby = 'gauss', thres = 0.2, smooth = False, lowpass = True, goldstein = True, specmag = False,
+        ml = 10, fillby = 'gauss', thres = 0.2, 
+        smooth = False, lowpass = True, goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
@@ -421,7 +441,8 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         print('performing 1 step cascade')
         ml10=10*ml
         ifg_ml10 = process_ifg_core(ifg, 
-            ml = ml10, fillby = fillby, thres = thres, smooth = smooth, lowpass = lowpass, goldstein = goldstein, specmag = specmag,
+            ml = ml10, fillby = fillby, thres = 0.35, smooth = True, lowpass = lowpass,
+            goldstein = False, specmag = specmag,
             defomax = defomax, hgtcorr = hgtcorr, gacoscorr = gacoscorr, pre_detrend = pre_detrend,
             cliparea_geo = cliparea_geo, outtif = None, prevest = prevest, prev_ramp = prev_ramp,
             coh2var = coh2var, add_resid = False,  rampit=True, subtract_gacos = subtract_gacos,
@@ -756,15 +777,17 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
             bin_pre_remove = os.path.join(tmpdir,'prevest.rescaled.remove.bin')
             #binI_pre = os.path.join(tmpdir,'prevest.I.bin')
             # that is not the best we can do - need to change it
-            kernel = Gaussian2DKernel(x_stddev=2)
-            prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
+            ######## oh and actually, i will NOT FILTER PREVEST! (do it before if needed)
+            print('using prevest. not filtering prevest.')
+            #kernel = Gaussian2DKernel(x_stddev=2)
+            #prevest.values = interpolate_replace_nans(prevest.where(prevest != 0).values, kernel)
             #prevest.values = interpolate_replace_nans(prevest.values, kernel)
             # let's interpolate the (smaller?) prevest to ifg_ml shape
             prevest = prevest.interp_like(ifg_ml, method='linear')
             # in some cases it might still contain nans, so just.. interpolate them... how?:
             if np.max(np.isnan(prevest)):
-                method = 'linear'
-                #method = 'nearest'
+                #method = 'linear'
+                method = 'nearest'
                 prevest.values = interpolate_nans(prevest.values, method=method)
             #filling other nans to 0 - this can happen if null regions are too large (larger than the kernel accepts)
             #prevest.astype(np.float32).fillna(0).values.tofile(bin_pre)
@@ -1123,7 +1146,9 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                     procdir = os.path.join(os.getcwd(), pair)
                     if not dolocal:
                         if cascade:
-                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = procdir, only10 = only10, outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, cliparea_geo = cliparea_geo, dolocal=dolocal)
+                            ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = procdir, only10 = only10, 
+                                outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, 
+                                cliparea_geo = cliparea_geo, dolocal=dolocal)
                         else:
                             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
@@ -1947,7 +1972,7 @@ def remove_islands(npa, pixelsno = 50):
             npa[islands==i] = np.nan
     return npa
 
-
+# main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est
 def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', width = 0, est = None, bin_pre_remove = None, conncomp=False, defomax = 0.6, printout = True):
     '''Main function to perform unwrapping with snaphu.
     
