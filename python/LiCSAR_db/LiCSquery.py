@@ -1239,6 +1239,26 @@ def get_daz(polyid, epoch, getall = False):
         return res[0]
 
 
+def delete_esds_for_frame(frame, epoch = None, test=True):
+    """In case of removing a frame, ensure the esd values are also purged.
+    (by default, if epoch already exists in esd database, it would not be overwritten)
+    
+    Args:
+        frame (str): 	frame ID
+        epoch (str): 	epoch, e.g. '20210122'
+    """
+    if test:
+        print('do not use if you do not intend to fully recreate the frame, i.e. if esds are that bad')
+        return False
+    polyid = sqlout2list(get_frame_polyid(frame))[0]
+    if type(epoch) == type(None):
+        sql_q = "delete from esd where polyid={};".format(polyid)
+    else:
+        sql_q = "delete from esd where polyid={} and epoch='{}';".format(polyid, epoch)
+    res = do_query(sql_q, 1)
+    print('In total, {} records were deleted'.format(str(res)))
+    return res
+
 
 def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = False):
     """Function to import ESD (etc.) values to the database

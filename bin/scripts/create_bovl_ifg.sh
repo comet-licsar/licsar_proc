@@ -4,7 +4,7 @@
 
 if [ -z $1 ]; then 
  echo "USAGE: provide pair, and keep being in the frame folder"
- echo "e.g. licsar_offset_tracking_pair.sh 20230115_20230127 ... to do px offset tracking between those dates"
+ echo "e.g. create_bovl_ifg.sh 20230115_20230127 ... to generate bovl ddiff ifg between those dates"
  exit
 fi
 
