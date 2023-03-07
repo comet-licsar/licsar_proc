@@ -63,15 +63,19 @@ def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = Fals
         resol_m (float): output resolution in metres to have geocoding table ready in (note, RSLCs are anyway in full res)
     """
     if is_volc:
-        sid = 'volc/'+sid
+        sidpath = 'volc/'+sid
+    else:
+        sidpath = sid
     #
     resol=resol_m/111111 #0.00027
     #
     track=str(int(frame[0:3]))
     framedir = os.path.join(os.environ['LiCSAR_procdir'],track,frame)
-    subsetdir = os.path.join(os.environ['LiCSAR_procdir'],'subsets',sid,frame[:4])
+    subsetdir = os.path.join(os.environ['LiCSAR_procdir'],'subsets',sidpath,frame[:4])
     if os.path.exists(subsetdir):
         print('the subset directory exists. continuing anyway..')
+    if not os.path.exists(os.path.join(framedir, 'subsets')):
+        os.mkdir(os.path.join(framedir, 'subsets'))
     #
     # get median height
     print('getting median height')
@@ -88,6 +92,12 @@ def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = Fals
     print('initializing the subset')
     os.chdir(framedir)
     os.system(clipcmd)
+    if os.path.exists(subsetdir):
+        subsetlink = os.path.join(framedir, 'subsets', sid)
+        if not os.path.exists(subsetlink):
+            os.symlink(subsetdir, subsetlink)
+    else:
+        print('some error occurred and the output dir was not created')
     return
 
 

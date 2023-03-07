@@ -77,6 +77,7 @@ source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 dizdir=`pwd`
 frame=`basename $dizdir`
 demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
+#framedir=$LiCSAR_procdir/`track_from_frame $frame`/$frame
 if [ ! -d $demdir ]; then echo "something wrong with the frame "$frame". Fix this please"; exit; fi
 dempar=$demdir/dem_crop.dem_par
 master=`basename geo/20??????.hgt | cut -d '.' -f1`
@@ -231,6 +232,8 @@ if [ ! -d $geodir ]; then
 	
 	rm geo; rmdir GEOC #; mv GEOC GEOC.$resol_m'm'
 	cd $origdir
+	
+	
 fi
 
 if [ $process_clip == 1 ]; then
