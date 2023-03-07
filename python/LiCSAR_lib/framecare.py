@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import LiCSAR_lib.LiCSAR_misc as misc
 import s1data as s1
 gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
+import rioxarray
 
 pubdir = os.environ['LiCSAR_public']
 procdir = os.environ['LiCSAR_procdir']
@@ -48,6 +49,71 @@ for i,j in aa.iterrows():
     #time.sleep(0.25)
 
 '''
+
+def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = False, resol_m=30):
+    """This will initialise a subset given by corner lon/lat-s.
+    The results will be stored in $LiCSAR_procdir/subsets
+    
+    Args:
+        frame (str): frame ID,
+        lon1, lon2 (float, float): corner longitudes (sort them please),
+        lat1, lat2 (float, float): corner latitudes (sort them please),
+        sid (str):  string ID (for volcano, use its volcano ID number)
+        is_volc (bool): if true, it will set the output folder $LiCSAR_procdir/subsets/volc
+        resol_m (float): output resolution in metres to have geocoding table ready in (note, RSLCs are anyway in full res)
+    """
+    if is_volc:
+        sid = 'volc/'+sid
+    #
+    resol=resol_m/111111 #0.00027
+    #
+    track=str(int(frame[0:3]))
+    framedir = os.path.join(os.environ['LiCSAR_procdir'],track,frame)
+    subsetdir = os.path.join(os.environ['LiCSAR_procdir'],'subsets',sid,frame[:4])
+    if os.path.exists(subsetdir):
+        print('the subset directory exists. continuing anyway..')
+    #
+    # get median height
+    print('getting median height')
+    hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif')
+    a=rioxarray.open_rasterio(hgt)
+    medhgt=round(float(a.sel(x=(lon1,lon2), y=(lat1, lat2), method='nearest').median()))
+    print('... as {} m'.format(str(medhgt)))
+    #
+    # running the clipping in init-only mode
+    clipcmd = "clip_slc.sh "+subsetdir+" "+str(lon1)+" "+str(lon2)+" "
+    clipcmd =     clipcmd   +str(lat1)+" "+str(lat2)+" "
+    clipcmd =     clipcmd   +str(medhgt)+" "+str(resol)+" 0 1"
+    #
+    print('initializing the subset')
+    os.chdir(framedir)
+    os.system(clipcmd)
+    return
+
+
+def subset_initialise_centre_coords(frame, clon, clat, sid, is_volc = False, radius = 25/2, resol_m=30):
+    """This will initialise a subset given by centre lon/lat and radius in km.
+    The results will be stored in $LiCSAR_procdir/subsets
+    
+    Args:
+        frame (str): frame ID,
+        clon (float): centre longitude,
+        clat (float): centre latitude,
+        sid (str):  string ID (for volcano, use its volcano ID number)
+        is_volc (bool): if true, it will set the output folder $LiCSAR_procdir/subsets/volc
+        radius (float): radius (half of the diameter) of the subset scene, in km
+        resol_m (float): output resolution in metres to have geocoding table ready in (note, RSLCs are anyway in full res)
+    """
+    
+    # BASICS
+    radius_deg=radius_km/111
+    lon1=lon-radius_deg
+    lon2=lon+radius_deg
+    lat1=lat-radius_deg
+    lat2=lat+radius_deg
+    subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = False, resol_m=30)
+    return
+
 
 def check_and_fix_burst(mburst, framebursts):
     # to get mbursts of a zip file, e.g.:
