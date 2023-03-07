@@ -236,12 +236,12 @@ if [ ! -d $geodir ]; then
 	
 fi
 
-if [ $process_clip == 1 ]; then
+if [ $process_rslcs == 1 ]; then
 	echo "performing full clipping"
 	# ok, now clip the mosaics
 
 	for x in `ls RSLC | grep 20`; do 
-	 if [ -d RSLC/$x/$x.rslc ]; then
+	 if [ -f RSLC/$x/$x.rslc ]; then
 	 if [ ! -d $outdir/RSLC/$x ]; then
 	   echo "clipping "$x
 	   mkdir -p $outdir/RSLC/$x
