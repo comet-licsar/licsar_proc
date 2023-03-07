@@ -56,8 +56,8 @@ def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = Fals
     
     Args:
         frame (str): frame ID,
-        lon1, lon2 (float, float): corner longitudes (sort them please),
-        lat1, lat2 (float, float): corner latitudes (sort them please),
+        lon1, lon2 (float, float): corner longitudes,
+        lat1, lat2 (float, float): corner latitudes,
         sid (str):  string ID (for volcano, use its volcano ID number)
         is_volc (bool): if true, it will set the output folder $LiCSAR_procdir/subsets/volc
         resol_m (float): output resolution in metres to have geocoding table ready in (note, RSLCs are anyway in full res)
@@ -68,6 +68,10 @@ def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = Fals
         sidpath = sid
     #
     resol=resol_m/111111 #0.00027
+    resol=round(resol,6)
+    # sort the coordinates
+    lon1,lon2=sorted([lon1,lon2])
+    lat1,lat2=sorted([lat1,lat2])
     #
     track=str(int(frame[0:3]))
     framedir = os.path.join(os.environ['LiCSAR_procdir'],track,frame)
@@ -81,7 +85,9 @@ def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = Fals
     print('getting median height')
     hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif')
     a=rioxarray.open_rasterio(hgt)
-    medhgt=round(float(a.sel(x=(lon1,lon2), y=(lat1, lat2), method='nearest').median()))
+    a=a.sortby(['x','y'])
+    medhgt=round(float(a.sel(x=slice(lon1,lon2), y=slice(lat1, lat2)).median()))
+    #medhgt=round(float(a.sel(x=(lon1,lon2), y=(lat1, lat2), method='nearest').median()))
     print('... as {} m'.format(str(medhgt)))
     #
     # running the clipping in init-only mode
