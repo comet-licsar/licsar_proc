@@ -45,7 +45,7 @@
 export LiCSAR_subsets=$LiCSAR_procdir/subsets
 
 # ok, now time to generate ifgs and unws
-echo "warning, the outfolder should be unique name (sorry for that, it is due to ifg generator) - so use e.g. VOLCID_008A etc."
+#echo "warning, the outfolder should be unique name (sorry for that, it is due to ifg generator) - so use e.g. VOLCID_008A etc."
 if [ -z $7 ]; then echo "parameters are:";
 echo "clip_slc.sh OUTFOLDER lon1 lon2 lat1 lat2 hei resolution [process_ifg] [init_only]"
 echo "so e.g. clip_slc.sh CLIPPED -28.36 -27.3 38.49 38.8 600 0.00027 [1] [0]"
@@ -83,9 +83,8 @@ dempar=$demdir/dem_crop.dem_par
 master=`basename geo/20??????.hgt | cut -d '.' -f1`
 tmpdir=$LiCSAR_temp/$frame/temp
 
-slc=`ls SLC/$master/$master.slc 2>/dev/null`
-slcpar=$slc.par
-if [ ! -f $slcpar ]; then echo "the folder "$1" seems empty, or no mosaic exists - exiting"; exit; fi
+slcpar=SLC/$master/$master.slc.par
+if [ ! -f $slcpar ]; then echo "the folder is empty, or no mosaic of ref epoch exists - exiting"; exit; fi
 
 #'clip_slc.sh 72.510 72.845 38.130 38.365 3934 0.00027'
 #/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/SAREZ/005D
@@ -149,7 +148,8 @@ let rgdiff=rg2-rg1+1
 
 if [ ! -f $outdir/RSLC/$master/$master.rslc ]; then
  mkdir -p $outdir/RSLC/$master
- # slc here is the master slc (see above)
+ # slc here is the master slc
+ slc=`ls SLC/$master/$master.slc 2>/dev/null`
  if [ -z $slc ]; then 
 	 mkdir -p $tmpdir
 	 slc=$tmpdir/SLC/$master/$master.slc

@@ -48,6 +48,16 @@ for i,j in aa.iterrows():
     res = store_burst_geom(j[0], int(j[1][-1]), j[2], j[3], j[4][0], j[5].wkt)
     #time.sleep(0.25)
 
+lon1=72.510
+lon2=72.845
+lat1=38.130
+lat2=38.365
+resol_m=30
+frame='100A_05236_141313'
+sid='SAREZ'
+fc.subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid)
+
+
 '''
 
 def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = False, resol_m=30):
@@ -91,12 +101,14 @@ def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = Fals
     print('... as {} m'.format(str(medhgt)))
     #
     # running the clipping in init-only mode
-    clipcmd = "clip_slc.sh "+subsetdir+" "+str(lon1)+" "+str(lon2)+" "
+    clipcmd = "cd "+framedir+"; "
+    clipcmd = clipcmd + "clip_slc.sh "+subsetdir+" "+str(lon1)+" "+str(lon2)+" "
     clipcmd =     clipcmd   +str(lat1)+" "+str(lat2)+" "
     clipcmd =     clipcmd   +str(medhgt)+" "+str(resol)+" 0 1"
     #
     print('initializing the subset')
     os.chdir(framedir)
+    print(clipcmd)
     os.system(clipcmd)
     if os.path.exists(subsetdir):
         subsetlink = os.path.join(framedir, 'subsets', sid)
