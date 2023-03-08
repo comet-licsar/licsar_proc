@@ -158,7 +158,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
         # 01/2022: updating parameters:
         ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
                 defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
-                dolocal = dolocal, smooth=True, specmag = True)
+                dolocal = dolocal, smooth=True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', 
@@ -523,6 +523,7 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
         if not type(prev_ramp) == type(None):
             prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
+    # resultant 'pha' is after the removal of the 'toremove' (unw) phase
     ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug)
     width = len(ifg_ml.lon)
     length = len(ifg_ml.lat)
