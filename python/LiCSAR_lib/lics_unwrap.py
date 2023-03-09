@@ -524,6 +524,13 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
             prev_ramp = prev_ramp.sel(lon=slice(minclipx-10*resdeg, maxclipx+10*resdeg), lat=slice(maxclipy+10*resdeg, minclipy-10*resdeg))
     #WARNING - ONLY THIS FUNCTION HAS GACOS INCLUDED NOW! (and heights fix!!!)
     # resultant 'pha' is after the removal of the 'toremove' (unw) phase
+    if type(prevest) != type(None):
+        if goldstein:
+            print('experimental - prevest will be first removed, not directly sent to snaphu - results might differ')
+            if type(prev_ramp) != type(None):
+                print('WARNING: prev_ramp is also set. will NOT use prevest at all')
+            else:
+                prev_ramp = prevest
     ifg_ml = multilook_normalised(ifg, ml, tmpdir = tmpdir, hgtcorr = hgtcorr, pre_detrend = pre_detrend, prev_ramp = prev_ramp, keep_coh_debug = keep_coh_debug)
     width = len(ifg_ml.lon)
     length = len(ifg_ml.lat)
@@ -604,10 +611,10 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
             coh = sp
         mask=ifg_ml['mask_full'].fillna(0).values
         print('unwrapping filtered phase')
-        print('debug:')
-        print(type(cpx))
-        print(type(coh))
-        print(type(mask))
+        #print('debug:')
+        #print(type(cpx))
+        #print(type(coh))
+        #print(type(mask))
         unw,conncomp =unwrap_np(cpx,coh,defomax=0.6,tmpdir=tmpunwdir,mask=mask,conncomp=True, deltemp=True)
         ifg_ml['unw']=ifg_ml['pha']
         ifg_ml['conncomp'] = ifg_ml['pha']
@@ -742,10 +749,9 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
         #ifg_ml = filter_ifg_ml(ifg_ml, radius = 1500)
         ifg_ml = filter_ifg_ml(ifg_ml, radius = radius)
         ifg_ml['pha'] = ifg_ml['gauss_pha']
-    if goldstein:
-        # i did unw before...
-        print('goldstein is in use - need to update it to have prevest possible..')
-    else:
+    #
+    # i did unw before...
+    if not goldstein:
         #exporting for snaphu
         #normalise mag from the final pha
         tempar_mag1 = np.ones_like(ifg_ml.pha)
