@@ -8,6 +8,7 @@ if [ -z $1 ]; then
  exit
 fi
 
+filterit=0
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 m=`echo $1 | cut -d '_' -f1`
@@ -55,48 +56,55 @@ SLC_intf $movlfile.fwd.slc $sovlfile.fwd.slc $movlfile.fwd.slc.par $sovlfile.fwd
 width=`get_value IFG/$pair/ovbwd.offset interferogram_width`
 widthgeo=`get_value geo/EQA.dem_par width`
 
-adf IFG/$pair/bwd.ifg IFG/$pair/bwd.adf.ifg IFG/$pair/bwd.adf.cc $width 1 - - - - - -
-adf IFG/$pair/fwd.ifg IFG/$pair/fwd.adf.ifg IFG/$pair/fwd.adf.cc $width 1 - - - - - -
-# to clean - not needed
-rm IFG/$pair/?wd.adf.cc
-
+#if [ $filterit == 1 ]; then
+# adf IFG/$pair/bwd.ifg IFG/$pair/bwd.adf.ifg IFG/$pair/bwd.adf.cc $width 1 - - - - - -
+# adf IFG/$pair/fwd.ifg IFG/$pair/fwd.adf.ifg IFG/$pair/fwd.adf.cc $width 1 - - - - - -
+ # to clean - not needed
+# rm IFG/$pair/?wd.adf.cc
+#fi
 #5. Make their double difference
 
-#python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.ifg', np.complex64).byteswap(); b=np.fromfile('"IFG/$pair/"bwd.ifg', np.complex64).byteswap(); c = a*np.conj(b);  c.byteswap().tofile('"IFG/$pair/"ddiff')"
+python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.ifg', np.complex64).byteswap(); b=np.fromfile('"IFG/$pair/"bwd.ifg', np.complex64).byteswap(); c = a*np.conj(b);  c.byteswap().tofile('"IFG/$pair/"ddiff')"
 # now, ddiff is after adf (!)
-python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.adf.ifg', np.complex64).byteswap(); b=np.fromfile('"IFG/$pair/"bwd.adf.ifg', np.complex64).byteswap(); c = a*np.conj(b);  c.byteswap().tofile('"IFG/$pair/"ddiff')"
-
-#5.2 Make adf double difference 
-
-#adf IFG/$pair/ddiff.adf IFG/$pair/ddiff.adf.adf IFG/$pair/ddiff.adf.adf.cc $width 1 - - - - - -
-adf IFG/$pair/ddiff IFG/$pair/ddiff.adf IFG/$pair/ddiff.adf.cc $width 1 - - - - - -
+#python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.adf.ifg', np.complex64).byteswap(); b=np.fromfile('"IFG/$pair/"bwd.adf.ifg', np.complex64).byteswap(); c = a*np.conj(b);  c.byteswap().tofile('"IFG/$pair/"ddiff')"
 
 
-#6. To create coherence
-
-# width=3447
-# cc_wave ddiff RSLC/20230117/20230117.rslc.mli RSLC/20230129/20230129.rslc.mli ddiff_coh $width
-
+if [ $filterit == 1 ]; then
+ #5.2 Make adf double difference 
+ #adf IFG/$pair/ddiff.adf IFG/$pair/ddiff.adf.adf IFG/$pair/ddiff.adf.adf.cc $width 1 - - - - - -
+ adf IFG/$pair/ddiff IFG/$pair/ddiff.adf IFG/$pair/ddiff_coh $width 1 - - - - - -
+else
+ #6. To create coherence
+ # width=3447 
+ cc_wave IFG/$pair/ddiff RSLC/$m/$m.rslc.mli RSLC/$s/$s.rslc.mli IFG/$pair/ddiff_coh $width
+fi
 
 #7. create geotiffs
 #width=`get_value RSLC/$master/$master.rslc.mli.par range_samples`
 #width=`get_value IFG/$pair/ovbwd.offset interferogram_width`
 #widthgeo=`get_value geo/EQA.dem_par width`
 
-#cpx_to_real IFG/$pair/ddiff IFG/$pair/ddiff_pha $width 4
-cpx_to_real IFG/$pair/ddiff.adf IFG/$pair/ddiff_pha.adf $width 4
-
+#
+if [ $filterit == 1 ]; then
+ cpx_to_real IFG/$pair/ddiff.adf IFG/$pair/ddiff_pha $width 4
+else
+ cpx_to_real IFG/$pair/ddiff IFG/$pair/ddiff_pha $width 4
+fi
 mkdir -p GEOC/$pair
-#geocode_back ddiff_coh $width geo/20220919.lt_fine ddiff_coh.geo 3867 - 0 0
-#geocode_back IFG/$pair/ddiff_pha $width geo/$master.lt_fine GEOC/$pair/ddiff_pha.geo $widthgeo - 0 0
-geocode_back IFG/$pair/ddiff_pha.adf $width geo/$master.lt_fine IFG/$pair/ddiff_pha.adf.geo $widthgeo - 0 0
-#data2geotiff geo/EQA.dem_par ddiff_coh.geo 2 ddiff_coh.geo.tif 0.0
-#data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
-data2geotiff geo/EQA.dem_par IFG/$pair/ddiff_pha.adf.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
+geocode_back IFG/$pair/ddiff_coh $width geo/$master.lt_fine GEOC/$pair/ddiff_coh.geo $widthgeo - 0 0
+geocode_back IFG/$pair/ddiff_pha $width geo/$master.lt_fine GEOC/$pair/ddiff_pha.geo $widthgeo - 0 0
+#geocode_back IFG/$pair/ddiff_pha.adf $width geo/$master.lt_fine IFG/$pair/ddiff_pha.adf.geo $widthgeo - 0 0
+if [ $filterit == 1 ]; then
+ data2geotiff geo/EQA.dem_par IFG/$pair/ddiff.adf.cc.geo 2 GEOC/$pair/$pair.bovldiff.adf.cc.geo.tif 0.0
+else
+ data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_coh.geo 2 GEOC/$pair/$pair.geo.bovldiff.cc.geo.tif 0.0
+fi
+data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
+#data2geotiff geo/EQA.dem_par IFG/$pair/ddiff_pha.adf.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
 
 ## cc
-geocode_back IFG/$pair/ddiff.adf.cc $width geo/$master.lt_fine IFG/$pair/ddiff.adf.cc.geo $widthgeo - 0 0
-data2geotiff geo/EQA.dem_par IFG/$pair/ddiff.adf.cc.geo 2 GEOC/$pair/$pair.bovldiff.adf.cc.geo.tif 0.0
+#geocode_back IFG/$pair/ddiff.adf.cc $width geo/$master.lt_fine IFG/$pair/ddiff.adf.cc.geo $widthgeo - 0 0
+#data2geotiff geo/EQA.dem_par IFG/$pair/ddiff.adf.cc.geo 2 GEOC/$pair/$pair.bovldiff.adf.cc.geo.tif 0.0
 
 
 #8. create preview
