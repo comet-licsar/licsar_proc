@@ -129,7 +129,7 @@ class UnwOptions(object):
         for x in self.__dict__.items():
             print(x[0]+': '+str(x[1]))
 '''
-def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
+def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldstein = True,
                    only10 = True, smooth = False, thres=0.3, hgtcorr = True, defomax = 0.3,
                    outtif = None, cliparea_geo = None, subtract_gacos = False, dolocal = False):
     """Main function to unwrap a geocoded LiCSAR interferogram using a cascade approach.
@@ -140,6 +140,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
         downtoml (int): target multilook factor (default: 1, no extra multilooking)
         procdir (string): path to processing directory
         only10 (boolean): switch to use only 1 previous ramp, scaled 10x to the downtoml, instead of few cascades
+        finalgoldstein (boolean): switch to use Goldstein filter for the final unwrapping pass (ON by default)
         smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
         
@@ -158,37 +159,37 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(),
         # 01/2022: updating parameters:
         ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
                 defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
-                dolocal = dolocal, smooth=True)
+                dolocal = dolocal, smooth=True, goldstein = False)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', 
                     smooth = smooth, prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres,
                     add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, 
-                    cliparea_geo = cliparea_geo,  dolocal = dolocal, specmag = True)
+                    cliparea_geo = cliparea_geo,  dolocal = dolocal, specmag = True, goldstein = finalgoldstein)
         else:
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', 
                 prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, 
                 outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, 
-                smooth=smooth, specmag = True)
+                smooth=smooth, specmag = True, goldstein=finalgoldstein)
     else:
         ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, 
-                add_resid = False, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal, specmag = True)
+                add_resid = False, goldstein = False, smooth = True, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
         for i in [10, 5, 3]:
             if downtoml < i:
                 ifg_mla = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', 
                         prev_ramp = ifg_mlc['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, 
-                        rampit=True,  dolocal = dolocal, specmag = True)
+                        rampit=True,  dolocal = dolocal, goldstein = False, smooth = True)
                 ifg_mlc = ifg_mla.copy(deep=True)
         if downtoml == 1:
             # avoiding gauss proc, as seems heavy for memory
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', 
                     prev_ramp = ifg_mlc['unw'], defomax = defomax, thres = thres, add_resid = True, 
                     hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal, 
-                    smooth=smooth, specmag = True)
+                    smooth=smooth, specmag = True, goldstein=finalgoldstein)
         else:
             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss',
                     prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, 
-                    hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, 
+                    hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, goldstein=finalgoldstein,
                     cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth, specmag = True)
     elapsed_time = time.time()-starttime
     hour = int(elapsed_time/3600)
