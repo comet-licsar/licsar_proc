@@ -47,8 +47,8 @@ fi
 #echo 'bbbb'$epoch'bbbb'
 #echo "ls -d $pubdir/*/*$epoch*"
 
-for dir in $pubdir $procdir; do
+for dir in $pubdir/epochs $pubdir/interferograms $procdir/log $procdir/tab $procdir/LUT $procdir/RSLC; do
  echo "deleting:"
- ls -d $dir/*/*$epoch* 2>/dev/null
- rm -rf $dir/*/*$epoch*
+ ls -d $dir/*$epoch* 2>/dev/null
+ rm -rf $dir/*$epoch* 2>/dev/null
 done
