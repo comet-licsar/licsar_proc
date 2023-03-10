@@ -18,6 +18,7 @@ def pyC_zip2slc(zipfilepath):
 
   # Identify the annotation files containing the coordinates of the bursts
   list_annfile=['annotation/s1.-iw1-slc-vv', 'annotation/s1.-iw2-slc-vv', 'annotation/s1.-iw3-slc-vv']
+  list_annfile=list_annfile+['annotation/s1.-iw1-slc-hh', 'annotation/s1.-iw2-slc-hh', 'annotation/s1.-iw3-slc-hh']
   for fnames in zfile.namelist(): # Loop over all fileanames within the zip file
     # Reset the lo and la lists 
     lo=[];  la=[];
@@ -56,7 +57,7 @@ def pyC_zip2slc(zipfilepath):
 def usage():
   print("""
 ### Read a zip file and extract lonmin/lonmax/latmin/latmax coordinates v1.0 21-Oct-2015 PJG'  
-  
+  # 2023: little update to ingest also HH zip files - but note polarisation info is not stored. ML
 zipSAFE_2_SLCbb.py
   Program output coordinates of bounding box for long and latitude encompassing all bursts.
   
