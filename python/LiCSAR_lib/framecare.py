@@ -121,14 +121,14 @@ def subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid, is_volc = Fals
 
 def subset_initialise_centre_coords(frame, clon, clat, sid, is_volc = False, radius = 25/2, resol_m=30):
     """This will initialise a subset given by centre lon/lat and radius in km.
-    The results will be stored in $LiCSAR_procdir/subsets
+    The results will be stored in \$LiCSAR_procdir/subsets
     
     Args:
         frame (str): frame ID,
         clon (float): centre longitude,
         clat (float): centre latitude,
         sid (str):  string ID (for volcano, use its volcano ID number)
-        is_volc (bool): if true, it will set the output folder $LiCSAR_procdir/subsets/volc
+        is_volc (bool): if true, it will set the output folder \$LiCSAR_procdir/subsets/volc
         radius (float): radius (half of the diameter) of the subset scene, in km
         resol_m (float): output resolution in metres to have geocoding table ready in (note, RSLCs are anyway in full res)
     """
@@ -566,6 +566,8 @@ def reingest_file(fileid):
 
 
 def ingest_file_to_licsinfo(filepath, isfullpath = True):
+    """ Will ingest a S1 SLC zip file to the LiCSInfo database.
+    If filepath is only filename, it will try find this file in neodc or LiCSAR_SLC"""
     if not isfullpath:
         filepath = s1.get_neodc_path_images(filepath, file_or_meta = True)[0]
     if not os.path.exists(filepath):
@@ -573,21 +575,24 @@ def ingest_file_to_licsinfo(filepath, isfullpath = True):
         if not os.path.exists(filepath):
             print('ERROR - this file does not exist')
             return False
+        aaaa = subp.check_output(['arch2DB.py','-f',filepath])
     else:
         #cmd = 'arch2DB.py -f {} >/dev/null 2>/dev/null'.format(filepath)
         #cmd = 'arch2DB.py -f {}'.format(filepath)
         #rc = os.system(cmd)
         aaaa = subp.check_output(['arch2DB.py','-f',filepath])
-        return len(aaaa)
+    return len(aaaa)
 
 
 def get_bidtanxs_from_xy(lon,lat,relorb=None,swath=None, tol=0.05):
+    """Gets bursts in given coordinates (and optionally in given track or swath)"""
     bursts = lq.get_bursts_in_xy(lon,lat,relorb,swath,tol)
     bursts = lq.sqlout2list(bursts)
     return bursts
 
 
 def get_bidtanxs_from_xy_file(intxt, relorb = None):
+    """Gets bursts in polygon given by the xy text file."""
     if not os.path.exists(intxt):
         print('ERROR, the file does not exist')
         return False
@@ -599,6 +604,7 @@ def get_bidtanxs_from_xy_file(intxt, relorb = None):
 
 
 def make_bperp_file(frame, bperp_file):
+    """Creates baselines file for given frame, by requesting info from ASF"""
     mid = get_master(frame, asfilenames = True)
     if not mid:
         return False
@@ -629,7 +635,6 @@ def get_master(frame, asfilenames = False, asdate = False, asdatetime = False, m
         except:
             print('error finding zip files in the frame SLC directory')
             return False
-        
     if asdate:
         a = masterdate
         masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
@@ -670,7 +675,7 @@ def get_frame_master_s1ab(frame, metafile = None):
 
 
 def vis_aoi(aoi):
-    # to visualize a polygon element ('aoi')
+    """to visualize a polygon element ('aoi')"""
     crs = {'init': 'epsg:4326'}
     if type(aoi)==list:
         aoi_gpd = gpd.GeoDataFrame(crs=crs, geometry=aoi)
@@ -688,6 +693,7 @@ def vis_aoi(aoi):
     plt.show()
 
 def vis_bidtanxs(bidtanxs):
+    """Visualize list of bursts (use bidtanx id, i.e. e.g. '73_IW1_1234')"""
     tovis = []
     for bid in bidtanxs:
         tovis.append(lq.get_polygon_from_bidtanx(bid))
@@ -695,6 +701,7 @@ def vis_bidtanxs(bidtanxs):
 
 
 def vis_frame(frame):
+    """Visualize frame ID"""
     ai = lq.get_bursts_in_frame(frame)
     bidtanxs = lq.sqlout2list(ai)
     vis_bidtanxs(bidtanxs)
@@ -796,9 +803,9 @@ def frame2geopandas_brute(frame):
     return gpan
 
 def rename_frame_main(framename,newname, reportcsv = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/frameid_changes.txt'):
-    '''
+    """
     this function will physically rename a frame (and move folders etc.) - oh, but it doesn't touch the frame def in database! for this, use lq.rename_frame
-    '''
+    """
     track = str(int(framename[0:3]))
     pubpath = os.path.join(pubdir,track,framename)
     procpath = os.path.join(procdir,track,framename)
@@ -1067,9 +1074,9 @@ def generate_frame_name(bidtanxs):
     return polyid_name
 
 def generate_new_frame(bidtanxs,testonly = True, hicode = None):
-    '''
+    """
     hicode... use 'H' for high resolution (1/5 multilook), or 'M' for medium, i.e. 56 m
-    '''
+    """
     #and now i can generate the new frame:
     track = bidtanxs[0].split('_')[0]
     orbdir = lq.get_orbdir_from_bidtanx(bidtanxs[0])
