@@ -71,6 +71,8 @@ def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery, mid
     Checks if masterdate was acquired, and if all bursts were acquired on master
     date. Returns greater than 0 if bursts can be found.
     """
+    if type(dates) == type(None):
+        dates = [masterdate]
     if masterdate in dates:
         masterburstlist = licsQuery.get_frame_bursts_on_date( framename,
                 masterdate )
@@ -109,11 +111,11 @@ def check_master_bursts( framename, burstlist, masterdate, dates, licsQuery, mid
             return 1
     else:
         print('\nERROR:', file=sys.stderr)
-        print('Masterdate not in date list. Please select a '\
-                            'more appropriate master.', file=sys.stderr)
+        print('Reference epoch not in date list. Please select a '\
+                            'more appropriate epoch to be used as reference.', file=sys.stderr)
         print('Exiting.', file=sys.stderr)
         return 1
-    print('master bursts checked ok!')
+    print('No bursts missing')
     return 0
 
 ################################################################################
