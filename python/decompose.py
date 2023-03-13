@@ -106,7 +106,11 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
                 vel = framedata[0].sel(year = year).values
                 annualset.append((vel, framedata[1], framedata[2]))
             print('decomposing year '+str(year))
-            vU, vE = decompose_np_multi(annualset) #, beta = 0)
+            try:
+                vU, vE = decompose_np_multi(annualset) #, beta = 0)
+            except:
+                print('error decomposing, setting nans')
+                vU, vE = np.nan, np.nan
             vUxr.loc[year,:,:] = vU
             vExr.loc[year,:,:] = vE
         dec['vU'] = vUxr
