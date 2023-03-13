@@ -98,8 +98,8 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
                     if year not in yearst:
                         years.remove(year)
         # ok, now then decompose the annuals per year
-        vUxr = frameset[0][0].sel(year = years).copy().rename('vU')
-        vExr = frameset[0][0].sel(year = years).copy().rename('vE')
+        vUxr = frameset[0][0].sel(year = years).copy().rename('vU')*0
+        vExr = frameset[0][0].sel(year = years).copy().rename('vE')*0
         for year in years:
             annualset = []
             for framedata in frameset:
@@ -108,11 +108,10 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
             print('decomposing year '+str(year))
             try:
                 vU, vE = decompose_np_multi(annualset) #, beta = 0)
+                vUxr.loc[year,:,:] = vU
+                vExr.loc[year,:,:] = vE
             except:
                 print('error decomposing, setting nans')
-                vU, vE = np.nan, np.nan
-            vUxr.loc[year,:,:] = vU
-            vExr.loc[year,:,:] = vE
         dec['vU'] = vUxr
         dec['vE'] = vExr
     if extract_cum:
@@ -350,10 +349,14 @@ def decompose_np_multi(input_data, beta = 0):
                     G = np.vstack([Us[:,ii,jj], Es[:,ii,jj]]).T
                 # solve the linear system for the Up and East velocities
                 #m = np.linalg.solve(G, d)
-                m = np.linalg.lstsq(G, d)[0]
-                # save to arrays
-                vel_U[ii,jj] = m[0]
-                vel_E[ii,jj] = m[1]
+                try:
+                    m = np.linalg.lstsq(G, d)[0]
+                    # save to arrays
+                    vel_U[ii,jj] = m[0]
+                    vel_E[ii,jj] = m[1]
+                except:
+                    vel_U[ii,jj] = np.nan
+                    vel_E[ii,jj] = np.nan
     return vel_U, vel_E
 
 
