@@ -122,7 +122,7 @@ done
 shift $((OPTIND -1))
 
 if [ $nproc -gt 1 ]; then
- if [ que == 'short-serial' ]; then
+ if [ $que == 'short-serial' ]; then
   que='par-single';
  fi 
 fi
