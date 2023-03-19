@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from libcomcat.search import search,count,get_event_by_id
 import pandas as pd
 from LiCSAR_lib.s1data import get_images_for_frame
-import LiCSAR_lib.framecare as fc
+import framecare as fc
 import numpy as np
 import LiCSAR_lib.LiCSAR_misc as misc
 import framecare as fc
