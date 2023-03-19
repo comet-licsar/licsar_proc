@@ -54,12 +54,13 @@ def get_range_from_magnitude(M, depth, unit = 'km'):
         distance = 2500
     else:
         distance = eq_limits.query('magnitude == {0} and depth >= {1}'.format(M,depth))['distance']
-        distance = float(distance)
-        if len(distance)>0:
+        try:
+            distance = float(distance)
+            #if len(distance)>0:
             #distance = int(distance.to_string().split()[1])
             # 2023 update: will make 2x smaller radius to search for frames
             distance = int(distance.to_string().split()[1]/2)
-        else:
+        except:
             distance = None
             #print('The earthquake parameters do not fit with the limit table - it will not be processed')
     #rad or km?
