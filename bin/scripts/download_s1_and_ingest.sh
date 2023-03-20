@@ -7,5 +7,5 @@ zipf=$1
 
 cd $LiCSAR_SLC
 wget_alaska $zipf
-arch2DB -f `pwd`/$zipf
+arch2DB.py -f `pwd`/$zipf
 cd -
