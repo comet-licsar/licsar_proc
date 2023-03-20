@@ -73,3 +73,8 @@ def df2nc(df, outncfile = None, resol = 0.0025, extracols = []):
         nc.to_netcdf(outncfile, encoding=encode)
     return nc
 
+
+'''
+def invert_ts_custom(cube, timestamps):
+    
+'''
