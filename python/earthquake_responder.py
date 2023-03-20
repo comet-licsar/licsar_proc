@@ -59,7 +59,8 @@ def get_range_from_magnitude(M, depth, unit = 'km'):
             #if len(distance)>0:
             #distance = int(distance.to_string().split()[1])
             # 2023 update: will make 2x smaller radius to search for frames
-            distance = int(distance.to_string().split()[1]/2)
+            #distance = int(distance.to_string().split()[1]/2)
+            distance = distance/2
         except:
             distance = None
             #print('The earthquake parameters do not fit with the limit table - it will not be processed')
@@ -67,6 +68,7 @@ def get_range_from_magnitude(M, depth, unit = 'km'):
     if unit == 'rad' and distance is not None:
         distance = (360.0 / 40007.86) * distance
     return distance
+
 
 def create_eq_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'):
     #get all eqs
@@ -693,6 +695,8 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
         print('No frames are available for the event {0}'.format(event.id))
         return False
     eqid = import_to_licsinfo_eq(event, active = makeactive)
+    if not eqid:
+        eqid = lq.get_eqid(event.id)
     for frame in frames:
         rc = import_to_licsinfo_eq2frame(eqid, event, frame[0], active = makeactive)
     if step == 1:
