@@ -203,14 +203,18 @@ def get_cliparea_xr(xrd):
     return str(float(xrd.lon.min()))+'/'+str(float(xrd.lon.max()))+'/'+str(float(xrd.lat.min()))+'/'+str(float(xrd.lat.max()))
 
 
-def mm2rad_s1(inmm):
+def mm2rad_s1(inmm, rad2mm=False):
     """Converts from mm to radians (for Sentinel-1)
     """
     speed_of_light = 299792458 #m/s
     radar_freq = 5.405e9  #for S1
     wavelength = speed_of_light/radar_freq #meter
     coef_r2m = wavelength/4/np.pi*1000 #rad -> mm,
-    outrad = inmm/coef_r2m
+    if rad2mm:
+        # apologies for the inmm/outrad naming
+        outrad = inmm*coef_r2m
+    else:
+        outrad = inmm/coef_r2m
     return outrad
 
 
@@ -596,12 +600,12 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
         # no gapfilling here! but then it gets wrong... so.. gapfilling:
         print('gapfilling')
         tofillpha = ifg_ml.filtpha.where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
-        #pha2unw = interpolate_nans(tofillpha.values, method='nearest')   # this takes 2 min 24 s for ml1
+        pha2unw = interpolate_nans(tofillpha.values, method='nearest')   # this takes 2 min 24 s for ml1 -- but will keep it anyway, as rio needs coord sys
         #pha2unw = interpolate_nans(tofillpha.values, method='nearest')
         # just some extra prep, for rioxarray (makes things bit faster!):
-        tofillpha = tofillpha.rio.write_nodata(np.nan)
-        tofillpha = tofillpha.rio.set_spatial_dims(x_dim='lon', y_dim='lat')
-        pha2unw = tofillpha.rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - UPDATED rio: now we can choose value of nan
+        #tofillpha = tofillpha.rio.write_nodata(np.nan)
+        #tofillpha = tofillpha.rio.set_spatial_dims(x_dim='lon', y_dim='lat')
+        #pha2unw = tofillpha.rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - UPDATED rio: now we can choose value of nan
         cpx = pha2cpx(pha2unw.values)
         #coh = sp  # actually ,let's use the phasediff if we use specmag...
         if not specmag:
@@ -1491,6 +1495,29 @@ def get_resolution(ifg, in_m=True):
     else:
         return float(resdeg)
 
+
+def load_from_nparrays(inpha,incoh):
+    if incoh.max() > 2:
+        incoh = incoh/255
+    inmask = incoh.copy()
+    inmask = np.byte(incoh > 0.05)
+    ifg = xr.Dataset()
+    ifgpha=xr.DataArray(inpha)
+    ifgpha = xr.DataArray(
+        data=ifgpha.values,
+        dims=["y", "x"],
+        coords={"y": ifgpha.dim_0.values, "x": ifgpha.dim_1.values},
+    )
+    ifg['pha'] = ifgpha
+    ifg['coh'] = ifg['pha']
+    ifg['coh'].values = incoh
+    ifg['mask'] = ifg['pha']
+    ifg['mask'].values = inmask
+    ifg['cpx'] = ifg.coh.copy()
+    print('WARNING, using coherence to form cpx')
+    ifg['cpx'].values = magpha2RI_array(ifg.coh.values, ifg.pha.values)
+    ifg['mask_extent'] = ifg['pha'].where(ifg['pha'] == 0).fillna(1)
+    return ifg
 
 
 def load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = None):
