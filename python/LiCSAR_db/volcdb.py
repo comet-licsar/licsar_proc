@@ -7,12 +7,13 @@ ML 2023
 from LiCSquery import *
 
 '''
-describe volc_clips;
+CREATE TABLE volclips (vid INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL, geometry POLYGON NOT NULL);
+describe volclips;
 +--------------+---------------------+------+-----+---------+-------+
 | Field        | Type                | Null | Key | Default | Extra |
 +--------------+---------------------+------+-----+---------+-------+
-| vid          | int(11)             | NO   | PRI | NULL    |       |
-| geometry     | polygon             | NO   |     |         |       |
+| vid          | int(11) unsigned    | NO   | PRI | NULL    | auto_increment |
+| geometry     | polygon             | NO   |     | NULL    |       |
 +--------------+---------------------+------+-----+---------+-------+
 
 describe volcanoes;
@@ -28,12 +29,15 @@ describe volcanoes;
 | geometry | point           | YES  |     | NULL    |       |
 +----------+-----------------+------+-----+---------+-------+
 
-describe volclip_to_volcs;
+CREATE TABLE volclip2volcs (vid INT(11) UNSIGNED NOT NULL, volc_id INT(8) UNSIGNED NOT NULL);
+# the 'REFERENCES' does nothing anymore:
+# CREATE TABLE volclip2volcs (vid INT(11) UNSIGNED NOT NULL REFERENCES volclips(vid), volc_id INT(8) UNSIGNED NOT NULL REFERENCES volcanoes(volc_id));
+describe volclip2volcs;
 +----------------+---------+------+-----+---------+-------+
 | Field          | Type    | Null | Key | Default | Extra |
 +----------------+---------+------+-----+---------+-------+
-| vid            | int(11) | NO   | MUL | NULL    |       |
-| volc_id        | int(11) | NO   | MUL | NULL    |       |
+| vid            | int(11) | NO   |     | NULL    |       |
+| volc_id        | int(11) | NO   |     | NULL    |       |
 +----------------+---------+------+-----+---------+-------+
 
 '''
@@ -42,6 +46,23 @@ describe volclip_to_volcs;
 import volcdb as vdb
 res = vdb.get_volc_info()
 res
+"""
+
+"""
+how to generate and store volc polygon:
+1. get lat, lon and use dia=25km
+volcid=
+lat, lon = ..
+wkt = # make the poly
+sql_q = "INSERT INTO volclips(geometry) VALUES (GeomFromText('{1}'));".format(wkt)
+sql_q = "select last_insert_id();"
+vid=...
+2. link the vid and volcano:
+sql_q = "INSERT INTO volclip2volcs VALUES ({0},{1});".format(str(vid),str(volcid))
+return vid
+
+
+how to export the volclips to a kml?
 """
 
 def get_volc_info(volcid=None):
