@@ -600,13 +600,16 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
         # no gapfilling here! but then it gets wrong... so.. gapfilling:
         print('gapfilling')
         tofillpha = ifg_ml.filtpha.where(ifg_ml.mask_full.where(ifg_ml.mask_extent == 1).fillna(1) == 1)
-        pha2unw = interpolate_nans(tofillpha.values, method='nearest')   # this takes 2 min 24 s for ml1 -- but will keep it anyway, as rio needs coord sys
-        #pha2unw = interpolate_nans(tofillpha.values, method='nearest')
-        # just some extra prep, for rioxarray (makes things bit faster!):
-        #tofillpha = tofillpha.rio.write_nodata(np.nan)
-        #tofillpha = tofillpha.rio.set_spatial_dims(x_dim='lon', y_dim='lat')
-        #pha2unw = tofillpha.rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - UPDATED rio: now we can choose value of nan
-        cpx = pha2cpx(pha2unw.values)
+        if 'lat' not in tofillpha.dims:
+            pha2unw = interpolate_nans(tofillpha.values, method='nearest')   # this takes 2 min 24 s for ml1 -- but will keep it anyway, as rio needs coord sys
+            cpx = pha2cpx(pha2unw)
+        else:
+            #pha2unw = interpolate_nans(tofillpha.values, method='nearest')
+            # just some extra prep, for rioxarray (makes things bit faster!):
+            tofillpha = tofillpha.rio.write_nodata(np.nan)
+            tofillpha = tofillpha.rio.set_spatial_dims(x_dim='lon', y_dim='lat')
+            pha2unw = tofillpha.rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - UPDATED rio: now we can choose value of nan
+            cpx = pha2cpx(pha2unw.values)
         #coh = sp  # actually ,let's use the phasediff if we use specmag...
         if not specmag:
             phadiff=wrap2phase((ifg_ml['filtpha']-ifg_ml['pha']).values)
