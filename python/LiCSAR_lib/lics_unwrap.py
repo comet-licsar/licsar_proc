@@ -608,8 +608,13 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
             # just some extra prep, for rioxarray (makes things bit faster!):
             tofillpha = tofillpha.rio.write_nodata(np.nan)
             tofillpha = tofillpha.rio.set_spatial_dims(x_dim='lon', y_dim='lat')
-            pha2unw = tofillpha.rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - UPDATED rio: now we can choose value of nan
-            cpx = pha2cpx(pha2unw.values)
+            try:
+                pha2unw = tofillpha.rio.interpolate_na(method='nearest')  # this takes 2 min 3 s for ml1 - UPDATED rio: now we can choose value of nan
+                cpx = pha2cpx(pha2unw.values)
+            except:
+                print('error in rio interpolate - maybe no coord sys set? doing the bit longer way')
+                pha2unw = interpolate_nans(tofillpha.values, method='nearest')   # this takes 2 min 24 s for ml1 -- but will keep it anyway, as rio needs coord sys
+                cpx = pha2cpx(pha2unw)
         #coh = sp  # actually ,let's use the phasediff if we use specmag...
         if not specmag:
             phadiff=wrap2phase((ifg_ml['filtpha']-ifg_ml['pha']).values)
