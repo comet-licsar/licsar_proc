@@ -33,7 +33,11 @@ fi
 # then resample to the MLI dimensions (20/4 multilooking)
 # and geocode to geotiff
 rslcdir=`pwd`/RSLC
-mmli=$rslcdir/$m/$m.rslc.mli
+mmli=$rslcdir/$master/$master.rslc.mli
+if [ ! -f $mmli ]; then
+ echo "additional multilooking..."
+ multi_look $rslcdir/$master/$master.rslc $rslcdir/$master/$master.rslc.par $mmli $mmli.par 20 4 >/dev/null 2>/dev/null
+fi
 mpar=$rslcdir/$m/$m.rslc.par
 mslc=$rslcdir/$m/$m.rslc
 mliwid=`grep range_samples $mmli.par | gawk {'print $2'}`
@@ -52,6 +56,7 @@ date
 #offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 16 - 2 - >/dev/null
 #time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 32 - 2 - #>/dev/null
 # deramp first??
+if [ ! -d tab ]; then mkdir tab; fi
 if [ ! -f tab/$master'_tab' ]; then
   createSLCtab_frame SLC/$master/$master slc $frame > tab/$master'_tab'
 fi
@@ -70,6 +75,12 @@ for x in $m $s; do
   fi
  fi
 done
+
+# ok ok, so now i do only the deramped...
+#e.g., for the test_EQ_tur:
+#cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/test_tur_rs/021D
+#time offset_pwr_tracking RSLC/$m/$m.rslc RSLC/$s/$s.rslc RSLC/$m/$m.rslc.par RSLC/$s/$s.rslc.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 64 - 2 0.2 20 4 #- - - - - - 0 1 - - $outdir/tracking.corrstd
+
 
 # only 1 oversample
 time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 64 - 2 0.1 40 16 - - - - - - 0 1 - - $outdir/tracking.corrstd >/dev/null
