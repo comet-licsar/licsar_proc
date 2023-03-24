@@ -338,6 +338,7 @@ def get_polygon_from_bidtanx(bidtanx):
             break
     return polygon_geom
 
+
 def get_polygon_from_frame(frame):
     sql_q = "select corner1_lon, corner2_lon, corner3_lon, corner4_lon, " \
         "corner5_lon, corner6_lon, corner7_lon, corner8_lon, " \

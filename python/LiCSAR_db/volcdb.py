@@ -1,20 +1,18 @@
 #!/usr/bin/env python
 """
 MySQL database query wrappers for volcanoes
+ML 2023
 """
 
 from LiCSquery import *
 
 '''
-describe volc_frame_clips;
+describe volc_clips;
 +--------------+---------------------+------+-----+---------+-------+
 | Field        | Type                | Null | Key | Default | Extra |
 +--------------+---------------------+------+-----+---------+-------+
 | vid          | int(11)             | NO   | PRI | NULL    |       |
-| volc_id      | int(8) unsigned     | NO   | MUL | NULL    |       |
-| resolution_m | tinyint(3) unsigned | YES  |     | NULL    |       |
-| diameter_km  | tinyint(3) unsigned | YES  |     | NULL    |       |
-| polyid       | int(11)             | NO   | MUL | NULL    |       |
+| geometry     | polygon             | NO   |     |         |       |
 +--------------+---------------------+------+-----+---------+-------+
 
 describe volcanoes;
@@ -30,22 +28,59 @@ describe volcanoes;
 | geometry | point           | YES  |     | NULL    |       |
 +----------+-----------------+------+-----+---------+-------+
 
-describe volc_frame_subtitutes;
+describe volclip_to_volcs;
 +----------------+---------+------+-----+---------+-------+
 | Field          | Type    | Null | Key | Default | Extra |
 +----------------+---------+------+-----+---------+-------+
 | vid            | int(11) | NO   | MUL | NULL    |       |
-| vid_substitute | int(11) | NO   | MUL | NULL    |       |
+| volc_id        | int(11) | NO   | MUL | NULL    |       |
 +----------------+---------+------+-----+---------+-------+
 
 '''
+
+"""use example:
+import volcdb as vdb
+res = vdb.get_volc_info()
+res
+"""
+
+def get_volc_info(volcid=None):
+    """"This will get info on all volcanoes from the db.
+    If volcid is provided, it will show info only for that volcano.
+    """
+    if volcid:
+        cond = " where volc_id={}".format(str(volcid))
+    else:
+        cond = ''
+    sql = "select volc_id,name,lat,lon,alt,priority, ST_AsText(geometry) as geometry from volcanoes"+cond+";"
+    a = do_pd_query(sql)
+    a['geometry'] = a.geometry.apply(wkt.loads)
+    return a
+
+
+def is_in_volclips(volc_id):
+    return  is_in_table(volc_id, 'volc_id', 'volclip_to_volcs')
+
+
+def create_volclip(volc_id, lon1, lon2, lat1, lat2):
+    if is_in_volclips:
+        print('ERROR, this volcano has already its volclip, cancelling for now')
+        return False
+    vid = #.............
+    dwkt = #......... create wkt from the lons/lats polygon
+    sql_q = "INSERT INTO volc_clips (vid, geometry) VALUES ({0}, GeomFromText('{1}'));".format(str(vid), dwkt)
+    res = do_query(sql_q, True)
+    time.sleep(0.25)
+    sql_q = "INSERT INTO volclip_to_volcs (vid,volc_id) VALUES ({0}, {1});".format(str(volc_id), vid)
+    res = do_query(sql_q, True)
+    return vid
 
 def get_volclip_info(vid=None): #,extended=True):
     """ This will load info about volcanic frame clip.
     if vid==None: it will return table for all existing clip definitions.
     """
     if vid:
-        cond = "where vid={}".format(str(vid))
+        cond = " where vid={}".format(str(vid))
     else:
         cond = ''
     sql = "select vf.*,v.name,v.lat,v.lon,v.alt,v.priority,p.polyid_name from volc_frame_clips vf \
