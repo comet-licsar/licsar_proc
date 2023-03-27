@@ -1226,6 +1226,13 @@ def get_eqid(eventid):
 
 
 def get_daz(polyid, epoch, getall = False):
+    """Gets values from the ESD database table for given frame and epoch.
+    
+    Args:
+        polyid (int):   frame polyid
+        epoch (str):    epoch, e.g. '20211022'
+        getall (bool):  if True, will return all values, not only azimuth offset
+    """
     if not getall:
         sql_q = "select daz from esd where polyid={} and epoch='{}';".format(polyid,epoch)
         res = do_query(sql_q)
@@ -1275,7 +1282,10 @@ def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = False):
     
     """
     polyid = sqlout2list(get_frame_polyid(frame))[0]
-    if get_daz(polyid, epoch):
+    dazdb = get_daz(polyid, epoch):
+    if dazdb:
+        if round(daz,6)!=round(dazdb,6):
+            overwrite=True
         if overwrite:
             #clean it first
             sql_q = "delete from esd where polyid={} and epoch='{}';".format(polyid, epoch)

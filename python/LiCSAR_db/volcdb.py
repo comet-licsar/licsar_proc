@@ -52,7 +52,14 @@ res
 how to generate and store volc polygon:
 1. get lat, lon and use dia=25km
 volcid=
-lat, lon = ..
+clon, clat = ..
+radius_km = 25/2
+radius_deg=radius_km/111
+lon1=clon-radius_deg
+lon2=clon+radius_deg
+lat1=clat-radius_deg
+lat2=clat+radius_deg
+POLYGON(('lon1 $LAT1, $LON1 $LAT2, $LON2 $LAT2, $LON2 $LAT1, $LON1 $LAT1))
 wkt = # make the poly
 sql_q = "INSERT INTO volclips(geometry) VALUES (GeomFromText('{1}'));".format(wkt)
 sql_q = "select last_insert_id();"
@@ -63,7 +70,7 @@ return vid
 
 
 how to export the volclips to a kml?
-"""
+""" 
 
 def get_volc_info(volcid=None):
     """"This will get info on all volcanoes from the db.
