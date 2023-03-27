@@ -1282,7 +1282,7 @@ def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = False):
     
     """
     polyid = sqlout2list(get_frame_polyid(frame))[0]
-    dazdb = get_daz(polyid, epoch):
+    dazdb = get_daz(polyid, epoch)
     if dazdb:
         if round(daz,6)!=round(dazdb,6):
             overwrite=True

@@ -5,6 +5,7 @@ import re
 import zipfile
 import sys, traceback
 from osgeo import gdal, gdalconst
+import datetime as dt
 
 class nostdout(object):
     def __enter__(self):
@@ -186,6 +187,7 @@ def get_centre_from_latlon(latlon):
     centre = ((min(lats)+max(lats))/2, (min(lons)+max(lons))/2)
     return centre
 
+
 def get_colat10(lat):
     lat = round(lat * 100)
     if lat < 0:
@@ -194,6 +196,20 @@ def get_colat10(lat):
     else:
         colat = 90*100 - lat
     return colat
+
+
+def datediff_pair(pair):
+    """Input: list of pair string (e.g. '20230129_20230210'). will get number of days of Btemp
+    """
+    epoch1=pair.split('_')[0]
+    epoch2=pair.split('_')[1]
+    return datediff(epoch1, epoch2)
+
+
+def datediff(epoch1, epoch2):
+    date1 = dt.datetime.strptime(epoch1,'%Y%m%d').date()
+    date2 = dt.datetime.strptime(epoch2,'%Y%m%d').date()
+    return (date2-date1).days
 
 
 def reproject_to_match(src_filename, match_filename, dst_filename):

@@ -256,7 +256,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     return True
 
 
-def list_coseismic_ifgs(frame, toi):
+def list_coseismic_ifgs(frame, toi, return_shortest=False):
     #this would list all ifgs in public directory that are coseismic (if there are such)
     #toi is datetime
     doi = toi.date()
@@ -297,7 +297,14 @@ def list_coseismic_ifgs(frame, toi):
                 is_coseismic = False
         if is_coseismic:
             selected_ifgs.append(pifg)
-    return selected_ifgs
+    if return_shortest:
+        ifgs = pd.DataFrame(selected_ifgs)
+        ifgs['btemp']=0
+        ifgs['btemp']=ifgs[0].apply(misc.datediff_pair)
+        return ifgs.sort_values(by='btemp').head(1)[0].values[0]
+        #ifgs[0].str.split('_').apply(datediff)
+    else:
+        return selected_ifgs
 
 
 def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
@@ -656,7 +663,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
 
     Args:
         eventid: USGS ID
-        step: 1 for full processing, 2 for ingesting related data to event htmls (and generating coseismic kmzs if needed)
+        step: 1 for full processing, 2 for ingesting related data to event htmls (and generating coseismic kmzs if needed), 3 for ingesting coseismic ifgs to EPOS and GEP
         overwrite: if True will overwrite existing data
         makeactive: if True, will also make the event active in EIDP
         skipchecks: will skip some default checks, e.g. by default we limit processing by depth
@@ -671,6 +678,9 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
         else:
             print('the event is below threshold. cancelling')
             return
+    if step == 3:
+        #overriding radius to have only sexy ifgs for export to GEP
+        radius = 0.18
     if not skipchecks:
         #check if the event is not blacklisted..
         blacklistfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eq_blacklist.txt'
@@ -763,6 +773,22 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             os.system('sort -u {0} > {0}.tmp; mv {0}.tmp {0}'.format(eventfile))
             print('done. Check this webpage:')
             print(os.path.join(web_path,'EQ',event.id+'.html'))
+    elif step == 3:
+        # run no. 3 - export to EPOS and GEP
+        for frame in frames:
+            frame = frame[0]
+            track = str(int(frame[0:3]))
+            shortestpair = list_coseismic_ifgs(frame, event.time, return_shortest=True)
+            if shortestpair:
+                track = str(int(frame[0:3]))
+                global public_path
+                products_path = os.path.join(public_path, track, frame, 'interferograms')
+                ifgpath = os.path.join(products_path, shortestpair)
+                # do only ifg here, skip unw:
+                tostore = os.path.join(ifgpath, shortestpair+'.geo.diff_pha.tif')
+                if os.path.exists(tostore):
+                    print('exporting ifg of {0} to GEP'.format(shortestpair))
+                    rc = os.system('epos_export_tif.sh {0} 1'.format(tostore))
 
 
 def main():
