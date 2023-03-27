@@ -781,7 +781,6 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             shortestpair = list_coseismic_ifgs(frame, event.time, return_shortest=True)
             if shortestpair:
                 track = str(int(frame[0:3]))
-                global public_path
                 products_path = os.path.join(public_path, track, frame, 'interferograms')
                 ifgpath = os.path.join(products_path, shortestpair)
                 # do only ifg here, skip unw:
