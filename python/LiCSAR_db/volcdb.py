@@ -94,8 +94,8 @@ def create_volclip(volc_id, lon1, lon2, lat1, lat2):
     if is_in_volclips:
         print('ERROR, this volcano has already its volclip, cancelling for now')
         return False
-    vid = #.............
-    dwkt = #......... create wkt from the lons/lats polygon
+    #vid = #.............
+    #dwkt = #......... create wkt from the lons/lats polygon
     sql_q = "INSERT INTO volc_clips (vid, geometry) VALUES ({0}, GeomFromText('{1}'));".format(str(vid), dwkt)
     res = do_query(sql_q, True)
     time.sleep(0.25)
