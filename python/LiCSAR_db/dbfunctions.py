@@ -14,6 +14,30 @@ except:
     #print('problem importing sshtunnel module - ARC will have problems connecting to LiCSInfo db')
     #None
 
+# now use sqlalchemy as well:
+def Conn_sqlalchemy(dbname='licsar_live'):
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import NullPool
+    parser = ConfigParser()
+    parser.read(gc.configfile)
+    sqlhost = parser.get('sqlinfo', 'host')
+    sqldb = parser.get('sqlinfo', 'dbname')
+    sqluser = parser.get('sqlinfo', 'dbuser')
+    sqlpass = parser.get('sqlinfo', 'dbpass')
+    
+    engine = create_engine(
+    'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}?charset=utf8'.format(
+        usr=sqluser,
+        psswd=sqlpass,
+        hst=sqlhost,
+        dbname=dbname,
+        ),
+    poolclass=NullPool,
+    #connect_args={'connect_timeout': 60*60*24},  # using 24 hours timeout - coreg may take so long. still weird, as i close and reopen connection, but.. ok.. whatever
+    pool_pre_ping=True
+    )
+    return engine
+
 
 configfile = os.environ["LiCSARconfig"]
 

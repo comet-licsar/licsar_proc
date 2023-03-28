@@ -5,6 +5,10 @@ ML 2023
 """
 
 from LiCSquery import *
+from shapely.geometry import Polygon
+from dbfunctions import Conn_sqlalchemy
+import geopandas as gpd
+gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 
 '''
 CREATE TABLE volclips (vid INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL, geometry POLYGON NOT NULL);
@@ -49,32 +53,23 @@ res
 """
 
 """
-how to generate and store volc polygon:
-1. get lat, lon and use dia=25km
-volcid=
-clon, clat = ..
-radius_km = 25/2
-radius_deg=radius_km/111
-lon1=clon-radius_deg
-lon2=clon+radius_deg
-lat1=clat-radius_deg
-lat2=clat+radius_deg
-POLYGON(('lon1 $LAT1, $LON1 $LAT2, $LON2 $LAT2, $LON2 $LAT1, $LON1 $LAT1))
-wkt = # make the poly
-sql_q = "INSERT INTO volclips(geometry) VALUES (GeomFromText('{1}'));".format(wkt)
-sql_q = "select last_insert_id();"
-vid=...
-2. link the vid and volcano:
-sql_q = "INSERT INTO volclip2volcs VALUES ({0},{1});".format(str(vid),str(volcid))
-return vid
-
-
 how to export the volclips to a kml?
+just:
+vv=get_volclips_gpd()
+
 """ 
+
+def export_all_volclips_to_kml(outkml):
+    """e.g. outkml='/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/volclips.kml'"""
+    volclips=get_volclips_gpd()
+    volclips.to_file(outkml, driver='KML')
+
 
 def get_volc_info(volcid=None):
     """"This will get info on all volcanoes from the db.
     If volcid is provided, it will show info only for that volcano.
+    
+    try e.g. volcid=357070
     """
     if volcid:
         cond = " where volc_id={}".format(str(volcid))
@@ -86,24 +81,51 @@ def get_volc_info(volcid=None):
     return a
 
 
-def is_in_volclips(volc_id):
-    return  is_in_table(volc_id, 'volc_id', 'volclip_to_volcs')
+def is_in_volclips(volcid):
+    """Checks if the volcano (volcid) has its volclip."""
+    return is_in_table(volcid, 'volc_id', 'volclip2volcs')
 
 
-def create_volclip(volc_id, lon1, lon2, lat1, lat2):
-    if is_in_volclips:
+def create_volclip_for_volcano(volcid):
+    """Will create a volclip definition for given volcano"""
+    if is_in_volclips(volcid):
         print('ERROR, this volcano has already its volclip, cancelling for now')
         return False
-    #vid = #.............
-    #dwkt = #......... create wkt from the lons/lats polygon
-    sql_q = "INSERT INTO volc_clips (vid, geometry) VALUES ({0}, GeomFromText('{1}'));".format(str(vid), dwkt)
+    
+    vpd = get_volc_info(volcid)
+    if vpd.empty:
+        print('no record found for this volcano ID - please check again')
+        return False
+    
+    # prepare polygon
+    clon, clat = vpd.lon.values[0], vpd.lat.values[0]
+    radius_km = 25/2
+    radius_deg=radius_km/111
+    lon1=clon-radius_deg
+    lon2=clon+radius_deg
+    lat1=clat-radius_deg
+    lat2=clat+radius_deg
+    lonlats = [(lon1,lat1), (lon1,lat2), (lon2,lat2), (lon2,lat1), (lon1,lat1)]
+    polygon = Polygon(lonlats)
+    wkt = polygon.wkt
+    
+    sql_q="SELECT MAX(vid) from volclips;"
+    lastvid=do_query(sql_q)[0][0]
+    # adding to volclips
+    sql_q = "INSERT INTO volclips(geometry) VALUES (GeomFromText('{0}'));".format(wkt)
     res = do_query(sql_q, True)
-    time.sleep(0.25)
-    sql_q = "INSERT INTO volclip_to_volcs (vid,volc_id) VALUES ({0}, {1});".format(str(volc_id), vid)
+    vid=lastvid+1  # because of auto-increment
+    #sql_q = "select last_insert_id();"
+    
+    # link the vid and volcano:
+    sql_q = "INSERT INTO volclip2volcs (vid, volc_id) VALUES ({0}, {1});".format(str(vid), str(volcid))
     res = do_query(sql_q, True)
     return vid
 
+
+
 def get_volclip_info(vid=None): #,extended=True):
+    """NOT WORKING AS POLYID ARE DROPPED FOR NOW"""
     """ This will load info about volcanic frame clip.
     if vid==None: it will return table for all existing clip definitions.
     """
@@ -111,9 +133,9 @@ def get_volclip_info(vid=None): #,extended=True):
         cond = " where vid={}".format(str(vid))
     else:
         cond = ''
-    sql = "select vf.*,v.name,v.lat,v.lon,v.alt,v.priority,p.polyid_name from volc_frame_clips vf \
+    sql = "select vf.*,v.name,v.lat,v.lon,v.alt,v.priority,p.polyid_name from volclips vf \
         inner join volcanoes v on vf.volc_id=v.volc_id inner join polygs p on vf.polyid=p.polyid"+cond+";"
-    a=lq.do_pd_query(sql)
+    a=do_pd_query(sql)
     if a.empty:
         return False
     else:
@@ -123,8 +145,20 @@ def get_volclip_info(vid=None): #,extended=True):
 def get_volclip_vids(volcid):
     """Gets all volclip vids for given volcano.
     volcid is the volcano ID"""
-    sql = "select vf.vid from volc_frame_clips vf inner join volcanoes v on vf.volc_id=v.volc_id where v.volc_id={};".format(str(volcid))
-    a=lq.do_query(sql)
-    a=lq.sqlout2list(a)
+    sql = "select vf.vid from volclip2volcs vf inner join volcanoes v on vf.volc_id=v.volc_id where v.volc_id={};".format(str(volcid))
+    a=do_query(sql)
+    a=sqlout2list(a)
     return a
 
+
+def get_volclips_gpd(vid=None):
+    """Gets volclips as geodatabase - either one if given vid, or all"""
+    if vid:
+        cond = " where vid={}".format(str(vid))
+    else:
+        cond = ''
+    sql = "SELECT ST_AsBinary(geometry) as geom from volclips {0};".format(cond)
+    sql = "SELECT v.volc_id,v.name,vc.vid,ST_AsBinary(vc.geometry) as geom from volclips vc inner join volclip2volcs vf on vf.vid=vc.vid inner join volcanoes v on vf.volc_id=v.volc_id {0};".format(cond)
+    engine=Conn_sqlalchemy()
+    volclips = gpd.GeoDataFrame.from_postgis(sql, engine, geom_col='geom' )
+    return volclips
