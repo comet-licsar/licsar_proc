@@ -376,12 +376,19 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     if gacoscorrfile:
         print('GACOS data found, using to improve unwrapping')
         #ingacos = xr.open_dataset(gacoscorrfile)
-        ingacos = load_tif2xr(gacoscorrfile)
-        ifg['gacos'] = ifg.pha
-        if dolocal:
-            ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
-        else:
-            ifg['gacos'].values = ingacos.values
+        try:
+            ingacos = load_tif2xr(gacoscorrfile)
+            ifg['gacos'] = ifg.pha
+            if dolocal:
+                ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
+            else:
+                try:
+                    ifg['gacos'].values = ingacos.values
+                except:
+                    ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
+        except:
+            print('error reading gacos correction, continuing without it')
+            gacoscorr = False
     else:
         gacoscorr = False
     
@@ -2126,22 +2133,30 @@ def make_gacos_ifg(frame, pair, outfile):
     print('preparing GACOS correction')
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
-    for epoch in pair.split('_'):
-        epochgacos = os.path.join(geoframedir,'epochs',epoch,epoch+'.sltd.geo.tif')
-        if not os.path.exists(epochgacos):
-            return False
+    #for epoch in pair.split('_'):
+    #    epochgacos = os.path.join(geoframedir,'epochs',epoch,epoch+'.sltd.geo.tif')
+    #    if not os.path.exists(epochgacos):
+    #        return False
     epoch1 = pair.split('_')[0]
     epoch2 = pair.split('_')[1]
     gacos1 = os.path.join(geoframedir,'epochs',epoch1,epoch1+'.sltd.geo.tif')
     gacos2 = os.path.join(geoframedir,'epochs',epoch2,epoch2+'.sltd.geo.tif')
-    cmd = 'gmt grdmath {0} {1} SUB = {2}=gd:GTiff'.format(gacos2, gacos1, outfile)
-    #print(cmd)
-    rc = os.system(cmd)
-    if os.path.exists(outfile):
-        return outfile
+    if os.path.exists(gacos1) and os.path.exists(gacos1):
+        cmd = 'gmt grdmath {0} {1} SUB = {2}=gd:GTiff'.format(gacos2, gacos1, outfile)
+        rc = os.system(cmd)
+        if os.path.exists(outfile):
+            return outfile
+        else:
+            print('error in GACOS processing of pair '+pair)
+            return False
+    elif os.path.exists(gacos1):
+        return gacos1
+    elif os.path.exists(gacos2):
+        return gacos2
     else:
-        print('error in GACOS processing of pair '+pair)
         return False
+    #print(cmd)
+    
 
 
 def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = True, nonlinear=False):
