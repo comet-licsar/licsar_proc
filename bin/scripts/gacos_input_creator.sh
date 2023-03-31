@@ -13,7 +13,8 @@ fi
 
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 # request gacos only for epochs older than $minbtemp
-minbtemp=10
+# update 2023: GACOS data are available already in 3 days lag only
+minbtemp=3
 
 prod_dir=$LiCSAR_public
 work_dir="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/GACOS"
