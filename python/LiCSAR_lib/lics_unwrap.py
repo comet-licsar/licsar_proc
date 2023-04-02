@@ -2141,7 +2141,7 @@ def make_gacos_ifg(frame, pair, outfile):
     epoch2 = pair.split('_')[1]
     gacos1 = os.path.join(geoframedir,'epochs',epoch1,epoch1+'.sltd.geo.tif')
     gacos2 = os.path.join(geoframedir,'epochs',epoch2,epoch2+'.sltd.geo.tif')
-    if os.path.exists(gacos1) and os.path.exists(gacos1):
+    if os.path.exists(gacos1) and os.path.exists(gacos2):
         cmd = 'gmt grdmath {0} {1} SUB = {2}=gd:GTiff'.format(gacos2, gacos1, outfile)
         rc = os.system(cmd)
         if os.path.exists(outfile):
@@ -2150,8 +2150,16 @@ def make_gacos_ifg(frame, pair, outfile):
             print('error in GACOS processing of pair '+pair)
             return False
     elif os.path.exists(gacos1):
-        return gacos1
+        # if only one exists, need to multiply by -1
+        cmd = 'gmt grdmath {0} NEG = {1}=gd:GTiff'.format(gacos1, outfile)
+        rc = os.system(cmd)
+        if os.path.exists(outfile):
+            return outfile
+        else:
+            print('error in GACOS processing of pair '+pair)
+            return False
     elif os.path.exists(gacos2):
+        # if only S correction exists, we just use M=0, so:
         return gacos2
     else:
         return False
