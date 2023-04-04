@@ -8,6 +8,7 @@ from LiCSquery import *
 from shapely.geometry import Polygon
 from dbfunctions import Conn_sqlalchemy
 import geopandas as gpd
+import framecare as fc
 gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 
 '''
@@ -52,13 +53,6 @@ res = vdb.get_volc_info()
 res
 """
 
-"""
-how to export the volclips to a kml?
-just:
-vv=get_volclips_gpd()
-
-""" 
-
 def export_all_volclips_to_kml(outkml):
     """e.g. outkml='/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/volclips.kml'"""
     volclips=get_volclips_gpd()
@@ -81,15 +75,38 @@ def get_volc_info(volcid=None):
     return a
 
 
+def find_volcano_by_name(name, volcstable = None):
+    """This will try to find the volcano in volcs table extracted using get_volc_info(). If the table is not given, it will extract it.
+    
+    Args:
+        name (str): e.g. 'Askja'
+        volcstable (pd.DataFrame): must contain column 'name'
+    
+    Returns:
+        record of found volc
+    """
+    if not volcstable:
+        volcstable = get_volc_info()
+    return volcstable[volcstable.name.str.contains(name)]
+
+
 def is_in_volclips(volcid):
     """Checks if the volcano (volcid) has its volclip."""
     return is_in_table(volcid, 'volc_id', 'volclip2volcs')
 
 
-def create_volclip_for_volcano(volcid):
-    """Will create a volclip definition for given volcano"""
+def create_volclip_for_volcano(volcid, cliparea_geo = None):
+    """Will create a volclip definition for given volcano (volcid).
+    If cliparea is not set, it will auto-generate area using diameter 25 km centered on the volc lon/lat.
+    
+    Args:
+        volcid (int): the volcano ID
+        cliparea_geo (str): OPTIONAL: clip boundaries, e.g. 'lon1/lon2/lat1/lat2'
+    """
     if is_in_volclips(volcid):
         print('ERROR, this volcano has already its volclip, cancelling for now')
+        print('you can delete the volclip for the volcano using: delete_volclip(vid)')
+        print('where you can get vid using: get_volclip_vids(volcid)')
         return False
     
     vpd = get_volc_info(volcid)
@@ -97,14 +114,19 @@ def create_volclip_for_volcano(volcid):
         print('no record found for this volcano ID - please check again')
         return False
     
-    # prepare polygon
-    clon, clat = vpd.lon.values[0], vpd.lat.values[0]
-    radius_km = 25/2
-    radius_deg=radius_km/111
-    lon1=clon-radius_deg
-    lon2=clon+radius_deg
-    lat1=clat-radius_deg
-    lat2=clat+radius_deg
+    if not cliparea_geo:
+        # prepare polygon
+        clon, clat = vpd.lon.values[0], vpd.lat.values[0]
+        radius_km = 25/2
+        radius_deg=radius_km/111
+        lon1=clon-radius_deg
+        lon2=clon+radius_deg
+        lat1=clat-radius_deg
+        lat2=clat+radius_deg
+    else:
+        from lics_unwrap import cliparea_geo2coords
+        lon1, lon2, lat1, lat2 = cliparea_geo2coords(cliparea_geo)
+    
     lonlats = [(lon1,lat1), (lon1,lat2), (lon2,lat2), (lon2,lat1), (lon1,lat1)]
     polygon = Polygon(lonlats)
     wkt = polygon.wkt
@@ -123,7 +145,17 @@ def create_volclip_for_volcano(volcid):
     return vid
 
 
+def delete_volclip(vid):
+    """This will delete volcano clip definition - careful, not many checks in place
+    """
+    sql_q = "DELETE FROM volclip2volcs where vid = {0};".format(str(vid))
+    res = do_query(sql_q, True)
+    sql_q = "DELETE FROM volclips where vid = {0};".format(str(vid))
+    res = do_query(sql_q, True)
+    return res
 
+
+'''
 def get_volclip_info(vid=None): #,extended=True):
     """NOT WORKING AS POLYID ARE DROPPED FOR NOW"""
     """ This will load info about volcanic frame clip.
@@ -140,7 +172,7 @@ def get_volclip_info(vid=None): #,extended=True):
         return False
     else:
         return a
-
+'''
 
 def get_volclip_vids(volcid):
     """Gets all volclip vids for given volcano.
@@ -150,11 +182,16 @@ def get_volclip_vids(volcid):
     a=sqlout2list(a)
     return a
 
+def get_volcano_from_vid(vid):
+    sql = "select volc_id from volclip2volcs where vid={};".format(str(vid))
+    a=do_query(sql)
+    a=sqlout2list(a)[0]
+    return a
 
 def get_volclips_gpd(vid=None):
     """Gets volclips as geodatabase - either one if given vid, or all"""
     if vid:
-        cond = " where vid={}".format(str(vid))
+        cond = " where vc.vid={}".format(str(vid))
     else:
         cond = ''
     sql = "SELECT ST_AsBinary(geometry) as geom from volclips {0};".format(cond)
@@ -162,3 +199,21 @@ def get_volclips_gpd(vid=None):
     engine=Conn_sqlalchemy()
     volclips = gpd.GeoDataFrame.from_postgis(sql, engine, geom_col='geom' )
     return volclips
+
+
+def initialise_subset_volclip(vid, frame, resol_m = 30):
+    vclipdb = get_volclips_gpd(vid)
+    volcid = vclipdb.volc_id.values[0]
+    lon1, lat1, lon2, lat2 = list(vclipdb.geom.bounds.values[0])
+    fc.subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid = str(volcid), is_volc = True, resol_m=resol_m)
+
+
+'''
+volcid = get_volcano_from_vid(vid)
+    
+    147A_02466_191712
+    111D_02490_152021
+    009D_02504_202119
+    045A_02494_171816
+'''
+    
