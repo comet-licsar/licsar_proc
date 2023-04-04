@@ -188,6 +188,7 @@ def get_volcano_from_vid(vid):
     a=sqlout2list(a)[0]
     return a
 
+
 def get_volclips_gpd(vid=None):
     """Gets volclips as geodatabase - either one if given vid, or all"""
     if vid:
@@ -209,6 +210,14 @@ def initialise_subset_volclip(vid, frame, resol_m = 30):
 
 
 '''
+frames=['147A_02466_191712','009D_02504_202119','045A_02494_171816']
+for frame in frames:
+    vdb.initialise_subset_volclip(vid, frame)
+
+frame='111D_02490_152021'
+vid = 2712
+
+
 volcid = get_volcano_from_vid(vid)
     
     147A_02466_191712
