@@ -2149,18 +2149,19 @@ def make_gacos_ifg(frame, pair, outfile):
         else:
             print('error in GACOS processing of pair '+pair)
             return False
-    elif os.path.exists(gacos1):
-        # if only one exists, need to multiply by -1
-        cmd = 'gmt grdmath {0} NEG = {1}=gd:GTiff'.format(gacos1, outfile)
-        rc = os.system(cmd)
-        if os.path.exists(outfile):
-            return outfile
-        else:
-            print('error in GACOS processing of pair '+pair)
-            return False
-    elif os.path.exists(gacos2):
-        # if only S correction exists, we just use M=0, so:
-        return gacos2
+    # this below is a good attempt to avoid loop closure errors, but troposphere can cause STRONG ramps
+    #elif os.path.exists(gacos1):
+    #    # if only one exists, need to multiply by -1
+    #    cmd = 'gmt grdmath {0} NEG = {1}=gd:GTiff'.format(gacos1, outfile)
+    #    rc = os.system(cmd)
+    #    if os.path.exists(outfile):
+    #        return outfile
+    #    else:
+    #        print('error in GACOS processing of pair '+pair)
+    #        return False
+    #elif os.path.exists(gacos2):
+    #    # if only S correction exists, we just use M=0, so:
+    #    return gacos2
     else:
         return False
     #print(cmd)

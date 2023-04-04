@@ -292,6 +292,14 @@ if [ $process_geomlis == 1 ]; then
 	done
 fi
 
+if [ ! -f $outdir/local_config.py ]; then
+ echo "azlks="$azl > $outdir/local_config.py
+ echo "rglks="$rgl >> $outdir/local_config.py
+ echo "outres="$resol >> $outdir/local_config.py
+ echo "resol_m="$resol_m >> $outdir/local_config.py
+fi
+
+chmod 777 $outdir
 
 rm -r $tmpdir 2>/dev/null
 cd $outdir; rm geo GEOC GEOC.MLI gmt.history 2>/dev/null; cd $dizdir
