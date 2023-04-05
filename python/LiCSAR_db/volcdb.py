@@ -133,10 +133,12 @@ def create_volclip_for_volcano(volcid, cliparea_geo = None):
     
     sql_q="SELECT MAX(vid) from volclips;"
     lastvid=do_query(sql_q)[0][0]
-    # adding to volclips
-    sql_q = "INSERT INTO volclips(geometry) VALUES (GeomFromText('{0}'));".format(wkt)
-    res = do_query(sql_q, True)
     vid=lastvid+1  # because of auto-increment
+    
+    # adding to volclips
+    sql_q = "INSERT INTO volclips (vid, geometry) VALUES ({0}, GeomFromText('{1}'));".format(str(vid), wkt)
+    res = do_query(sql_q, True)
+    
     #sql_q = "select last_insert_id();"
     
     # link the vid and volcano:

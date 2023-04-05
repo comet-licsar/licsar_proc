@@ -2352,6 +2352,24 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp
         return unw1
 
 
+def calculate_gradient(xar, deramp=False):
+    """Calculates gradient of continuous data (not tested for phase)
+    
+    Args:
+        xar (xr.DataArray): e.g. ifg['unw']
+        deramp (bool): if True, it will remove overall ramp
+    
+    Returns:
+        xr.DataArray
+    """
+    gradis=xar.copy()
+    vgrad = np.gradient(gradis.values)
+    gradis.values = np.sqrt(vgrad[0]**2 + vgrad[1]**2)
+    if deramp:
+        gradis=deramp_unw(gradis)
+    return gradis
+
+
 def correct_hgt(ifg_mlc, blocklen = 20, tmpdir = os.getcwd(), dounw = True, num_workers = 1, nonlinear=False, minheight=200, mingausscoh=0.4):
     #ifg_ml['hgtcorr'] = ifg_ml['pha']
     winsize = (blocklen, blocklen)
