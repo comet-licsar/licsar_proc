@@ -19,3 +19,24 @@ Module with some useful InSAR decomposition functions, not as great as `approach
 
 .. automodule:: licsar_proc.python.decompose
   :members:
+
+
+LiCSInfo functions
+==================
+
+LiCSquery
+^^^^^^^^^
+
+Various functions to query the LiCSInfo database
+
+.. automodule:: licsar_proc.python.LiCSAR_db.LiCSquery
+  :members:
+
+
+LiCS Volc DB
+^^^^^^^^^^^^
+
+Functions to work with volcanoes-related records/tables in the LiCSInfo database
+
+.. automodule:: licsar_proc.python.LiCSAR_db.volcdb
+  :members:
