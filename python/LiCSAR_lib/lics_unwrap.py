@@ -2023,7 +2023,8 @@ def remove_islands(npa, pixelsno = 50):
     return npa
 
 # main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est
-def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', width = 0, est = None, bin_pre_remove = None, conncomp=False, defomax = 0.6, printout = True):
+def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin',
+                width = 0, est = None, bin_pre_remove = None, conncomp=False, defomax = 0.6, printout = True):
     '''Main function to perform unwrapping with snaphu.
     
     Args:
@@ -2040,6 +2041,7 @@ def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin', wid
     '''
     #print('WARNING - we skip using mask here, as snaphu -M really does not do good job. need to change for AH+KS solution soon')
     #maskbin = None
+    # TODO: make_snaphu_costs(mask, costsfile = ''
     if width == 0:
         print('error - width is zero')
         return False
@@ -3244,10 +3246,35 @@ def build_coh_avg_std(frame, ifgdir = None, days = 'all', monthly = False, outno
 
 # Solution by Andy and Karsten to recalculate costs for masked (NN-filled) areas - not used here yet
 
+def make_snaphu_costs(mask, costsfile = ''):
+    """Creates proper costs file from mask to be used by snaphu.
+    Args:
+        mask (np.ndarray): expected is: 0 for what is to be masked, 1 for what should remain (hi coh)
+        costsfile (str): where to store the costs file
+    """
+    #parts of the interferogram with low coherence
+    #zeroix = coh < gc.coh_unwrap_threshold  #orig value was 0.5
+    #mask = .. #must be boolean?
+    #zeroix = mask.astype(np.int8)
+    zeroix = np.abs(mask - 1) # reversing 0/1 for get_edges
+    #get edges
+    edges, n_edge, rowix, colix, gridix = get_edges(mask, zeroix)
+    #create costs
+    rowcost, colcost = get_costs(edges, n_edge, rowix, colix, zeroix)
+    #find spots which are not below coherence threshold
+    ithis, jthis = np.where(~zeroix)
+    # now export to outcostsfile
+    with open(costsfile,'w') as f:
+        rowcost.tofile(f)
+        colcost.tofile(f)
+    return costsfile
+
 ################################################################################
 # Get edges function
 ################################################################################
+#
 def get_edges(ph,zeroix):
+    import scipy.spatial as spat
     length, width = ph.shape
     i,j = np.where(~zeroix)
     datapoints = np.array((i,j)).T
