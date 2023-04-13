@@ -200,6 +200,32 @@ def get_volclip_info(vid=None): #,extended=True):
         return a
 '''
 
+def init_all_subsets():
+    """This will auto-init all volclips (assuming only one vid per volcano...)
+    """
+    volcs=get_volc_info()
+    for i,volc in volcs.iterrows():
+        print(volc['name'])
+        frames = get_volcano_frames(volc['volc_id'])
+        vid = get_volclip_vids(volcid)[0]
+        if frames:
+            for frame in frames:
+                initialise_subset_volclip(vid, frame)
+
+
+def get_volcano_frames(volcid):
+    """Gets frames covering the given volcano.
+    """
+    volc=get_volc_info(volcid)
+    #print(volc['name'])
+    try:
+        frames= lq.sqlout2list(lq.get_frames_in_lonlat(volc.lon,volc.lat))
+    except:
+        print('no frame found')
+        frames = False
+    return frames
+
+
 def get_volclip_vids(volcid):
     """Gets all volclip vids for given volcano.
     volcid is the volcano ID"""
