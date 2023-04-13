@@ -4,14 +4,14 @@
 # LiCSAR Unwrapper
 # by Milan Lazecky, 2021-2023, University of Leeds
 #
+# version: 1.0.1 (2023-04-13) ---- number of improvements (Goldstein implementation, cascade etc.)
 # version: 1.0.0 (2022-06-03) ---- with updates up to 02/2023 etc
 #
 # A tool to unwrap LiCSAR (or any other) interferogram, starting from geotiffs
 # Mandatory inputs: geotiffs of phase, coherence
-# Optional inputs: geotiffs with GACOS corrections, DEM, landmask (automatically found for LiCSAR)
+# Optional inputs: geotiffs with GACOS corrections, DEM, landmask, magnitude (automatically found for LiCSAR)
 #
-# Pre-requisities: snaphu
-# Optional requisites: GMT, cpxfiddle (doris), ImageMagick --- oh that was orig. version. it is much more pythonic now J
+# Pre-requisities: snaphu [, cpxfiddle (doris) - used only for preview if LiCSBAS is not installed]
 #
 ################################################################################
 #Imports
@@ -364,33 +364,49 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     
     # do gacos if exists
     if gacoscorr:
-        gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
-        try:
-            gacoscorrfile = make_gacos_ifg(frame, pair, gacoscorrfile)
-        except:
-            print('error processing gacos data for pair '+pair)
-            gacoscorrfile = False
-    else:
-        gacoscorrfile = False
-    
-    if gacoscorrfile:
-        print('GACOS data found, using to improve unwrapping')
-        #ingacos = xr.open_dataset(gacoscorrfile)
-        try:
-            ingacos = load_tif2xr(gacoscorrfile)
+        gacosdiff = make_gacos_correction(frame,pair)
+        if not type(gacosdiff) == type(False):
+            print('GACOS data found, using to improve unwrapping')
             ifg['gacos'] = ifg.pha
-            if dolocal:
-                ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
-            else:
-                try:
-                    ifg['gacos'].values = ingacos.values
-                except:
-                    ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
-        except:
-            print('error reading gacos correction, continuing without it')
+            #ifg.gacos.values = gacosdiff
+            #if dolocal:
+            #    ifg['gacos'] = gacosdiff.interp_like(ifg['gacos'] ,method='nearest')
+            #else:
+            try:
+                ifg['gacos'].values = gacosdiff.values
+            except:
+                ifg['gacos'] = gacosdiff.interp_like(ifg['gacos'] ,method='nearest')
+        else:
             gacoscorr = False
-    else:
-        gacoscorr = False
+    
+    #if gacoscorr:
+    #    gacoscorrfile = os.path.join(tmpgendir,'gacos.tif')
+    #    try:
+    #        gacoscorrfile = make_gacos_ifg(frame, pair, gacoscorrfile)
+    #    except:
+    #        print('error processing gacos data for pair '+pair)
+    #        gacoscorrfile = False
+    #else:
+    #    gacoscorrfile = False
+    #
+    #if gacoscorrfile:
+    #    print('GACOS data found, using to improve unwrapping')
+        #ingacos = xr.open_dataset(gacoscorrfile)
+    #    try:
+    #        ingacos = load_tif2xr(gacoscorrfile)
+    #        ifg['gacos'] = ifg.pha
+            #if dolocal:
+            #    ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
+            #else:
+            #    try:
+            #        ifg['gacos'].values = ingacos.values
+            #    except:
+            #        ifg['gacos'] = ingacos.interp_like(ifg['gacos'] ,method='nearest')
+        #except:
+        #    print('error reading gacos correction, continuing without it')
+        #    gacoscorr = False
+    #else:
+    #    gacoscorr = False
     
     if smooth and goldstein:
         print('warning, both smooth and goldstein filter set - turning off goldstein filer. you may use goldstein+lowpass')
@@ -2122,13 +2138,47 @@ def make_snaphu_conf(sdir, defomax = 1.2):
     return snaphuconffile
 
 
-def make_gacos_ifg(frame, pair, outfile):
+def make_gacos_correction(frame, pair):
     """Creates GACOS correction for the interferogram. works only at JASMIN
     
     Args:
         frame (string): frame ID
         pair (string): pair ID (e.g. '20201001_20201201')
     
+    Returns:
+        xr.DataArray (GACOS correction), or False
+    """
+    print('preparing GACOS correction')
+    pubdir = os.environ['LiCSAR_public']
+    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
+    epoch1 = pair.split('_')[0]
+    epoch2 = pair.split('_')[1]
+    gacos1 = os.path.join(geoframedir,'epochs',epoch1,epoch1+'.sltd.geo.tif')
+    gacos2 = os.path.join(geoframedir,'epochs',epoch2,epoch2+'.sltd.geo.tif')
+    if os.path.exists(gacos1) and os.path.exists(gacos2):
+        try:
+            gacos1 = load_tif2xr(gacos1)
+            gacos2 = load_tif2xr(gacos2)
+        except:
+            print('error loading gacos data for '+pair)
+            return False
+        try:
+            gacoscorr = gacos2 - gacos1
+            return gacoscorr #.values
+        except:
+            print('error with gacos corrections for pair '+pair+'. probably wrong dimensions there')
+            return False
+    else:
+        return False
+
+
+def make_gacos_ifg(frame, pair, outfile):
+    """Creates GACOS correction for the interferogram. works only at JASMIN
+    
+    Args:
+        frame (string): frame ID
+        pair (string): pair ID (e.g. '20201001_20201201')
+        outfile (string): where to save the correction
     Returns:
         string: path to generated GACOS correction, or False
     """
