@@ -2038,6 +2038,36 @@ def remove_islands(npa, pixelsno = 50):
             npa[islands==i] = np.nan
     return npa
 
+# FILTERING - experiments with rubber-sheet resampling - the filter below is better than median as it keeps 'edges' (e.g. faults)
+# perhaps winsize=64 and bins=10 is ... 'optimal', but must be better tested (i check few options now)
+
+from scipy.ndimage import generic_filter
+def filterhistmed(block, amin, amax, bins=20): #, medbin=True):
+    """Support function to be used with generic_filter (where only 1D array is passed, expecting one output->using median here only)
+    """
+    if np.isnan(block).all():
+        return np.nan
+    histc, histe = np.histogram(block,range=(amin,amax), bins=bins)
+    histmax=np.argmax(histc)
+    minval=histe[histmax]
+    maxval=histe[histmax+1]
+    #
+    bb=block[block>minval]
+    bb=bb[bb<maxval]
+    return np.nanmedian(bb)
+
+
+def filter_histmed_ndarray(ndarr, winsize=32, bins=20):
+    """Main filtering function, works with both numpy.ndarray and xr.DataArray
+    """
+    #footprint=disk(winsize)
+    amin=np.nanmin(ndarr)
+    amax=np.nanmax(ndarr)
+    footprint=unit_circle(int(winsize/2))
+    return generic_filter(ndarr, filterhistmed, footprint=footprint, mode='constant', cval=np.nan,
+                      extra_keywords= {'amin': amin, 'amax':amax, 'bins':bins})
+
+
 # main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est
 def main_unwrap(cpxbin, cohbin, maskbin = None, outunwbin = 'unwrapped.bin',
                 width = 0, est = None, bin_pre_remove = None, conncomp=False, defomax = 0.6, printout = True):
