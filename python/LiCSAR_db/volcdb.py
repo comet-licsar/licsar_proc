@@ -207,7 +207,7 @@ def init_all_subsets():
     for i,volc in volcs.iterrows():
         print(volc['name'])
         frames = get_volcano_frames(volc['volc_id'])
-        vid = get_volclip_vids(volcid)[0]
+        vid = get_volclip_vids(volc['volc_id'])[0]
         if frames:
             for frame in frames:
                 initialise_subset_volclip(vid, frame)
