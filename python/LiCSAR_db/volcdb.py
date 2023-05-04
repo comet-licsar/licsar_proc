@@ -69,9 +69,11 @@ def get_volc_info(volcid=None):
         cond = " where volc_id={}".format(str(volcid))
     else:
         cond = ''
-    sql = "select volc_id,name,lat,lon,alt,priority, ST_AsText(geometry) as geometry from volcanoes"+cond+";"
-    a = do_pd_query(sql)
-    a['geometry'] = a.geometry.apply(wkt.loads)
+    sql = "select volc_id,name,lat,lon,alt,priority, ST_AsBinary(geometry) as geom from volcanoes"+cond+";"
+    engine=Conn_sqlalchemy()
+    a = gpd.GeoDataFrame.from_postgis(sql, engine, geom_col='geom' )
+    #a = do_pd_query(sql)
+    #a['geometry'] = a.geometry.apply(wkt.loads)
     return a
 
 
@@ -80,13 +82,13 @@ def get_volcanoes_in_polygon(polygon, volcs = None):
     You may create the polygon from lon/lat borders, e.g. using fc.lonlat_to_poly(lon1, lon2, lat1, lat2)"""
     if type(volcs) == type(None):
         volcs = get_volc_info()
-    isin = volcs.geometry.apply(lambda x: polygon.contains(x))
+    isin = volcs.geom.apply(lambda x: polygon.contains(x))
     return volcs[isin]
 
 
 def vis_gpd(vgpd):
     """Simple example to plot volcanoes or volclips in gpd.DataFrame"""
-    fc.vis_aoi(vgpd.geometry.to_list())
+    fc.vis_aoi(vgpd.geom.to_list())
 
 
 def find_volcano_by_name(name, volcstable = None):
