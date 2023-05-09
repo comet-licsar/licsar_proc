@@ -208,8 +208,8 @@ def init_all_subsets():
     volcs=get_volc_info()
     for i,volc in volcs.iterrows():
         print(volc['name'])
-        frames = get_volcano_frames(volc['volc_id'])
-        vid = get_volclip_vids(volc['volc_id'])[0]
+        frames = get_volcano_frames(int(volc['volc_id']))
+        vid = get_volclip_vids(int(volc['volc_id']))[0]
         if frames:
             for frame in frames:
                 initialise_subset_volclip(vid, frame)
@@ -221,7 +221,7 @@ def get_volcano_frames(volcid):
     volc=get_volc_info(volcid)
     #print(volc['name'])
     try:
-        frames= lq.sqlout2list(lq.get_frames_in_lonlat(volc.lon,volc.lat))
+        frames= sqlout2list(get_frames_in_lonlat(float(volc.lon),float(volc.lat)))
     except:
         print('no frame found')
         frames = False
