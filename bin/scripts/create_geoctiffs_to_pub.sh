@@ -155,8 +155,10 @@ lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/SLC/$ma
 # update 2022: set hgt file and warp towards it
 frame=`basename $procdir`
 tr=`track_from_frame $frame`
-hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
-
+hgtfile=`ls GEOC/geo/*.geo.hgt.tif 2>/dev/null | head -n 1 2>/dev/null`
+if [ -z $hgtfile ]; then
+ hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+fi
 
 #echo "Running doGeocoding step" #" for unwrapped"
 #this is for the case if we start the geotiff generation within or outside of licsar_make_frame:
@@ -227,9 +229,9 @@ if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
        scalebar_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.scale.png
        unwcpt=${procdir}/$GEOCDIR/${ifg}/unw.cpt
        gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$unwcpt
-       frame=`echo ${procdir} | rev | cut -d '/' -f1 | rev`
-       tr=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
-       hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+       #frame=`echo ${procdir} | rev | cut -d '/' -f1 | rev`
+       #tr=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+       #hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
        hillshadecmd=''
        hillshadefile=''
        if [ -f $hgtfile ]; then
