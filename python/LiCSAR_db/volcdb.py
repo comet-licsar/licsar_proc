@@ -212,7 +212,13 @@ def init_all_subsets():
         vid = get_volclip_vids(int(volc['volc_id']))[0]
         if frames:
             for frame in frames:
-                initialise_subset_volclip(vid, frame)
+                try:
+                    initialise_subset_volclip(vid, frame)
+                except:
+                    print('error with init, cleaning')
+                    subsetdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/'+str(vid)+'/'+frame[:4]
+                    if os.path.exists(subsetdir):
+                        os.system('rm -rf '+subsetdir)
 
 
 def get_volcano_frames(volcid):
