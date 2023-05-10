@@ -29,6 +29,10 @@ rm -f $logfile
 
 echo "   Geocoding results for lookangles." ;
 #psi and incidence
+if [ ! -f ${procdir}/geo/$master.lt_fine ]; then
+ ln -s ${procdir}/geo/$master.lt ${procdir}/geo/$master.lt_fine
+fi
+
 if [ -e ${procdir}/geo/psi ]; then
   # Geocode the data
   geocode_back ${procdir}/geo/psi $width_dem ${procdir}/geo/$master.lt_fine ${procdir}/GEOC/lookangles/$master.geo.psi ${width_dem} ${length_dem} 1 0 >> $logfile

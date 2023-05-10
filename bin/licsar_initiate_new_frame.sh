@@ -115,6 +115,7 @@ else
  fi
  LiCSAR_05_mk_angles_master
  echo "Generating E-N-U files"
+ if [ ! -f $curdir/$tr/$frame/geo/$m.lt_fine ]; then ln -s $curdir/$tr/$frame/geo/$m.lt $curdir/$tr/$frame/geo/$m.lt_fine; fi
  submit_lookangles.py -f $frame -t $tr
  echo "Generating land mask (would remove heights below 0 m)"
  landmask=$curdir/$tr/$frame/geo/landmask
