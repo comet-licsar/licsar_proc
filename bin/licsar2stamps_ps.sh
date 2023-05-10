@@ -228,11 +228,12 @@ done
 mt_prep_gamma $master \`pwd\` 0.4 $RP $AP 100 50
 
 # matlab -nodesktop -nosplash -r "addpath('/nfs/a1/software/StaMPS_v4.1b_ML/matlab'); addpath('/nfs/a1/software/StaMPS_bjmarfito/matlab'); \
+# setparm('ref_radius',300);setparm('ref_centre_lonlat',[18.55752423, 49.84894293]); \
+
 matlab -nodesktop -nosplash -r "addpath('/nfs/a1/software/StaMPS_v4.1b_ML/matlab'); \
 getparm; setparm('max_topo_err',50); setparm('gamma_change_convergence',0.01); setparm('gamma_max_iterations',3); \
 setparm('weed_time_win',365); setparm('weed_standard_dev',1.3); \
 setparm('clap_win',32); setparm('small_baseline_flag','n'); \
-setparm('ref_radius',300);setparm('ref_centre_lonlat',[18.55752423, 49.84894293]); \
 setparm('merge_resample_size',0); setparm('small_baseline_flag','n');  \
 setparm('unwrap_time',365); setparm('unwrap_gold_alpha',0.8); setparm('unwrap_gold_n_win',16); setparm('unwrap_grid',200); \
 stamps(1,6); setparm('unwrap_spatial_cost_func_flag','n'); setparm('subtr_tropo','n'); stamps(7,7); \
@@ -247,4 +248,6 @@ it4s1_convert2okcsv.sh exported.csv
 
 EOF
 chmod 777 INSAR_$master/stamps_proc.sh
-cat INSAR_$master/stamps_proc.sh
+echo "now copy the whole INSAR_ folder to Leeds Uni server and run:"
+ls INSAR_$master/stamps_proc.sh
+
