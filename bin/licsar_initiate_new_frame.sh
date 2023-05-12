@@ -174,3 +174,5 @@ if [ $clip == 1 ]; then
 fi
 echo "changing permissions"
 chmod -R 775 $curdir/$tr/$frame $LiCSAR_public/$tr/$frame
+chgrp -R gws_lics_admin $curdir/$tr/$frame
+chgrp -R gws_lics_admin $LiCSAR_public/$tr/$frame
