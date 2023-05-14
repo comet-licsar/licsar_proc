@@ -21,11 +21,8 @@ Module with some useful InSAR decomposition functions, not as great as `approach
   :members:
 
 
-LiCSInfo functions
-==================
-
-LiCSquery
-^^^^^^^^^
+LiCSInfo query functions
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Various functions to query the LiCSInfo database
 
