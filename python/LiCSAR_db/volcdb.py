@@ -4,12 +4,19 @@ MySQL database query wrappers for volcanoes
 ML 2023
 """
 
-from LiCSquery import *
+try:
+    from LiCSquery import *
+    from dbfunctions import Conn_sqlalchemy
+except:
+    print('error loading LicsInfo tools - volcdb is quite useless then')
+
 from shapely.geometry import Polygon
-from dbfunctions import Conn_sqlalchemy
 import geopandas as gpd
 import framecare as fc
-gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
+try:
+    gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
+except:
+    print('error, export to kml not working (update geopandas)')
 
 '''
 CREATE TABLE volclips (vid INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL, geometry POLYGON NOT NULL);

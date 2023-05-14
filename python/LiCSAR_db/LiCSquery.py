@@ -19,19 +19,21 @@ import pandas as pd
 # Local imports
 import global_config as gc
 
-#get tunnel or not
-parser = ConfigParser()
-parser.read(gc.configfile)
-#parser.get('sqlinfo','use_tunnel')
-use_tunnel = bool(int(parser.get('sqlinfo','use_tunnel')))
-if use_tunnel:
-    from dbfunctions import Conn_tunnel_db as Conn_db
-    print('warning - ssh tunnel will be used - close it when finished')
-    conn, tunnel = Conn_db()
-else:
-    from dbfunctions import Conn_db
-    conn = Conn_db()
-
+try:
+    #get tunnel or not
+    parser = ConfigParser()
+    parser.read(gc.configfile)
+    #parser.get('sqlinfo','use_tunnel')
+    use_tunnel = bool(int(parser.get('sqlinfo','use_tunnel')))
+    if use_tunnel:
+        from dbfunctions import Conn_tunnel_db as Conn_db
+        print('warning - ssh tunnel will be used - close it when finished')
+        conn, tunnel = Conn_db()
+    else:
+        from dbfunctions import Conn_db
+        conn = Conn_db()
+except:
+    print('error parsing config, LiCSQuery is now useless')
 #if conn == 'MYSQL ERROR':
 #    print('No database connection could be established')
 
