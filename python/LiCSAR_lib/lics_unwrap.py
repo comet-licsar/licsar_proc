@@ -19,6 +19,7 @@
 import os, glob
 import shutil
 import subprocess
+import re
 
 import xarray as xr
 xr.set_options(keep_attrs=True)
@@ -1139,6 +1140,31 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             pairset = None
     if not pairset:
         pairset = os.listdir(inputifgdir)
+    # clean the pairset
+    r = re.compile('[1,2]...[0,1].[0-3]._[1,2]...[0,1].[0-3].')
+    pairset = [pair for pair in pairset if r.match(pair)]
+    # check for existence of GACOS corrections. if there is only for one epoch, skip that pair.
+    # (this way we ensure that we keep also epochs with no gacos data, but will not cause phase loop closure errors with the GACOS-corrected pairs)
+    if gacoscorr:
+        gacosdir = 'GACOS'
+        if not os.path.exists(gacosdir):
+            print('WARNING, GACOS directory does not exist - continuing without gacos...')
+            gacoscorr = False
+        else:
+            pairsetok = []
+            print('checking existing GACOS data')
+            for pair in pairset:
+                epoch1 = pair.split('_')[0]
+                epoch2 = pair.split('_')[1]
+                if os.path.exists(os.path.join(gacosdir,epoch1+'.sltd.geo.tif')) and os.path.exists(os.path.join(gacosdir,epoch2+'.sltd.geo.tif')):
+                    pairsetok.append(pair)
+                else:
+                    print('skipping pair '+pair)
+            if len(pairsetok)>0:
+                pairset = pairsetok
+            else:
+                print('WARNING, no GACOS corrections found in the '+gacosdir+' folder. Continuing without GACOS')
+                gacoscorr = False
     # functions for multiprocessing
     def check_and_process_ifg(pair):
         if not os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
