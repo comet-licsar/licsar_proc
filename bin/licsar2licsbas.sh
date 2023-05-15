@@ -8,20 +8,20 @@ if [ -z $1 ]; then
  echo "parameters:"
  echo "-- Basic parameters --"
  echo "-M 10 .... this will do extra multilooking (in this example, 10x multilooking)"
- echo "-g ....... use GACOS if available for most of the epochs"
+ echo "-g ....... use GACOS if available for most of the epochs (and use only ifgs with both epochs having GACOS correction)"
  echo "-S ....... (obsolete but still kept parameter) strict mode - in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "-u ....... use the reunwrapping procedure (useful if multilooking..)"
- echo "-- Control over reunwrapping --"
+ echo "-- Control over reunwrapping (with -u) --"
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-l ....... if the reunwrapping is to be performed, would do Gaussian lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
- echo "-m ....... with reunwrapping with Goldstein filter on (by default), use coh based on spectral magnitude - recommended param"
+ echo "-m ....... with reunwrapping with Goldstein filter on (by default), use coh based on spectral magnitude - recommended param, please use this by default"
  echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter, and disable -m)"
- echo "-t 0.35 .. change coherence threshold to 0.35 (default) during reunwrapping (-u)"
- echo "-H ....... this will use hgt to support unwrapping (only if using reunwrapping)"
+ echo "-t 0.35 .. change consistence threshold to 0.35 (default) during reunwrapping"
+ echo "-H ....... this will use hgt to support the (re-)unwrapping"
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
- echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future, this will also add --singular)"
+ echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future this may also add --singular)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "-- Processing tweaks --"
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
@@ -313,7 +313,7 @@ if [ $reunw -gt 0 ]; then
   extraparam=$extraparam", subtract_gacos = True" 
  fi
  if [ $defdates == 0 ]; then
-  ls GEOC | grep ^20 | grep '_' > pairset.txt
+  ls GEOC | grep ^20 | grep '_' | grep [0-9]\$ > pairset.txt
   extraparam=$extraparam", pairsetfile = '../pairset.txt'"
  fi
  if [ $dolocal == 1 ]; then
