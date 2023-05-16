@@ -317,7 +317,7 @@ def process_ifg(frame, pair, procdir = os.getcwd(),
     Args:
         frame (string): LiCSAR frame ID
         pair (string): identifier of interferometric pair, e.g. ``'20200120_20200201'``
-        procdir (string): path to processing directory
+        procdir (string): path to processing directory (here, this will create subdirectory of *pair* and use this to generate result)
         ml (int): multilooking factor used to reduce the interferogram in lon/lat
         fillby (string): algorithm to fill gaps. use one of values: ``'gauss'``, ``'nearest'``, ``'none'`` (where ``'none'`` would only fill NaNs by zeroes)
         thres (float): threshold between 0-1 for gaussian-based coherence-like measure (spatial phase consistence?); higher number - more is masked prior to unwrapping
@@ -1038,6 +1038,8 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
     Returns:
         xarray.Dataset: multilooked interferogram with additional layers
     """
+    if cascade and ml>9:
+        only10 = False
     #if cascade and ml>1:
     #    print('error - the cascade approach is ready only for ML1')
     #    return False
@@ -1212,7 +1214,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                 else:
                     outtif = None
                 try:
-                    procdir = os.path.join(os.getcwd(), pair)
+                    procdir = os.path.join(os.getcwd()) #, pair)
                     if not dolocal:
                         if cascade:
                             ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = procdir, only10 = only10, 
