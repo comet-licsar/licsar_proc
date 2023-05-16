@@ -139,7 +139,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
         frame (string): LiCSAR frame ID
         pair (string): identifier of interferometric pair, e.g. '20200120_20200201'
         downtoml (int): target multilook factor (default: 1, no extra multilooking)
-        procdir (string): path to processing directory
+        procdir (string): path to processing directory (here, this will create subdirectory of *pair* and use this to generate result)
         only10 (boolean): switch to use only 1 previous ramp, scaled 10x to the downtoml, instead of few cascades
         finalgoldstein (boolean): switch to use Goldstein filter for the final unwrapping pass (ON by default)
         smooth (boolean): switch to use extra Gaussian filtering for 2-pass unwrapping
@@ -154,6 +154,10 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
     Returns:
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
+    # fix to ensure unique directory per processing (issues with parallelism..)
+    procdir = os.path.join(procdir,pair)
+    if not os.path.exists(procdir):
+        os.mkdir(procdir)
     print('performing cascade unwrapping')
     starttime = time.time()
     if only10:
@@ -495,6 +499,9 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
         extweights = None, keep_coh_debug = True, keep_coh_px = 0.25):
+    """Core ifg unwrapping procedure
+    Note: tmpdir should be place for unneeded products (please keep unique per pair)
+    """
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
     tmpunwdir = os.path.join(tmpdir,'temp_unw')
     for dodir in [tmpdir, tmpunwdir]:
@@ -2423,6 +2430,9 @@ def unwrap_np(cpx, coh, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp
     '''
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
+    elif deltemp:
+        print('error, tmpdir '+tmpdir+' already exists, stopping here')
+        return False
     if type(mask) != type(False):
         try:
             binmask= os.path.join(tmpdir,'mask.bin')
