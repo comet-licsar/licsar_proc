@@ -503,10 +503,9 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
     Note: tmpdir should be place for unneeded products (please keep unique per pair)
     """
     # masking by coherence if we do not use multilooking - here the coherence corresponds to reality
-    tmpunwdir = os.path.join(tmpdir,'temp_unw')
-    for dodir in [tmpdir, tmpunwdir]:
-        if not os.path.exists(dodir):
-            os.mkdir(dodir)
+    tmpunwdir = os.path.join(tmpdir,'temp_unw') # do not create this as it will be done in unwrap_np
+    if not os.path.exists(tmpdir):
+        os.mkdir(tmpdir)
     if ml == 1:
         cohthres = 0.15
         ifg['mask'] = ifg['mask'] * ifg['mask'].where(ifg['coh'] < cohthres).fillna(1)
@@ -572,7 +571,7 @@ def process_ifg_core(ifg, tmpdir = os.getcwd(),
     length = len(ifg_ml.lat)
     if lowpass:
         # let's do longwave filtering:
-        ifg_ml = lowpass_gauss(ifg_ml, thres=0.35, use_gold = False)
+        ifg_ml = lowpass_gauss(ifg_ml, thres=0.35, use_gold = False, procdir = tmpdir)
     #update the origpha to keep state before filtering
     ifg_ml['origpha'] = ifg_ml.pha.copy(deep=True)
     if goldstein:
@@ -1744,7 +1743,8 @@ def gaussfill(dapha, sigma=2):
 
 
 
-def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True, goldwin=16):
+def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True, goldwin=16, procdir = os.getcwd()):
+    tmpdirunw = os.path.join(procdir, 'tmpunw')
     ifg_ml['origpha'] = ifg_ml['pha']
     if use_gold:
         print('warning, switched fully from Gaussian filtering to Goldstein fashion, also for lowpass')
@@ -1798,7 +1798,7 @@ def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True, goldwin=16):
     #cpxarr = magpha2RI_array(tempar_mag1, ifg_ml.pha.values)
     cpx = np.complex64(magpha2RI_array(tempar_mag1, ifg_ml.pha.fillna(0).values))
     #unw = unwrap_np(cpx, coh, mask = mask, defomax = defomax, deltemp=True)      # it doesn't work well with mask!
-    unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True)
+    unw = unwrap_np(cpx, coh, defomax = 0, deltemp=True, tmpdir=tmpdirunw)
     unw = filter_nan_gaussian_conserving(unw, sigma=4, trunc=4) # a stronger filter should help...
     if 'toremove' in ifg_ml:
         ifg_ml['toremove'] = ifg_ml['toremove'] + unw # adding the lowpass to 'toremove' layer
@@ -2364,8 +2364,8 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
                 toret = np.nan
         else:
             tmpdir = os.path.join(procdir, str(block_id[0])+'_'+str(block_id[1]))
-            if not os.path.exists(tmpdir):
-                os.mkdir(tmpdir)
+            #if not os.path.exists(tmpdir):  # done inside unwrap_np with deltemp=True
+            #    os.mkdir(tmpdir)
             unwr = unwrap_np(cpx.values, coh.values, defomax = 0.3, tmpdir=tmpdir)
             # ok, then correlate - and if higher then 0.4, do linear regression to get rad/m
             try:
@@ -2390,7 +2390,7 @@ def block_hgtcorr(cpx, coh, hgt, procdir = os.getcwd(), dounw = True, block_id=N
     return np.array([[toret]])
 
 
-def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.getcwd()):
+def unwrap_xr(ifg, mask=True, defomax = 0.3, tmpdir=os.path.join(os.getcwd(),'tmpunwnp')):
     """Quite direct unwrapping of the xarray Dataset of ifg
     
     Args:
