@@ -1259,8 +1259,8 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                         print('error with new preview, doing old way')
                         create_preview_bin(pair+'/'+pair+'.unw', width, ftype = 'unw')
                     #os.system('rm '+pair+'/'+pair+'.unw.ras')
-                    os.system('rm -r '+pair+'/'+'temp_'+str(ml))
-                    os.system('rm -r '+pair+'/'+'temp_gen')
+                    os.system('rm -r '+pair+'/'+'temp_'+str(ml)+' 2>/dev/null')
+                    os.system('rm -r '+pair+'/'+'temp_gen'+' 2>/dev/null')
                 except:
                     print('ERROR processing of pair '+pair)
                     os.system('rm -r '+pair)
