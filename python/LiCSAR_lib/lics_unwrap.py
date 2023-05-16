@@ -1015,7 +1015,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
             nproc = 1, dolocal = False, specmag = False, defomax = 0.3,
-            use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True):
+            use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True, gacosdir = '../GACOS'):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
     Args:
@@ -1040,6 +1040,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
         use_amp_stab (boolean): apply amplitude stability index instead of coherence-per-interferogram for unwrapping
         use_coh_stab (boolean): apply (experimental) coherence stability index. not recommended (seems not logical to me) - worth investigating though (maybe helps against loop closure errors)
         keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
+        gacosdir (str): path to directory with *pair*.sltd.geo.tif files
     
     Returns:
         xarray.Dataset: multilooked interferogram with additional layers
@@ -1154,9 +1155,8 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
     # check for existence of GACOS corrections. if there is only for one epoch, skip that pair.
     # (this way we ensure that we keep also epochs with no gacos data, but will not cause phase loop closure errors with the GACOS-corrected pairs)
     if gacoscorr:
-        gacosdir = 'GACOS'
         if not os.path.exists(gacosdir):
-            print('WARNING, GACOS directory does not exist - continuing without gacos...')
+            print('WARNING, '+gacosdir+' directory does not exist - continuing without gacos... later i can add direct check in LiCSAR_public, not now')
             gacoscorr = False
         else:
             pairsetok = []
