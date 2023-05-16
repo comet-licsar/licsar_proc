@@ -1061,19 +1061,19 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             geoframedir=frame
         else:
             print('provided wrong frame id')
-            exit()
+            return False
     if dolocal:
         geoifgdir = 'GEOC'
         if not os.path.exists(geoifgdir):
             print('ERROR: the GEOC directory does not exist, cancelling')
-            exit()
+            return False
         hgtfile = glob.glob('GEOC/*.geo.hgt.tif')
         try:
             hgtfile=hgtfile[0]
         except:
             print('ERROR: GEOC/*.geo.hgt.tif is not existing, cancelling (although might just avoid it?)')
             print('please generate this file first - tip: use gdal2warp.py $anydem.tif $anygoodfile.tif GEOC/any.geo.hgt.tif')
-            exit()
+            return False
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms')
         hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
@@ -1171,8 +1171,9 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             if len(pairsetok)>0:
                 pairset = pairsetok
             else:
-                print('WARNING, no GACOS corrections found in the '+gacosdir+' folder. Continuing without GACOS')
-                gacoscorr = False
+                print('WARNING, no GACOS corrections found in the '+gacosdir+' folder. Cancelling, please run without GACOS')
+                #gacoscorr = False
+                return False
     # functions for multiprocessing
     def check_and_process_ifg(pair):
         if not os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):

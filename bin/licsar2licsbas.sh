@@ -8,7 +8,7 @@ if [ -z $1 ]; then
  echo "parameters:"
  echo "-- Basic parameters --"
  echo "-M 10 .... this will do extra multilooking (in this example, 10x multilooking)"
- echo "-g ....... use GACOS if available for most of the epochs (and use only ifgs with both epochs having GACOS correction)"
+ echo "-g ....... use GACOS if available for at least half of the epochs (and use only ifgs with both epochs having GACOS correction, other will be skipped)"
  echo "-S ....... (obsolete but still kept parameter) strict mode - in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "-u ....... use the reunwrapping procedure (useful if multilooking..)"
@@ -251,8 +251,8 @@ fi
 
 if [ $dogacos == 1 ]; then
 # strict means gacos will be used only if available for ALL data
- #using GACOS only if there is at least for half of the files
- numf=`ls -d 20*[0-9] | cut -d '_' -f2 | sort -u| wc -l`
+ #using GACOS only if there is at least for half of the epochs
+ numf=`ls -d [1,2]*[0-9] | cut -d '_' -f2 | sort -u| wc -l`
  let half=$numf/2
 if [ $strict == 0 ]; then
  if [ `ls ../GACOS | wc -l` -lt $half ]; then rm -r ../GACOS; dogacos=0; else dogacos=1; fi
@@ -328,6 +328,7 @@ if [ $reunw -gt 0 ]; then
  echo "python3 -c \"from LiCSAR_lib.lics_unwrap import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
  # this seems not needed but in case of cropping, licsbas would try regenerate all missing data. so keeping this solution - may not be best if starting in local dir
  #echo "cd ..; for x in \`cat pairset.txt\`; do rm GEOC/\$x 2>/dev/null; done" >> multirun.sh
+ echo "if [ \`ls [1,2]*[0-9] -d 2>/dev/null | wc -l \` -lt 2 ]; then cd ..; echo 'error processing, see processing_jasmin.* files'; exit; fi"
  echo "cd ..; cp GEOC/baselines $mlgeocdir/." >> multirun.sh
  #echo "python3 extra.py" >> multirun.sh
  #echo "python3 -c \"from LiCSAR_lib.unwrp_multiscale import process_frame; process_frame('"$frame"', ml="$multi")\"" >> multirun.sh
