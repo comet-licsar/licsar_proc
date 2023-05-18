@@ -1502,21 +1502,22 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
             #    print('but the correction would increase overall phase std - dropping')
             #    hgtcorr = False
             if np.nanstd(cpx_no_hgt) >= np.nanstd(ifg_ml.cpx.values):
-                print('but the correction would increase overall complex std - dropping')
-                hgtcorr = False
-            else:
-                ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
-                # need to remove hgt only here, as the 'toremove' was already removed before..
-                ifg_ml['pha'].values = pha_no_hgt
+                #print('but the correction would increase overall complex std - dropping')
+                print('warning, the heights correction would increase overall complex std - might be worse then? need better quality measure here') #nanstd is really bad for this
+                #hgtcorr = False
+            #else:
+            ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
+            # need to remove hgt only here, as the 'toremove' was already removed before..
+            ifg_ml['pha'].values = pha_no_hgt
+            ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+            #ok, return coh, phase back to cpx
+            cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
+            ifg_ml['cpx'].values = cpxa
+            if pre_detrend:
+                ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
+                ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
                 ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-                #ok, return coh, phase back to cpx
-                cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
-                ifg_ml['cpx'].values = cpxa
-                if pre_detrend:
-                    ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
-                    ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
-                    ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-                    ifg_ml['toremove'] = ifg_ml['toremove'] + correction
+                ifg_ml['toremove'] = ifg_ml['toremove'] + correction
         except:
             print('some error trying correlate with DEM. continuing without it')
     # maybe not the best, but have gacos correction inside the toremove variable
