@@ -1464,11 +1464,12 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
         #stdaftergacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
         stdaftergacos = np.nanstd(cpx)
         if stdaftergacos > stdbeforegacos:
-            print('WARNING, GACOS increases stddev here, from {0} to {1} rad - not using GACOS to help unwrapping'.format(str(stdbeforegacos), str(stdaftergacos)))
+            print('WARNING, GACOS increases stddev here, from {0:.3} to {1:.3} rad. But we do not trust cpxstd, so anyway using GACOS to help unwrapping'.format(str(stdbeforegacos), str(stdaftergacos)))
             # just .. returning it back..
-            ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] + ifg_ml['gacos'])
-        else:
-            ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
+        #    ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] + ifg_ml['gacos'])
+        #else:
+        #    ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
+        ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask > 0)
         ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
         #ok, return coh, phase back to cpx
@@ -2316,7 +2317,7 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
     #thisisit can be either False, xr.DataArray, or np.float - ok, adding 'thistype' that can be bool, float, xr
     if not thistype == 'bool':
         if thistype == 'float':
-            print('we use average value of {} rad/km'.format(str(thisisit*1000)))
+            print('we use average value of {:.4} rad/km'.format(str(thisisit*1000)))
         else:
             print('using hgt correlation grid to reduce hgt component')
         ifg_mlc['toremove'].values = thisisit*ifg_mlc['hgt']
