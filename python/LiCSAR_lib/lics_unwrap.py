@@ -1176,7 +1176,11 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                 return False
     # functions for multiprocessing
     def check_and_process_ifg(pair):
-        if not os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')):
+        if os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.diff_unfiltered.tif')):
+            ext = 'diff_unfiltered'
+        else:
+            ext = 'diff_pha'
+        if not os.path.exists(os.path.join(geoifgdir, pair, pair+'.geo.'+ext+'.tif')):
             return False
         else:
             if not os.path.exists(pair):
@@ -1205,13 +1209,13 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                     #os.system('gmt grdsample {0} -G{1}')
             '''
             try:
-                raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif'))
+                raster = gdal.Open(os.path.join(geoifgdir, pair, pair+'.geo.'+ext+'.tif'))
                 if (framewid != raster.RasterXSize) or (framelen != raster.RasterYSize):
-                    print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                    print('ERROR - the file {} has unexpected dimensions, skipping'.format(os.path.join(geoifgdir, pair, pair+'.geo.'+ext+'.tif')))
                     #continue
                     return False
             except:
-                print('some error processing file {}'.format(os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')))
+                print('some error processing file {}'.format(os.path.join(geoifgdir, pair, pair+'.geo.'+ext+'.tif')))
                 #continue
                 return False
             if not os.path.exists(os.path.join(pair,pair+'.unw')):
@@ -1234,7 +1238,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                                 keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
                                 subtract_gacos = subtract_gacos, dolocal=dolocal)
                     else:
-                        phatif=os.path.join(geoifgdir, pair, pair+'.geo.diff_pha.tif')
+                        phatif=os.path.join(geoifgdir, pair, pair+'.geo.'+ext+'.tif')
                         cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
                         ifg_ml = process_ifg_pair(phatif, cohtif, procdir = procdir, ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
                                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
@@ -1630,7 +1634,7 @@ def load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = None):
     return ifg
 
 
-def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None):
+def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None, ext = 'diff_pha'):
     pubdir = os.environ['LiCSAR_public']
     geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     if dolocal:
@@ -1643,7 +1647,7 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
         landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     #orig files
     # will use only the filtered ifgs now..
-    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.diff_pha.tif')
+    ifg_pha_file = os.path.join(geoifgdir,pair+'.geo.'+ext+'.tif')
     coh_file = os.path.join(geoifgdir,pair+'.geo.cc.tif')
     #landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     # load the files
@@ -3521,20 +3525,21 @@ def _detrend_2d_ufunc(arr):
 
 
 def deramp_ifg_tif(phatif, unwrap_after = True):
-    """Deramps wrapped interferogram geotiff
+    """Deramps wrapped interferogram geotiff (both diff_pha and diff_unfiltered should work here)
     """
     # works fine if the path is to some diff_pha.tif file inside $LiCSAR_public only!
     phatif = os.path.realpath(phatif)
+    ext=phatif.split('.')[-2]
     if not os.path.exists(phatif):
         print('the input tif does not exist, exiting')
         return 0
     xrpha = load_tif2xr(phatif)
     xrpha_detrended = detrend_ifg_xr(xrpha, isphase=True)
     xrpha_detrended = xrpha_detrended.where(xrpha != 0).fillna(0)
-    phatif_orig = phatif.replace('.geo.diff_pha.tif','.geo.diff_pha.orig.tif')
+    phatif_orig = phatif.replace('.geo.'+ext+'.tif','.geo.'+ext+'.orig.tif')
     rc = os.system('mv {0} {1}'.format(phatif, phatif_orig))
-    rc = os.system('mv {0} {1}'.format(phatif.replace('.geo.diff_pha.tif','.geo.diff.png'), 
-       phatif.replace('.geo.diff_pha.tif','.geo.diff.orig.png')))
+    rc = os.system('mv {0} {1}'.format(phatif.replace('.geo.'+ext+'.tif','.geo.diff.png'), 
+       phatif.replace('.geo.'+ext+'.tif','.geo.diff.orig.png')))
     export_xr2tif(xrpha_detrended, phatif)
     # just do also preview
     create_preview(phatif, 'wrapped')
@@ -3543,7 +3548,7 @@ def deramp_ifg_tif(phatif, unwrap_after = True):
         # doing it original way
         frame = phatif.split('/')[-4]
         pair = phatif.split('/')[-2]
-        unwtif = phatif.replace('.geo.diff_pha.tif','.geo.unw.tif')
+        unwtif = phatif.replace('.geo.'+ext+'.tif','.geo.unw.tif')
         unwtif_orig = unwtif.replace('.geo.unw.tif','.geo.unw.orig.tif')
         os.system('mv {0} {1}'.format(unwtif, unwtif_orig))
         os.system('mv {0} {1}'.format(unwtif.replace('.geo.unw.tif','.geo.unw.png'), unwtif.replace('.geo.unw.tif','.geo.unw.orig.png')))
