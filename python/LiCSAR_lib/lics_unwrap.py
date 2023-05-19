@@ -454,6 +454,8 @@ def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(),
         print('error in loading data')
         return False
     # prepare tmp dir structure
+    if not os.path.exists(procdir):
+        os.mkdir(procdir)
     tmpdir = os.path.join(procdir,'tmp_unwrap','temp_'+str(ml))
     if not os.path.exists(os.path.join(procdir,'tmp_unwrap')):
         os.mkdir(os.path.join(procdir,'tmp_unwrap'))
@@ -1240,7 +1242,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                     else:
                         phatif=os.path.join(geoifgdir, pair, pair+'.geo.'+ext+'.tif')
                         cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
-                        ifg_ml = process_ifg_pair(phatif, cohtif, procdir = procdir, ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
+                        ifg_ml = process_ifg_pair(phatif, cohtif, procdir = os.path.join(procdir,pair), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
                                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
                                                  lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
