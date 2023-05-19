@@ -1463,20 +1463,27 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
         else:
             ifg_ml['pha'].values = pha_no_gacos
         '''
-        cpx = magpha2RI_array(ifg_ml.coh.where(ifg_ml.mask>0).values, ifg_ml.pha.where(ifg_ml.mask>0).values)
-        stdbeforegacos = np.nanstd(cpx)
+        origphanp = ifg_ml.pha.where(ifg_ml.mask > 0).values  # keep
+        cpx = magpha2RI_array(ifg_ml.coh.where(ifg_ml.mask>0).values, ifg_ml.pha.where(ifg_ml.mask>0).values) #del
+        stdbeforegacos = np.nanstd(cpx) #del
         #stdbeforegacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
         ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] - ifg_ml['gacos'])
-        cpx = magpha2RI_array(ifg_ml.coh.where(ifg_ml.mask > 0).values, ifg_ml.pha.where(ifg_ml.mask > 0).values)
+        cpx = magpha2RI_array(ifg_ml.coh.where(ifg_ml.mask > 0).values, ifg_ml.pha.where(ifg_ml.mask > 0).values) #del
         #stdaftergacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
-        stdaftergacos = np.nanstd(cpx)
+        stdaftergacos = np.nanstd(cpx) #del
+        # 2023/05: use just coh diff:
+        cohchange = coh_change(origphanp, ifg_ml.pha.where(ifg_ml.mask > 0).values)
+        cohchangeval = np.nanmean(cohchange)
         if stdaftergacos > stdbeforegacos:
-            print('WARNING, GACOS increases stddev here, from {0:.3} to {1:.3} rad. But we do not trust cpxstd, so anyway using GACOS to help unwrapping'.format(str(stdbeforegacos), str(stdaftergacos)))
+            print('WARNING, GACOS increases stddev here, from {0:.3} to {1:.3} rad.'.format(str(stdbeforegacos), str(stdaftergacos)))
+            #print('WARNING, GACOS increases stddev here, from {0:.3} to {1:.3} rad. But we do not trust cpxstd, so anyway using GACOS to help unwrapping'.format(str(stdbeforegacos), str(stdaftergacos)))
+        if cohchangeval<0:
+            print('GACOS decreases avg coh by '+str(cohchangeval)+'. Skipping use of GACOS to support unwrapping')
             # just .. returning it back..
-        #    ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] + ifg_ml['gacos'])
-        #else:
-        #    ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
-        ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
+            ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] + ifg_ml['gacos'])
+        else:
+            ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
+        #ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask > 0)
         ifg_ml['gacos'] = ifg_ml['gacos'].where(ifg_ml.mask>0)
         #ok, return coh, phase back to cpx
@@ -1505,22 +1512,29 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
         try:
             toremove_hgt = remove_height_corr(ifg_ml, tmpdir = tmpdir, dounw = True, nonlinear=False)
             pha_no_hgt = wrap2phase(ifg_ml['pha'] - toremove_hgt)
-            cpx_no_hgt = magpha2RI_array(np.abs(ifg_ml.cpx.values), pha_no_hgt)
+            cpx_no_hgt = magpha2RI_array(np.abs(ifg_ml.cpx.values), pha_no_hgt) #del
             #if np.nanstd(pha_no_hgt) >= np.nanstd(ifg_ml.pha.values):
             #    print('but the correction would increase overall phase std - dropping')
             #    hgtcorr = False
             if np.nanstd(cpx_no_hgt) >= np.nanstd(ifg_ml.cpx.values):
                 #print('but the correction would increase overall complex std - dropping')
-                print('warning, the heights correction would increase overall complex std - might be worse then? need better quality measure here') #nanstd is really bad for this
+                print('warning, the heights correction would increase overall complex std by '+str(np.nanstd(cpx_no_hgt)-np.nanstd(ifg_ml.cpx.values))+' - might be worse then? need better quality measure here') #nanstd is really bad for this
                 #hgtcorr = False
-            #else:
-            ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
-            # need to remove hgt only here, as the 'toremove' was already removed before..
-            ifg_ml['pha'].values = pha_no_hgt
-            ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
-            #ok, return coh, phase back to cpx
-            cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
-            ifg_ml['cpx'].values = cpxa
+            ###
+            origphanp = ifg_ml.pha.where(ifg_ml.mask > 0).values  # keep
+            # 2023/05: use just coh diff:
+            cohchange = coh_change(origphanp, pha_no_hgt)
+            cohchangeval = np.nanmean(cohchange)
+            if cohchangeval < 0:
+                print('the heights correction would decrease avg coh by ' + str(cohchangeval) + '. Skipping.')
+            else:
+                ifg_ml['toremove'] = ifg_ml['toremove'] + toremove_hgt
+                # need to remove hgt only here, as the 'toremove' was already removed before..
+                ifg_ml['pha'].values = pha_no_hgt
+                ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask>0)
+                #ok, return coh, phase back to cpx
+                cpxa = magpha2RI_array(ifg_ml.coh.values, ifg_ml.pha.values)
+                ifg_ml['cpx'].values = cpxa
             if pre_detrend:
                 ifg_ml['cpx'], correction = detrend_ifg_xr(ifg_ml['cpx'], isphase=False, return_correction = True)
                 ifg_ml['pha'].values = np.angle(ifg_ml.cpx)
@@ -1895,6 +1909,22 @@ def coh_from_phadiff(phadiff, winsize = 3):
     outcoh = 1/np.sqrt(1+winsize*winsize*variance)
     return outcoh
 '''
+
+def coh_change(pre, post, winsize=8):
+    """Calculates change of coherence from pre to post phase.
+
+    Args:
+        pre (np.ndarray): phase (interferogram) before the change
+        post (np.ndarray): phase (interferogram) after the change
+        winsize (int): as in coh_from_phadiff
+
+    Returns:
+        change coherence map (nd.array)
+    """
+    precoh = coh_from_phadiff(pre, winsize)
+    postcoh = coh_from_phadiff(post, winsize)
+    return postcoh - precoh
+
 
 def coh_from_phadiff(phadiff, winsize=3):
     """Calculates coherence based on variance of interferogram, computed in window with given size
