@@ -441,24 +441,25 @@ for p in pairs:
 
 
 
-def process_ifg_pair(phatif, cohtif, procdir = os.getcwd(), 
+def process_ifg_pair(phatif, cohtif, procpairdir = os.getcwd(),
         ml = 10, fillby = 'gauss', thres = 0.2, 
         smooth = False, lowpass = True, goldstein = True, specmag = False,
         defomax = 0.6, hgtcorr = False, gacoscorr = True, pre_detrend = True,
         cliparea_geo = None, outtif = None, prevest = None, prev_ramp = None,
         coh2var = False, add_resid = True,  rampit=False, subtract_gacos = False,
         extweights = None, keep_coh_debug = True, keep_coh_px = 0.25, cascade = False):
+    """Process pair data from their geotiffs (phase and coherence)"""
     try:
         ifg = load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = cliparea_geo)
     except:
         print('error in loading data')
         return False
     # prepare tmp dir structure
-    if not os.path.exists(procdir):
-        os.mkdir(procdir)
-    tmpdir = os.path.join(procdir,'tmp_unwrap','temp_'+str(ml))
-    if not os.path.exists(os.path.join(procdir,'tmp_unwrap')):
-        os.mkdir(os.path.join(procdir,'tmp_unwrap'))
+    if not os.path.exists(procpairdir):
+        os.mkdir(procpairdir)
+    tmpdir = os.path.join(procpairdir,'tmp_unwrap','temp_'+str(ml))
+    if not os.path.exists(os.path.join(procpairdir,'tmp_unwrap')):
+        os.mkdir(os.path.join(procpairdir,'tmp_unwrap'))
     if not os.path.exists(tmpdir):
         os.mkdir(tmpdir)
     # not ready now for gacos or hgt correlation
@@ -1242,7 +1243,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                     else:
                         phatif=os.path.join(geoifgdir, pair, pair+'.geo.'+ext+'.tif')
                         cohtif=os.path.join(geoifgdir, pair, pair+'.geo.cc.tif')
-                        ifg_ml = process_ifg_pair(phatif, cohtif, procdir = os.path.join(procdir,pair), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
+                        ifg_ml = process_ifg_pair(phatif, cohtif, procpairdir = os.path.join(procdir,pair), ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',
                                                  thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
                                                  lowpass=lowpass, goldstein=goldstein, specmag = specmag,
                                                  keep_coh_debug = keep_coh_debug, gacoscorr = gacoscorr, cliparea_geo = cliparea_geo,
