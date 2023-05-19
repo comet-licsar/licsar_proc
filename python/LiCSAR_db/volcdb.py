@@ -209,8 +209,9 @@ def get_volclip_info(vid=None): #,extended=True):
         return a
 '''
 
-def init_all_subsets():
+def init_all_subsets(full_overlap=True):
     """This will auto-init all volclips (assuming only one vid per volcano...)
+    if full_overlap==False, it will skip checking for full overlap of the volclip and frames. good for the last auto-run
     """
     volcs=get_volc_info()
     for i,volc in volcs.iterrows():
@@ -220,7 +221,7 @@ def init_all_subsets():
         if frames:
             for frame in frames:
                 try:
-                    initialise_subset_volclip(vid, frame)
+                    initialise_subset_volclip(vid, frame,full_overlap=full_overlap)
                 except:
                     print('error with init, cleaning')
                     subsetdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/'+str(vid)+'/'+frame[:4]
