@@ -270,16 +270,17 @@ def get_volclips_gpd(vid=None):
     return volclips
 
 
-def initialise_subset_volclip(vid, frame = None, resol_m = 30):
+def initialise_subset_volclip(vid, frame = None, resol_m = 30, full_overlap=True):
     """This will initialise the volclip subset for given frame and volclip.
     If frame is 'None', it will do this for all relevant (fully overlapping) frames.
+    The 'full_overlap' param means, only frames that have full overlap with the volclip are to be used. it has no effect if the frame id is given.
     """
     vclipdb = get_volclips_gpd(vid)
     #volcid = vclipdb.volc_id.values[0]
     lon1, lat1, lon2, lat2 = list(vclipdb.geom.bounds.values[0])
     if not frame:
         print('getting related frames')
-        frames = fc.subset_get_frames(lon1, lon2, lat1, lat2, full_overlap=True, only_initialised=True)
+        frames = fc.subset_get_frames(lon1, lon2, lat1, lat2, full_overlap=full_overlap, only_initialised=True)
         for frame in frames:
             #fc.subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid = str(volcid), is_volc = True, resol_m=resol_m)
             fc.subset_initialise_corners(frame, lon1, lon2, lat1, lat2, sid = str(vid), is_volc = True, resol_m=resol_m)
