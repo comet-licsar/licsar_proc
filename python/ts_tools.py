@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # 0.000274 for 30 m
 def csv2nc(csv, outncfile = None, resol = 0.0025, extracols = []):
     """ Converts a csv file into netcdf.
-    The CSV must have following columns (order does not matter, but keep the upper case):
+    The CSV must have following columns with the header as the first line like as follows (order does not matter, but keep the upper case):
     LAT,LON,VEL,COHER,*dates*
     where *dates* are column names in format of yyyy-mm-dd.
     
