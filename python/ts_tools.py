@@ -64,7 +64,7 @@ def df2nc(df, outncfile = None, resol = 0.0025, extracols = []):
     nc = nc.assign_coords({'time':a.time.values})
     nc['cum'] = a
     #compress it and store as netcdf
-    encode = {velcol: {'zlib': True, 'complevel': 9},
+    encode = {'vel': {'zlib': True, 'complevel': 9},
           'coh': {'zlib': True, 'complevel': 9},
           'cum': {'zlib': True, 'complevel': 9},
           'time': {'dtype': 'i4'}
