@@ -3,6 +3,7 @@
 MySQL database query wrappers for volcanoes
 ML 2023
 """
+import pandas as pd
 
 try:
     from LiCSquery import *
@@ -17,6 +18,12 @@ try:
     gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 except:
     print('error, export to kml not working (update geopandas)')
+
+try:
+    subvolcpath = os.path.join(os.environ['LiCSAR_procdir'], 'subsets', 'volc') #/volc/267)
+except:
+    print('no LiCSAR_procdir ? subvolcpath is set wrong (but leaving for now)')
+    subvolcpath = 'subsets/volc'
 
 '''
 CREATE TABLE volclips (vid INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL, geometry POLYGON NOT NULL);
@@ -82,6 +89,49 @@ def get_volc_info(volcid=None):
     #a = do_pd_query(sql)
     #a['geometry'] = a.geometry.apply(wkt.loads)
     return a
+
+
+def get_existing_rslcs_for_volclip(vid):
+    volclippath = os.path.join(subvolcpath, str(vid))
+    rtable = pd.DataFrame(columns=['vid','subframe', 'no_rslcs'])
+    if not os.path.exists(volclippath):
+        return rtable
+    for subframe in os.listdir(volclippath):
+        rslcs = os.listdir(os.path.join(volclippath, subframe, 'RSLC'))
+        norslcs = len(rslcs)-1
+        rtable.loc[len(rtable)] = [vid,subframe, norslcs]
+    return rtable
+
+
+def get_status_table_volc(volcid):
+    vids = get_volclip_vids(volcid)
+    vidtable = pd.DataFrame(columns=['volc_id','vid','subframe', 'no_rslcs'])
+    for vid in vids:
+        rtable = get_existing_rslcs_for_volclip(vid)
+        if not rtable.empty:
+            for i,r in rtable.iterrows():
+                vidtable.loc[len(vidtable)] = [volcid, vid, r.subframe, r.no_rslcs]
+    return vidtable
+
+
+def get_status_table_all_volcs():
+    """Gets current processing status of all volcanoes (number of already existing RSLCs of their volclips).
+    Will get table in the form of:
+    | volc_id | vid | subframe | number of RSLC clips |
+    Note that only info for already initialised volclips is returned. Also note that number of RSLCs excludes reference epoch.
+
+    Returns:
+        pandas.DataFrame
+    """
+    print('Getting processing status info for all volcanoes (ETA few minutes)')
+    volcs = get_volc_info()
+    vtable = pd.DataFrame(columns=['volc_id','vid','subframe', 'no_rslcs'])
+    for volcid in volcs.volc_id:
+        volcrecs = get_status_table_volc(volcid)
+        if not volcrecs.empty:
+            vtable = pd.concat([vtable, volcrecs])
+            vtable = vtable.reset_index(drop=True)
+    return vtable
 
 
 def get_volcanoes_in_polygon(polygon, volcs = None):
