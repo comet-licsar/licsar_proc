@@ -1518,7 +1518,7 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
             #    hgtcorr = False
             if np.nanstd(cpx_no_hgt) >= np.nanstd(ifg_ml.cpx.values):
                 #print('but the correction would increase overall complex std - dropping')
-                print('warning, the heights correction would increase overall complex std by '+str(np.nanstd(cpx_no_hgt)-np.nanstd(ifg_ml.cpx.values))+' - might be worse then? need better quality measure here') #nanstd is really bad for this
+                print('warning, the heights correction would increase overall complex std by '+str(np.nanstd(cpx_no_hgt)-np.nanstd(ifg_ml.cpx.values))+' - might be worse then? (checking with coh change)') #nanstd is really bad for this
                 #hgtcorr = False
             ###
             origphanp = ifg_ml.pha.where(ifg_ml.mask > 0).values  # keep
@@ -1657,10 +1657,12 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
     if dolocal:
         geoifgdir = os.path.join('GEOC',pair)
         hgtfile = glob.glob('GEOC/*.geo.hgt.tif')[0]
+        Ufile = glob.glob('GEOC/*.geo.U.tif')[0]
         landmask_file = os.path.join('GEOC',frame+'.geo.landmask.tif')
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms',pair)
         hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
+        Ufile = os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
         landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     #orig files
     # will use only the filtered ifgs now..
@@ -1719,9 +1721,13 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
             inhgt = load_tif2xr(hgtfile)
             ifg['hgt'] = ifg['pha']
             ifg['hgt'].values = inhgt.values
+            if os.path.exists(Ufile):
+                inU = load_tif2xr(Ufile)
+                ifg['U'] = ifg['pha']
+                ifg['U'].values = inU.values
         except:
             print('ERROR in importing heights!')
-            hgtcorr = False
+            #hgtcorr = False
     if cliparea_geo:
         minclipx, maxclipx, minclipy, maxclipy = cliparea_geo.split('/')
         minclipx, maxclipx, minclipy, maxclipy = float(minclipx), float(maxclipx), float(minclipy), float(maxclipy)
@@ -2332,7 +2338,9 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
      get coefficient for correction of correlating areas
      interpolate the coefficient throughout whole raster
      multiply by hgt = 'to_remove'
-     
+
+     2023/05: in case of having inc. angle, we would better estimate, similar to 'ZTD'<->'SLTD'
+
      Args:
         ifg_ml (xarray.Dataset): input dataset
         corr_thres (float): threshold of correlation within window to keep
@@ -2348,15 +2356,24 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
     ifg_mlc['toremove'] = 0*ifg_mlc['coh']
     t = time.process_time()
     minheight=float(ifg_ml.hgt.quantile(0.25)+200)
+    if 'U' in ifg_mlc:
+        hgt = ifg_mlc['hgt'].copy()
+        ifg_mlc['hgt'] = ifg_mlc['hgt'] * ifg_mlc['U'] #np.cos(ifg_mlc['inc']) # a trick - instead of ratio to phase (that is wrapped), multiply with heights, to get rad/mm in vertical
     thisisit, thistype = correct_hgt(ifg_mlc, blocklen = 40, tmpdir = tmpdir, dounw = dounw, nonlinear=nonlinear, minheight=minheight)
+    if 'U' in ifg_mlc:
+        ifg_mlc.hgt.values = hgt.values
+        hgt = None
     elapsed_time = time.process_time() - t
     print('Elapsed time for hgt correction: {:f}'.format(elapsed_time))
     #thisisit can be either False, xr.DataArray, or np.float - ok, adding 'thistype' that can be bool, float, xr
     if not thistype == 'bool':
         if thistype == 'float':
             print('we use average value of {:.4} rad/km'.format(str(thisisit*1000)))
+            if 'U' in ifg_mlc:
+                thisisit = thisisit * ifg_mlc['U'] #np.cos(ifg_mlc['inc'])  # return to LOS from 'vertical'
         else:
             print('using hgt correlation grid to reduce hgt component')
+            # should be then in LOS...
         ifg_mlc['toremove'].values = thisisit*ifg_mlc['hgt']
     return ifg_mlc['toremove']
 
