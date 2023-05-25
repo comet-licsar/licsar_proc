@@ -26,9 +26,10 @@ Display this message
 LiCSAR_setup_master.py -v
 Display the version
 
-LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -D <path to custom DEM (tif)> -A]
+LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-L <maxdays> -m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -D <path to custom DEM (tif)> -A]
   (parameter -A or --automaster : will attempt to get a master date automatically)
   (parameter -V XXX would perform a dryrun, i.e. only check for possible appropriate masters, from the dataset since last XXX days)
+  (parameter -L maxdays would change the max days limit for automatic selection and processing of the master epoch)
   (parameter -e would mean allowing also latest images to become master - useful for earthquake responder)
   (parameter -D for custom DEM in tif format - e.g. download ALOS World 3D tiles and merge them by gdal_merge.py -o out.tif -of GTiff -a_nodata -32768 *.tif)
 """
@@ -120,7 +121,7 @@ def main(argv=None):
 ############################################################ Parse argument list
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhf:V:d:j:m:a:r:o:A:D:e:", ["version", "help","automaster"])
+            opts, args = getopt.getopt(argv[1:], "vhf:V:d:j:L:m:a:r:o:A:D:e:", ["version", "help","automaster"])
         except getopt.error as msg:
             raise Usage(msg)
         for p, a in opts:
@@ -141,6 +142,8 @@ def main(argv=None):
             elif p == '-V':
                 days_limit = int(a)
                 dryrun = True
+            elif p == '-L':
+                days_limit = int(a)
             elif p == '-j':
                 job_id = int(a)
             elif p == '-m':

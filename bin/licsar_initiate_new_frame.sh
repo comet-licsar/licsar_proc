@@ -23,6 +23,7 @@ then
  echo " -M - do master in medium resolution (towards 56 m outputs)"
  echo " -D /path/to/dem.tif - use custom DEM - you may want to use gdal_merge.py -a_nodata -32768 .."
  echo " -V 365 would only output possible master epoch candidates..for last 365 days"
+ echo " -L 365 would do same as -V but also auto-choose and process such master epoch"
  echo " -T - would include some extra Tien Shan related tuning"
  echo " -C lat1/lat2/lon1/lon2 - would establish a crop area for the frame"
  exit
@@ -42,6 +43,8 @@ while getopts ":HMTD:V:C:" option; do
      ;;
   V) dryrun=1;
      lastdays=$OPTARG;
+     ;;
+  L) lastdays=$OPTARG;
      ;;
   C) clip=1;
      cliparea=$OPTARG;
