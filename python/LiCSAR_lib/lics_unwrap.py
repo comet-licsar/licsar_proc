@@ -1384,13 +1384,13 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
     if ml > 1:
         ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max().astype(np.int8)
         ifg_ml['mask_extent'] = ifg.mask_extent.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max().astype(np.int8)
-        for othervar in ['gacos','U','mag']:
+        for othervar in ['gacos','U','mag','hgt']:
             if othervar in ifg.variables:
                 ifg_ml[othervar] = ifg[othervar].coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()  # or median?
     else:
         ifg_ml['mask'] = ifg.mask
         ifg_ml['mask_extent'] = ifg.mask_extent
-        for othervar in ['gacos','U','mag']:
+        for othervar in ['gacos','U','hgt']:  # removing 'mag' as not needed for ML1
             if othervar in ifg.variables:
                 ifg_ml[othervar] = ifg[othervar]
     #keep the original original pha values
