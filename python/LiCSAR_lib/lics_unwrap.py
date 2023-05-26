@@ -1384,17 +1384,15 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
     if ml > 1:
         ifg_ml['mask'] = ifg.mask.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max().astype(np.int8)
         ifg_ml['mask_extent'] = ifg.mask_extent.coarsen({'lat': ml, 'lon': ml}, boundary='trim').max().astype(np.int8)
-        if 'gacos' in ifg.variables:
-            ifg_ml['gacos'] = ifg.gacos.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()  # or median?
-        if 'hgt' in ifg.variables:
-            ifg_ml['hgt'] = ifg.hgt.coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()
+        for othervar in ['gacos','U','mag']:
+            if othervar in ifg.variables:
+                ifg_ml[othervar] = ifg[othervar].coarsen({'lat': ml, 'lon': ml}, boundary='trim').mean()  # or median?
     else:
         ifg_ml['mask'] = ifg.mask
         ifg_ml['mask_extent'] = ifg.mask_extent
-        if 'gacos' in ifg.variables:
-            ifg_ml['gacos'] = ifg.gacos
-        if 'hgt' in ifg.variables:
-            ifg_ml['hgt'] = ifg.hgt
+        for othervar in ['gacos','U','mag']:
+            if othervar in ifg.variables:
+                ifg_ml[othervar] = ifg[othervar]
     #keep the original original pha values
     ifg_ml['origpha_noremovals'] = ifg_ml.cpx #.copy(deep=True)
     ifg_ml['origpha_noremovals'].values = np.angle(ifg_ml.cpx) #.copy(deep=True)
