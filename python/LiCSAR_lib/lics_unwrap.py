@@ -2361,7 +2361,7 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
     if 'U' in ifg_mlc:
         print('debug: using U')
         hgt = ifg_mlc['hgt'].copy()
-        ifg_mlc['hgt'] = ifg_mlc['hgt'] * ifg_mlc['U'] #np.cos(ifg_mlc['inc']) # a trick - instead of ratio to phase (that is wrapped), multiply with heights, to get rad/mm in vertical
+        ifg_mlc['hgt'] = ifg_mlc['hgt'] / ifg_mlc['U'] #np.cos(ifg_mlc['inc']) # U=cos(inc) a trick - instead of ratio to phase (that is wrapped), multiply with heights, to get rad/mm in vertical
     thisisit, thistype = correct_hgt(ifg_mlc, blocklen = 40, tmpdir = tmpdir, dounw = dounw, nonlinear=nonlinear, minheight=minheight)
     if 'U' in ifg_mlc:
         ifg_mlc.hgt.values = hgt.values
@@ -2373,7 +2373,8 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
         if thistype == 'float':
             print('we use average value of {:.4} rad/km'.format(str(thisisit*1000)))
             if 'U' in ifg_mlc:
-                thisisit = thisisit * ifg_mlc['U'] #np.cos(ifg_mlc['inc'])  # return to LOS from 'vertical'
+                # returning the values back to slant look
+                thisisit = thisisit / ifg_mlc['U'] #np.cos(ifg_mlc['inc'])  # return to LOS from 'vertical'
         else:
             print('using hgt correlation grid to reduce hgt component')
             # should be then in LOS...
