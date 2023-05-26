@@ -1655,14 +1655,17 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
     if dolocal:
         geoifgdir = os.path.join('GEOC',pair)
         hgtfile = glob.glob('GEOC/*.geo.hgt.tif')[0]
-        Ufile = glob.glob('GEOC/*.geo.U.tif')[0]
+        try:
+            Ufile = glob.glob('GEOC/*.geo.U.tif')[0]
+        except:
+            Ufile = 'noex'
         landmask_file = os.path.join('GEOC',frame+'.geo.landmask.tif')
-        print('debug l 1662: using U')
+        #print('debug l 1662: using U')
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms',pair)
         hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
         Ufile = os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
-        print('debug l 1667: using U')
+        #print('debug l 1667: using U')
         landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     #orig files
     # will use only the filtered ifgs now..
@@ -1726,7 +1729,7 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
                 inU = load_tif2xr(Ufile)
                 ifg['U'] = ifg['pha']
                 ifg['U'].values = inU.values
-                print('debug l 1730: using U')
+                #print('debug l 1730: using U')
         except:
             print('ERROR in importing heights!')
             #hgtcorr = False
@@ -1773,6 +1776,46 @@ def gaussfill(dapha, sigma=2):
     dapha.values = np.angle(gauss_cpx)
     return dapha
 
+
+def gaussfill_nopha(da, sigma=2):
+    kernel = Gaussian2DKernel(x_stddev=sigma)
+    i=1
+    while np.max(np.isnan(da.values)):
+        i = i+1
+        print('gapfilling iteration '+str(i))
+        if i>5:
+            # no need to add more heavy iterations
+            print('filling by nearest neighbours')
+            da.values = interpolate_nans(da.values, method='nearest')
+        else:
+            da.values = interpolate_replace_nans(da.values, kernel)
+    return da
+
+
+def interpolate_nans_pyinterp(xrda):
+    import pyinterp.backends.xarray
+    # Module that handles the filling of undefined values.
+    import pyinterp.fill
+    grid = pyinterp.backends.xarray.Grid2D(xrda, geodetic=False) #, increasing_axes=True)
+    has_converged, filled = pyinterp.fill.gauss_seidel(grid)
+    xrda.values=filled.T
+    return xrda
+
+
+def interpolate_nans_bivariate(xrda):
+    xrdaa=xrda.sortby('lat').copy()
+    i=1
+    while np.max(np.isnan(xrdaa.values)):
+        i = i + 1
+        if i>3:
+            xrdaa.values = interpolate_nans(xrdaa.values, method='nearest')
+        else:
+            inlon = xrdaa.interpolate_na(dim="lon", method="linear", fill_value="extrapolate")
+            # inlat=xrda.sortby('lat')
+            inlat = xrdaa.interpolate_na(dim="lat", method="linear", fill_value="extrapolate")
+            count = (~inlon.isnull() * 1) + (~inlat.isnull() * 1)
+            xrdaa = (inlon + inlat) / count
+    return xrdaa
 
 
 def lowpass_gauss(ifg_ml, thres=0.35, defomax=0, use_gold = True, goldwin=16, procdir = os.getcwd()):
@@ -2359,7 +2402,7 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
     t = time.process_time()
     minheight=float(ifg_ml.hgt.quantile(0.25)+200)
     if 'U' in ifg_mlc:
-        print('debug: using U')
+        print('using U to improve hgt corr')
         hgt = ifg_mlc['hgt'].copy()
         ifg_mlc['hgt'] = ifg_mlc['hgt'] / ifg_mlc['U'] #np.cos(ifg_mlc['inc']) # U=cos(inc) a trick - instead of ratio to phase (that is wrapped), multiply with heights, to get rad/mm in vertical
     thisisit, thistype = correct_hgt(ifg_mlc, blocklen = 40, tmpdir = tmpdir, dounw = dounw, nonlinear=nonlinear, minheight=minheight)
