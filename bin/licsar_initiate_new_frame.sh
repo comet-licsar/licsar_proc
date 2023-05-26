@@ -30,7 +30,7 @@ then
 fi
 
 #improved getopts, finally
-while getopts ":HMTD:V:C:" option; do
+while getopts ":HMTD:V:L:C:" option; do
  case "${option}" in
   H) a=1; r=5; outres=0.00015; dolocal=1; echo "high resolution option enabled"
      ;;
