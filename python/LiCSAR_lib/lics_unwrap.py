@@ -1659,10 +1659,12 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
         hgtfile = glob.glob('GEOC/*.geo.hgt.tif')[0]
         Ufile = glob.glob('GEOC/*.geo.U.tif')[0]
         landmask_file = os.path.join('GEOC',frame+'.geo.landmask.tif')
+        print('debug l 1662: using U')
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms',pair)
         hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
         Ufile = os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
+        print('debug l 1667: using U')
         landmask_file = os.path.join(geoframedir,'metadata',frame+'.geo.landmask.tif')
     #orig files
     # will use only the filtered ifgs now..
@@ -2357,6 +2359,7 @@ def remove_height_corr(ifg_ml, corr_thres = 0.5, tmpdir = os.getcwd(), dounw = T
     t = time.process_time()
     minheight=float(ifg_ml.hgt.quantile(0.25)+200)
     if 'U' in ifg_mlc:
+        print('debug: using U')
         hgt = ifg_mlc['hgt'].copy()
         ifg_mlc['hgt'] = ifg_mlc['hgt'] * ifg_mlc['U'] #np.cos(ifg_mlc['inc']) # a trick - instead of ratio to phase (that is wrapped), multiply with heights, to get rad/mm in vertical
     thisisit, thistype = correct_hgt(ifg_mlc, blocklen = 40, tmpdir = tmpdir, dounw = dounw, nonlinear=nonlinear, minheight=minheight)
