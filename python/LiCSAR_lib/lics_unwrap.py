@@ -1705,6 +1705,7 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
         for epoch in pair.split('_'):
             epochmli = os.path.join(geoepochsdir, epoch, epoch+'.geo.mli.tif' )
             if os.path.exists(epochmli):
+                print('debug: using mli of epoch '+str(epoch))
                 if type(inmag) == type(False):
                     inmag = load_tif2xr(epochmli)
                 else:
@@ -1727,6 +1728,7 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
                 inU = load_tif2xr(Ufile)
                 ifg['U'] = ifg['pha']
                 ifg['U'].values = inU.values
+                print('debug l 1730: using U')
         except:
             print('ERROR in importing heights!')
             #hgtcorr = False
