@@ -5,6 +5,13 @@ from scipy.constants import speed_of_light
 import numpy as np
 from scipy.interpolate import griddata
 
+from LiCSAR_misc import *
+import xarray as xr
+from daz_iono import *
+from scipy.constants import speed_of_light
+import numpy as np
+from scipy.interpolate import griddata
+
 
 
 def get_tecs_func(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 11:26:38'), pd.Timestamp('2014-11-29 11:26:38')]):
@@ -54,62 +61,6 @@ def get_resolution(ifg, in_m=True):
             return float(resdeg)
 
 
-# now for the test in licsar_disk/iono:
-#ifgg=xr.open_dataset('ionotest.nc')
-import matplotlib.pyplot as plt
-#hgt = ifgg.hgt.where(ifgg.hgt != 0)
-
-
-
-
-frame='149A_11032_131313'
-frame='149A_11107_091009'
-pair='20180930_20181012'
-
-
-# load metadata, i.e.:
-
-#master=20190504
-
-#heading=-13.775063
-#avg_incidence_angle=39.1918
-#azimuth_resolution=14.068910
-#range_resolution=2.329562
-#avg_height=3165.176
-
-epochs = pair.split('_')
-
-# start using one epoch only
-#acq = epochs[0]
-
-# 1. get middle point - just super approx. for now
-#hgt = ifg.hgt.where(ifg.hgt != 0)
-
-#centre_range_m=880080.5691
-#heading=-13.775063
-#avg_incidence_angle=39.1918
-
-inc=get_inc_frame(frame)
-avg_incidence_angle = float(inc.mean())
-# get hgt
-metadir = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata')
-metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata','metadata.txt')
-hgtfile=os.path.join(metadir, frame+'.geo.hgt.tif')
-hgt = load_tif2xr(hgtfile)
-hgt = hgt.where(hgt != 0)
-
-scene_alt = float(hgt.median())
-scene_center_lon = float(hgt.lon.mean())
-scene_center_lat = float(hgt.lat.mean())
-
-from LiCSAR_misc import *
-center_time=grep1line('center_time',metafile).split('=')[1]
-heading=float(grep1line('heading',metafile).split('=')[1])
-centre_range_m=float(grep1line('centre_range_m',metafile).split('=')[1])
-#center_time='23:06:29.844585'
-#sat_alt_km = 800
-#acqtime = pd.to_datetime(str(acq)+'T'+center_time)
-
 
 def get_tecphase(epoch):
     acqtime = pd.to_datetime(str(epoch)+'T'+center_time)
@@ -138,7 +89,7 @@ def get_tecphase(epoch):
     # range to IPP can be calculated using:
     range_IPP = slantRange * hiono / sat_alt
     #
-    # so now let's get the IPP coordinates, using the range to IPP --- BUT, first we need to update the elevationDeg, as the 
+    # so now let's get the IPP coordinates, using the range to IPP --- BUT, first we need to update the elevationDeg, as the
     # ionospheric plasma would have similar effect to the projected scene as your leg projected inside water w.r.t. outside (a 'cut' appears, i.e. change in look angle)
     # get inc angle at IPP - see iono. single layer model function
     #earth_radius = 6378160 # m
@@ -152,7 +103,7 @@ def get_tecphase(epoch):
     # now i need to shift all the points towards the satellite, by the path_scenecenter_to_IPP distance (direction)
     #
     # this is to grid to less points:
-    ionosampling=10000 # m  --- by default, 10 km sampling should be ok?
+    ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
     resolution = get_resolution(hgt, in_m=True)  # just mean avg in both lon, lat should be ok
     # how large area is covered
     lonextent = len(hgt.lon)*resolution
@@ -166,9 +117,9 @@ def get_tecphase(epoch):
     range2iono = (hiono - hgtml) / np.cos(np.radians(incml))
     earth_radius = 6378160  # m
     ionoxr = incml.copy(deep=True)
-    print('getting TEC values sampled by {} km. in latitude:'.format(str(round(ionosampling / 1000))))
+    print('getting TEC values sampled by {} km.'.format(str(round(ionosampling / 1000))))
     for i in range(len(range2iono.lat.values)):
-        print(str(i) + '/' + str(len(range2iono.lat.values)))
+        #print(str(i) + '/' + str(len(range2iono.lat.values)))
         for j in range(len(range2iono.lon.values)):
             if ~np.isnan(incml.values[i, j]):
                 #theta = float(np.radians(incml.values[i, j]))
@@ -178,43 +129,12 @@ def get_tecphase(epoch):
                 ilat, ilon, ialt = ecef2latlonhei(x, y, z)
                 theta = float(np.radians(incml.values[i, j]))
                 sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
-                ionoxr.values[i, j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0] / np.sqrt(1 - sin_thetaiono ** 2) # maybe no need for the last term??
-    '''
-    # so now use the shifted coordinates of decimated hgt to find tec:
-    #fortec_lon = incml.lon.values + dlon
-    #fortec_lat = incml.lat.values + dlat
-    # actually, we can do it (much) better than that! see above... test
-    #
-    #
-    # do it the good old way:
-    # also correct for geometric squinting through ionosphere, at the Hiono:
-    earth_radius = 6378160  # m
-    ionoxr = incml.copy(deep=True)
-    print('getting TEC values sampled by {} km. in latitude:'.format(str(round(ionosampling/1000))))
-    for i in range(len(fortec_lat)):
-        print(str(i)+'/'+str(len(fortec_lat)))
-        for j in range(len(fortec_lon)):
-            ilat, ilon = fortec_lat[i], fortec_lon[j]
-            theta = float(np.radians(incml.values[i,j]))
-            # now for the iono-squint fix:
-            sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
-            ionoxr.values[i,j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]/np.sqrt(1-sin_thetaiono**2)
-    #
-    '''
-    # ok, now correct for geometric squinting through ionosphere, at the Hiono:
-    #sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
-    #ionoxr = ionoxr/np.sqrt(1-sin_thetaiono**2)
-    #def mm2rad_s1(inmm):
-    #speed_of_light = 299792458 #m/s
-    #radar_freq = 5.405e9  #for S1
-    #wavelength = speed_of_light/radar_freq #meter
-    #coef_r2m = -wavelength/4/np.pi*1000 #rad -> mm, positive is -LOS
-    #outrad = inmm/coef_r2m
-    #return outrad
+                ionoxr.values[i, j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0] / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
     #inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
-    ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+    #ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+    ionoxr = 4*np.pi*40.308193/speed_of_light/f0*ionoxr  # should be phase advance, so PLUS!... and ionoxr is already STEC: # *np.cos(np.radians(incml)) # converting from vertical to LOS, using incml
     #ionoxr = -2 * np.pi * 40.308193 / speed_of_light / f0 * ionoxr / np.cos(np.radians(incml))
     # ionodelay in seconds: dT=2*40.308193/speed_of_light/f0^2 * ionoxr/np.cos(np.radians(incml))
     # so the diff phase would be: pha[rad] = -2 pi * dT * f0;
@@ -223,53 +143,65 @@ def get_tecphase(epoch):
     # now the ionoxr contains phase in radians
     return ionoxr
 
-# get tec phase for both epochs:
-tecphase1=get_tecphase(epochs[0])
-tecphase2=get_tecphase(epochs[1])
-# and their difference
-tecdiff = tecphase2-tecphase1
-
-# so the final step is to interpolate the result - use bilinear int. - and get it back to hgt (or ifg, perform correction)
-tecout=tecdiff.interp(lat=inc.lat.values, lon=inc.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
-tecout.to_netcdf('tecout.nc')
-
-# 2022-10-17:
-# something is missing - maybe the effect of range offsets due to ionosphere, mapped by range px offset tracking during coreg towards M?
-master=str(grep1line('master',metafile).split('=')[1])
-tecphaseM=get_tecphase(m)
-tecdiff2 = tecphaseM-tecphase1
-tecout2=tecdiff2.interp(lat=inc.lat.values, lon=inc.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
-tecdiff3 = tecphaseM-tecphase2
-tecout3=tecdiff3.interp(lat=inc.lat.values, lon=inc.lon.values, method="linear",kwargs={"fill_value": "extrapolate"})
 
 
-#frame='069A_06694_131402'
-#pair='20170304_20170316'
+def make_ionocorr_pair(frame, pair):
+    ifg = load_ifg(frame, pair)
+    epochs = pair.split('_')
+    #
+    tecphase1 = make_ionocorr_epoch(frame, epochs[0])
+    tecphase2 = make_ionocorr_epoch(frame, epochs[1])
+        # and their difference
+    tecdiff = tecphase2 - tecphase1
+    #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
+    #tecdiff = interpolate_nans_bivariate(tecdiff)
+    #tecdiff = tecdiff.interp_like(ifg, method='linear', kwargs={"bounds_error": False, "fill_value": None})
+    #tecdiff = interpolate_nans_bivariate(tecdiff) # not needed?
+    #    if np.max(np.isnan(tecdiff.values)):
+    #        tecdiff = interpolate_nans_bivariate(tecdiff)
+    tecdiff = tecdiff.where(ifg.mask_extent == 1)
+        # export_xr2tif(tecdiff,'testdelete.tif')
+    return tecdiff
 
-ifg=load_ifg(frame,pair)
-bagr=ifg.pha.copy()
-bagr.values = wrap2phase(ifg.pha.values - tecout.values - tecout2.values - tecout3.values)
-bagr.plot()
 
-# done!!!
+
+def make_ionocorr_epoch(frame, epoch):
+    # start using one epoch only
+    #acq = epochs[0]
+    #
+    # 1. get middle point - just super approx. for now
+    #hgt = ifg.hgt.where(ifg.hgt != 0)
+    #
+    #centre_range_m=880080.5691
+    #heading=-13.775063
+    #avg_incidence_angle=39.1918
+    #
+    inc=get_inc_frame(frame)
+    avg_incidence_angle = float(inc.mean())
+    # get hgt
+    metadir = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata')
+    metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata','metadata.txt')
+    hgtfile=os.path.join(metadir, frame+'.geo.hgt.tif')
+    hgt = load_tif2xr(hgtfile)
+    hgt = hgt.where(hgt != 0)
+    #
+    scene_alt = float(hgt.median())
+    scene_center_lon = float(hgt.lon.mean())
+    scene_center_lat = float(hgt.lat.mean())
+    #
+    center_time=grep1line('center_time',metafile).split('=')[1]
+    heading=float(grep1line('heading',metafile).split('=')[1])
+    centre_range_m=float(grep1line('centre_range_m',metafile).split('=')[1])
+    #
+    master=str(grep1line('master',metafile).split('=')[1])
+    #
+    tecphase = get_tecphase(epoch)
+    tecphase = interpolate_nans_bivariate(tecphase)
+    tecphase = tecphase.interp_like(inc, method='linear', kwargs={"bounds_error": False, "fill_value": None})
+    tecphase = interpolate_nans_bivariate(tecphase)  # maybe not needed here?
+    return tecphase
 
 '''
-
-def interpolate_tecdiff2ifg(tecdiff, ifgxr): 
-    '''ifgxr must be just xr.dataarray!
-    '''
-    teclats = tecdiff.lat.values
-    teclons = tecdiff.lon.values
-    values = tecdiff.values.ravel()
-    points=list(zip(teclons, teclats))
-    X, Y = np.meshgrid(ifgxr.lon.values, ifgxr.lat.values)
-    vals = griddata(points, values, (X, Y), method='linear')
-    cube = ifgxr.copy()
-    cube.values = vals
-    return cube
-
-
-
 
 dsi = ds.interp(lat=new_lat, lon=new_lon)
 
