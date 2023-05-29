@@ -276,6 +276,16 @@ def make_ionocorr_epoch(frame, epoch):
     tecphase = interpolate_nans_bivariate(tecphase)  # maybe not needed here?
     return tecphase
 
+
+def make_all_frame_epochs(frame):
+    framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
+    for epoch in os.listdir(os.path.join(framepubdir, 'epochs')):
+        print(epoch)
+        tif = os.path.join(framepubdir, 'epochs', epoch+'geo.iono.sltd.tif')
+        xrda = make_ionocorr_epoch(frame, epoch)
+        export_xr2tif(xrda, tif)
+
+
 '''
 
 dsi = ds.interp(lat=new_lat, lon=new_lon)
