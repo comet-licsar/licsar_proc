@@ -50,7 +50,7 @@ def get_inc_frame(frame, heading=False):
         return inc
 
 
-def get_resolution(ifg, in_m=True):
+def get_resolution(hgt, in_m=True):
         """Gets resolution of the xr.dataset (or dataarray), either in metres or degrees
         """
         resdeg = (np.abs(hgt.lat[1]-hgt.lat[0])+np.abs(hgt.lon[1]-hgt.lon[0]))/2
