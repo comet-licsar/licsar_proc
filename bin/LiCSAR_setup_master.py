@@ -151,6 +151,7 @@ def main(argv=None):
                 autodownload = True
             elif p == '-A' or p == '--automaster':
                 automaster = 1
+                autodownload = True
             elif p == '-a':
                 gc.azlks = int(a)
             elif p == '-r':

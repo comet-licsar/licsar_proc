@@ -45,7 +45,7 @@ while getopts ":HMTD:V:L:C:" option; do
      lastdays=$OPTARG;
      ;;
   L) lastdays=$OPTARG;
-     setupmasterextra=$setupmasterextra" -L "$lastdays
+     setupmasterextra=$setupmasterextra" -L "$lastdays;
      ;;
   C) clip=1;
      cliparea=$OPTARG;
@@ -108,6 +108,9 @@ echo "Setting the master image and DEM for frame "$frame
 LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r $r -a $a -o $outres $setupmasterextra
 if [ ! -d $curdir/$tr/$frame/SLC ]; then
  echo "Something got wrong with the initiation"
+ cd - 2>/dev/null
+elif  [ -z `ls SLC` ]; then
+ echo "Something got wrong with the initiation - no ref slc was created"
  cd - 2>/dev/null
 else
  mkdir $curdir/$tr/$frame/LUT
