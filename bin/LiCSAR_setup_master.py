@@ -27,7 +27,7 @@ LiCSAR_setup_master.py -v
 Display the version
 
 LiCSAR_setup_master.py -f <frame_name> -d <output directory> [-L <maxdays> -m <master date yyyymmdd> -r <range looks> -a <azimuth looks> -j <job_id> -D <path to custom DEM (tif)> -A]
-  (parameter -A or --automaster : will attempt to get a master date automatically)
+  (parameter -A or --automaster : will attempt to get a master date automatically - and it will also autodownload it)
   (parameter -V XXX would perform a dryrun, i.e. only check for possible appropriate masters, from the dataset since last XXX days)
   (parameter -L maxdays would change the max days limit for automatic selection and processing of the master epoch)
   (parameter -e would mean allowing also latest images to become master - useful for earthquake responder)
@@ -229,7 +229,7 @@ def main(argv=None):
             frameburstlist = lq.get_bursts_in_frame(framename)
             framebursts = pd.DataFrame.from_records(frameburstlist)[0].to_list()
             cands = []
-            for m in sorted(list(dates)):
+            for m in sorted(list(dates), reverse=True):
                 #master should be from files with POD (<3 weeks) and available (>90 days... or just 'days_limit')
                 #but if we focus on earthquake response, we may use the latest ones also for master - so lets try
                 if m > (dt.date.today() - timedelta(days=days_limit)) and m < (dt.date.today() - timedelta(days=days_limit_POD)) and rc == 1:
