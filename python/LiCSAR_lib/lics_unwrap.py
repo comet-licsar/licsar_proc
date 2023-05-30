@@ -1077,9 +1077,23 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             print('ERROR: GEOC/*.geo.hgt.tif is not existing, cancelling (although might just avoid it?)')
             print('please generate this file first - tip: use gdal2warp.py $anydem.tif $anygoodfile.tif GEOC/any.geo.hgt.tif')
             return False
+        efile = glob.glob('GEOC/*.geo.E.tif')
+        nfile = glob.glob('GEOC/*.geo.N.tif')
+        ufile = glob.glob('GEOC/*.geo.U.tif')
+        try:
+            efile=efile[0]
+            ufile=ufile[0]
+            nfile=nfile[0]
+        except:
+            efile=None
+            nfile=None
+            ufile=None
     else:
         geoifgdir = os.path.join(geoframedir,'interferograms')
         hgtfile = os.path.join(geoframedir,'metadata', frame+'.geo.hgt.tif')
+        efile = os.path.join(geoframedir,'metadata', frame+'.geo.E.tif')
+        nfile = os.path.join(geoframedir,'metadata', frame+'.geo.N.tif')
+        ufile = os.path.join(geoframedir,'metadata', frame+'.geo.U.tif')
     inputifgdir = geoifgdir
     raster = gdal.Open(hgtfile)
     framewid = raster.RasterXSize
@@ -1291,6 +1305,16 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             f.close()
         if not os.path.exists('hgt'):
             hgt.fillna(0).astype(np.float32).values.tofile('hgt')  # should work but i didn't test it (blind fix)
+        # export also E,N,U files
+        if not os.path.exists('E'):
+            if efile:
+                enu = get_ml_hgt(efile, ml=ml, cliparea_geo = cliparea_geo)
+                enu.fillna(0).astype(np.float32).values.tofile('E')
+                enu = get_ml_hgt(nfile, ml=ml, cliparea_geo = cliparea_geo)
+                enu.fillna(0).astype(np.float32).values.tofile('N')
+                enu = get_ml_hgt(ufile, ml=ml, cliparea_geo = cliparea_geo)
+                enu.fillna(0).astype(np.float32).values.tofile('U')
+                enu = None # free the memory
             #np.array(raster).astype(np.float32).tofile('hgt')
             #if 'hgt' in ifg_ml:
             #    ifg_ml['hgt'].astype(np.float32).values.tofile('hgt')
