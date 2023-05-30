@@ -281,7 +281,7 @@ def make_all_frame_epochs(frame):
     framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
     for epoch in os.listdir(os.path.join(framepubdir, 'epochs')):
         print(epoch)
-        tif = os.path.join(framepubdir, 'epochs', epoch+'geo.iono.sltd.tif')
+        tif = os.path.join(framepubdir, 'epochs', epoch, epoch+'.geo.iono.tif')
         xrda = make_ionocorr_epoch(frame, epoch)
         export_xr2tif(xrda, tif)
 
