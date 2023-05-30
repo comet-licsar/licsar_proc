@@ -36,7 +36,7 @@ while getopts ":HMTD:V:L:C:" option; do
      ;;
   M) outres=0.0005; dolocal=1; echo "medium (56 m) resolution option enabled"
      ;;
-  D) setupmasterextra="-D "$OPTARG;
+  D) setupmasterextra=$setupmasterextra" -D "$OPTARG;
      #shift
      ;;
   T) tienshan=1; outres=0.0005; dolocal=1
@@ -45,6 +45,7 @@ while getopts ":HMTD:V:L:C:" option; do
      lastdays=$OPTARG;
      ;;
   L) lastdays=$OPTARG;
+     setupmasterextra=$setupmasterextra" -L "$lastdays
      ;;
   C) clip=1;
      cliparea=$OPTARG;
@@ -160,7 +161,6 @@ else
  #rm -f $curdir/$tr/$frame/SLC/*/
  rm -f $curdir/$tr/$frame/SLC/*/2???????.slc 2>/dev/null
  echo "done"
-fi
 
 if [ $clip == 1 ]; then
  echo "clipping to requested area - WARNING, MUST BE lon1<lon2 etc"
@@ -175,6 +175,8 @@ if [ $clip == 1 ]; then
  # just to clean the small png preview file
  rm $LiCSAR_public/$tr/$frame/epochs/*/*png
 fi
+fi
+
 echo "changing permissions"
 chmod -R 775 $curdir/$tr/$frame $LiCSAR_public/$tr/$frame
 chgrp -R gws_lics_admin $curdir/$tr/$frame
