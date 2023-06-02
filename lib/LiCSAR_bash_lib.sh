@@ -488,7 +488,7 @@ function create_preview_unwrapped() {
   rm $maskedfile $hillshade $unwfile $outfile.unw.cpt 2>/dev/null
   rm gmt.history 2>/dev/null
   else
-    echo "Usage: create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
+    echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
     echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
     return 0
   fi
