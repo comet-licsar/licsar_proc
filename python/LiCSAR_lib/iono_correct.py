@@ -4,14 +4,7 @@ from lics_unwrap import *
 from scipy.constants import speed_of_light
 import numpy as np
 from scipy.interpolate import griddata
-
 from LiCSAR_misc import *
-import xarray as xr
-from daz_iono import *
-from scipy.constants import speed_of_light
-import numpy as np
-from scipy.interpolate import griddata
-
 
 
 def get_tecs_func(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 11:26:38'), pd.Timestamp('2014-11-29 11:26:38')]):
