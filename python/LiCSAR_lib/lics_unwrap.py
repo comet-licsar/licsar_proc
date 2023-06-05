@@ -158,6 +158,9 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
     procdir = os.path.join(procdir,pair)
     if not os.path.exists(procdir):
         os.mkdir(procdir)
+        deleteafter = True
+    else:
+        deleteafter = False
     print('performing cascade unwrapping')
     starttime = time.time()
     if only10:
@@ -201,6 +204,8 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
     minite = int(np.mod((elapsed_time/60),60))
     sec = int(np.mod(elapsed_time,60))
     print("\nTotal elapsed time: {0:02}h {1:02}m {2:02}s".format(hour,minite,sec))
+    if deleteafter:
+        shutil.rmtree(procdir)
     return ifg_ml
 
 
