@@ -163,42 +163,25 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
         deleteafter = False
     print('performing cascade unwrapping')
     starttime = time.time()
-    if only10:
-        # 01/2022: updating parameters:
-        ifg_ml10 = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
-                defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
-                dolocal = dolocal, smooth=True, goldstein = False)
-        if downtoml == 1:
-            # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', 
-                    smooth = smooth, prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres,
-                    add_resid = True, hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, 
-                    cliparea_geo = cliparea_geo,  dolocal = dolocal, specmag = True, goldstein = finalgoldstein)
-        else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss', 
-                prev_ramp = ifg_ml10['unw'], defomax = defomax, thres = thres, add_resid = True, hgtcorr = False, 
-                outtif=outtif, subtract_gacos = subtract_gacos, cliparea_geo = cliparea_geo,  dolocal = dolocal, 
-                smooth=smooth, specmag = True, goldstein=finalgoldstein)
-    else:
-        ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 20, fillby = 'gauss', defomax = 0.5, 
-                add_resid = False, goldstein = False, smooth = True, hgtcorr = hgtcorr, rampit=True,  dolocal = dolocal)
-        for i in [10, 5, 3]:
-            if downtoml < i:
-                ifg_mla = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', 
-                        prev_ramp = ifg_mlc['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, 
-                        rampit=True,  dolocal = dolocal, goldstein = False, smooth = True)
-                ifg_mlc = ifg_mla.copy(deep=True)
-        if downtoml == 1:
-            # avoiding gauss proc, as seems heavy for memory
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest', 
-                    prev_ramp = ifg_mlc['unw'], defomax = defomax, thres = thres, add_resid = True, 
-                    hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos,  dolocal = dolocal, 
-                    smooth=smooth, specmag = True, goldstein=finalgoldstein)
-        else:
-            ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'gauss',
-                    prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, 
-                    hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, goldstein=finalgoldstein,
-                    cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth, specmag = True)
+    # 06/2023: 
+    # 01/2022: updating parameters:
+    ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
+            defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
+            dolocal = dolocal, smooth=True, goldstein = False)
+    if not only10:
+        # do additional 5x and 3x step cascade
+        for ii in [5, 3]:
+            i=int(downtoml*ii)
+            print('processing cascade of ML'+str(i))
+            ifg_mla = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', 
+                    prev_ramp = ifg_mlc['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, 
+                    rampit=True,  dolocal = dolocal, goldstein = False, smooth = True)
+            ifg_mlc = ifg_mla.copy(deep=True)
+    # now do the final step
+    ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest',
+                prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, 
+                hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, goldstein=finalgoldstein,
+                cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth, specmag = True)
     elapsed_time = time.time()-starttime
     hour = int(elapsed_time/3600)
     minite = int(np.mod((elapsed_time/60),60))
@@ -1054,6 +1037,9 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
         xarray.Dataset: multilooked interferogram with additional layers
     """
     if cascade and ml>9:
+        only10 = False
+    if cascade and ml==1:
+        # use 'more' steps if this is ml1
         only10 = False
     #if cascade and ml>1:
     #    print('error - the cascade approach is ready only for ML1')
