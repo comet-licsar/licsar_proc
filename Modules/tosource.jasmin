@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+## LiCSAR core processing toolbox
+export LiCSARpath="/gws/smf/j04/nceo_geohazards/software/licsar_proc"
+export grouppath="/gws/nopw/j04/nceo_geohazards_vol1"
+export LiCSAR_procdir="/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
+export softwarepath="/gws/smf/j04/nceo_geohazards/software"
+
+#keep the below
+export configpath=$grouppath"/config/licsar_proc"
+export LiCSAR_configpath=$configpath
+export LiCSAR_temp="/work/scratch-pw3/licsar/"$USER"/LiCSAR_temp/"
+export BATCH_CACHE_DIR="/work/scratch-pw3/licsar/"$USER"/batchdir"
+
+export ORB_DIR=$grouppath"/orbits/"
+export dems_dir=$grouppath"/DEMs/"
+
+export LiCSARconfig=$configpath"/liveConfig.cnf"
+export LiCSAR_public="/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products"
+export LiCSAR_SLC="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC"
+
+#setup executable paths
+export PATH=$PATH:$LiCSARpath/bin:$LiCSARpath/bin/orig:$LiCSARpath/bin/scripts:$LiCSARpath/python
+
+#Setup python path
+export PYTHONPATH=$PYTHONPATH:$LiCSARpath/python:$LiCSARpath/python/LiCSAR_lib:$LiCSARpath/python/LiCSAR_db
