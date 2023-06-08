@@ -168,6 +168,14 @@ def is_in_volclips(volcid):
     return is_in_table(volcid, 'volc_id', 'volclip2volcs')
 
 
+def classify_volc(volcid, toclass):
+    """Will classify volcano to a given class (e.g. 'C')
+    """
+    sql_q = "UPDATE volc SET priority='{0}' where volc_id = {1};".format(toclass, str(volcid))
+    res = do_query(sql_q, True)
+    print('done')
+
+
 def create_volclip_for_volcano(volcid, cliparea_geo = None):
     """Will create a volclip definition for given volcano (volcid).
     If cliparea is not set, it will auto-generate area using diameter 25 km centered on the volc lon/lat.
@@ -259,11 +267,14 @@ def get_volclip_info(vid=None): #,extended=True):
         return a
 '''
 
-def init_all_subsets(full_overlap=True):
+def init_all_subsets(full_overlap=True, only_classed=True):
     """This will auto-init all volclips (assuming only one vid per volcano...)
     if full_overlap==False, it will skip checking for full overlap of the volclip and frames. good for the last auto-run
+    if only_classed==True, it will skip volcanoes that are not classified (they have 'None' class)
     """
     volcs=get_volc_info()
+    if only_classed:
+        volcs=volcs[~volcs.priority.isnull()]
     for i,volc in volcs.iterrows():
         print(volc['name'])
         frames = get_volcano_frames(int(volc['volc_id']))
