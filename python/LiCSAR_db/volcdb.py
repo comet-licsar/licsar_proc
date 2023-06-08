@@ -168,10 +168,13 @@ def is_in_volclips(volcid):
     return is_in_table(volcid, 'volc_id', 'volclip2volcs')
 
 
-def classify_volc(volcid, toclass):
-    """Will classify volcano to a given class (e.g. 'C')
+def classify_volc(volcid, toclass = ''):
+    """Will classify volcano to a given class (e.g. 'C'). If empty string is provided (default), will set to None
     """
-    sql_q = "UPDATE volc SET priority='{0}' where volc_id = {1};".format(toclass, str(volcid))
+    if toclass:
+        sql_q = "UPDATE volcanoes SET priority='{0}' where volc_id = {1};".format(toclass, str(volcid))
+    else:
+        sql_q = "UPDATE volcanoes SET priority=NULL where volc_id = {0};".format(str(volcid))
     res = do_query(sql_q, True)
     print('done')
 
@@ -267,14 +270,20 @@ def get_volclip_info(vid=None): #,extended=True):
         return a
 '''
 
-def init_all_subsets(full_overlap=True, only_classed=True):
-    """This will auto-init all volclips (assuming only one vid per volcano...)
-    if full_overlap==False, it will skip checking for full overlap of the volclip and frames. good for the last auto-run
-    if only_classed==True, it will skip volcanoes that are not classified (they have 'None' class)
+def init_all_subsets(volcid = None, full_overlap=True, only_classed=True):
+    """This will auto-init all volclips (assuming only one vid per volcano...):
+    
+    Args:
+        volcid (int): if not given, will init volclips for ALL volcanoes. otherwise only for the given one
+        full_overlap (bool): if False, it will skip checking for full overlap of the volclip and frames. good for the last auto-run
+        only_classed (bool): if True, it will skip volcanoes that are not classified (that have 'None' as the 'priority'/class)
     """
-    volcs=get_volc_info()
+    volcs=get_volc_info(volcid)
     if only_classed:
         volcs=volcs[~volcs.priority.isnull()]
+        if volcs.empty:
+            print('error, the selection is without classification. Please use classify_volc first')
+            return False
     for i,volc in volcs.iterrows():
         print(volc['name'])
         frames = get_volcano_frames(int(volc['volc_id']))
