@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
+import rioxarray
 import datetime as dt
 import matplotlib.pyplot as plt
 
@@ -30,7 +31,7 @@ def csv2nc(csv, outncfile = None, resol = 0.0025, extracols = []):
     return nc
 
 
-def df2nc(df, outncfile = None, resol = 0.0025, extracols = []):
+def df2nc(df, outncfile = None, resol = 0.0025, extracols = []): #, cumthecum = False):
     """ Converts pandas dataframe (loaded csv file) to NetCDF.
     See help of csv2nc for proper formatting.
     Grid would aggregate values in each cell by their median.
@@ -44,6 +45,7 @@ def df2nc(df, outncfile = None, resol = 0.0025, extracols = []):
     lat = medgrid.index.get_level_values(level=0)
     lon = medgrid.index.get_level_values(level=1)
     dates = df.columns[df.columns.str.match(r"\d{4}-\d{2}-\d{2}")].to_list()
+    dates.sort()
     
     #cols = ['VEL_U', 'COHER'] #, 'SIGMA VEL_U']
     cols = ['VEL', 'COHER']
@@ -60,9 +62,14 @@ def df2nc(df, outncfile = None, resol = 0.0025, extracols = []):
         b = medgrid[datum].to_xarray().assign_coords(
             {'time':dt.datetime.strptime(datum, '%Y-%m-%d')}).expand_dims('time').rename('cum')
         a = xr.concat([a,b], dim='time')
-    
+    a = a - a[0] # make the first epoch zero
+    #if cumthecum:
+    #    a = a.cumsum()
     nc = nc.assign_coords({'time':a.time.values})
     nc['cum'] = a
+    # set ref. system
+    nc.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
+    nc.rio.write_crs("EPSG:4326", inplace=True)
     #compress it and store as netcdf
     encode = {'vel': {'zlib': True, 'complevel': 9},
           'coh': {'zlib': True, 'complevel': 9},
