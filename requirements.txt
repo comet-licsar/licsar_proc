@@ -19,6 +19,7 @@ pyproj
 requests
 rioxarray
 scikit-learn
+scikit-image
 scipy
 sentinelsat
 shapely
