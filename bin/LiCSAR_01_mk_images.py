@@ -18,12 +18,13 @@ processing directory, named '<framename>-mk_images-report.txt'.
 =========
 Changelog
 =========
+2020+ various changes (Milan Lazecky) + added cross-pol extraction (for test only)
 July 2016: Original implementation (Karsten Spaans, Uni of Leeds)
 
 =====
 Usage
 =====
-LiCSAR_01_mk_images.py -n -i <ignorelist>-f <framename> -d </path/to/processing/location -s <startdate> -e <enddate> -m <masterdate> -a <azlooks> -r <rglooks>
+LiCSAR_01_mk_images.py -n -i <ignorelist> -f <framename> -d </path/to/processing/location> -s <startdate> -e <enddate> -m <masterdate> -a <azlooks> -r <rglooks>
 
     -f    Name of the frame to be processed in database
     -d    Path to the processing location. 
@@ -50,6 +51,7 @@ LiCSAR_01_mk_images.py -n -i <ignorelist>-f <framename> -d </path/to/processing/
     -T <file> Report (text) to write to. Defaults to FRAME-mk_images-report.txt
     -c    Clean mosaics - This will remove mosaicked slc's, leaving only the subswath slcs.
             This will reduce disk usage during processing.
+    -x    Run in test crosspol mode (i.e. extract only VH or HV data)
 
 """
 
@@ -93,12 +95,13 @@ def main(argv=None):
     reportfile = None
     removeSlcs = False
     make_local_config = False
+    test_crosspol = False
 
 ############################################################ Parse program args.
     try:
         try:
             opts, args = getopt.getopt(argv[1:], 
-                    "vhnci:f:d:s:e:m:p:b:o:t:j:a:r:z:y:l:T:",
+                    "vhnxci:f:d:s:e:m:p:b:o:t:j:a:r:z:y:l:T:",
     		    ["version", "help"])
         except getopt.error as msg:
             raise Usage(msg)
@@ -151,6 +154,9 @@ def main(argv=None):
                 reportfile = a
             elif o == '-c':
                 removeSlcs = True
+            elif o == '-x':
+                test_crosspol = True
+                print('WARNING, extraction of cross-pol data not tested well')
 ############################################################ Check 4 Crit. Params.
         if not (framename or polygonfile or burstidfile):
             raise Usage('No frame, polygon or set of burst ids given,'\
@@ -368,7 +374,7 @@ def main(argv=None):
                 # All bursts there, no problem
                 print("All bursts for frame {0} seem to be have been acquired "\
                         "on {1}...".format(framename,date))
-                rc = make_frame_image(date,framename,imburstlist,procdir, lq, job_id) # Key processing function
+                rc = make_frame_image(date,framename,imburstlist,procdir, lq, job_id, test_crosspol = test_crosspol) # Key processing function
                 if removeSlcs and rc == 0 :
                     slc = os.path.join(procdir,'SLC',date.strftime('%Y%m%d'),
                                         date.strftime('%Y%m%d.slc'))
@@ -388,7 +394,7 @@ def main(argv=None):
 ############################################################ OK -> Make Frames
                     print("Missing bursts are not in critical location, continuing "\
                             "processing image {0}.".format(date))
-                    rc = make_frame_image(date,framename,imburstlist,procdir, lq,job_id) # Key processing function
+                    rc = make_frame_image(date,framename,imburstlist,procdir, lq,job_id, test_crosspol = test_crosspol) # Key processing function
                     if removeSlcs and rc == 0:
                         slc = os.path.join(procdir,'SLC',date.strftime('%Y%m%d'),
                                             date.strftime('%Y%m%d.slc'))
@@ -404,7 +410,7 @@ def main(argv=None):
         else:
             print('WARNING: list of bursts is empty - probably not using LiCSInfo?')
             print('trying to go on, no warranties')
-            rc = make_frame_image(date,framename,imburstlist,procdir, lq,job_id) # Key processing function
+            rc = make_frame_image(date,framename,imburstlist,procdir, lq,job_id, test_crosspol = test_crosspol) # Key processing function
         
 ############################################################ Processing status > report file
         with open(reportfile,'a') as f:

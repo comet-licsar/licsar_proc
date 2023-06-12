@@ -173,7 +173,7 @@ def get_orb_dir_old( sat ):
 ################################################################################
 #Read files function
 ################################################################################
-def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='iw' ):
+def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='iw', test_crosspol = False):
     """
     Makes symbolic links of all files in filelist in given directory, and reads
     into gamma format
@@ -183,6 +183,8 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='i
         slcdir      path to SLC directory
         imdate      datetime.date object with acquisition date of files
         procdir     path to processing directory
+        ...
+        test_crosspol  if True, it will extract only VH (or HV) data - for a test now
     Out:
         Boolean True if successful, False if not
     """
@@ -216,7 +218,10 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='i
         for f in filelist:
             # unzipcall = [ 'jar', '-xf', f[1] + '.zip' ]
             # unzipcall = [ 'unzip', f[1] + '.zip' ]
-            unzipcall = [ '7za', 'x', '-xr!*vh*', '-xr!*hv*', f[1] + '.zip' ]
+            if test_crosspol:
+                unzipcall = [ '7za', 'x', '-xr!*vv*', '-xr!*hh*', f[1] + '.zip' ]
+            else:
+                unzipcall = [ '7za', 'x', '-xr!*vh*', '-xr!*hv*', f[1] + '.zip' ]
             try:
                 rc = subp.check_call( unzipcall )
             except subp.CalledProcessError:
@@ -383,7 +388,7 @@ def check_bursts_file(burstlist, filelist, lq):
 #Make frame image function
 ################################################################################
 def make_frame_image( date, framename, burstlist, procdir, licsQuery,
-        job_id=-1, acqMode='iw', autodownload = False ):
+        job_id=-1, acqMode='iw', autodownload = False, test_crosspol = False):
     """ 
     Process the files for the given date
     In:
@@ -393,6 +398,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         procdir     path to processing directory
         acqMode     Acquisition mode: 'iw' (Interferometric wide swath)  
                     or 'sm' (Stripmap)
+        test_crosspol if True, extract only cross-pol data (for testing only now)
     Out:
         return code 0 Ok
                     1 Problem during file unzipping/reading
@@ -489,7 +495,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 filelist[i][2] = newpath
     
 ############################################################ Build Frame
-    if read_files( filelist, slcdir, date, procdir, licsQuery, job_id, acqMode ):
+    if read_files( filelist, slcdir, date, procdir, licsQuery, job_id, acqMode, test_crosspol ):
         # Only do if read_files does not return False, i.e. hits
         # a snag
         # Remove unzipped SAFE directories
