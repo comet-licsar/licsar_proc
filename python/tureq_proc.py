@@ -297,9 +297,10 @@ azi.values=remove_islands(azi.values, pixelsno = 25)
 print('filtering azi')
 tic()
 azifilt = filter_histmed_ndarray(azi, winsize=128, bins=10)
-medres2 = (azi-azifilt).copy()
-medres2=medres2.fillna(0)
-medres2=medianfilter_array(medres2, ws=64)
+medres = (azi-azifilt).copy()
+medres=medres.fillna(0)
+medres=medianfilter_array(medres, ws=64)
+outazi=azifilt+medres
 tac()
 
 print('filtering rng')
@@ -383,7 +384,7 @@ print('done')
 
 
 
-
+'''
 # and finally, recreate the RSLC with that:
 #cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/test_tur_rs/021D
 #mv ~/outlutfile OFF/20230129_20230210/offsets.filtered.lut.full
@@ -392,8 +393,11 @@ print('done')
 # or, using :
 mkdir -p temp RSLCRS/$s
 SLC_interp_lt_ScanSAR tab/$s'R_tab' RSLC/$s/$s.rslc.par tab/$m'R_tab' RSLC/$m/$m.rslc.par OFF/20230129_20230210/offsets.filtered.lut.full RSLC/$m/$m.rslc.par RSLC/$s/$s.rslc.par - tab/$s'_RS RSLCRS/$s/$s.rslc RSLCRS/$s/$s.rslc.par - 5 temp
+# this is to use the not-full version
+SLC_interp_lt_ScanSAR tab/$s'R_tab' RSLC/$s/$s.rslc.par tab/$m'R_tab' RSLC/$m/$m.rslc.par OFF/20230129_20230210/offsets.filtered.lut.full RSLC/$m/$m.rslc.par RSLC/$s/$s.rslc.par - tab/$s'_RS RSLCRS/$s/$s.rslc RSLCRS/$s/$s.rslc.par - 5 temppp
 
 # this way i resample the 20230210 using the fine fullres offsets in the LUT to the new RSLC
 cd RSLCRS/20230210; multi_look 20230210.rslc 20230210.rslc.par 20230210.rslc.mli 20230210.rslc.mli.par 20 4; cd ../..
 # echo $m'_'$
 # rm -r IFG/20230129_20230210; LiCSAR_03_mk_ifgs.py -d . -i ifg.list -a 4 -r 20
+'''
