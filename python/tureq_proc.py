@@ -385,9 +385,25 @@ print('done')
 
 
 '''
-# and finally, recreate the RSLC with that:
-#cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/test_tur_rs/021D
-#mv ~/outlutfile OFF/20230129_20230210/offsets.filtered.lut.full
+# and finally, recreate the RSLC with that - first in the subset:
+cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/test_tur_rs/021D
+#mv ~/outlutfile OFF/20230129_20230210/offsets.filtered.lut
+#mv ~/outlutfilefull OFF/20230129_20230210/offsets.filtered.lut.full
+
+# with the small LUT:
+slc2=RSLC/20230210/20230210.rslc
+slc1=RSLC/20230129/20230129.rslc
+mli2=RSLC/20230210/20230210.rslc.mli
+SLC_interp_lt $slc2 $slc1.par $slc2.par OFF/20230129_20230210/offsets.filtered.lut $slc1.mli.par $slc2.mli.par - RSLCRS2/20230210/20230210.rslc RSLCRS2/20230210/20230210.rslc.par - - 5
+cd RSLCRS2/20230210; multi_look 20230210.rslc 20230210.rslc.par 20230210.rslc.mli 20230210.rslc.mli.par 20 4; cd ../..
+
+# to make ifgs
+rm RSLC/20230210
+ln -s `pwd`/RSLCRS2/20230210 `pwd`/RSLC/20230210
+#SLC_interp_lt RSLC/20230210.orig/20230210.rslc RSLC/20230210.orig/20230210.rslc.par RSLC/20230210.orig/20230210.rslc.par OFF/20230129_20230210/offsets.filtered.lut RSLC/20230210.orig/20230210.rslc.mli.par RSLC/20230210.orig/20230210.rslc.mli.par - RSLC2/20230210/20230210.rslc RSLC2/20230210/20230210.rslc.par - - 8
+#multi_look 20230210.rslc 20230210.rslc.par 20230210.rslc.mli 20230210.rslc.mli.par 20 4
+
+
 # now I should be able to do in GAMMA:
 # SLC_interp_lt RSLC/20230210.orig/20230210.rslc RSLC/20230129.orig/20230129.rslc.par RSLC/20230129.orig/20230129.rslc.par OFF/20230129_20230210/offsets.filtered.lut.full RSLC/20230129.orig/20230129.rslc.par RSLC/20230210.orig/20230210.rslc.par - RSLCRS/20230210/20230210.rslc RSLCRS/20230210/20230210.rslc.par - - 5
 # or, using :
