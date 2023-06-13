@@ -81,7 +81,7 @@ demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
 if [ ! -d $demdir ]; then echo "something wrong with the frame "$frame". Fix this please"; exit; fi
 dempar=$demdir/dem_crop.dem_par
 if [ `ls geo/20??????.hgt 2>/dev/null | wc -l` == 0 ]; then
-  echo "ERROR: the frame "$frame" has no hgt file in the geo folder - this needs fixing"; exit; fi
+  echo "ERROR: the frame "$frame" has no hgt file in the geo folder - this needs fixing"; exit;
 fi
 master=`basename geo/20??????.hgt | cut -d '.' -f1`
 tmpdir=$LiCSAR_temp/$frame/temp
