@@ -107,7 +107,8 @@ azl=`echo $resol"*111000/14" | bc`
 resol_m=`python -c "print(round("$resol"*111111))"`
 
 if [ $hei == 0 ]; then
-echo "getting the avg height"
+  echo "warning, no height information provided. trying auto-extract but it might fail"
+# echo "getting the avg height"
 hei=`python3 -c "import xarray as xr; import rioxarray; import os; frame='"$frame"'; \
 hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif'); \
 a=rioxarray.open_rasterio(hgt); medhgt=float(a.sel(x=("$lon1","$lon2"), y=("$lat1", "$lat2"), method='nearest').median()); \
