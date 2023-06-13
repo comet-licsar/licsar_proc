@@ -10,6 +10,7 @@ This script is part of the main LiCSAR processing chain. It requires step LiCSAR
 =========
 Changelog
 =========
+2020+: some minor changes to reflect LiCSAR development (Milan Lazecky, Uni of Leeds)
 August 2016: Original implementation (Karsten Spaans, Uni of Leeds)
 
 
@@ -288,9 +289,11 @@ def main(argv=None):
     
 ############################################################ Coregister slave images to master
     createdRslcs = []
+    lutdir = os.path.join(procdir,'LUT')  # changed to expected place
     for sd in slavedatelistsort:
-        lut = os.path.join(rslcdir,sd.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d_')+sd.strftime('%Y%m%d.slc.mli.lt'))
-        if os.path.exists(lut) and not forceRecreate:
+        lut1 = os.path.join(rslcdir,sd.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d_')+sd.strftime('%Y%m%d.slc.mli.lt'))
+        lut2 = os.path.join(lutdir,sd.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d_')+sd.strftime('%Y%m%d.slc.mli.lt'))
+        if (os.path.exists(lut1) or os.path.exists(lut2)) and not forceRecreate:
             rc = recoreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir,lq)
             with open(reportfile,'a') as f:
                 if rc == 0:

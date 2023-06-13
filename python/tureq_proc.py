@@ -348,6 +348,10 @@ outlut = rnglut.values + 1j* azilut.values
 #outlutfile='outlutfile'
 outlut.astype('complex64').byteswap().tofile(outlutfile)
 
+# store also the range offsets to be used as prevest
+rnginmm = fullrng.values*rngres*1000
+mm2rad_s1(rnginmm).astype('float32').tofile('rngoffsets_prevest_LE')
+
 
 # a.2) full res output
 # for interpolation, i need to have the corresponding px set. hope i did not miss +1 pixel...
@@ -376,9 +380,7 @@ outlut = rnglut.values + 1j* azilut.values
 outlut.astype('complex64').byteswap().tofile(outlutfilefull)
 
 print('done')
-# store also the range offsets to be used as prevest
-rnginmm = fullrng.values*rngres*1000
-mm2rad_s1(rnginmm).astype('float32').tofile('rngoffsets_prevest_LE')
+
 
 
 
