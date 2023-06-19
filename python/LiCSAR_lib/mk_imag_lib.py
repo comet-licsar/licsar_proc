@@ -51,14 +51,14 @@ def check_bursts( framename, startdate, enddate, licsQuery ):
         return 1
     else:
         dates = set([ f[1] for f in filelist ])
-        if len(dates) == 1:
-            print('\nI only found one acquisition date '\
-                                'associated with frame {0} between {1} and '\
-                                '{2}. Exiting'.format( framename, startdate,
-                                        enddate ), file=sys.stderr)
-            return 1
-        else:
-            print('\nThere are {0} acquisition dates associated with frame '\
+        #if len(dates) == 1:
+        #    print('\nI only found one acquisition date '\
+        #                        'associated with frame {0} between {1} and '\
+        #                        '{2}. Exiting'.format( framename, startdate,
+        #                                enddate ), file=sys.stderr)
+        #    return 1
+        #else:
+        print('\nThere are {0} acquisition dates associated with frame '\
                   '{1} between {2} and {3}.'.format( len(dates), framename,
                             startdate, enddate ))
     return burstlist, filelist, dates
