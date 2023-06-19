@@ -233,6 +233,7 @@ offs=os.path.join(subdir,'OFF/20230129_20230210/tracking.offsets') # or just rem
 outcpxfile=os.path.join(subdir,'OFF/20230129_20230210/tracking.offsets.filtered')
 outlutfile=os.path.join(subdir,'OFF/20230129_20230210/offsets.filtered.lut')
 outlutfilefull=os.path.join(subdir,'OFF/20230129_20230210/offsets.filtered.lut.full')
+#aa=np.fromfile('rngoffsets_prevest_LE', dtype=np.float32).byteswap()
 
 #lena=1409
 #lenr=1278
@@ -396,6 +397,11 @@ slc1=RSLC/20230129/20230129.rslc
 mli2=RSLC/20230210/20230210.rslc.mli
 SLC_interp_lt $slc2 $slc1.par $slc2.par OFF/20230129_20230210/offsets.filtered.lut $slc1.mli.par $slc2.mli.par - RSLCRS2/20230210/20230210.rslc RSLCRS2/20230210/20230210.rslc.par - - 5
 cd RSLCRS2/20230210; multi_look 20230210.rslc 20230210.rslc.par 20230210.rslc.mli 20230210.rslc.mli.par 20 4; cd ../..
+
+# or (better?):
+mkdir tempp;
+SLC_interp_lt_ScanSAR tab/20230210R_tab RSLC/20230210/20230210.rslc.par tab/20230129R_tab RSLC/20230129/20230129.rslc.par OFF/20230129_20230210/offsets.filtered.lut.small RSLC/20230129/20230129.rslc.mli.par RSLC/20230210/20230210.rslc.mli.par - tab/20230210RS_tab RSLCRS/20230210/20230210.rslc RSLCRS/20230210/20230210.rslc.par - 6 tempp
+
 
 # to make ifgs
 rm RSLC/20230210

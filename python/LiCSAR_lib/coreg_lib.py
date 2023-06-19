@@ -1090,7 +1090,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
     #if no missing bursts....
     #missingbursts = False
     if not missingbursts:
-        print('debug place 2')
+        #print('debug place 2')
         print('All bursts available, no recropping of master necessary...')
     #master mli param file path
         mastermlipar = os.path.join(masterslcdir,
@@ -1111,7 +1111,11 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                            masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
         if not os.path.exists(lut):
-            return 7 # Couldn't find previous look up table
+            lut =  os.path.join(slaverslcdir,
+                           masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
+            if not os.path.exists(lut):
+                return 7 # Couldn't find previous look up table
         offfile = os.path.join(slavelutdir, masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.off')
         if not os.path.exists(offfile):
@@ -1160,9 +1164,26 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
             iwthisburst_m = sorted([b[0] for b in masterbursts if iw in b[0]])
             iwthisburst_s = sorted([b[0] for b in slavebursts if iw in b[0]])
         #find indices which match slave bursts
-            iwstart = iwthisburst_m.index(iwthisburst_s[0])+1
-            iwstop = iwthisburst_m.index(iwthisburst_s[-1])+1
-
+            i=0
+            iwstart=False
+            iwstop=False
+            # Note: the '+1' here is because then we will extract bursts from GAMMA par files that number bursts starting from 1
+            while i<len(iwthisburst_s):
+                try:
+                    iwstart = iwthisburst_m.index(iwthisburst_s[i])+1 
+                    break
+                except:
+                    i=i+1
+            i=0
+            while i<len(iwthisburst_s):
+                try:
+                    iwstop = iwthisburst_m.index(iwthisburst_s[int(-1*(i+1))])+1
+                    break
+                except:
+                    i=i+1
+            if (not iwstart) or (not iwstop):
+                print('common bursts not found, cannot recoregister - jumping to common coreg (or should we return error here?)')
+                return coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id = -1, maxdays_sd = 181, eidp = False)
         #Create master slc tab file
             masterslctab = os.path.join(procdir,'tab',masterdate.strftime('%Y%m%d')
                                                                             +'_tab')
@@ -1251,7 +1272,11 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                            masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
         if not os.path.exists(lut):
-            return 7 # Couldn't find previous look up table
+            lut = os.path.join(slavelutdir,
+                           masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
+            if not os.path.exists(lut):
+                return 7 # Couldn't find previous look up table
         logfile = os.path.join(procdir,'log','rdc_trans_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
