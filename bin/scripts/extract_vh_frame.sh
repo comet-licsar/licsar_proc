@@ -25,11 +25,28 @@ echo "careful, this frame already exists. but it should work anyway fine"
 #mv $BATCH_CACHE_DIR/$frame/SLC $BATCH_CACHE_DIR/$frame/SLC.orig
 fi
 
+if [ -d $BATCH_CACHE_DIR/$frame/VH ]; then
+ echo "a previous VH processing detected. might work anyway but not tested (maybe delete/rename that VH dir)"
+fi
 licsar_make_frame.sh -n -f -P $frame 1 1 ${sdate:0:4}-${sdate:4:2}-${sdate:6:2} ${edate:0:4}-${edate:4:2}-${edate:6:2}
 #touch $BATCH_CACHE_DIR/$frame/lmf_locked
 
 cd $BATCH_CACHE_DIR/$frame
 m=`get_master`
+echo "checking/extracting all LUT available tables for given dates"
+mkdir -p LUT
+cd LUT
+tr=`track_from_frame $frame`
+for lut in `ls $LiCSAR_procdir/$tr/$frame/LUT`; do
+ datee=`echo $lut | cut -d '.' -f1`
+ if [ $datee -gt $sdate ] && [ $datee -lt $edate ]; then
+   if [ ! -d $datee ]; then
+    echo "extracting LUT for "$datee
+    7za x $LiCSAR_procdir/$tr/$frame/LUT/$lut >/dev/null
+   fi
+ fi
+done
+cd ..
 mkdir -p VH; cd VH; ln -s ../geo; ln -s ../LUT; cp ../$frame* .; mkdir SLC RSLC tab log LOGS
 # remove all *LCs, including the master date
 #rm -rf RSLC/* SLC/* #$m
