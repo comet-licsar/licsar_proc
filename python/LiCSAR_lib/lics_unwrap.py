@@ -165,7 +165,9 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
     starttime = time.time()
     # 06/2023: 
     # 01/2022: updating parameters:
-    ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
+    i=int(10*downtoml)
+    print('processing cascade of ML'+str(i))
+    ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', 
             defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
             dolocal = dolocal, smooth=True, goldstein = False)
     if not only10:
@@ -1037,7 +1039,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
         xarray.Dataset: multilooked interferogram with additional layers
     """
     if cascade and ml>9:
-        only10 = False
+        only10 = True
     if cascade and ml==1:
         # use 'more' steps if this is ml1
         only10 = False
