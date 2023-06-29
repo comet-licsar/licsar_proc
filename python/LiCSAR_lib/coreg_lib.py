@@ -1081,7 +1081,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
         return 1
 
     #pair = os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'_'+
-    #                       slavedate.strftime('%Y%m%d'))
+                           slavedate.strftime('%Y%m%d'))
     #offset parameter file path - should be the final one
     #offfile = pair+'.off'
     #refine2file = offfile+'.refine2'
@@ -1110,14 +1110,17 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
         lut = os.path.join(slavelutdir,
                            masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
+        offfile = os.path.join(slavelutdir, masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.off')
         if not os.path.exists(lut):
             lut =  os.path.join(slaverslcdir,
                            masterdate.strftime('%Y%m%d')+'_'+
                            slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
+            offfile = os.path.join(slaverslcdir, masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.off')
             if not os.path.exists(lut):
                 return 7 # Couldn't find previous look up table
-        offfile = os.path.join(slavelutdir, masterdate.strftime('%Y%m%d')+'_'+
-                           slavedate.strftime('%Y%m%d')+'.off')
+        
         if not os.path.exists(offfile):
             licsar_procdir = os.environ['LiCSAR_procdir']
             track = str(int(framename[:3]))
@@ -1155,6 +1158,38 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                     'next acquisition date.'.format(logfilename), file=sys.stderr)
 
     else:
+        mastermlipar = os.path.join(masterrslcdir,
+                                 masterdate.strftime('%Y%m%d')+'_crop.rslc.mli.par')
+        masterpar = os.path.join(masterrslcdir,
+                                 masterdate.strftime('%Y%m%d')+'_crop.slc.par')
+        slavemlipar = os.path.join(slaveslcdir,
+                                slavedate.strftime('%Y%m%d')+'.slc.mli.par')
+        slavepar = os.path.join(slaveslcdir,
+                                slavedate.strftime('%Y%m%d')+'.slc.par')
+        demhgt = os.path.join(slaverslcdir,'geo',masterdate.strftime('%Y%m%d')
+                                                                +'_crop.hgt')
+        lut = os.path.join(slaverslcdir,
+                           masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
+        offfile = os.path.join(slaverslcdir, masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.off')
+        if not os.path.exists(lut):
+            lut = os.path.join(slavelutdir,
+                           masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
+            offfile = os.path.join(slavelutdir, masterdate.strftime('%Y%m%d')+'_'+
+                           slavedate.strftime('%Y%m%d')+'.off')
+            if not os.path.exists(lut):
+                return 7 # Couldn't find previous look up table
+        ww=int(grep1('interferogram_width', offfile).split(':')[1].strip())
+        ll=int(grep1('interferogram_azimuth_lines', offfile).split(':')[1].strip())
+        dimensions_lut = ww*ll
+        ww=int(grep1('range_samples', slavemlipar).split(':')[1].strip())
+        ll=int(grep1('azimuth_lines', slavemlipar).split(':')[1].strip())
+        dimensions_slavemli = ww*ll
+        if not (dimensions_lut == dimensions_slavemli):
+            print('This SLC has missing bursts not corresponding to the LUT (it was perhaps created from the full). Trying the full coreg here but better re-download the epoch data..')
+            return coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id = -1, maxdays_sd = 181, eidp = False)
 ############################################################ Crop master to fit with smaller slave
         print('Missing bursts at either or both ends of the scene, recropping '\
                 'master, and auxiliary slave if necessary...')
@@ -1258,25 +1293,6 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
 #####
         
 ############################################################ Coregester slave to master. See no missing bursts code
-        mastermlipar = os.path.join(masterrslcdir,
-                                 masterdate.strftime('%Y%m%d')+'_crop.rslc.mli.par')
-        masterpar = os.path.join(masterrslcdir,
-                                 masterdate.strftime('%Y%m%d')+'_crop.slc.par')
-        slavemlipar = os.path.join(slaveslcdir,
-                                slavedate.strftime('%Y%m%d')+'.slc.mli.par')
-        slavepar = os.path.join(slaveslcdir,
-                                slavedate.strftime('%Y%m%d')+'.slc.par')
-        demhgt = os.path.join(slaverslcdir,'geo',masterdate.strftime('%Y%m%d')
-                                                                +'_crop.hgt')
-        lut = os.path.join(slaverslcdir,
-                           masterdate.strftime('%Y%m%d')+'_'+
-                           slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
-        if not os.path.exists(lut):
-            lut = os.path.join(slavelutdir,
-                           masterdate.strftime('%Y%m%d')+'_'+
-                           slavedate.strftime('%Y%m%d')+'.slc.mli.lt')
-            if not os.path.exists(lut):
-                return 7 # Couldn't find previous look up table
         logfile = os.path.join(procdir,'log','rdc_trans_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
@@ -1284,7 +1300,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
         if not SLC_interp_lt_S1_TOPS(slaveslctab,slavepar,croptab,
                                      cropfilename+'.par',lut,mastermlipar,
                                      slavemlipar,
-                                     refine2file,slaverslctab,slaverfilename,
+                                     offfile,slaverslctab,slaverfilename,
                                      slaverfilename+'.par',logfile):
             print("\nError:", file=sys.stderr)
             print("Something went wrong resampling the slave SLC", file=sys.stderr)
