@@ -302,10 +302,12 @@ def main(argv=None):
                     if not keepSLCs:
                         print('Removing SLC directory...')
                         imdir = os.path.join(slcdir,sd.strftime('%Y%m%d'))
-                        shutil.rmtree(imdir)
+                        if os.path.exists(imdir):
+                            shutil.rmtree(imdir)
                     if removeMosaic:
                         rslc = os.path.join(rslcdir,sd.strftime('%Y%m%d'),sd.strftime('%Y%m%d.rslc'))
-                        os.remove(rslc)
+                        if os.path.exists(rslc):
+                            os.remove(rslc)
                         f.write('\nRemoved mosaiced rslc for date {0}'.format(sd))
                 elif rc == 1:
                     f.write('\nAcquisition {0} had a problem during the tab file creation.'.format(sd))
@@ -316,7 +318,7 @@ def main(argv=None):
                 elif rc == 6: #These should not happen...
                     f.write('\nAcquisition {0} has not been coregistered'.format(sd))
                 elif rc == 7:
-                    f.write('\nAcquisition {0} does not have a lookup table'.format(sd))
+                    f.write('\nAcquisition {0} does not have a lookup table or other LUT-related error'.format(sd))
         else:
             rc = coreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, eidp = eidp)
             with open(reportfile,'a') as f:
