@@ -1081,7 +1081,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
         return 1
 
     #pair = os.path.join(slaverslcdir,masterdate.strftime('%Y%m%d')+'_'+
-                           slavedate.strftime('%Y%m%d'))
+    #                       slavedate.strftime('%Y%m%d'))
     #offset parameter file path - should be the final one
     #offfile = pair+'.off'
     #refine2file = offfile+'.refine2'
