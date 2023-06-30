@@ -349,6 +349,10 @@ if np.max(np.isnan(outazi)):
     method = 'nearest'
     outazi.values = interpolate_nans(outazi.values, method=method)
 
+# 2023/06/30 - update!! we can actually use SLC_interp_map !!
+#outcpx = outrng.fillna(0).values + 1j* outazi.fillna(0).values
+#outcpx.astype('complex64').byteswap.tofile(outcpxfile+'.BE4')
+
 
 # need to fix the lut for multilook factor!
 # adding the pixel numbers themselves:
@@ -413,6 +417,11 @@ outdir=RSLCRS
 mkdir -p $outdir/$s
 # indeed, SLC_interp_lt resamples slc2->slc1, so the offsets should correspond to this
 SLC_interp_lt $slc2 $slc1.par $slc2.par $offlut $slc1.mli.par $slc2.mli.par - $outdir/$s/$s.rslc $outdir/$s/$s.rslc.par - - 5
+# or:
+# offpar=OFF/$m'_'$s/tracking.off
+# swap_bytes OFF/$m'_'$s/tracking.offsets.filtered OFF/$m'_'$s/tracking.offsets.filtered.BE4 4
+# interp_ad OFF/$m'_'$s/tracking.offsets.filtered.BE4  OFF/$m'_'$s/tracking.offsets.filtered.BE4.interpolated 1278 - - - - 0
+# SLC_interp_map $slc2 $slc1.par $slc2.par $offpar $outdir/$s/$s.rslc $outdir/$s/$s.rslc.par OFF/$m'_'$s/tracking.off OFF/$m'_'$s/tracking.offsets.filtered.BE4.interpolated
 cd $outdir/$s; multi_look $s.rslc $s.rslc.par $s.rslc.mli $s.rslc.mli.par 20 4; cd ../..
 
 # now it is possible to generate interferograms and check, e.g.
@@ -424,6 +433,7 @@ fi
 mkdir -p log
 LiCSAR_03_mk_ifgs.py -d . -i ifg.list -a 4 -r 20
 rm RSLC/$s; mv RSLC/$s.orig RSLC/$s
+display IFG/20230129_20230210/20230129_20230210.diff.bmp &
 ''')
 
 
