@@ -1,13 +1,54 @@
 #!/usr/bin/env python3
 
-# LOADING FUNCTIONS
+# Milan Lazecky, 2023
+# not-optimized approach for rubber-sheeting, as applied to the coseismic data of 2023 Turkey-Syria earthquake (not published yet, planned to SARWatch)
+# contains specific filtering that might be improved but is better edge preserving than other simple approaches, such as median filter
+
+
+print('''
+#  How I created tracking offsets? after few iterations, i end up in this way (note deramp is ON here, for TOPS, and note multilooking factor 20/4!):
+m=20230129
+s=20230210
+outdir=OFF/$m'_'$s
+mkdir -p $outdir
+create_offset RSLC/$m/$m.rslc.par RSLC/$s/$s.rslc.par $outdir/tracking.off 1 20 4 0
+time offset_pwr_tracking RSLC/$m/$m.rslc RSLC/$s/$s.rslc RSLC/$m/$m.rslc.par RSLC/$s/$s.rslc.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 128 - 2 0.1 20 4 - - - - - - 1 - - - $outdir/ccs
+# result should be SLC2 offsets towards SLC1 (S->M)
+''')
+
+# IMPORTS
 from lics_unwrap import *
 import dask.array as da
-#import dask_ndfilters as ndfilters    # use this if the below doesn't work!
 from dask_image import ndfilters
-
 from scipy.ndimage import generic_filter
-#from skimage.morphology import disk
+import time
+import os
+
+# SETTINGS
+full = False # for testing of 1:1 LUT table. Do not use/not tested/not working
+filt_hist = True # histogram-based edge-preserving filter. SUPER SLOW but much better than median-based (will run if this is False)
+
+subdir= os.getcwd() #'/work/scratch-pw3/licsar/earmla/batchdir/021D_05266_252525'
+m='20230129'
+s='20230210'
+lena=1409
+lenr=1278
+mlrng=20  # this should be same as rstep in offset_pwr_tracking
+mlazi=4
+# see OFF/20230129_20230210/tracking.off
+if full:
+    outlenrng=68953
+    outlenazi=34651
+    # see RSLC/20230129/20230129.rslc.par
+
+thresm=5.5  # will cut-off offsets larger than this, in metres
+rngres=2.329562 #precision will be needed for range
+azires=14
+
+
+####################### Nothing more to set, just run this and see the message below
+
+# LOADING FUNCTIONS
 
 def get_disk_ones(block):
     mask=np.zeros(block.shape) #should be square
@@ -169,8 +210,6 @@ def filterhist_value(block, amin, amax, bins=20, medbin=True):
     return outval
 
 
-import time
-
 _start_time = time.time()
 
 
@@ -204,50 +243,21 @@ def calculate_gradient(xar, deramp=False):
     return gradis
 
 
-# use:
-#    tic()
-#    f()
-#    tac()
 
 
 
 
+# LOADING/PROCESSING PART
 
-
-
-
-
-
-
-
-
-
-
-
-
-# LOADING DATA
-#subdir='/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/test_tur_rs/021D'
-subdir='/work/scratch-pw3/licsar/earmla/batchdir/021D_05266_252525'
-offs=os.path.join(subdir,'OFF/20230129_20230210/tracking.offsets') # or just remove the '128x128'
+offdir = os.path.join(subdir,'OFF',m+'_'+s)
+offs=os.path.join(offdir,'tracking.offsets') # or just remove the '128x128'
 # outputs:
-outcpxfile=os.path.join(subdir,'OFF/20230129_20230210/tracking.offsets.filtered')
-outlutfile=os.path.join(subdir,'OFF/20230129_20230210/offsets.filtered.lut')
-outlutfilefull=os.path.join(subdir,'OFF/20230129_20230210/offsets.filtered.lut.full')
-#aa=np.fromfile('rngoffsets_prevest_LE', dtype=np.float32).byteswap()
+outcpxfile=os.path.join(offdir,'tracking.offsets.filtered')
+outlutfile=os.path.join(offdir,'offsets.filtered.lut')
 
-#lena=1409
-#lenr=1278
-# see OFF/20230129_20230210/tracking.off:
-lena=8662
-lenr=3447
-#outlenrng=25561
-#outlenazi=5636
-# see RSLC/20230129/20230129.rslc.par
-outlenrng=68953
-outlenazi=34651
-thresm=5.5
-rngres=2.329562 #precision will be needed for range
-azires=14
+if full:
+    outlutfilefull=os.path.join(offdir,'offsets.filtered.lut.full')
+
 
 offs = np.fromfile(offs, dtype=np.complex64).byteswap().reshape((lena,lenr))
 #rng = os.path.join(subdir,'IFG/20230129_20230210/disp_map.rng')
@@ -274,14 +284,10 @@ azi = xr.DataArray(
     dims=["a", "r"],
     coords={"a": azi.dim_0.values, "r": azi.dim_1.values},
 )
-#azi=azi.expand_dims({"x": azi.dim_1, "y": azi.dim_0})
-#corr=xr.DataArray(corr)
-#corr = xr.DataArray(
-#    data=corr.values,
-#    dims=["a", "r"],
-#    coords={"a": corr.dim_0.values, "r": corr.dim_1.values},
-#)
-#corr=corr.expand_dims({"x": corr.dim_1, "y": corr.dim_0})
+
+# check the output as e.g.
+# rng.plot(vmax=1); plt.show()
+
 rng=rng.where(rng!=0)
 azi=azi.where(azi!=0)
 
@@ -297,7 +303,12 @@ azi.values=remove_islands(azi.values, pixelsno = 25)
 
 print('filtering azi')
 tic()
-azifilt = filter_histmed_ndarray(azi, winsize=128, bins=10)
+if filt_hist:
+    azifilt = filter_histmed_ndarray(azi, winsize=128, bins=10)
+else:
+    azifilt=medianfilter_array(azi, ws=64)
+
+
 medres = (azi-azifilt).copy()
 medres=medres.fillna(0)
 medres=medianfilter_array(medres, ws=64)
@@ -306,7 +317,12 @@ tac()
 
 print('filtering rng')
 tic()
-rngfilt = filter_histmed_ndarray(rng, winsize=64, bins=10)
+if filt_hist:
+    rngfilt = filter_histmed_ndarray(rng, winsize=64, bins=10)
+else:
+    rngfilt=medianfilter_array(rng, ws=32)
+
+
 medres = (rng-rngfilt).copy()
 medres=medres.fillna(0)
 medres=medianfilter_array(medres, ws=32)
@@ -315,35 +331,30 @@ tac()
 
 # STORING DATA
 
-fullazi=outazi
-fullrng=outrng
-
 # store back to cpx
 #outcpxfile='outcpxfile'
-outcpx = fullrng.values + 1j* fullazi.values
+outcpx = outrng.fillna(0).values + 1j* outazi.fillna(0).values
 outcpx.astype('complex64').tofile(outcpxfile)
 
-# but we need LUT, so store by:
-# a) resampling to whole dimensions:
-z = xr.DataArray(np.zeros(outlenrng*outlenazi).reshape(outlenazi, outlenrng),
-                 dims=["a", "r"],
-                 coords={"a": np.arange(outlenazi), "r": np.arange(outlenrng)}
-                )
-
+# but we need LUT, so:
 # first, export the LUT as is (multilooked)
-if np.max(np.isnan(fullrng)):
+if np.max(np.isnan(outrng)):
+    print('warning, nans remain - interpolating by NN')
     method = 'nearest'
-    fullrng.values = interpolate_nans(fullrng.values, method=method)
+    outrng.values = interpolate_nans(outrng.values, method=method)
 
 
-if np.max(np.isnan(fullazi)):
+if np.max(np.isnan(outazi)):
+    print('warning, nans remain - interpolating by NN')
     method = 'nearest'
-    fullazi.values = interpolate_nans(fullazi.values, method=method)
+    outazi.values = interpolate_nans(outazi.values, method=method)
 
 
+# need to fix the lut for multilook factor!
 # adding the pixel numbers themselves:
-rnglut = fullrng + np.tile(fullrng.r.values, (len(fullrng.a.values),1))
-azilut = fullazi + np.tile(fullazi.a.values, (len(fullazi.r.values),1)).T
+rnglut = outrng/mlrng + np.tile(outrng.r.values, (len(outrng.a.values),1))
+azilut = outazi/mlazi + np.tile(outazi.a.values, (len(outazi.r.values),1)).T
+
 # storing
 print('storing')
 outlut = rnglut.values + 1j* azilut.values
@@ -351,41 +362,81 @@ outlut = rnglut.values + 1j* azilut.values
 outlut.astype('complex64').byteswap().tofile(outlutfile)
 
 # store also the range offsets to be used as prevest
-rnginmm = fullrng.values*rngres*1000
+rnginmm = outrng.values*rngres*1000
 mm2rad_s1(rnginmm).astype('float32').tofile('rngoffsets_prevest_LE')
 
 
-# a.2) full res output
-# for interpolation, i need to have the corresponding px set. hope i did not miss +1 pixel...
-fullrngfull=fullrng.assign_coords(a=fullrng.a.values*int(outlenazi/lena), r=fullrng.r.values*int(outlenrng/lenr))
-fullazifull=fullazi.assign_coords(a=fullazi.a.values*int(outlenazi/lena), r=fullazi.r.values*int(outlenrng/lenr))
-print('full interpolation to original RSLC dimensions')
-fullrngfull = fullrngfull.interp_like(z,method='nearest',kwargs={"fill_value": "extrapolate"})
-fullazifull = fullazifull.interp_like(z,method='nearest',kwargs={"fill_value": "extrapolate"})
-if np.max(np.isnan(fullrngfull)):
-    method = 'nearest'
-    fullrngfull.values = interpolate_nans(fullrngfull.values, method=method)
+if full:
+    # a) resampling to whole dimensions:
+    z = xr.DataArray(np.zeros(outlenrng*outlenazi).reshape(outlenazi, outlenrng),
+                 dims=["a", "r"],
+                 coords={"a": np.arange(outlenazi), "r": np.arange(outlenrng)}
+                )
+    # a.2) full res output
+    # for interpolation, i need to have the corresponding px set. hope i did not miss +1 pixel...
+    fullrngfull=outrng.assign_coords(a=outrng.a.values*int(outlenazi/lena), r=outrng.r.values*int(outlenrng/lenr))
+    fullazifull=outazi.assign_coords(a=outazi.a.values*int(outlenazi/lena), r=outazi.r.values*int(outlenrng/lenr))
+    print('full interpolation to original RSLC dimensions')
+    fullrngfull = fullrngfull.interp_like(z,method='nearest',kwargs={"fill_value": "extrapolate"})
+    fullazifull = fullazifull.interp_like(z,method='nearest',kwargs={"fill_value": "extrapolate"})
+    if np.max(np.isnan(fullrngfull)):
+        method = 'nearest'
+        fullrngfull.values = interpolate_nans(fullrngfull.values, method=method)
 
 
-if np.max(np.isnan(fullazifull)):
-    method = 'nearest'
-    fullazifull.values = interpolate_nans(fullazifull.values, method=method)
+    if np.max(np.isnan(fullazifull)):
+        method = 'nearest'
+        fullazifull.values = interpolate_nans(fullazifull.values, method=method)
 
 
-# b) adding the pixel numbers themselves:
-rnglut = fullrngfull + np.tile(fullrngfull.r.values, (len(fullrngfull.a.values),1))
-azilut = fullazifull + np.tile(fullazifull.a.values, (len(fullazifull.r.values),1)).T
-# c) storing
-print('storing')
-outlut = rnglut.values + 1j* azilut.values
-#outlutfile='outlutfile'
-outlut.astype('complex64').byteswap().tofile(outlutfilefull)
+    # b) adding the pixel numbers themselves:
+    rnglut = fullrngfull + np.tile(fullrngfull.r.values, (len(fullrngfull.a.values),1))
+    azilut = fullazifull + np.tile(fullazifull.a.values, (len(fullazifull.r.values),1)).T
+    # c) storing
+    print('storing')
+    outlut = rnglut.values + 1j* azilut.values
+    #outlutfile='outlutfile'
+    outlut.astype('complex64').byteswap().tofile(outlutfilefull)
 
-print('done')
+
+print('done, see below for using the offsets-based LUT that was stored as:')
+print(outlutfile)
+
+print('''
+finally, resample the RSLC using the updated offsets-based LUT file:
+m=20230129
+s=20230210
+offlut=OFF/$m'_'$s/offsets.filtered.lut
+slc2=RSLC/$s/$s.rslc
+slc1=RSLC/$m/$m.rslc
+outdir=RSLCRS
+mkdir -p $outdir/$s
+# indeed, SLC_interp_lt resamples slc2->slc1, so the offsets should correspond to this
+SLC_interp_lt $slc2 $slc1.par $slc2.par $offlut $slc1.mli.par $slc2.mli.par - $outdir/$s/$s.rslc $outdir/$s/$s.rslc.par - - 5
+cd $outdir/$s; multi_look $s.rslc $s.rslc.par $s.rslc.mli $s.rslc.mli.par 20 4; cd ../..
+
+# now it is possible to generate interferograms and check, e.g.
+echo $m'_'$s > ifg.list
+rm -r IFG/$m'_'$s 2>/dev/null; mkdir -p IFG
+if [ ! -d RSLC/$s.orig ]; then
+ cd RSLC; mv $s $s.orig; ln -s ../$outdir/$s; cd ..
+fi
+mkdir -p log
+LiCSAR_03_mk_ifgs.py -d . -i ifg.list -a 4 -r 20
+rm RSLC/$s; mv RSLC/$s.orig RSLC/$s
+''')
+
+
+
+
+
 
 
 
 '''
+
+some older notes here, just in case if useful for the full approach (that failed):
+
 # and finally, recreate the RSLC with that - first in the subset:
 cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/test_tur_rs/021D
 #mv ~/outlutfile OFF/20230129_20230210/offsets.filtered.lut
