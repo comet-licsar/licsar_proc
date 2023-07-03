@@ -127,5 +127,6 @@ done
 
 rm ${resultfile}.finish
 mv $resultfile ${outname_base}.tar.gz
+chmod 777 ${outname_base}.tar.gz
 sys_time=`date +%Y-%m-%d-%H:%M:%S`
 echo "GACOSAPI - INFO - Finish processing at $sys_time         "
