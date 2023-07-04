@@ -79,10 +79,10 @@ fi
 
 # extract all requested SLCs that have LUTs
 ls LUT > luts.txt
-LiCSAR_01_mk_images.py -n -f $frame -d . -l luts.txt -s $sdate -e $edate -a 4 -r 20 -x
+LiCSAR_01_mk_images.py -n -f $frame -d . -l luts.txt -s $sdate -e $edate -a 4 -r 20 -x > vh_mk_images.out 2> vh_mk_images.err
 
 # run coreg (will use recoreg with LUTs)
-LiCSAR_02_coreg.py -f $frame -d . -i -m $m
+LiCSAR_02_coreg.py -f $frame -d . -i -m $m > vh_coreg.out 2> vh_coreg.err
 
 #rm $BATCH_CACHE_DIR/$frame/lmf_locked  #not there anymore
 
