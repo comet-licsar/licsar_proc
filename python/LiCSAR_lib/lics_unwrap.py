@@ -228,7 +228,27 @@ def filter_gold_float(intif, thres_m = 5):
     azi2=azi2.interp_like(azi, method='linear')
     # azi2=azi2.interp_like(azi, method='nearest')
     export_xr2tif(azi2, outif)
-    return azi
+    return azi2
+
+
+def filter_tureq(intif, thres_m = 5):
+    redfac = thres_m/np.pi
+    ml=10
+    outif = intif.replace('.tif','.filtered.tif')
+    azi = load_tif2xr(intif)
+    azi2=azi.where(np.abs(azi)<thres_m).copy()
+    azi2 = azi2.coarsen({'lat': ml, 'lon': ml}, boundary='trim').median()
+    azi2 = goldstein_filter_xr(azi2/redfac)[0]
+    azi2.values = azi2.values*redfac
+    azi2.values = filter_histmed_ndarray(azi2.values, winsize=32, bins=10)
+    azi2=azi2.interp_like(azi, method='nearest')
+    medres = (azi-azi2).copy()
+    medres=medres.fillna(0) # just in case..
+    medres=medianfilter_array(medres, ws=64)
+    azi2=azi2+medres
+    export_xr2tif(azi2, outif)
+    return azi2
+
 
 '''
 
@@ -2185,6 +2205,7 @@ def remove_islands(npa, pixelsno = 50):
 # perhaps winsize=64 and bins=10 is ... 'optimal', but must be better tested (i check few options now)
 
 from scipy.ndimage import generic_filter
+'''
 def filterhistmed(block, amin, amax, bins=20): #, medbin=True):
     """Support function to be used with generic_filter (where only 1D array is passed, expecting one output->using median here only)
     """
@@ -2209,6 +2230,70 @@ def filter_histmed_ndarray(ndarr, winsize=32, bins=20):
     footprint=unit_circle(int(winsize/2))
     return generic_filter(ndarr, filterhistmed, footprint=footprint, mode='constant', cval=np.nan,
                       extra_keywords= {'amin': amin, 'amax':amax, 'bins':bins})
+
+'''
+
+
+def get_disk_ones(block):
+    mask=np.zeros(block.shape) #should be square
+    #nyquistlen=int(mask.shape[0]/2+0.5) + 1 #+ extrapx
+    circle=unit_circle(int(mask.shape[0]/2+0.5)-1) #will contain +1 px for zero
+    i=int((mask.shape[0]-circle.shape[0])/2+0.5)
+    j=int((mask.shape[1]-circle.shape[1])/2+0.5)
+    mask[i:i+circle.shape[0],j:j+circle.shape[1]]=circle
+    mask[mask==0]=np.nan
+    return mask
+
+
+def filterhistmed(block, amin, amax, bins=20, medbin=True, circleblock = False):
+    """Support function to be used with generic_filter (where only 1D array is passed, expecting one output->using median here only
+    """
+    if np.isnan(block).all():
+        return np.nan
+    if circleblock:
+        try:
+            block=get_disk_ones(block)*block
+        except:
+            print('warning: conversion to circle block did not work')
+            pass
+    histc, histe = np.histogram(block,range=(amin,amax), bins=bins)
+    histmax=np.argmax(histc)
+    #minval=histe[histmax]
+    #maxval=histe[histmax+1]
+    # tiny update
+    if histmax == 0:
+        histmax=1
+    elif histmax == bins-1:
+        histmax = bins-2
+    minval=histe[histmax-1]
+    maxval=histe[histmax+2]
+    # add median or interpolate:
+    if medbin:
+        bb=block[block>minval]
+        bb=bb[bb<maxval]
+        outval = np.nanmedian(bb)
+    else:
+        try:
+            blockxr=xr.DataArray(block)
+            blockxr.values=interpolate_nans(blockxr.where(blockxr>minval).where(blockxr<maxval).values, method='linear')
+            blockxr.values=interpolate_nans(blockxr.values, method='nearest') # just to be sure..
+            outval = float(blockxr.values[int(block.shape[0]/2),int(block.shape[1]/2)])
+        except:
+            outval = np.nan
+    return outval
+
+
+def filter_histmed_ndarray(ndarr, winsize=32, bins=20, medbin=True):
+    """Main filtering function, works with both numpy.ndarray and xr.DataArray
+    Args:
+        medbin (boolean): if False, it will interpolate (fit) the central value from the bin subset. otherwise returns its median
+    """
+    #footprint=disk(winsize)
+    amin=np.nanmin(ndarr)
+    amax=np.nanmax(ndarr)
+    footprint=unit_circle(int(winsize/2))
+    return generic_filter(ndarr, filterhistmed, footprint=footprint, mode='constant', cval=np.nan,
+                      extra_keywords= {'amin': amin, 'amax':amax, 'bins':bins, 'medbin':medbin})
 
 
 # main_unwrap(binCPX, bincoh, binmask, outunwbin, width, bin_est

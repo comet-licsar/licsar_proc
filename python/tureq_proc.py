@@ -33,6 +33,9 @@ m='20230129'
 s='20230210'
 lena=1409
 lenr=1278
+#lena=8662
+#lenr=3447  # for full v.
+
 mlrng=20  # this should be same as rstep in offset_pwr_tracking
 mlazi=4
 # see OFF/20230129_20230210/tracking.off
@@ -301,6 +304,22 @@ rng.values=remove_islands(rng.values, pixelsno = 25)
 azi.values=remove_islands(azi.values, pixelsno = 25)
 
 
+redfac = thres_m/np.pi
+    ml=10
+    outif = intif.replace('.tif','.filtered.tif')
+    azi = load_tif2xr(intif)
+    azi2=azi.where(np.abs(azi)<thres_m).copy()
+    azi2 = azi2.coarsen({'lat': ml, 'lon': ml}, boundary='trim').median()
+    azi2 = goldstein_filter_xr(azi2/redfac)[0]
+    azi2.values = azi2.values*redfac
+    azi2.values = filter_histmed_ndarray(azi2.values, winsize=32, bins=10)
+    azi2=azi2.interp_like(azi, method='nearest')
+    medres = (azi-azi2).copy()
+    medres=medres.fillna(0) # just in case..
+    medres=medianfilter_array(medres, ws=64)
+    azi2=azi2+medres
+    
+
 print('filtering azi')
 tic()
 if filt_hist:
@@ -426,7 +445,7 @@ SLC_interp_lt $slc2 $slc1.par $slc2.par $offlut $slc1.mli.par $slc2.mli.par - $o
 # and.... IT WORKED!!!!!
 # and with the LUT it is also OK!!!! there is a tiny diff (not sure why) but the coh was improved in almost same way (0+-0.01)
 
-# so for the burst ovls, i can do following (checked, works, not sure if any real effect):
+# so for the burst ovls, i can do following (checked, works, and has effect):
 # SLC_interp_lt_ScanSAR tab/20230210R_tab RSLC/20230210/20230210.rslc.par tab/20230129_tab RSLC/20230129/20230129.rslc.par OFF/20230129_20230210/offsets.filtered.lut RSLC/20230129/20230129.rslc.mli.par RSLC/20230210/20230210.rslc.mli.par OFF/20230129_20230210/tracking.off tab/20230210rsR_tab rsRSLC/20230210/20230210.rslc rsRSLC/20230210/20230210.rslc.par
 
 
