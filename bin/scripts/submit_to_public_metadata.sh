@@ -44,8 +44,25 @@ echo "centre_range_m="$valuee >> $outfile
 #write average height:
 heifile=`ls $LiCSAR_procdir/$track/$frame/geo/20??????.hgt 2>/dev/null`
 if [ -z $heifile ]; then 
- echo "frame "$frame" has no height file";
+ echo "frame "$frame" has no height file - error";
 else
  hei=`python3 -c "import numpy as np; a = np.fromfile('"$heifile"', dtype=np.float32); print(a.byteswap().mean())"`
  echo "avg_height="$hei >> $outfile
 fi
+
+# write info on DEM used here
+# cd $LiCSAR_public; for track in `ls`; do for frame in `ls $track`; do
+# outfile=$track/$frame/metadata/metadata.txt; if [ -f $outfile ]; then
+demlog=`ls $LiCSAR_procdir/$track/$frame/01_doDEMcrop.log 2>/dev/null`
+if [ -z $demlog ]; then
+  echo "frame "$frame" has no DEM log file - error";
+else
+  if [ `grep -c Copernicus $demlog` -eq 1 ]; then demstr="CopernicusDEM_30m";
+  elif [ `grep -c TanDEM $demlog` -eq 1 ]; then demstr="TanDEMX_90m";
+  elif [ `grep -c tdm2insar $demlog` -eq 1 ]; then demstr="TanDEMX_90m";
+  elif [ `grep -c gdem2insar $demlog` -eq 1 ]; then demstr="AsterGDEM_30m";
+  elif [ `grep -c srtm2insar $demlog` -eq 1 ]; then demstr="SRTM_30m";
+  fi
+  echo "applied_DEM="$demstr >> $outfile
+fi
+# fi; done; done

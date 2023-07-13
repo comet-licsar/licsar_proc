@@ -165,9 +165,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
     starttime = time.time()
     # 06/2023: 
     # 01/2022: updating parameters:
-    i=int(10*downtoml)
-    print('processing cascade of ML'+str(i))
-    ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', 
+    ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
             defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
             dolocal = dolocal, smooth=True, goldstein = False)
     if not only10:
@@ -248,8 +246,6 @@ def filter_tureq(intif, thres_m = 5):
     azi2=azi2+medres
     export_xr2tif(azi2, outif)
     return azi2
-
-
 '''
 
 ml10=process_ifg_core(ifg, tmpdir = 'bagrr', ml = 10, fillby = 'nearest',smooth = False, goldstein = True, lowpass =False, specmag = True); ml10.unw.plot(); plt.show()
@@ -1059,7 +1055,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
         xarray.Dataset: multilooked interferogram with additional layers
     """
     if cascade and ml>9:
-        only10 = True
+        only10 = False
     if cascade and ml==1:
         # use 'more' steps if this is ml1
         only10 = False
@@ -1067,8 +1063,8 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
     #    print('error - the cascade approach is ready only for ML1')
     #    return False
     #the best to run in directory named by the frame id
-    pubdir = os.environ['LiCSAR_public']
     try:
+        pubdir = os.environ['LiCSAR_public']
         track=int(frame[:3])
         geoframedir = os.path.join(pubdir,str(track),frame)
     except:
@@ -1687,10 +1683,9 @@ def load_from_tifs(phatif, cohtif, landmask_tif = None, cliparea_geo = None):
 
 
 def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None, ext = 'diff_pha'):
-    pubdir = os.environ['LiCSAR_public']
-    geoframedir = os.path.join(pubdir,str(int(frame[:3])),frame)
     if dolocal:
         geoifgdir = os.path.join('GEOC',pair)
+        geoepochsdir = 'GEOC.MLI'
         hgtfile = glob.glob('GEOC/*.geo.hgt.tif')[0]
         try:
             Ufile = glob.glob('GEOC/*.geo.U.tif')[0]
@@ -1699,7 +1694,10 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
         landmask_file = os.path.join('GEOC',frame+'.geo.landmask.tif')
         #print('debug l 1662: using U')
     else:
+        pubdir = os.environ['LiCSAR_public']
+        geoframedir = os.path.join(pubdir, str(int(frame[:3])), frame)
         geoifgdir = os.path.join(geoframedir,'interferograms',pair)
+        geoepochsdir = os.path.join(geoframedir, 'epochs')
         hgtfile = os.path.join(geoframedir,'metadata',frame+'.geo.hgt.tif')
         Ufile = os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
         #print('debug l 1667: using U')
@@ -1738,12 +1736,11 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
         ifg['unw'] = ifg['pha']
         ifg['unw'].values = inunw.values
     if mag:
-        geoepochsdir = os.path.join(geoframedir,'epochs')
         inmag = False
         for epoch in pair.split('_'):
             epochmli = os.path.join(geoepochsdir, epoch, epoch+'.geo.mli.tif' )
             if os.path.exists(epochmli):
-                print('debug: using mli of epoch '+str(epoch))
+                #print('debug: using mli of epoch '+str(epoch))
                 if type(inmag) == type(False):
                     inmag = load_tif2xr(epochmli)
                 else:
@@ -1751,7 +1748,7 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
                     # but we will use only average here, for practical purposes - should be ok
                     inmag = (load_tif2xr(epochmli)+inmag)/2
         if type(inmag) == type(False):
-            print('no epoch mlis found, not using magnitude')
+            print('no epoch mlis found, not using magnitude for pair '+pair)
         else:
             ifg['mag'] = ifg['pha']
             ifg['mag'].values = inmag.values
@@ -2230,7 +2227,6 @@ def filter_histmed_ndarray(ndarr, winsize=32, bins=20):
     footprint=unit_circle(int(winsize/2))
     return generic_filter(ndarr, filterhistmed, footprint=footprint, mode='constant', cval=np.nan,
                       extra_keywords= {'amin': amin, 'amax':amax, 'bins':bins})
-
 '''
 
 
