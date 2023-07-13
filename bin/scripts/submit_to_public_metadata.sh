@@ -57,11 +57,11 @@ demlog=`ls $LiCSAR_procdir/$track/$frame/01_doDEMcrop.log 2>/dev/null`
 if [ -z $demlog ]; then
   echo "frame "$frame" has no DEM log file - error";
 else
-  if [ `grep -c Copernicus $demlog` -eq 1 ]; then demstr="CopernicusDEM_30m";
-  elif [ `grep -c TanDEM $demlog` -eq 1 ]; then demstr="TanDEMX_90m";
-  elif [ `grep -c tdm2insar $demlog` -eq 1 ]; then demstr="TanDEMX_90m";
-  elif [ `grep -c gdem2insar $demlog` -eq 1 ]; then demstr="AsterGDEM_30m";
-  elif [ `grep -c srtm2insar $demlog` -eq 1 ]; then demstr="SRTM_30m";
+  if [ `grep -c Copernicus $demlog` -gt 0 ]; then demstr="CopernicusDEM_30m";
+  elif [ `grep -c TanDEM $demlog` -gt 0 ]; then demstr="TanDEMX_90m";
+  elif [ `grep -c tdm2insar $demlog` -gt 0 ]; then demstr="TanDEMX_90m";
+  elif [ `grep -c gdem2insar $demlog` -gt 0 ]; then demstr="AsterGDEM_30m";
+  elif [ `grep -c srtm2insar $demlog` -gt 0 ]; then demstr="SRTM_30m";
   fi
   echo "applied_DEM="$demstr >> $outfile
 fi
