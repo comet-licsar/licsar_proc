@@ -4,11 +4,18 @@
 
 if [ -z $1 ]; then 
  echo "USAGE: provide pair, and keep being in the frame folder"
- echo "e.g. create_bovl_ifg.sh 20230115_20230127 ... to generate bovl ddiff ifg between those dates"
+ echo "e.g. create_bovl_ifg.sh 20230115_20230127 [1] ... to generate bovl ddiff ifg between those dates. Optional param [1] would filter the bovl"
  exit
 fi
 
 filterit=0
+if [ ! -z $2 ]; then
+ if [ $2 == 1 ]; then filterit=1;
+ else
+  echo "provided unexpected extra parameter, cancelling now"; exit
+ fi
+fi
+
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 m=`echo $1 | cut -d '_' -f1`
