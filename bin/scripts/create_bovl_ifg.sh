@@ -45,19 +45,20 @@ fi
 movlfile=IFG/$pair/$m'_overlaps'
 sovlfile=IFG/$pair/$s'_overlaps'
 # 1. extract burst overlaps, output *fwd.slc, fwd.slc.par, bwd.slc, bwd.slc.par
-ScanSAR_burst_overlap $mtab $movlfile 20 4 0 0 $mastertab
-ScanSAR_burst_overlap $stab $sovlfile 20 4 0 0 $mastertab
+echo "extracting burst overlaps"
+ScanSAR_burst_overlap $mtab $movlfile 20 4 0 0 $mastertab >/dev/null
+ScanSAR_burst_overlap $stab $sovlfile 20 4 0 0 $mastertab >/dev/null
 
 
 #3. Create offset, output offset files of bwd and fwd
 
-create_offset $movlfile.fwd.slc.par $sovlfile.fwd.slc.par IFG/$pair/ovfwd.offset 1 20 4 0
-create_offset $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset 1 20 4 0
+create_offset $movlfile.fwd.slc.par $sovlfile.fwd.slc.par IFG/$pair/ovfwd.offset 1 20 4 0 >/dev/null
+create_offset $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset 1 20 4 0 >/dev/null
 
 #4. Make ifgs of backwards and forwards
-
-SLC_intf $movlfile.bwd.slc $sovlfile.bwd.slc $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset IFG/$pair/bwd.ifg 20 4 0 - 0 0
-SLC_intf $movlfile.fwd.slc $sovlfile.fwd.slc $movlfile.fwd.slc.par $sovlfile.fwd.slc.par IFG/$pair/ovfwd.offset IFG/$pair/fwd.ifg 20 4 0 - 0 0
+echo "creating bwd and fwd ifgs"
+SLC_intf $movlfile.bwd.slc $sovlfile.bwd.slc $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset IFG/$pair/bwd.ifg 20 4 0 - 0 0 >/dev/null
+SLC_intf $movlfile.fwd.slc $sovlfile.fwd.slc $movlfile.fwd.slc.par $sovlfile.fwd.slc.par IFG/$pair/ovfwd.offset IFG/$pair/fwd.ifg 20 4 0 - 0 0 >/dev/null
 
 #4.1 Make adf filtering to fwd adn bwd ifg
 width=`get_value IFG/$pair/ovbwd.offset interferogram_width`
@@ -77,14 +78,15 @@ python3 -c "import numpy as np; a=np.fromfile('"IFG/$pair/"fwd.ifg', np.complex6
 
 
 if [ $filterit == 1 ]; then
+ echo "filtering"
  #5.2 Make adf double difference 
  #adf IFG/$pair/ddiff.adf IFG/$pair/ddiff.adf.adf IFG/$pair/ddiff.adf.adf.cc $width 1 - - - - - -
- adf IFG/$pair/ddiff IFG/$pair/ddiff.adf IFG/$pair/ddiff_coh $width 1 - - - - - -
-else
+ adf IFG/$pair/ddiff IFG/$pair/ddiff.adf IFG/$pair/ddiff_coh_adf $width 1 - - - - - -
+fi
  #6. To create coherence
  # width=3447 
- cc_wave IFG/$pair/ddiff RSLC/$m/$m.rslc.mli RSLC/$s/$s.rslc.mli IFG/$pair/ddiff_coh $width
-fi
+cc_wave IFG/$pair/ddiff RSLC/$m/$m.rslc.mli RSLC/$s/$s.rslc.mli IFG/$pair/ddiff_coh $width
+
 
 #7. create geotiffs
 #width=`get_value RSLC/$master/$master.rslc.mli.par range_samples`
@@ -93,19 +95,23 @@ fi
 
 #
 if [ $filterit == 1 ]; then
- cpx_to_real IFG/$pair/ddiff.adf IFG/$pair/ddiff_pha $width 4
-else
- cpx_to_real IFG/$pair/ddiff IFG/$pair/ddiff_pha $width 4
+ cpx_to_real IFG/$pair/ddiff.adf IFG/$pair/ddiff_pha_adf $width 4
 fi
+cpx_to_real IFG/$pair/ddiff IFG/$pair/ddiff_pha $width 4
+
 mkdir -p GEOC/$pair
+if [ $filterit == 1 ]; then
+ geocode_back IFG/$pair/ddiff_coh_adf $width geo/$master.lt_fine GEOC/$pair/ddiff_coh_adf.geo $widthgeo - 0 0
+ geocode_back IFG/$pair/ddiff_pha_adf $width geo/$master.lt_fine GEOC/$pair/ddiff_pha_adf.geo $widthgeo - 0 0
+fi
 geocode_back IFG/$pair/ddiff_coh $width geo/$master.lt_fine GEOC/$pair/ddiff_coh.geo $widthgeo - 0 0
 geocode_back IFG/$pair/ddiff_pha $width geo/$master.lt_fine GEOC/$pair/ddiff_pha.geo $widthgeo - 0 0
 #geocode_back IFG/$pair/ddiff_pha.adf $width geo/$master.lt_fine IFG/$pair/ddiff_pha.adf.geo $widthgeo - 0 0
 if [ $filterit == 1 ]; then
- data2geotiff geo/EQA.dem_par IFG/$pair/ddiff.adf.cc.geo 2 GEOC/$pair/$pair.bovldiff.adf.cc.geo.tif 0.0
-else
- data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_coh.geo 2 GEOC/$pair/$pair.geo.bovldiff.cc.geo.tif 0.0
+ data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_coh_adf.geo 2 GEOC/$pair/$pair.geo.bovldiff.adf.cc.tif 0.0
+ data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha_adf.geo 2 GEOC/$pair/$pair.geo.bovldiff.adf.tif 0.0
 fi
+data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_coh.geo 2 GEOC/$pair/$pair.geo.bovldiff.cc.tif 0.0
 data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
 #data2geotiff geo/EQA.dem_par IFG/$pair/ddiff_pha.adf.geo 2 GEOC/$pair/$pair.geo.bovldiff.tif 0.0
 
@@ -115,8 +121,13 @@ data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bov
 
 
 #8. create preview
+if [ $filterit == 1 ]; then
+ create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.adf.tif
+fi
 create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.tif
 
+# clean:
+rm GEOC/$pair/ddiff* 2>/dev/null
 echo "done - check preview of:"
-ls GEOC/$pair/$pair.geo.bovldiff.png
+ls GEOC/$pair/$pair.*bovldiff*.png
 chmod 777 GEOC/$pair/*
