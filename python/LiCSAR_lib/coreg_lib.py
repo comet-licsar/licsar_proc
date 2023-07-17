@@ -571,7 +571,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 else:
                     missing = True
                 if missing: # Remove missing burst slave from list and try again
-                    if skipmissing:
+                    if not skipmissing:
                         print("not valid as aux slave")
                         if len(procslavelist)>1:
                             procslavelist.pop(slave3ix)
