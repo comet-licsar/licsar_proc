@@ -494,7 +494,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
 
 #########################################################################
 
-def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181, eidp = False):
+def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181, eidp = False, skipmissing = True):
     """ Coregister and resample slave to master geometry
     masterdate is of type dt.datetime.date...
     """
@@ -571,13 +571,17 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
                 else:
                     missing = True
                 if missing: # Remove missing burst slave from list and try again
-                    print("not valid as aux slave")
-                    if len(procslavelist)>1:
-                        procslavelist.pop(slave3ix)
-                        procslavediff.pop(slave3ix)
+                    if skipmissing:
+                        print("not valid as aux slave")
+                        if len(procslavelist)>1:
+                            procslavelist.pop(slave3ix)
+                            procslavediff.pop(slave3ix)
+                        else:
+                            cond = False
+                            print("but it is the last available - trying to keep this one, see what happens (inform Milan if it fails)")
                     else:
-                        cond = False
-                        print("but it is the last available - trying to keep this one, see what happens (inform Milan if it fails)")
+                        print('the RSLC3 candidate has missing bursts reported but we now keep them (skipmissing=True)')
+                        cond = False # use the RSLC3 anyway
                 else: # Accept slave
                     print("using aux slave {0}".format(slave3date))
                     cond = False
