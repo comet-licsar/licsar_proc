@@ -55,7 +55,12 @@ def get_resolution(hgt, in_m=True):
 
 
 
-def get_tecphase(epoch):
+def get_tecphase(epoch, source = 'code'):
+    if source == 'code':
+        # this is to grid to less points:
+        ionosampling=10000 # m 
+    else:
+        ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
     acqtime = pd.to_datetime(str(epoch)+'T'+center_time)
     # this is to get point between sat and scene centre
     theta = np.radians(avg_incidence_angle)
@@ -95,8 +100,6 @@ def get_tecphase(epoch):
     #
     # now i need to shift all the points towards the satellite, by the path_scenecenter_to_IPP distance (direction)
     #
-    # this is to grid to less points:
-    ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
     resolution = get_resolution(hgt, in_m=True)  # just mean avg in both lon, lat should be ok
     # how large area is covered
     lonextent = len(hgt.lon)*resolution
@@ -111,6 +114,8 @@ def get_tecphase(epoch):
     earth_radius = 6378160  # m
     ionoxr = incml.copy(deep=True)
     print('getting TEC values sampled by {} km.'.format(str(round(ionosampling / 1000))))
+    if source == 'code':
+        tecxr=get_vtec_from_code(acqtime, lat=0, lon=0, return_fullxr = True)
     for i in range(len(range2iono.lat.values)):
         #print(str(i) + '/' + str(len(range2iono.lat.values)))
         for j in range(len(range2iono.lon.values)):
@@ -122,7 +127,13 @@ def get_tecphase(epoch):
                 ilat, ilon, ialt = ecef2latlonhei(x, y, z)
                 theta = float(np.radians(incml.values[i, j]))
                 sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
-                ionoxr.values[i, j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0] / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
+                if source=='code':
+                    ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon)
+                else:
+                    ionoij = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]
+                ionoxr.values[i, j] = ionoij / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
+                #get_vtec_from_code(acqtime, lat, lon, storedir = '/gws/nopw/j04/nceo_geohazards_vol1/code_iono', return_fullxr = False):
+                #get_vtec_from_tecxr(tecxr, acqtime, lat, lon):
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
     #inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
