@@ -54,7 +54,7 @@ def get_resolution(hgt, in_m=True):
             return float(resdeg)
 
 
-
+'''
 def get_tecphase(epoch, source = 'code'):
     if source == 'code':
         # this is to grid to less points:
@@ -146,7 +146,7 @@ def get_tecphase(epoch, source = 'code'):
     # BUT! i might have wrong IPP angle values - just because i don't scale lons, only shift them!
     # now the ionoxr contains phase in radians
     return ionoxr
-
+'''
 
 
 def make_ionocorr_pair(frame, pair):
@@ -164,12 +164,17 @@ def make_ionocorr_pair(frame, pair):
     #    if np.max(np.isnan(tecdiff.values)):
     #        tecdiff = interpolate_nans_bivariate(tecdiff)
     tecdiff = tecdiff.where(ifg.mask_extent == 1)
-        # export_xr2tif(tecdiff,'testdelete.tif')
+    # export_xr2tif(tecdiff,'testdelete.tif')
     return tecdiff
 
 
 
-def make_ionocorr_epoch(frame, epoch):
+def make_ionocorr_epoch(frame, epoch, source = 'code'):
+    if source == 'code':
+        # this is to grid to less points:
+        ionosampling=10000 # m 
+    else:
+        ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
     # start using one epoch only
     #acq = epochs[0]
     #
@@ -239,8 +244,6 @@ def make_ionocorr_epoch(frame, epoch):
     #
     # now i need to shift all the points towards the satellite, by the path_scenecenter_to_IPP distance (direction)
     #
-    # this is to grid to less points:
-    ionosampling = 20000  # m  --- by default, 20 km sampling should be ok?
     resolution = get_resolution(hgt, in_m=True)  # just mean avg in both lon, lat should be ok
     # how large area is covered
     lonextent = len(hgt.lon) * resolution
@@ -254,6 +257,8 @@ def make_ionocorr_epoch(frame, epoch):
     range2iono = (hiono - hgtml) / np.cos(np.radians(incml))
     earth_radius = 6378160  # m
     ionoxr = incml.copy(deep=True)
+    if source == 'code':
+        tecxr=get_vtec_from_code(acqtime, lat=0, lon=0, return_fullxr = True)
     print('getting TEC values sampled by {} km.'.format(str(round(ionosampling / 1000))))
     for i in range(len(range2iono.lat.values)):
         # print(str(i) + '/' + str(len(range2iono.lat.values)))
@@ -267,8 +272,11 @@ def make_ionocorr_epoch(frame, epoch):
                 ilat, ilon, ialt = ecef2latlonhei(x, y, z)
                 theta = float(np.radians(incml.values[i, j]))
                 sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
-                ionoxr.values[i, j] = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0] / np.sqrt(
-                    1 - sin_thetaiono ** 2)  # with the last term, we get it to LOS (STEC)
+                if source=='code':
+                    ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon)
+                else:
+                    ionoij = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]
+                ionoxr.values[i, j] = ionoij / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
     # inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
@@ -277,7 +285,8 @@ def make_ionocorr_epoch(frame, epoch):
     tecphase = ionoxr #get_tecphase(epoch)
     tecphase = interpolate_nans_bivariate(tecphase)
     tecphase = tecphase.interp_like(inc, method='linear', kwargs={"bounds_error": False, "fill_value": None})
-    tecphase = interpolate_nans_bivariate(tecphase)  # maybe not needed here?
+    if np.max(np.isnan(tecphase.values)):
+        tecphase = interpolate_nans_bivariate(tecphase)  # maybe not needed here?
     return tecphase
 
 
