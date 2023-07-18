@@ -285,8 +285,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code'):
     tecphase = ionoxr #get_tecphase(epoch)
     tecphase = interpolate_nans_bivariate(tecphase)
     tecphase = tecphase.interp_like(inc, method='linear', kwargs={"bounds_error": False, "fill_value": None})
-    if np.max(np.isnan(tecphase.values)):
-        tecphase = interpolate_nans_bivariate(tecphase)  # maybe not needed here?
+    #if np.max(np.isnan(tecphase.values)):
+    #    tecphase = interpolate_nans_bivariate(tecphase)  # maybe not needed here?
     return tecphase
 
 
