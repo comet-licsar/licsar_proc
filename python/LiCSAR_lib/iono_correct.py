@@ -149,12 +149,12 @@ def get_tecphase(epoch, source = 'code'):
 '''
 
 
-def make_ionocorr_pair(frame, pair):
+def make_ionocorr_pair(frame, pair, source = 'code'):
     ifg = load_ifg(frame, pair)
     epochs = pair.split('_')
     #
-    tecphase1 = make_ionocorr_epoch(frame, epochs[0])
-    tecphase2 = make_ionocorr_epoch(frame, epochs[1])
+    tecphase1 = make_ionocorr_epoch(frame, epochs[0], source = source)
+    tecphase2 = make_ionocorr_epoch(frame, epochs[1], source = source)
         # and their difference
     tecdiff = tecphase2 - tecphase1
     #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
@@ -290,7 +290,10 @@ def make_ionocorr_epoch(frame, epoch, source = 'code'):
     return tecphase
 
 
-def make_all_frame_epochs(frame):
+# test frame: 144A_04689_111111
+def make_all_frame_epochs(frame, source = 'code'):
+    ''' use either 'code' or 'iri' as the source model for the correction
+    '''
     framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
     hgt = os.path.join(framepubdir, 'metadata', frame+'.geo.hgt.tif')
     hgt = load_tif2xr(hgt)
@@ -298,7 +301,7 @@ def make_all_frame_epochs(frame):
     for epoch in os.listdir(os.path.join(framepubdir, 'epochs')):
         print(epoch)
         tif = os.path.join(framepubdir, 'epochs', epoch, epoch+'.geo.iono.tif')
-        xrda = make_ionocorr_epoch(frame, epoch)
+        xrda = make_ionocorr_epoch(frame, epoch, source = source)
         xrda = xrda.where(mask)
         export_xr2tif(xrda, tif)
 

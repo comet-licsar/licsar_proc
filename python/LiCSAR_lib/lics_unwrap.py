@@ -1024,7 +1024,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
             nproc = 1, dolocal = False, specmag = False, defomax = 0.3,
-            use_amp_stab = False, use_coh_stab = False, keep_coh_debug = True, gacosdir = '../GACOS'):
+            use_amp_stab = False, use_coh_stab = False, use_ampcoh = False, keep_coh_debug = True, gacosdir = '../GACOS'):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
     Args:
@@ -1048,6 +1048,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
         
         use_amp_stab (boolean): apply amplitude stability index instead of coherence-per-interferogram for unwrapping
         use_coh_stab (boolean): apply (experimental) coherence stability index. not recommended (seems not logical to me) - worth investigating though (maybe helps against loop closure errors)
+        use_amp_coh (boolean): another experiment, using avg amp multiplied by avg coh (of 12-day combinations, hardcoded now) as weights
         keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
         gacosdir (str): path to directory with *pair*.sltd.geo.tif files
     
@@ -1125,6 +1126,9 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
     #    import rioxarray as rio
     #    hgt = xr.open_dataarray(hgtfile)
     extweights = None
+    if use_amp_coh:
+        use_coh_stab = True
+        use_amp_stab = True #just to calculate it...
     if use_amp_stab:
         print('calculating amplitude stability')
         try:
@@ -1165,6 +1169,17 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
         except:
             print('some error happened, disabling use of coh stability')
             use_coh_stab = False
+    if use_amp_coh:
+        ampcoh = cohavg * ampavg
+        extweights = ampcoh
+        cohratio = None
+        cohstd = None
+        cohavg = None
+        ampstab = None
+        ampstd = None
+        ampavg = None
+        use_coh_stab = False
+        use_amp_stab = False
     pairset = None
     if pairsetfile:
         try:
