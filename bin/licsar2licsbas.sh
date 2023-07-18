@@ -53,9 +53,9 @@ smooth=0
 lowpass=0
 wls=0
 cometdev=0
-specmag=0
+#specmag=0
 # 2023 - keep it ON
-#specmag=1
+specmag=1
 nproc=1
 que='short-serial'
 #LB_version=licsbas_comet_dev
@@ -73,6 +73,7 @@ while getopts ":M:HucTsdSClWgmPRkG:t:n:" option; do
      #shift
      ;;
   m) specmag=1;
+     print('parameter -m is obsolete, the Goldstein is always on now')
      ;;
   u) reunw=1;
      #shift
