@@ -73,7 +73,7 @@ while getopts ":M:HucTsdSClWgmPRkG:t:n:" option; do
      #shift
      ;;
   m) specmag=1;
-     echo 'parameter -m is obsolete, the Goldstein is always on now'
+     echo 'parameter -m is obsolete, the Goldstein is always on now';
      ;;
   u) reunw=1;
      #shift

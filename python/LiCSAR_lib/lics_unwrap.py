@@ -1024,7 +1024,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
             nproc = 1, dolocal = False, specmag = False, defomax = 0.3,
-            use_amp_stab = False, use_coh_stab = False, use_ampcoh = False, keep_coh_debug = True, gacosdir = '../GACOS'):
+            use_amp_stab = False, use_coh_stab = False, use_amp_coh = False, keep_coh_debug = True, gacosdir = '../GACOS'):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
     Args:
