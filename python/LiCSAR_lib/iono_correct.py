@@ -170,11 +170,11 @@ def make_ionocorr_pair(frame, pair, source = 'code'):
 
 
 def make_ionocorr_epoch(frame, epoch, source = 'code'):
-    if source == 'code':
-        # this is to grid to less points:
-        ionosampling=10000 # m 
-    else:
-        ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
+    #if source == 'code':
+    #    # this is to grid to less points:
+    #    ionosampling=10000 # m 
+    #else:
+    ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
     # start using one epoch only
     #acq = epochs[0]
     #
