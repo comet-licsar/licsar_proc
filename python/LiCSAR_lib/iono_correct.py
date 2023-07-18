@@ -300,7 +300,7 @@ def make_all_frame_epochs(frame, source = 'code'):
     mask = (hgt != 0) * (~np.isnan(hgt))
     for epoch in os.listdir(os.path.join(framepubdir, 'epochs')):
         print(epoch)
-        tif = os.path.join(framepubdir, 'epochs', epoch, epoch+'.geo.iono.tif')
+        tif = os.path.join(framepubdir, 'epochs', epoch, epoch+'.geo.iono.'+source+'.tif')
         xrda = make_ionocorr_epoch(frame, epoch, source = source)
         xrda = xrda.where(mask)
         export_xr2tif(xrda, tif)
