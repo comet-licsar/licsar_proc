@@ -1413,6 +1413,8 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
         # that's for multilooking - in case of extweights, we want to only weight phases based on that, and then return to coh
         bagcpx = ifg[['cpx']].where(ifg.mask>0).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
         ifg_ml = bagcpx.sum() / bagcpx.count()   # this really equals np.nanmean, or, bagcpx.mean() - same result
+        bagamp = np.abs(ifg['cpx'].where(ifg.mask>0)).coarsen({'lat': ml, 'lon': ml}, boundary='trim')
+        cohlike = np.abs(bagcpx.sum()) / bagamp.sum()
         # but for m
         # if we use coh instead of amplitude, it may get underestimated after ML (as found by Jack McG.), so just averaging it here:
         #if type(ml_weights) != type(None):
@@ -1421,6 +1423,9 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
         coh_ml = bagcoh.mean()
         ifg_ml['coh'] = ifg_ml.cpx
         ifg_ml['coh'].values = coh_ml.coh.values
+        ifg_ml['cohlike'] = ifg_ml.coh
+        ifg_ml['cohlike'].values = cohlike.cpx.values
+        cohlike = None
         # non-nan px count per window
         ifg_ml['pxcount'] = ifg_ml.cpx
         ifg_ml['pxcount'].values = bagcpx.count().cpx.values.astype(np.uint16)    # to use later - evaluate bad ML data, e.g. mask those pxls
