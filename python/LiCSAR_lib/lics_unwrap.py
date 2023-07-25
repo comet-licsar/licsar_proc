@@ -1706,7 +1706,10 @@ def load_ifg(frame, pair, unw=True, dolocal=False, mag=True, cliparea_geo = None
     if dolocal:
         geoifgdir = os.path.join('GEOC',pair)
         geoepochsdir = 'GEOC.MLI'
-        hgtfile = glob.glob('GEOC/*.geo.hgt.tif')[0]
+        try:
+            hgtfile = glob.glob('GEOC/*.geo.hgt.tif')[0]
+        except:
+            hgtfile = 'noex'
         try:
             Ufile = glob.glob('GEOC/*.geo.U.tif')[0]
         except:
