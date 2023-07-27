@@ -149,14 +149,25 @@ def get_tecphase(epoch, source = 'code'):
 '''
 
 
-def make_ionocorr_pair(frame, pair, source = 'code'):
+def make_ionocorr_pair(frame, pair, source = 'code', outif=None):
+    """ This will generate ionospheric correction for given frame-pair.
+    It would optionally output the result to a geotiff.
+    
+    Args:
+        frame (str):    frame ID
+        pair (str):     pair (e.g. '20180930_20181012')
+        source (str):   source model for TEC values. Either 'iri' or 'code'.
+        outif (str):    if given, will export the iono phase screen to given geotiff
+    Returns:
+        xr.DataArray:   estimated ionospheric phase screen
+    """
     ifg = load_ifg(frame, pair)
     epochs = pair.split('_')
     #
     tecphase1 = make_ionocorr_epoch(frame, epochs[0], source = source)
     tecphase2 = make_ionocorr_epoch(frame, epochs[1], source = source)
         # and their difference
-    tecdiff = tecphase2 - tecphase1
+    tecdiff = tecphase1 - tecphase2  # 07/2023: should it be this way/opposite???!!!! (i think so)
     #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
     #tecdiff = interpolate_nans_bivariate(tecdiff)
     #tecdiff = tecdiff.interp_like(ifg, method='linear', kwargs={"bounds_error": False, "fill_value": None})
@@ -164,7 +175,8 @@ def make_ionocorr_pair(frame, pair, source = 'code'):
     #    if np.max(np.isnan(tecdiff.values)):
     #        tecdiff = interpolate_nans_bivariate(tecdiff)
     tecdiff = tecdiff.where(ifg.mask_extent == 1)
-    # export_xr2tif(tecdiff,'testdelete.tif')
+    if outif:
+        export_xr2tif(tecdiff,outif)
     return tecdiff
 
 
@@ -174,7 +186,10 @@ def make_ionocorr_epoch(frame, epoch, source = 'code'):
     #    # this is to grid to less points:
     #    ionosampling=10000 # m 
     #else:
-    ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
+    if source == 'code':
+        ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
+    else:
+        ionosampling=40000
     # start using one epoch only
     #acq = epochs[0]
     #
@@ -291,14 +306,20 @@ def make_ionocorr_epoch(frame, epoch, source = 'code'):
 
 
 # test frame: 144A_04689_111111
-def make_all_frame_epochs(frame, source = 'code'):
+def make_all_frame_epochs(frame, source = 'code', epochslist = None):
     ''' use either 'code' or 'iri' as the source model for the correction
+    Args:
+        frame (str)
+        source (str): either 'iri' or 'code'
+        epochslist (list): e.g. ['20180930', '20181012'] - if given, only IPS for only those epochs are created, otherwise for all epochs
     '''
     framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
     hgt = os.path.join(framepubdir, 'metadata', frame+'.geo.hgt.tif')
     hgt = load_tif2xr(hgt)
     mask = (hgt != 0) * (~np.isnan(hgt))
-    for epoch in os.listdir(os.path.join(framepubdir, 'epochs')):
+    if not epochslist:
+        epochslist = os.listdir(os.path.join(framepubdir, 'epochs')):
+    for epoch in epochslist:
         print(epoch)
         tif = os.path.join(framepubdir, 'epochs', epoch, epoch+'.geo.iono.'+source+'.tif')
         xrda = make_ionocorr_epoch(frame, epoch, source = source)
