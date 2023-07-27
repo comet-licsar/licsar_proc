@@ -318,7 +318,7 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None):
     hgt = load_tif2xr(hgt)
     mask = (hgt != 0) * (~np.isnan(hgt))
     if not epochslist:
-        epochslist = os.listdir(os.path.join(framepubdir, 'epochs')):
+        epochslist = os.listdir(os.path.join(framepubdir, 'epochs'))
     for epoch in epochslist:
         print(epoch)
         tif = os.path.join(framepubdir, 'epochs', epoch, epoch+'.geo.iono.'+source+'.tif')
