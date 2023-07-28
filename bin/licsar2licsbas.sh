@@ -263,6 +263,9 @@ fi
 fi
 
 cd $workdir
+# first store the original command:
+echo $0 $@ > "command.in"
+
 if [ $reunw -gt 0 ]; then
  #echo "preparing for custom multilooking - just run ./multirun.sh"
  if [ $dogacos == 1 ]; then

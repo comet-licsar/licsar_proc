@@ -1422,9 +1422,15 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
         #coh_ml = bagcoh.sum() / bagcoh.count()
         coh_ml = bagcoh.mean()
         ifg_ml['coh'] = ifg_ml.cpx
-        ifg_ml['coh'].values = coh_ml.coh.values
-        ifg_ml['cohlike'] = ifg_ml.coh
-        ifg_ml['cohlike'].values = cohlike.cpx.values
+        if ml > 9:
+            # if there is quite a number of pixels, we can just use the cohlike measure instead of coh! not standard but makes sense to me (ML)
+            ifg_ml['coh'] = ifg_ml.coh
+            ifg_ml['coh'].values = cohlike.cpx.values
+        else:
+            ifg_ml['coh'].values = coh_ml.coh.values
+            # just store cohlike for further investigation
+            ifg_ml['cohlike'] = ifg_ml.coh
+            ifg_ml['cohlike'].values = cohlike.cpx.values
         cohlike = None
         # non-nan px count per window
         ifg_ml['pxcount'] = ifg_ml.cpx
