@@ -186,10 +186,11 @@ def make_ionocorr_epoch(frame, epoch, source = 'code'):
     #    # this is to grid to less points:
     #    ionosampling=10000 # m 
     #else:
-    if source == 'code':
-        ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
-    else:
-        ionosampling=40000
+    ionosampling = 20000  # m  --- by default, 20 km sampling should be ok?
+    #if source == 'code':
+    #    ionosampling=20000 # m  --- by default, 20 km sampling should be ok?
+    #else:
+    #    ionosampling=40000
     # start using one epoch only
     #acq = epochs[0]
     #
@@ -278,20 +279,20 @@ def make_ionocorr_epoch(frame, epoch, source = 'code'):
     for i in range(len(range2iono.lat.values)):
         # print(str(i) + '/' + str(len(range2iono.lat.values)))
         for j in range(len(range2iono.lon.values)):
-            #if ~np.isnan(incml.values[i, j]):
+            if ~np.isnan(incml.values[i, j]):
                 # theta = float(np.radians(incml.values[i, j]))
-            eledeg = float(90 - incml.values[i, j])
-            ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
-            x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground,
-                               float(hgtml.values[i, j]))
-            ilat, ilon, ialt = ecef2latlonhei(x, y, z)
-            theta = float(np.radians(incml.values[i, j]))
-            sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
-            if source=='code':
-                ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon)
-            else:
-                ionoij = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]
-            ionoxr.values[i, j] = ionoij / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
+                eledeg = float(90 - incml.values[i, j])
+                ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
+                x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground,
+                                   float(hgtml.values[i, j]))
+                ilat, ilon, ialt = ecef2latlonhei(x, y, z)
+                theta = float(np.radians(incml.values[i, j]))
+                sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
+                if source=='code':
+                    ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon)
+                else:
+                    ionoij = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]
+                ionoxr.values[i, j] = ionoij / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
     # now, convert TEC values into 'phase' - simplified here (?)
     f0 = 5.4050005e9
     # inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
