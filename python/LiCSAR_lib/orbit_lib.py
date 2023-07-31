@@ -11,6 +11,8 @@ import logging
 import pandas as pd
 from configparser import ConfigParser
 import global_config as gc
+from datetime import datetime
+import xml.etree.ElementTree as ET
 
 from sentinelsat.sentinel import SentinelAPI
 try:
@@ -21,15 +23,89 @@ except:
 
 
 #### 2023 functions
+#try:
+#    from eof.parsing import parse_orbit
+#except:
+#    print('also, without sentineleof lib, we will not parse the orbits now')
+
+
+# adapted from SentinelEOF parser:
+def parse_utc_string(timestring):
+    return datetime.strptime(timestring, "UTC=%Y-%m-%dT%H:%M:%S.%f")
+
+
+# adapted from SentinelEOF parser:
+def _convert_osv_field(osv, field, converter=float):
+    # osv is a xml.etree.ElementTree.Element
+    field_str = osv.find(field).text
+    return converter(field_str)
+
+
+# adapted from (useful) SentinelEOF parser:
+def load_eof(
+    eof_filename,
+    min_time=datetime(1900, 1, 1),
+    max_time=datetime(2100, 1, 1)):
+    """ Would load the orbit into xr.Dataset
+    Args:
+        eof_filename: path to the orbits file
+    Returns:
+        xr.Dataset: time in UTC, coords in ECEF [m or m/s]
+    """
+    #
+    tree = ET.parse(eof_filename)
+    root = tree.getroot()
+    all_osvs = []
+    idxs_in_range = []
+    for idx, osv in enumerate(root.findall("./Data_Block/List_of_OSVs/OSV")):
+        all_osvs.append(osv)
+        utc_dt = _convert_osv_field(osv, "UTC", parse_utc_string)
+        if utc_dt >= min_time and utc_dt <= max_time:
+            idxs_in_range.append(idx)
+    #
+    if not idxs_in_range:
+        return None
+    #
+    idxs_in_range.sort()
+    osvs_in_range = []
+    for idx in idxs_in_range:
+        cur_osv = all_osvs[idx]
+        utc_dt = _convert_osv_field(cur_osv, "UTC", parse_utc_string)
+        # utc_secs = secs_since_midnight(utc_dt)
+        # cur_line = [utc_secs]
+        cur_line = [utc_dt]
+        for field in ("X", "Y", "Z", "VX", "VY", "VZ"):
+            # Note: the 'unit' would be elem.attrib['unit']
+            cur_line.append(_convert_osv_field(cur_osv, field, float))
+        osvs_in_range.append(cur_line)
+    #
+    cols=['time','x','y','z','vx','vy','vz']
+    osvs_in_range = pd.DataFrame(osvs_in_range, columns=cols)
+    # convert to xarray (easy for later interpolations):
+    osvs_in_range = osvs_in_range.set_index('time').to_xarray()
+    return osvs_in_range
+
+
+def get_coords_in_time(orbxr, timesample, method='cubic'):
+    """ gets interpolated coordinates from the orbit datacube for given time sample (dt.datetime)
+    Args:
+        orbxr (xr.Dataset):  e.g. using load_eof
+        timesample (dt.datetime)
+        method (str):  interpolation method (ML: note, linear vs cubic diff would reach tens of metres!)
+    Returns:
+        xr.Dataset
+    """
+    return orbxr.interp(time=timesample, method=method)
+
 
 '''
-# adapted from Reza B., to read state orbit vectors from S1 xmls (and orbit files).
+# from Reza B., to read state orbit vectors from S1 xmls (and orbit files).
 # ML: to get diff between orbit files, I would:
 # - load the SOVs to xarray
 # - interpolate (cubic?) to get SOV for given time
 # - do diff in y (should be azimuth?), x (range?) - or are the x,y,z ECEF coordinates instead of the satellite coords?
 
-import xml.etree.ElementTree as ET
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
