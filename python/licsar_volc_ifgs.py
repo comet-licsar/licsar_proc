@@ -12,10 +12,9 @@ except:
     print('             or import volcdb; volcdb.find_volcano_by_name()')
     print(' ')
     print('This will process all hires frames related to the given volcano, creating standard set of interferograms.')
-    print('To fine tune the ifg network, you may check "bjobs" and when all related jobs are finished, you may want to)'
-    print('rerun (in the $BATCH_CACHE_DIR/subsets/xxx/xxx) the command:')
-    print('framebatch_gapfill.sh -l -P -i ifgs.list -o 5 180 $rglks $azlks')
-    print('(if you have your own ifgs.list) - note rglks/azlks should be written on command line, but probably this is 13 2')
+    print('If you want to add your own ifgs.list with custom connections (e.g. 20210101_20210202 etc.), then ')
+    print('you may check "bjobs" and when all related jobs are finished, you can rerun (in the $BATCH_CACHE_DIR/subsets/xxx/xxx) the command:')
+    print('framebatch_gapfill.sh -l -P -i ifgs.list -o 5 180')
     exit()
 
 '''
