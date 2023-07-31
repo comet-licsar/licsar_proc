@@ -20,6 +20,59 @@ except:
     #print('warning, you do not have sentineleof python library installed. expect problems with orbits (but maybe fixed now..)')
 
 
+#### 2023 functions
+
+'''
+# adapted from Reza B., to read state orbit vectors from S1 xmls (and orbit files).
+# ML: to get diff between orbit files, I would:
+# - load the SOVs to xarray
+# - interpolate (cubic?) to get SOV for given time
+# - do diff in y (should be azimuth?), x (range?) - or are the x,y,z ECEF coordinates instead of the satellite coords?
+
+import xml.etree.ElementTree as ET
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+from datetime import datetime
+from scipy import interpolate
+from astropy.time import Time
+import framecare as fc
+from mpl_toolkits.mplot3d import Axes3D
+
+# Working directory
+xml_dir = r'/home/users/eerbs/ion/20181011/'
+
+# Path to the Sentinel-1 XML file
+iw1_xml = xml_dir + 's1a-iw1-slc-hh-20181011t080210-20181011t080235-024085-02a1f4-001.xml'
+iw2_xml = xml_dir + 's1a-iw2-slc-hh-20181011t080208-20181011t080233-024085-02a1f4-002.xml'
+iw3_xml = xml_dir + 's1a-iw3-slc-hh-20181011t080209-20181011t080234-024085-02a1f4-003.xml'
+
+# Parse the XML file and get roots
+tree1 = ET.parse(iw1_xml)
+tree2 = ET.parse(iw2_xml)
+tree3 = ET.parse(iw3_xml)
+
+root1 = tree1.getroot()
+root2 = tree2.getroot()
+root3 = tree3.getroot()
+
+# State vectors extraction (satellite position and acquisition times) 
+state_vectors = root1.findall('.//orbit')
+
+pos_array = []
+stateTime_array = []
+
+for pos in state_vectors:
+    x = float(pos.find('position/x').text)
+    y = float(pos.find('position/y').text)
+    z = float(pos.find('position/z').text)
+    ts = pos.find('time').text
+
+    stateTime_array.append(ts)
+    pos_array.append([x,y,z])
+'''
+
+
 ################################################################################
 # Setup logger
 ################################################################################
