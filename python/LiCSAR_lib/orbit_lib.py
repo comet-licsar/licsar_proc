@@ -13,6 +13,8 @@ from configparser import ConfigParser
 import global_config as gc
 from datetime import datetime
 import xml.etree.ElementTree as ET
+import pyproj
+import numpy as np
 
 from sentinelsat.sentinel import SentinelAPI
 try:
@@ -82,12 +84,14 @@ def load_eof(
     cols=['time','x','y','z','vx','vy','vz']
     osvs_in_range = pd.DataFrame(osvs_in_range, columns=cols)
     # convert to xarray (easy for later interpolations):
-    osvs_in_range = osvs_in_range.set_index('time').to_xarray()
-    return osvs_in_range
+    orbxr = osvs_in_range.set_index('time').to_xarray()
+    return orbxr
 
 
 def get_coords_in_time(orbxr, timesample, method='cubic'):
     """ gets interpolated coordinates from the orbit datacube for given time sample (dt.datetime)
+    Note, we need to implement hermite interpolation, as in ISCE2!!
+
     Args:
         orbxr (xr.Dataset):  e.g. using load_eof
         timesample (dt.datetime)
@@ -97,6 +101,59 @@ def get_coords_in_time(orbxr, timesample, method='cubic'):
     """
     return orbxr.interp(time=timesample, method=method)
 
+
+# from daz/daz_iono:
+def ecef2lonlathei(x, y, z):
+    transformer = pyproj.Transformer.from_crs(
+        {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'},
+        {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
+        )
+    lon, lat, alt = transformer.transform(x,y,z,radians=False)
+    return lon, lat, alt
+
+'''
+# adapted from isce2:
+# https://github.com/isce-framework/isce2/blob/0dbb1679b61b4ac385c537269b91208e57024672/components/isceobj/Orbit/Orbit.py
+def getHeading(orbxr, time=None, spacing=0.5):
+    """
+    Compute heading at given time.
+    If time is not provided, mid point of orbit is used.
+    Args:
+        orbxr (xr.DataArray): datacube from state orbit vectors
+        time (dt.datetime or None)
+        spacing (float): timedelta to use for heading calculation, in seconds
+    Returns:
+        float: heading in degrees
+    """
+
+    if time is None:
+        delta = orbxr.time.max() - orbxr.time.min()
+        aztime = orbxr.time.min() + dt.timedelta(seconds = 0.5 * delta.total_seconds())
+    else:
+        aztime = time
+
+    t1 = aztime - dt.timedelta(seconds=spacing)
+    t2 = aztime + dt.timedelta(seconds=spacing)
+
+    vec1 = get_coords_in_time(orbxr, t1)
+    vec2 = get_coords_in_time(orbxr, t2)
+
+    lonlath1 = ecef2lonlathei(float(vec1['x']), float(vec1['y']), float(vec1['z'])) #refElp.xyz_to_llh(vec1.getPosition())
+    lonlath2 = ecef2lonlathei(float(vec2['x']), float(vec2['y']), float(vec2['z']))
+
+    import nvector as nv
+    wgs84 = nv.FrameE(name='WGS84')
+    pointA = wgs84.GeoPoint(latitude=lonlath1[1], longitude=lonlath1[0], degrees=True)
+    pointB = wgs84.GeoPoint(latitude=lonlath2[1], longitude=lonlath2[0], degrees=True)
+    path = nv.GeoPath(pointA.to_nvector(), pointB.to_nvector())
+
+    # TODO: can we do wgs84.point? and how to return the heading in degrees? AND.. once i am here, adapt also for diff between 2 orbit files in azimuth!
+    #Heading
+    return path.something
+    #hdg = refElp.geo_hdg(lonlath1, lonlath2)
+#
+#    return np.degrees(hdg)
+'''
 
 '''
 # from Reza B., to read state orbit vectors from S1 xmls (and orbit files).

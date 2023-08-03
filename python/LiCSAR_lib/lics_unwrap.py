@@ -155,9 +155,9 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
         xarray.Dataset: unwrapped multilooked interferogram with additional layers
     """
     # fix to ensure unique directory per processing (issues with parallelism..)
-    procdir = os.path.join(procdir,pair)
-    if not os.path.exists(procdir):
-        os.mkdir(procdir)
+    procpairdir = os.path.join(procdir,pair)
+    if not os.path.exists(procpairdir):
+        os.mkdir(procpairdir)
         deleteafter = True
     else:
         deleteafter = False
@@ -165,7 +165,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
     starttime = time.time()
     # 06/2023: 
     # 01/2022: updating parameters:
-    ifg_mlc = process_ifg(frame, pair, procdir = procdir, ml = 10*downtoml, fillby = 'gauss', 
+    ifg_mlc = process_ifg(frame, pair, procdir = procpairdir, ml = 10*downtoml, fillby = 'gauss',
             defomax = 0.3, thres = 0.4, add_resid = False, hgtcorr = hgtcorr, rampit=True, 
             dolocal = dolocal, smooth=True, goldstein = False)
     if not only10:
@@ -173,12 +173,12 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
         for ii in [5, 3]:
             i=int(downtoml*ii)
             print('processing cascade of ML'+str(i))
-            ifg_mla = process_ifg(frame, pair, procdir = procdir, ml = i, fillby = 'gauss', 
+            ifg_mla = process_ifg(frame, pair, procdir = procpairdir, ml = i, fillby = 'gauss',
                     prev_ramp = ifg_mlc['unw'], defomax = 0.5, add_resid = False, hgtcorr = hgtcorr, 
                     rampit=True,  dolocal = dolocal, goldstein = False, smooth = True)
             ifg_mlc = ifg_mla.copy(deep=True)
     # now do the final step
-    ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = downtoml, fillby = 'nearest',
+    ifg_ml = process_ifg(frame, pair, procdir = procpairdir, ml = downtoml, fillby = 'nearest',
                 prev_ramp = ifg_mlc['unw'], thres = thres, defomax = defomax, add_resid = True, 
                 hgtcorr = False, outtif=outtif, subtract_gacos = subtract_gacos, goldstein=finalgoldstein,
                 cliparea_geo = cliparea_geo,  dolocal = dolocal, smooth=smooth, specmag = True)
@@ -188,7 +188,7 @@ def cascade_unwrap(frame, pair, downtoml = 1, procdir = os.getcwd(), finalgoldst
     sec = int(np.mod(elapsed_time,60))
     print("\nTotal elapsed time: {0:02}h {1:02}m {2:02}s".format(hour,minite,sec))
     if deleteafter:
-        shutil.rmtree(procdir)
+        shutil.rmtree(procpairdir)
     return ifg_ml
 
 
@@ -2039,16 +2039,34 @@ def coh_change(pre, post, winsize=8):
     postcoh = coh_from_phadiff(post, winsize)
     return postcoh - precoh
 
+'''
+# that would be cool, but ndimage.generic_filter does not support cpx :(
+def coh_from_cpx(cpx, winsize=5):
+    """Calculates the coherence in the way it should.
+
+    Args:
+        cpx (np.ndarray): interferogram
+        winsize (int): window size
+
+    Returns:
+        np.ndarray: coherence
+    """
+    def getcoh(cpxpatch):
+        amp = np.abs(cpxpatch)
+        return np.abs(cpxpatch.sum()) / amp.sum()
+    coh = ndimage.generic_filter(cpx, getcoh, size=winsize)
+    return coh
+'''
 
 def coh_from_phadiff(phadiff, winsize=3):
     """Calculates coherence based on variance of interferogram, computed in window with given size
 
     Args:
-        phadiff (np.array): interferogram
+        phadiff (np.ndarray): interferogram
         winsize (int): window size
 
     Returns:
-        np.array: coherence based on the variance
+        np.ndarray: coherence based on the variance
 
     """
     cpxdiff = pha2cpx(phadiff)
