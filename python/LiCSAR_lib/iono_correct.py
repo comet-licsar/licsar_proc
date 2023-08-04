@@ -87,7 +87,12 @@ def make_ionocorr_pair(frame, pair, source = 'code', outif=None):
 
 
 
-def make_ionocorr_epoch(frame, epoch, source = 'code'):
+def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None):
+    """
+    Args:
+        ...
+        fixed_f2_height_km: if None, it will use IRI2016 to estimate the height (in mid point between scene centre and satellite)
+    """
     #if source == 'code':
     #    # this is to grid to less points:
     #    ionosampling=10000 # m 
@@ -145,11 +150,20 @@ def make_ionocorr_epoch(frame, epoch, source = 'code'):
     path = nv.GeoPath(Pscene_center.to_nvector(), Psatg.to_nvector())
     # get point in the middle
     Pmid_scene_sat = path.interpolate(0.5).to_geo_point()
-    # get hionos in that middle point:
-    tecs, hionos = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
+    if fixed_f2_height_km:
+        #hiono = 450
+        hiono = fixed_f2_height_km
+    else:
+        # get estimated hiono from IRI2016 in that middle point (F2 peak altitude):
+        try:
+            tecs, hionos = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
                             returnhei=True)
-    print('Getting IPP in the altitude of {} km (F2 peak altitude by IRI2016)'.format(str(int(hionos[0]))))
-    hiono = hionos[0] * 1000  # m
+            hiono = hionos[0]
+        except:
+            print('error in IRI2016, perhaps not installed? Setting standard F2 peak altitude')
+            hiono = 450
+    print('Getting IPP in the altitude of {} km'.format(str(int(hiono))))
+    hiono = hiono * 1000  # m
     # first, get IPP - ionosphere pierce point
     # range to IPP can be calculated using:
     range_IPP = slantRange * hiono / sat_alt

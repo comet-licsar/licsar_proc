@@ -51,8 +51,10 @@ else
 fi
 
 # write info on DEM used here
-# cd $LiCSAR_public; for track in `ls`; do for frame in `ls $track`; do
-# outfile=$track/$frame/metadata/metadata.txt; if [ -f $outfile ]; then
+# function to do it for all frames:
+#cd $LiCSAR_public; for track in `ls`; do echo $track; for frame in `ls $track`; do
+#outfile=$track/$frame/metadata/metadata.txt; if [ -f $outfile ]; then
+#sed -i '/applied_DEM/d' $outfile
 demlog=`ls $LiCSAR_procdir/$track/$frame/01_doDEMcrop.log 2>/dev/null`
 if [ -z $demlog ]; then
   echo "frame "$frame" has no DEM log file - error";
@@ -65,4 +67,4 @@ else
   fi
   echo "applied_DEM="$demstr >> $outfile
 fi
-# fi; done; done
+#fi; done; done
