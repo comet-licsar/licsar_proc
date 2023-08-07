@@ -126,6 +126,38 @@ def ecef2lonlathei(x, y, z):
     return lon, lat, alt
 
 
+# not tested but it should be right:
+def get_azi_rg_diffs_from_two_orbits(orbfile1, orbfile2, timesample):
+    """ Should get azi and rg offsets [m] from two different orbits. It works, but we lost all old orbits so I cannot really check...
+
+    Args:
+        orbfile1 (str): path to orbfile 1
+        orbfile2:
+        timesample (dt.datetime)
+
+    Returns:
+        (float, float): azi, rg offsets [m]
+    """
+    oldorbxr = load_eof(orbfile1)
+    neworbxr = load_eof(orbfile2)
+    pointold = get_coords_in_time(oldorbxr, timesample, method='cubic', return_as_nv = True)
+    pointoldPre = get_coords_in_time(oldorbxr, timesample-dt.timedelta(seconds=1), method='cubic', return_as_nv = True)
+    pointnew = get_coords_in_time(neworbxr, timesample, method='cubic', return_as_nv = True)
+
+    # now get azimuth direction shift
+    #azimuthdir = getHeading(neworbxr, time=timesample) # in degrees
+
+    # get diff in azi
+    pathA = nv.GeoPath(pointoldPre, pointold)
+    pointC = pathA.closest_point_on_great_circle(pointnew)
+    azidiff, _azi1, _azi2 = pointold.distance_and_azimuth(pointC)  # but check sign!!!
+
+    # get diff in rg
+    # whoops, we do not have old orbits! so i am skipping rgdiff (as it can be bit more complicated than for azimuth) - SORRY!
+    rgdiff = np.nan
+    return azidiff, rgdiff
+
+
 def getHeading(orbxr, time=None, spacing=0.5):
     """
     Compute heading at given time.
@@ -388,7 +420,7 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB'):
         ddate = ddatetime.date()
     except:
         ddate = ddatetime
-    listfiles = downloadOrbits_CopCloud(ddate, ddate, producttype)
+    listfiles = downloadOrbits_CopCloud(ddate-dt.timedelta(days=1), ddate+dt.timedelta(days=1), producttype)
     print('need to remove non-overlapping files, but ok for now')
     return listfiles
 
