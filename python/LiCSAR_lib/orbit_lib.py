@@ -374,7 +374,20 @@ def strpStrtEndTimes(filename):
 
 
 def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB'):
-    ddate = ddatetime.date()
+    """
+    gets orbits existing
+
+    Args:
+        ddatetime: dt.datetime or dt.datetime.date
+        producttype: 'POEORB' or 'RESORB'
+
+    Returns:
+        list of filenames (full paths)
+    """
+    try:
+        ddate = ddatetime.date()
+    except:
+        ddate = ddatetime
     listfiles = downloadOrbits_CopCloud(ddate, ddate, producttype)
     print('need to remove non-overlapping files, but ok for now')
     return listfiles
