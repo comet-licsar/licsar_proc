@@ -24,6 +24,11 @@ except:
     #print('warning, you do not have sentineleof python library installed. expect problems with orbits (but maybe fixed now..)')
 
 
+try:
+    import nvector as nv
+except:
+    print('warning, nvector is not installed - some advanced functions will not work (but perhaps you dont need them)')
+
 #### 2023 functions
 #try:
 #    from eof.parsing import parse_orbit
@@ -88,7 +93,7 @@ def load_eof(
     return orbxr
 
 
-def get_coords_in_time(orbxr, timesample, method='cubic'):
+def get_coords_in_time(orbxr, timesample, method='cubic', return_as_nv = False):
     """ gets interpolated coordinates from the orbit datacube for given time sample (dt.datetime)
     Note, we need to implement hermite interpolation, as in ISCE2!!
 
@@ -99,7 +104,16 @@ def get_coords_in_time(orbxr, timesample, method='cubic'):
     Returns:
         xr.Dataset
     """
-    return orbxr.interp(time=timesample, method=method)
+    coords = orbxr.interp(time=timesample, method=method)
+    if return_as_nv:
+        lonlath1 = ecef2lonlathei(float(coords['x']), float(coords['y']),
+                                  float(coords['z']))  # refElp.xyz_to_llh(vec1.getPosition())
+        # import nvector as nv
+        wgs84 = nv.FrameE(name='WGS84')
+        point = wgs84.GeoPoint(latitude=lonlath1[1], longitude=lonlath1[0], degrees=True)
+        return point
+    else:
+        return coords
 
 
 # from daz/daz_iono:
@@ -110,6 +124,68 @@ def ecef2lonlathei(x, y, z):
         )
     lon, lat, alt = transformer.transform(x,y,z,radians=False)
     return lon, lat, alt
+
+
+def getHeading(orbxr, time=None, spacing=0.5):
+    """
+    Compute heading at given time.
+    If time is not provided, mid point of orbit is used.
+    Args:
+        orbxr (xr.DataArray): datacube from state orbit vectors
+        time (dt.datetime or None)
+        spacing (float): timedelta to use for heading calculation, in seconds
+    Returns:
+        float: heading in degrees
+    """
+
+    if time is None:
+        delta = orbxr.time.values.max() - orbxr.time.values.min()
+        aztime = orbxr.time.values.min() + delta/2
+        aztime = pd.to_datetime(str(aztime))
+    else:
+        aztime = time
+
+    t1 = aztime - dt.timedelta(seconds=spacing)
+    t2 = aztime + dt.timedelta(seconds=spacing)
+
+    vec1 = get_coords_in_time(orbxr, t1)
+    vec2 = get_coords_in_time(orbxr, t2)
+
+    lonlath1 = ecef2lonlathei(float(vec1['x']), float(vec1['y']), float(vec1['z'])) #refElp.xyz_to_llh(vec1.getPosition())
+    lonlath2 = ecef2lonlathei(float(vec2['x']), float(vec2['y']), float(vec2['z']))
+
+    # see https://www.ffi.no/en/research/n-vector/#example_1
+    # import nvector as nv
+    wgs84 = nv.FrameE(name='WGS84')
+    pointA = wgs84.GeoPoint(latitude=lonlath1[1], longitude=lonlath1[0], degrees=True)
+    pointB = wgs84.GeoPoint(latitude=lonlath2[1], longitude=lonlath2[0], degrees=True)
+    p_AB_N = pointA.delta_to(pointB)
+    heading = p_AB_N.azimuth_deg
+    return heading
+
+'''
+NOTES towards orb update:
+timesample=dt.datetime(2016,12,14,10,10,45)
+zipFile='S1B_IW_SLC__1SSV_20161214T100950_20161214T101017_003390_005CA6_6694'
+orbitfiles = findValidOrbFile(baseDir,sat,startTime,endTime)
+
+orbdir = os.environ['ORB_DIR']
+orb='S1B_OPER_AUX_RESORB_OPOD_20161214T124022_V20161214T083137_20161214T114907'
+eof_filename = getValidOrbFile(orbdir+'/S1B',orb)
+neworbxr = load_eof(eof_filename)
+
+
+oldorbxr = 
+
+pointold = get_coords_in_time(oldorbxr, timesample, method='cubic', return_as_nv = True)
+pointnew = get_coords_in_time(neworbxr, timesample, method='cubic', return_as_nv = True)
+
+# now get azimuth direction shift
+azimuthdir = getHeading(neworbxr, time=timesample) # in degrees
+
+'''
+
+
 
 '''
 # adapted from isce2:
@@ -297,6 +373,12 @@ def strpStrtEndTimes(filename):
     return (startTime,endTime)
 
 
+def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB'):
+    ddate = ddatetime.date()
+    listfiles = downloadOrbits_CopCloud(ddate, ddate, producttype)
+    print('need to remove non-overlapping files, but ok for now')
+    return listfiles
+
 
 def downloadOrbits_CopCloud(startdate, enddate, producttype):
     scihub = SentinelAPI('gnssguest', 'gnssguest','https://scihub.copernicus.eu/gnss')
@@ -305,6 +387,7 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
     # for 'any' orbit files
     #result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))    
     result = scihub.to_dataframe(result)
+    existing = []
     for id, row in result.iterrows():
         outfile= os.path.join(os.environ['ORB_DIR'],'S1'+row['platformnumber'],producttype,row['filename'])
         if not os.path.exists(outfile):
@@ -349,7 +432,9 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
                 except:
                     print('failed also from ASF, sorry')
             os.remove(lockfile)
-
+        if os.path.exists(outfile):
+            existing.append(outfile)
+    return existing
 
 # get orbit files using eof (they should update once it gets into the new Copernicus cloud... 03/2021)
 def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
@@ -389,6 +474,7 @@ def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
 ################################################################################
 # Get Orbit Url
 ################################################################################
+# 2023/08: seems not working anymore!
 def getOrbUrl(sat,prodType,startTime,endTime):
     """Trys to find a valid url for an orbit to download based on the:
     satalite - S1A or S1B
@@ -474,7 +560,12 @@ def downloadOrbit(url,outDir):
 ################################################################################
 def findValidOrbFile(baseDir,sat,startTime,endTime):
     """ Searches baseDir for an orbit file which is valid for given satalite,
-    start time and end time. Returns None if no file found """
+    start time and end time. Returns None if no file found
+    Args:
+        baseDir (str): where to search, e.g. /gws/nopw/j04/nceo_geohazards_vol1/orbits.old
+        sat (str): either 'S1A' or 'S1B'
+        startTime, endTime (dt.datetime)
+    """
 
     timesStrpPat = '.*V(\d{8}T\d*)_(\d{8}T\d*)\.EOF'
     timeStrpPat = '%Y%m%dT%H%M%S'
