@@ -124,7 +124,7 @@ def getoldorbpath(orbfiles):
         ff = os.path.basename(orbfile)
         #orbfile ='/gws/nopw/j04/nceo_geohazards_vol1/orbits_2021/S1A/POEORB/S1A_OPER_AUX_POEORB_OPOD_20210309T002908_V20180831T225942_20180902T005942.EOF'
         oldpath = '/gws/nopw/j04/nceo_geohazards_vol1/orbits.old/S1'+ff[2]+'/POEORB'
-        oldorbcands = glob.glob(os.path.join(oldpath, 'S1'+epoch_s1ab+'_OPER_AUX_POEORB_OPOD_*_V'+ff.split('V')[1]))
+        oldorbcands = glob.glob(os.path.join(oldpath, 'S1'+ff[2]+'_OPER_AUX_POEORB_OPOD_*_V'+ff.split('V')[1]))
         oldorb = None
         for oldorbcand in oldorbcands:
             if not os.path.basename(oldorbcand) == ff:
