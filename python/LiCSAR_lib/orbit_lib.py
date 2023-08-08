@@ -15,6 +15,7 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 import pyproj
 import numpy as np
+import glob 
 
 from sentinelsat.sentinel import SentinelAPI
 try:
