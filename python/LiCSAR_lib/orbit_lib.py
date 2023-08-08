@@ -145,8 +145,8 @@ def ecef2lonlathei(x, y, z):
 
 
 # not tested but it should be right:
-def get_azi_rg_diffs_from_two_orbits(orbfile1, orbfile2, timesample):
-    """ Should get azi and rg offsets [m] from two different orbits. It works, but we lost all old orbits so I cannot really check...
+def get_azi_diff_from_two_orbits(orbfile1, orbfile2, timesample):
+    """ Should get azi offset [m] from two different orbits.
 
     Args:
         orbfile1 (str): path to orbfile 1
@@ -154,7 +154,7 @@ def get_azi_rg_diffs_from_two_orbits(orbfile1, orbfile2, timesample):
         timesample (dt.datetime)
 
     Returns:
-        (float, float): azi, rg offsets [m]
+        (float): azi offset [m]
     """
     oldorbxr = load_eof(orbfile1)
     neworbxr = load_eof(orbfile2)
@@ -172,8 +172,8 @@ def get_azi_rg_diffs_from_two_orbits(orbfile1, orbfile2, timesample):
 
     # get diff in rg
     # whoops, we do not have old orbits! so i am skipping rgdiff (as it can be bit more complicated than for azimuth) - SORRY!
-    rgdiff = np.nan
-    return azidiff, rgdiff
+    #rgdiff = np.nan
+    return azidiff #, rgdiff
 
 
 def getHeading(orbxr, time=None, spacing=0.5):
