@@ -149,8 +149,8 @@ def get_azi_diff_from_two_orbits(orbfile1, orbfile2, timesample):
     """ Should get azi offset [m] from two different orbits.
 
     Args:
-        orbfile1 (str): path to orbfile 1
-        orbfile2:
+        orbfile1 (str): path to orbfile 1 (e.g. old orbit EOF file)
+        orbfile2 (str): path to e.g. new orbit EOF
         timesample (dt.datetime)
 
     Returns:
@@ -163,13 +163,16 @@ def get_azi_diff_from_two_orbits(orbfile1, orbfile2, timesample):
     pointnew = get_coords_in_time(neworbxr, timesample, method='cubic', return_as_nv = True)
 
     # now get azimuth direction shift
-    #azimuthdir = getHeading(neworbxr, time=timesample) # in degrees
+    heading = getHeading(neworbxr, time=timesample) # in degrees
 
     # get diff in azi
     pathA = nv.GeoPath(pointoldPre, pointold)
     pointC = pathA.closest_point_on_great_circle(pointnew)
     azidiff, _azi1, _azi2 = pointold.distance_and_azimuth(pointC)  # but check sign!!!
-
+    
+    # fix the sign
+    azidiff = np.sign(_azi1)*np.sign(heading)*azidiff
+    
     # get diff in rg
     # whoops, we do not have old orbits! so i am skipping rgdiff (as it can be bit more complicated than for azimuth) - SORRY!
     #rgdiff = np.nan
