@@ -110,7 +110,7 @@ def get_coords_in_time(orbxr, timesample, method='cubic', return_as_nv = False):
                                   float(coords['z']))  # refElp.xyz_to_llh(vec1.getPosition())
         # import nvector as nv
         wgs84 = nv.FrameE(name='WGS84')
-        point = wgs84.GeoPoint(latitude=lonlath1[1], longitude=lonlath1[0], degrees=True)
+        point = wgs84.GeoPoint(latitude=lonlath1[1], longitude=lonlath1[0], z = lonlath1[2], degrees=True)
         return point
     else:
         return coords
@@ -405,14 +405,14 @@ def strpStrtEndTimes(filename):
     return (startTime,endTime)
 
 
-def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB'):
+def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB', s1ab = None):
     """
     gets orbits existing
 
     Args:
         ddatetime: dt.datetime or dt.datetime.date
         producttype: 'POEORB' or 'RESORB'
-
+        s1ab (str): 'S1A' or 'S1B' - if None, it would return both
     Returns:
         list of filenames (full paths)
     """
@@ -421,7 +421,20 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB'):
     except:
         ddate = ddatetime
     listfiles = downloadOrbits_CopCloud(ddate-dt.timedelta(days=1), ddate+dt.timedelta(days=1), producttype)
-    print('need to remove non-overlapping files, but ok for now')
+    if s1ab:
+        listf2 = []
+        for f in listfiles:
+            if os.path.basename(f)[:3] == s1ab:
+                listf2.append(f)
+        listfiles = listf2
+    listf2 = []
+    for f in listfiles:
+        ff = os.path.basename(f)
+        datein = ff.split('_')[6][1:]
+        dateout = ff.split('_')[7].split('.')[0]
+        if pd.Timestamp(datein)<ddatetime and pd.Timestamp(dateout)>ddatetime:
+            listf2.append(f)
+    listfiles = listf2
     return listfiles
 
 
