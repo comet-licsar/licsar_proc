@@ -114,16 +114,16 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
     #
     inc=get_inc_frame(frame)
     avg_incidence_angle = float(inc.mean())
-    # get hgt
+    # get hgt # no need anymore (2023/08)
     metadir = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata')
     metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata','metadata.txt')
-    hgtfile=os.path.join(metadir, frame+'.geo.hgt.tif')
-    hgt = load_tif2xr(hgtfile)
-    hgt = hgt.where(hgt != 0)
+    #hgtfile=os.path.join(metadir, frame+'.geo.hgt.tif')
+    #hgt = load_tif2xr(hgtfile)
+    #hgt = hgt.where(hgt != 0)
     #
-    scene_alt = float(hgt.median())
-    scene_center_lon = float(hgt.lon.mean())
-    scene_center_lat = float(hgt.lat.mean())
+    #scene_alt = float(hgt.median())
+    scene_center_lon = float(inc.lon.mean())
+    scene_center_lat = float(inc.lat.mean())
     #
     center_time=grep1line('center_time',metafile).split('=')[1]
     heading=float(grep1line('heading',metafile).split('=')[1])
@@ -142,7 +142,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
     elevationDeg = 90 - avg_incidence_angle  # this is to get the avg sat altitude/range
     slantRange = centre_range_m
     # from daz_iono:
-    x, y, z = aer2ecef(azimuthDeg, elevationDeg, slantRange, scene_center_lat, scene_center_lon, scene_alt)
+    x, y, z = aer2ecef(azimuthDeg, elevationDeg, slantRange, scene_center_lat, scene_center_lon, 0) #scene_alt) ### this is wrt ellipsoid!
     satg_lat, satg_lon, sat_alt = ecef2latlonhei(x, y, z)
     sat_alt_km = round(sat_alt / 1000)
     Psatg = wgs84.GeoPoint(latitude=satg_lat, longitude=satg_lon, degrees=True)
@@ -173,7 +173,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
     # get inc angle at IPP - see iono. single layer model function
     # earth_radius = 6378160 # m
     # sin_thetaiono = earth_radius/(earth_radius+hiono) * np.sin(theta)
-    x, y, z = aer2ecef(azimuthDeg, elevationDeg, range_IPP, scene_center_lat, scene_center_lon, scene_alt)
+    x, y, z = aer2ecef(azimuthDeg, elevationDeg, range_IPP, scene_center_lat, scene_center_lon, 0) #scene_alt) # this wrt ellipsoid
     ippg_lat, ippg_lon, ipp_alt = ecef2latlonhei(x, y, z)
     #
     dlat = ippg_lat - scene_center_lat
@@ -181,17 +181,19 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
     #
     # now i need to shift all the points towards the satellite, by the path_scenecenter_to_IPP distance (direction)
     #
-    resolution = get_resolution(hgt, in_m=True)  # just mean avg in both lon, lat should be ok
+    resolution = get_resolution(inc, in_m=True)  # just mean avg in both lon, lat should be ok
     # how large area is covered
-    lonextent = len(hgt.lon) * resolution
+    lonextent = len(inc.lon) * resolution
     # so what is the multilook factor?
-    mlfactorlon = round(len(hgt.lon) / (lonextent / ionosampling))
-    latextent = len(hgt.lat) * resolution
-    mlfactorlat = round(len(hgt.lat) / (latextent / ionosampling))
-    hgtml = hgt.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
+    mlfactorlon = round(len(inc.lon) / (lonextent / ionosampling))
+    latextent = len(inc.lat) * resolution
+    mlfactorlat = round(len(inc.lat) / (latextent / ionosampling))
+    #hgtml = hgt.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
     incml = inc.coarsen({'lat': mlfactorlat, 'lon': mlfactorlon}, boundary='trim').mean()
-    # get range towards iono single-layer in the path to the satellite
-    range2iono = (hiono - hgtml) / np.cos(np.radians(incml))
+    # get range towards iono single-layer in the path to the satellite, consider hgt
+    # range2iono = (hiono - hgtml) / np.cos(np.radians(incml))
+    # get range towards iono single-layer in the path to the satellite, do not consider hgt
+    range2iono = hiono / np.cos(np.radians(incml))
     earth_radius = 6378160  # m
     ionoxr = incml.copy(deep=True)
     if source == 'code':
@@ -204,8 +206,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
                 # theta = float(np.radians(incml.values[i, j]))
                 eledeg = float(90 - incml.values[i, j])
                 ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
-                x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground,
-                                   float(hgtml.values[i, j]))
+                x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0)
+                                 #  float(hgtml.values[i, j])) # to consider hgt ... better without
                 ilat, ilon, ialt = ecef2latlonhei(x, y, z)
                 theta = float(np.radians(incml.values[i, j]))
                 sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
