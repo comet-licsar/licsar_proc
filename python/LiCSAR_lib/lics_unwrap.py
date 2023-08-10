@@ -1271,7 +1271,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
                         if cascade:
                             ifg_ml = cascade_unwrap(frame, pair, downtoml = ml, procdir = procdir, only10 = only10, 
                                 outtif = outtif, subtract_gacos = subtract_gacos, smooth = smooth, hgtcorr = hgtcorr, 
-                                cliparea_geo = cliparea_geo, dolocal=dolocal)
+                                cliparea_geo = cliparea_geo, thres = thres, finalgoldstein=goldstein, dolocal=dolocal)
                         else:
                             ifg_ml = process_ifg(frame, pair, procdir = procdir, ml = ml, hgtcorr = hgtcorr, fillby = 'nearest',   # nov 2022, orig was gauss
                                 thres = thres, defomax = defomax, add_resid = True, outtif = outtif, extweights = extweights, smooth = smooth,
