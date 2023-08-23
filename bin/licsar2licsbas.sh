@@ -47,7 +47,6 @@ reunw=0
 use_coh_stab=0
 strict=0
 keep_coh_debug=1
-LB_version=LiCSBAS
 cascade=0
 smooth=0
 lowpass=0
@@ -58,7 +57,8 @@ cometdev=0
 specmag=1
 nproc=1
 que='short-serial'
-#LB_version=licsbas_comet_dev
+#LB_version=LiCSBAS  # orig Yu Morishita's version
+LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
 
 while getopts ":M:HucTsdSClWgmPRkG:t:n:" option; do
@@ -105,7 +105,7 @@ while getopts ":M:HucTsdSClWgmPRkG:t:n:" option; do
   k) keep_coh_debug=0;
      #shift
      ;;
-  T) LB_version=licsbas_comet_dev;
+  T) LB_version=licsbas_comet_dev; # COMET LiCSBAS (dev branch)
      #shift
      ;;
   G) aoi=${OPTARG};
