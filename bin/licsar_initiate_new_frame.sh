@@ -21,6 +21,8 @@ then
  echo "parameters:"
  echo " -H - do master in high resolution (r=5, a=1, res approx 15 m) - auto-applied if H is in framename"
  echo " -M - do master in medium resolution (towards 56 m outputs)"
+ echo " -R 0.1 - custom resolution (here towards 0.1 deg) - note multilooking remains a=4,r=20, unless changed"
+ echo " -a,-r - custom multilooking factors"
  echo " -D /path/to/dem.tif - use custom DEM - you may want to use gdal_merge.py -a_nodata -32768 .."
  echo " -V 365 would only output possible master epoch candidates..for last 365 days"
  echo " -L 365 would do same as -V but also auto-choose and process such master epoch"
@@ -30,11 +32,17 @@ then
 fi
 
 #improved getopts, finally
-while getopts ":HMTD:V:L:C:" option; do
+while getopts ":HMR:a:r:TD:V:L:C:" option; do
  case "${option}" in
   H) a=1; r=5; outres=0.00015; dolocal=1; echo "high resolution option enabled"
      ;;
   M) outres=0.0005; dolocal=1; echo "medium (56 m) resolution option enabled"
+     ;;
+  R) outres=$OPTARG; dolocal=1;
+     ;;
+  a) a=$OPTARG; dolocal=1;
+     ;;
+  r) r=$OPTARG; dolocal=1;
      ;;
   D) setupmasterextra=$setupmasterextra" -D "$OPTARG;
      #shift

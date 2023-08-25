@@ -161,10 +161,8 @@ def get_azi_diff_from_two_orbits(orbfile1, orbfile2, timesample):
     pointold = get_coords_in_time(oldorbxr, timesample, method='cubic', return_as_nv = True)
     pointoldPre = get_coords_in_time(oldorbxr, timesample-dt.timedelta(seconds=1), method='cubic', return_as_nv = True)
     pointnew = get_coords_in_time(neworbxr, timesample, method='cubic', return_as_nv = True)
-
     # now get azimuth direction shift
     heading = getHeading(neworbxr, time=timesample) # in degrees
-
     # get diff in azi
     pathA = nv.GeoPath(pointoldPre, pointold)
     pointC = pathA.closest_point_on_great_circle(pointnew)
