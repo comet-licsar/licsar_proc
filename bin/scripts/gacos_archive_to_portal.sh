@@ -22,6 +22,11 @@ for rsc in $work_dir/$frame/*.ztd; do
   if [ `ls -al $rsc | gawk {'print $5'}` -lt 100 ]; then rm $rsc; else
    if [ ! -f $rsc.geo.tif ]; then
     LiCSAR_ztd2geotiff.py -z $rsc -u $work_dir/$frame/$frame.geo.U.tif
+    # but sometimes it again fails, creating bad (empty) file
+    if [ `ls -al $rsc.geo.tif | gawk {'print $5'}` -lt 100 ]; then
+      echo "error processing "$rsc
+      rm $rsc.geo.tif
+    fi
    fi
   fi
 done

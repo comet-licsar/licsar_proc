@@ -144,7 +144,7 @@ def ecef2lonlathei(x, y, z):
     return lon, lat, alt
 
 
-# not tested but it should be right:
+# should be right:
 def get_azi_diff_from_two_orbits(orbfile1, orbfile2, timesample):
     """ Should get azi offset [m] from two different orbits.
 
@@ -174,7 +174,6 @@ def get_azi_diff_from_two_orbits(orbfile1, orbfile2, timesample):
     azidiff = np.sign(_azi1)*np.sign(heading)*azidiff
     
     # get diff in rg
-    # whoops, we do not have old orbits! so i am skipping rgdiff (as it can be bit more complicated than for azimuth) - SORRY!
     #rgdiff = np.nan
     return azidiff #, rgdiff
 
