@@ -242,10 +242,13 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None):
     hgt = load_tif2xr(hgt)
     mask = (hgt != 0) * (~np.isnan(hgt))
     if not epochslist:
-        epochslist = os.listdir(os.path.join(framepubdir, 'epochs'))
+        epochslist = os.listdir(os.path.join(framepubdir, 'epochs')) # careful, non-epoch folders would cause error!
     for epoch in epochslist:
         print(epoch)
-        tif = os.path.join(framepubdir, 'epochs', epoch, epoch+'.geo.iono.'+source+'.tif')
+        epochdir = os.path.join(framepubdir, 'epochs', epoch)
+        if not os.path.exists(epochdir):
+            os.mkdir(epochdir)
+        tif = os.path.join(epochdir, epoch+'.geo.iono.'+source+'.tif')
         xrda = make_ionocorr_epoch(frame, epoch, source = source)
         xrda = xrda.where(mask)
         export_xr2tif(xrda, tif)
