@@ -1024,7 +1024,8 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             cliparea_geo = None, pairsetfile = None, 
             export_to_tif = False, subtract_gacos = False,
             nproc = 1, dolocal = False, specmag = False, defomax = 0.3,
-            use_amp_stab = False, use_coh_stab = False, use_amp_coh = False, keep_coh_debug = True, gacosdir = '../GACOS'):
+            use_amp_stab = False, use_coh_stab = False, use_amp_coh = False, keep_coh_debug = True,
+            freq=5405000000, gacosdir = '../GACOS'):
     """Main function to process whole LiCSAR frame (i.e. unwrap all available interferograms within the frame). Works only at JASMIN.
 
     Args:
@@ -1051,9 +1052,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
         use_amp_coh (boolean): another experiment, using avg amp multiplied by avg coh (of 12-day combinations, hardcoded now) as weights
         keep_coh_debug (boolean): only in combination with use_coh_stab - whether or not to keep original (downsampled) ifg coherence after using the coh_stab to weight the phase during multilooking
         gacosdir (str): path to directory with *pair*.sltd.geo.tif files
-    
-    Returns:
-        xarray.Dataset: multilooked interferogram with additional layers
+        freq (float): SAR carrier frequency (used only for metadata, i.e. later steps in LiCSBAS). default: Sentinel-1 carrier frequency
     """
     if cascade and ml>9:
         only10 = False
@@ -1325,7 +1324,7 @@ def process_frame(frame = 'dummy', ml = 10, thres = 0.3, smooth = False, cascade
             f = open(mlipar, 'w')
             f.write('range_samples: '+str(framewid)+'\n')
             f.write('azimuth_lines: '+str(framelen)+'\n')
-            f.write('radar_frequency: 5405000000.0 Hz\n')  # for S1. It would be 9650000000.0 Hz for TSX
+            f.write('radar_frequency: '+str(freq)+' Hz\n')  # freq=5405000000 for S1. It would be 9650000000.0 Hz for TSX
             f.close()
         if not os.path.exists('hgt'):
             hgt.fillna(0).astype(np.float32).values.tofile('hgt')  # should work but i didn't test it (blind fix)
@@ -1528,17 +1527,22 @@ def multilook_normalised(ifg, ml = 10, tmpdir = os.getcwd(), hgtcorr = True,
         cpx = magpha2RI_array(ifg_ml.coh.where(ifg_ml.mask > 0).values, ifg_ml.pha.where(ifg_ml.mask > 0).values) #del
         #stdaftergacos = np.nanstd(ifg_ml.pha.where(ifg_ml.mask>0).values)
         stdaftergacos = np.nanstd(cpx) #del
-        # 2023/05: use just coh diff:
-        cohchange = coh_change(origphanp, ifg_ml.pha.where(ifg_ml.mask > 0).values)
-        cohchangeval = np.nanmean(cohchange)
         if stdaftergacos > stdbeforegacos:
             print('WARNING, GACOS increases stddev here, from {0:.3} to {1:.3} rad.'.format(str(stdbeforegacos), str(stdaftergacos)))
+        # 2023/05: use just coh diff:
+        # 2023/08: but only for ml>9 since this takes time..
+        if ml>9:
+            cohchange = coh_change(origphanp, ifg_ml.pha.where(ifg_ml.mask > 0).values)
+            cohchangeval = np.nanmean(cohchange)
             #print('WARNING, GACOS increases stddev here, from {0:.3} to {1:.3} rad. But we do not trust cpxstd, so anyway using GACOS to help unwrapping'.format(str(stdbeforegacos), str(stdaftergacos)))
-        if cohchangeval<0:
-            print('GACOS decreases avg coh by '+str(cohchangeval)+'. Skipping use of GACOS to support unwrapping')
-            # just .. returning it back..
-            ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] + ifg_ml['gacos'])
+            if cohchangeval<0:
+                print('GACOS decreases avg coh by '+str(cohchangeval)+'. Skipping use of GACOS to support unwrapping')
+                # just .. returning it back..
+                ifg_ml['pha'].values = wrap2phase(ifg_ml['pha'] + ifg_ml['gacos'])
+            else:
+                ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
         else:
+            # skipping coh-based check to save some processing time
             ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
         #ifg_ml['toremove'] = ifg_ml['toremove'] + ifg_ml['gacos']
         ifg_ml['pha'] = ifg_ml['pha'].where(ifg_ml.mask > 0)
