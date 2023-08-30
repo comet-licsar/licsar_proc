@@ -47,6 +47,7 @@ reunw=0
 use_coh_stab=0
 strict=0
 keep_coh_debug=1
+#LB_version=LiCSBAS
 cascade=0
 smooth=0
 lowpass=0
