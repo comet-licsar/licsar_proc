@@ -87,11 +87,12 @@ def make_ionocorr_pair(frame, pair, source = 'code', outif=None):
 
 
 
-def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None):
+def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None, alpha = 0.85):
     """
     Args:
         ...
         fixed_f2_height_km: if None, it will use IRI2016 to estimate the height (in mid point between scene centre and satellite)
+        alpha (float): used only for 'CODE' - standard value is 0.85
     """
     #if source == 'code':
     #    # this is to grid to less points:
@@ -198,6 +199,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
     ionoxr = incml.copy(deep=True)
     if source == 'code':
         tecxr=get_vtec_from_code(acqtime, lat=0, lon=0, return_fullxr = True)
+        tecxr = alpha * tecxr
     print('getting TEC values sampled by {} km.'.format(str(round(ionosampling / 1000))))
     for i in range(len(range2iono.lat.values)):
         # print(str(i) + '/' + str(len(range2iono.lat.values)))
@@ -230,12 +232,14 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
 
 
 # test frame: 144A_04689_111111
-def make_all_frame_epochs(frame, source = 'code', epochslist = None):
+def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_height_km = None, alpha = 0.85):
     ''' use either 'code' or 'iri' as the source model for the correction
     Args:
         frame (str)
         source (str): either 'iri' or 'code'
         epochslist (list): e.g. ['20180930', '20181012'] - if given, only IPS for only those epochs are created, otherwise for all epochs
+        fixed_f2_height_km (num): for CODE only. if None, it will use IRI to estimate ionospheric height
+        alpha (float): for CODE only
     '''
     framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
     hgt = os.path.join(framepubdir, 'metadata', frame+'.geo.hgt.tif')
@@ -249,7 +253,7 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None):
         if not os.path.exists(epochdir):
             os.mkdir(epochdir)
         tif = os.path.join(epochdir, epoch+'.geo.iono.'+source+'.tif')
-        xrda = make_ionocorr_epoch(frame, epoch, source = source)
+        xrda = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha)
         xrda = xrda.where(mask)
         export_xr2tif(xrda, tif)
 
