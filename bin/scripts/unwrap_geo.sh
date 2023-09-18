@@ -153,6 +153,11 @@ create_preview_unwrapped $outunw $frame
 # just to make sure the geotiff has correct coord system information..
 gdal_edit.py -a_srs EPSG:4326 $outunw
 
+# finally, for some reason, the final geotiff might have different resolution (noticed in one frame, ifg: 0.0005 resolution, unw: 0.000500059340). fixing this (lazy, slower) way:
+mv $outunw $outunw.tif
+gdalwarp2match.py $outunw.tif $ifg $outunw
+rm $outunw.tif
+
 #mv unw1png `echo $outunw | rev | cut -c 4- | rev`png
 cd ..; rm -r temp
 cd $heredir
