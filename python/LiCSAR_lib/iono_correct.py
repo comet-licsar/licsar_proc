@@ -87,11 +87,11 @@ def make_ionocorr_pair(frame, pair, source = 'code', outif=None):
 
 
 
-def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None, alpha = 0.85):
+def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450, alpha = 0.85):
     """
     Args:
         ...
-        fixed_f2_height_km: if None, it will use IRI2016 to estimate the height (in mid point between scene centre and satellite)
+        fixed_f2_height_km (int or None): CODE is valid for h=450. Still, if None, it will use IRI2016 to estimate the height (in mid point between scene centre and satellite)
         alpha (float): used only for 'CODE' - standard value is 0.85
     """
     #if source == 'code':
@@ -232,13 +232,13 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = None
 
 
 # test frame: 144A_04689_111111
-def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_height_km = None, alpha = 0.85):
+def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_height_km = 450, alpha = 0.85):
     ''' use either 'code' or 'iri' as the source model for the correction
     Args:
         frame (str)
         source (str): either 'iri' or 'code'
         epochslist (list): e.g. ['20180930', '20181012'] - if given, only IPS for only those epochs are created, otherwise for all epochs
-        fixed_f2_height_km (num): for CODE only. if None, it will use IRI to estimate ionospheric height
+        fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if None, it will use IRI to estimate ionospheric height
         alpha (float): for CODE only
     '''
     framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
