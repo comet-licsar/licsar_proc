@@ -1,0 +1,48 @@
+#!/bin/bash
+# ML 2023
+#this script will download a given file (zip file) from copernicus data space ecosystem (CDSE)
+
+token=$LiCSAR_configpath/cdse_token
+if [ ! -f $token ]; then token=~/.cdse_token; fi
+if [ ! -f $token ]; then
+ echo "CDSE token not set, cancelling"
+ echo "(please put the token to ~/.cdse_token)"
+ exit
+fi
+ACCESS_TOKEN=`cat $token`
+
+# OR:
+source $LiCSAR_configpath/cdse_cred
+ACCESS_TOKEN=`curl -d 'client_id=cdse-public' -d 'username='$user -d 'password='$pass -d 'grant_type=password' 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
+
+if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
+if [ `echo $1 | grep -c zip` -eq 0 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
+if [ -z $2 ]; then outdir=.; else outdir=$2; fi
+
+filename=$1
+BN=`basename $filename .zip`
+
+#get file ID
+ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
+
+# download to given outdir:
+#wget -O $outdir/$filename
+
+#sed -i 's/\r//' tmp_wget.txt 
+#ID=`grep "-" tmp_wget.txt`; rm tmp_wget.txt
+#if [ "$ID" == 'Id' -o "$ID" == "" ]; then#
+    #>&2 echo Product with name \"$BN\" not found
+#exit 1
+#fi
+
+#URL="${HOST}/odata/v1/Products('$ID')/\$value"
+wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'http://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename
+if [ `ls -alh $outdir/$filename | gawk {'print $5'}` -eq 0 ]; then
+ echo "error 404, trying through asf"
+ rm $outdir/$filename
+ cd $outdir
+ wget_alaska $filename
+ cd -
+fi
+
+
