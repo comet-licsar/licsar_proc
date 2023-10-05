@@ -2,18 +2,18 @@
 # ML 2023
 #this script will download a given file (zip file) from copernicus data space ecosystem (CDSE)
 
-token=$LiCSAR_configpath/cdse_token
-if [ ! -f $token ]; then token=~/.cdse_token; fi
-if [ ! -f $token ]; then
- echo "CDSE token not set, cancelling"
- echo "(please put the token to ~/.cdse_token)"
- exit
-fi
-ACCESS_TOKEN=`cat $token`
+#token=$LiCSAR_configpath/cdse_token
+#if [ ! -f $token ]; then token=~/.cdse_token; fi
+#if [ ! -f $token ]; then
+# echo "CDSE token not set, cancelling"
+# echo "(please put the token to ~/.cdse_token)"
+# exit
+#fi
+#ACCESS_TOKEN=`cat $token`
 
 # OR:
 source $LiCSAR_configpath/cdse_cred
-ACCESS_TOKEN=`curl -d 'client_id=cdse-public' -d 'username='$user -d 'password='$pass -d 'grant_type=password' 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
+ACCESS_TOKEN=`curl -d 'client_id=cdse-public' -d 'username='$user -d 'password='$pass -d 'grant_type=password' 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' 2>/dev/null | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
 
 if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
 if [ `echo $1 | grep -c zip` -eq 0 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
@@ -23,7 +23,8 @@ filename=$1
 BN=`basename $filename .zip`
 
 #get file ID
-ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
+#ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
+ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
 
 # download to given outdir:
 #wget -O $outdir/$filename
@@ -36,7 +37,7 @@ ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Se
 #fi
 
 #URL="${HOST}/odata/v1/Products('$ID')/\$value"
-wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'http://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename
+wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'http://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
 if [ `ls -alh $outdir/$filename | gawk {'print $5'}` -eq 0 ]; then
  echo "error 404, trying through asf"
  rm $outdir/$filename
