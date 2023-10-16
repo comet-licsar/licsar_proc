@@ -78,6 +78,11 @@ dizdir=`pwd`
 frame=`basename $dizdir`
 demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
 #framedir=$LiCSAR_procdir/`track_from_frame $frame`/$frame
+if [ ! -d $demdir ]; then demdir=DEM; fi  # maybe it is there, locally?
+if [ ! -d $demdir ]; then 
+ # maybe running from ARC? try copy:
+ scp -i /home/home02/earmla/.ssh/id_jasmin xfer1.jasmin.ac.uk:/`track_from_frame $frame`/$frame/DEM .
+fi
 if [ ! -d $demdir ]; then echo "something wrong with the frame "$frame". Fix this please"; exit; fi
 dempar=$demdir/dem_crop.dem_par
 if [ `ls geo/20??????.hgt 2>/dev/null | wc -l` == 0 ]; then
