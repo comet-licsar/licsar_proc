@@ -78,7 +78,7 @@ dizdir=`pwd`
 frame=`basename $dizdir`
 demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
 #framedir=$LiCSAR_procdir/`track_from_frame $frame`/$frame
-if [ ! -d $demdir ]; then demdir=DEM; fi  # maybe it is there, locally?
+if [ ! -d $demdir ]; then demdir=`pwd`/DEM; fi  # maybe it is there, locally?
 if [ ! -d $demdir ]; then 
  # maybe running from ARC? try copy:
  scp -r -i /home/home02/earmla/.ssh/id_jasmin xfer1.jasmin.ac.uk:/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/`track_from_frame $frame`/$frame/DEM .
