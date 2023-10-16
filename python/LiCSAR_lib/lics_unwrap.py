@@ -3397,8 +3397,9 @@ def wrap2phase(A):
     return np.angle(np.exp(1j*A))
 
 
-def make_avg_amp(mlitiflist, hgtxr):
+def make_avg_amp(mlitiflist, hgtxr, intensity=False):
     """Generates average amplitude from list of MLI tiffs
+    if intensity==True, use squared amplitude
     """
     avgamp = hgtxr*0
     nopixels = avgamp.copy()
@@ -3410,6 +3411,8 @@ def make_avg_amp(mlitiflist, hgtxr):
             continue
         amp[np.isnan(amp)] = 0
         nopixels.values[amp>0] += 1
+        if intensity:
+            amp=amp**2
         avgamp = avgamp + amp
     avgamp = avgamp/nopixels
     return avgamp
@@ -3488,8 +3491,12 @@ def get_date_matrix(pairs):
     return date_matrix
 
 
-def build_amp_avg_std(frame, return_ampstab = False):
+def build_amp_avg_std(frame, return_ampstab = False, intensity=False):
     """Builds amplitude stability map (or just avg/std amplitude) of a frame
+    Args:
+        frame (str)
+        return_ampstab (bool): if True, returns amplitude[/int] stability, otherwise avg amp and std amp
+        intensity (bool): if True, will work with intensity (amp squared)
     """
     try:
         import framecare as fc
@@ -3503,7 +3510,7 @@ def build_amp_avg_std(frame, return_ampstab = False):
     hgtxr = hgtxr.squeeze('band').drop('band')
     mlitiflist = fc.get_epochs(frame, return_mli_tifs = True)
     print('generating amp average')
-    ampavg = make_avg_amp(mlitiflist, hgtxr)
+    ampavg = make_avg_amp(mlitiflist, hgtxr, intensity=intensity)
     print('generating amp std')
     ampstd = make_std_amp(mlitiflist, ampavg)
     if return_ampstab:
