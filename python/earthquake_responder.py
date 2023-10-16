@@ -385,6 +385,30 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
     return selected_ifgs
 
 
+def create_hires_subset(frame, usgs, framesdir = '/data/eq/frames'):
+    """ 2023/10: create high resolution subset around the earthquake epicentre (e.g. hires coh etc.)
+    """
+    aa=get_event_details(usgs)
+    radius_deg=get_range_from_magnitude(aa.magnitude, aa.depth, unit='rad')
+    clon=aa.longitude
+    clat=aa.latitude
+    #subset_initialise_centre_coords(frame, clon, clat, sid, is_volc=False, radius_km=12.5, resol_m=30)
+    lon1=clon-radius_deg
+    lon2=clon+radius_deg
+    lat1=clat-radius_deg
+    lat2=clat+radius_deg
+    framedir = os.path.join(framesdir, frame)
+    subsetdir = os.path.join(framesdir, frame, 'subset')
+    clipcmd = "cd "+framedir+"; "
+    clipcmd = clipcmd + "clip_slc.sh "+subsetdir+" "+str(lon1)+" "+str(lon2)+" "
+    clipcmd = clipcmd +str(lat1)+" "+str(lat2)+" "
+    import daz_iono as di
+    medhgt = di.get_altitude(clat, clon)
+    resol=0.00027 # 30 m
+    clipcmd = clipcmd +str(medhgt)+" "+str(resol) #+" 0 1"
+    os.system(clipcmd)
+
+
 def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 12, only_s1a = True):
     """Gets earliest expected acquisition time of given frame for given event (time)
        Includes check on S1AorB of the reference epoch
