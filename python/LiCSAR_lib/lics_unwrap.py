@@ -3418,7 +3418,7 @@ def make_avg_amp(mlitiflist, hgtxr, intensity=False):
     return avgamp
 
 
-def make_std_amp(mlitiflist, avgamp):
+def make_std_amp(mlitiflist, avgamp, intensity=False):
     """Generates standard deviation of amplitude from list of MLI tiffs
     """
     ddof = 1
@@ -3432,6 +3432,8 @@ def make_std_amp(mlitiflist, avgamp):
             continue
         amp[np.isnan(amp)] = 0
         nopixels.values[amp>0] += 1
+        if intensity:
+            amp=amp**2
         avgvar = avgvar + (amp - avgamp)**2
     # correct for ddof
     sumpx = nopixels - ddof
@@ -3512,7 +3514,7 @@ def build_amp_avg_std(frame, return_ampstab = False, intensity=False):
     print('generating amp average')
     ampavg = make_avg_amp(mlitiflist, hgtxr, intensity=intensity)
     print('generating amp std')
-    ampstd = make_std_amp(mlitiflist, ampavg)
+    ampstd = make_std_amp(mlitiflist, ampavg, intensity=intensity)
     if return_ampstab:
         ampstab = 1 - ampstd/ampavg
         ampstab.values[ampstab<=0] = 0.00001
