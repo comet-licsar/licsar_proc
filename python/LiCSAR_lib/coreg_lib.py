@@ -424,14 +424,16 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     # S1_coreg_TOPS <SLC1_tab> <SLC1_ID> <SLC2_tab> <SLC2_ID> <RSLC2_tab> [hgt] [RLK] [AZLK] [poly1] [poly2] [cc_thresh] [fraction_thresh] [ph_stdev_thresh] [cleaning] [flag1] [RSLC3_tab] [RSLC3_ID]
     #cmd = 'S1_coreg_TOPS_noifg {} {} {} {} {} {} {} {} - - 0.8 0.01 0.8 0 1 {} {} > {} 2> {}'.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, 
     #            slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), slave3tab, slave3datestr, logfile, errfile)
+    #
     #ML - gamma since version 20200728 - this really improved - we can coregister data we were not able to before!
     # usage: ScanSAR_coreg.py <SLC1_tab> <SLC1_ID> <SLC2_tab> <SLC2_ID> <RSLC2_tab> [hgt] [rlks] [azlks] [options]
     extracmd = ' '
     if slave3datestr:
         extracmd = '--RSLC3_tab {0} --RSLC3_ID {1}'.format(slave3tab, slave3datestr)
     #cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --use_existing --no_int --no_cleaning --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
-    cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --use_existing --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
+    cmd = 'lics_ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --it1 2 --use_existing --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
     print(cmd)
+    print('WARNING, 2023/10: using existing rslc/mli of reference epoch. might be wrong for missing-bursts epochs - please report to earmla in case of error')
     #now this may take some 80 minutes
     rc = os.system(cmd)
     # finally do the checks and move files where they belong
