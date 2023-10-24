@@ -431,9 +431,11 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     if slave3datestr:
         extracmd = '--RSLC3_tab {0} --RSLC3_ID {1}'.format(slave3tab, slave3datestr)
     #cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --use_existing --no_int --no_cleaning --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
+    # 2023/10: ML: tricking the coreg for iono effect in azimuth (pixel shift higher than can be captured by SD). no azi offset is applied to resample after ICC! coh will be a bit lower (azimuth-based) if orbits are not ok or if iono gradient is too strong
     cmd = 'lics_ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --it1 2 --use_existing --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
     print(cmd)
     print('WARNING, 2023/10: using existing rslc/mli of reference epoch. might be wrong for missing-bursts epochs - please report to earmla in case of error')
+    # this (above) issue is related to --use_existing param)
     #now this may take some 80 minutes
     rc = os.system(cmd)
     # finally do the checks and move files where they belong
