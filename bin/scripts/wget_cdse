@@ -12,7 +12,14 @@
 #ACCESS_TOKEN=`cat $token`
 
 # OR:
-source $LiCSAR_configpath/cdse_cred
+if [ -f $LiCSAR_configpath/cdse_cred ]; then
+  credfile=$LiCSAR_configpath/cdse_cred
+elif [ -f ~/.cdse_cred ]; then
+  credfile=~/.cdse_cred
+else
+  echo "no CDSE credentials found, exiting - please add user= and pass= variables to your ~/.cdse_cred file"
+fi
+source $credfile #$LiCSAR_configpath/cdse_cred
 ACCESS_TOKEN=`curl -d 'client_id=cdse-public' -d 'username='$user -d 'password='$pass -d 'grant_type=password' 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' 2>/dev/null | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
 
 if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
