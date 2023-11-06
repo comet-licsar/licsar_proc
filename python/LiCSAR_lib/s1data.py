@@ -10,24 +10,42 @@ import requests
 #here is the nostdout function:
 from LiCSAR_misc import *
 
+# need to update this one
 def get_info_pd(fileid = 'S1A_IW_SLC__1SDV_20210908T235238_20210908T235305_039597_04AE3C_4CA7', returncol = None):
     filename = fileid+'.SAFE'
-    scihub_user, scihub_pass, scihub_url = get_scihub_creds()
-    scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
-    info = scihub.query(filename = filename)
-    info = scihub.to_dataframe(info)
+    #scihub_user, scihub_pass, scihub_url = get_scihub_creds()
+    #scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
+    #info = scihub.query(filename = filename)
+    #info = scihub.to_dataframe(info)
+    json = requests.get("https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=Name eq '"+filename+"'").json()
+    info = pd.DataFrame.from_dict(json["value"]).head(1)
+    # CDSE e.g. "geography'SRID=4326;MULTIPOLYGON (((93.754837 35.530998, 94.143021 37.151909, 91.328789 37.546482, 91.001236 35.9272, 93.754837 35.530998)))'"
+    info['footprint']=info.Footprint.values[0].split(';')[-1][:-1]
     if not returncol:
         return info
     else:
         return info[returncol]
 
-
+'''
+# SciHub is gone - sentinelsat not updated
 def download(uuid, slcdir):
     scihub_user, scihub_pass, scihub_url = get_scihub_creds()
     scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
     rc = scihub.download(uuid, slcdir)
     return rc
+'''
 
+def download(filename, slcdir = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC', ingest = False, provider='cdse'):
+    '''wrapper to wget commands. the provider must be one of ['cdse', 'alaska']
+    '''
+    # slcdir = os.environ['LiCSAR_SLC']
+    wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_'+provider
+    cmd = 'cd {0}; {1} {2}'.format(slcdir, wgetpath, filename)
+    rc = os.system(cmd)
+    filepath = os.path.join(slcdir,filename)
+    if ingest:
+        os.system('arch2DB.py -f '+filepath)
+    return filepath
 
 
 def get_bperps_asf(product_id):
@@ -68,6 +86,7 @@ def download_asf(filename, slcdir = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/tem
         filepath = os.path.join(slcdir,filename)
         os.system('arch2DB.py -f '+filepath)
     return rc
+
 
 def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     print('performing data discovery using ASF server')
@@ -112,7 +131,7 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     if enddate > (dt.date.today() - dt.timedelta(days=1)):
         #asf = False
         #print('checking the latest data - using only scihub')
-        print('SHOULD DO FROM CDSE - keeping ASF for now, no data for last 24(or 48?) hours')
+        print('SHOULD DO FROM CDSE - keeping ASF for now, no data for last 24(or 48?) hours') 
     #check/update sensType
     if sensType == 'IW':
         if frameName.split('_')[1]=='SM':
@@ -135,6 +154,34 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     if track1 == 0:
         track1 = 175
     if outAspd or not asf:
+        # 2023-11-06 - searching through CDSE, solution by Manu Delgado Blasco (many thanks!) https://github.com/sentinelsat/sentinelsat/issues/583
+        # cannot find docs for OData! e.g. - use of 'sensoroperationalMode' ends by Invalid field: sensoroperationalMode (BUT WHAT ARE VALID FIELDS????)
+        json = requests.get(
+        f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=Collection/Name eq 'SENTINEL-1' and " \
+        "OData.CSC.Intersects(area=geography'SRID=4326;{0}') and ContentDate/Start gt {1}T00:00:00.000Z and ContentDate/Start lt {2}T00:00:00.000Z " \
+        "and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq 'SLC') " \
+        "and (Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'relativeOrbitNumber' and att/OData.CSC.StringAttribute/Value eq {3})" \
+        " or Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'relativeOrbitNumber' and att/OData.CSC.StringAttribute/Value eq {4})" \
+        " or Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'relativeOrbitNumber' and att/OData.CSC.StringAttribute/Value eq {5})) " \
+        "and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'orbitDirection' and att/OData.CSC.StringAttribute/Value eq '{6}')" \
+        #"and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'sensoroperationalMode' and att/OData.CSC.StringAttribute/Value eq '{7}')" \
+        "".format(footprint, str(startdate), str(enddate),
+            str(track1),str(track),str(track2),
+            ascdesc, sensType,
+            )).json()
+        #
+        dframe = pd.DataFrame.from_dict(json["value"])
+        if dframe.empty:
+            print('CDSE: empty output')
+            return False
+        else:
+            dframe['title'] = dframe['Name'].apply(lambda x: x.split('.')[0])
+            if outAspd:
+                return dframe
+            else:
+                images = dframe['title'].values.tolist()
+                return images
+        '''
         #print('warning, we use outAspd only for EIDP')
         #print('to avoid complications, the search will be performed only through scihub')
         try:
@@ -152,12 +199,14 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
                 images = df['title'].values.tolist()
         except:
             print('error in scihub search')
+        '''
     else:
         try:
             df = search_alaska(frameName, footprint, startdate, enddate, sensType)
             images = df['granuleName'].values.tolist()
         except:
-            print('error searching through ASF, trying scihub')
+            print('error searching through ASF, cancelling') #', trying scihub')
+            '''
             try:
                 scihub_user, scihub_pass, scihub_url = get_scihub_creds()
                 scihub = SentinelAPI(scihub_user, scihub_pass, scihub_url)
@@ -168,6 +217,7 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
                 images = df['title'].values.tolist()
             except:
                 print('error in scihub search, should try CEDA elastic search (no option for detailed search, not using it now..)')
+            '''
         #TODO!!
         #from elasticsearch import Elasticsearch
         #query = {
@@ -179,7 +229,7 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     #scihub.to_geodataframe(result)
     return images
 
-
+'''
 # addition to CDSE - based on https://github.com/DHI-GRAS/creodias-finder/blob/main/creodias_finder
 import requests
 from tqdm import tqdm
@@ -449,7 +499,7 @@ def _download_raw_data(url, outfile, show_progress):
             Path(outfile_temp).unlink()
         except OSError:
             pass
-
+'''
 
 def get_scihub_creds():
     scihub_url = "https://scihub.copernicus.eu/dhus"
