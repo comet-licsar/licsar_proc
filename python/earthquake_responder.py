@@ -886,7 +886,7 @@ def main():
                                     print('error during importing to eq2frame (database)')
                             print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
                             #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
-                            os.system('licsar_make_frame.sh -E -P -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
+                            os.system('licsar_make_frame.sh -f -E -P -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
                             #this way is a kind of prototype and should be improved
                             new_kmls = create_kmls(frame,event.time)
                             #try:

@@ -110,8 +110,9 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     #one extra date needed for scihub:
     enddate = enddate + dt.timedelta(days=1)
     if enddate > (dt.date.today() - dt.timedelta(days=1)):
-        asf = False
-        print('checking the latest data - using only scihub')
+        #asf = False
+        #print('checking the latest data - using only scihub')
+        print('SHOULD DO FROM CDSE - keeping ASF for now, no data for last 24(or 48?) hours')
     #check/update sensType
     if sensType == 'IW':
         if frameName.split('_')[1]=='SM':
