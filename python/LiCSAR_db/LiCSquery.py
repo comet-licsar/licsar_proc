@@ -1327,9 +1327,14 @@ def insert_new_eq(event, active = True):
         stract = '1'
     else:
         stract = '0'
+    location = event.location
+    if not location:
+        location = 'Undetermined location'
+    else:
+        location = location.replace("'", " ")
     sql_q = "INSERT INTO eq " \
             "    (USGS_ID, magnitude, location, depth, time, lat, lon, active) " \
-            "VALUES ('{0}',{1},'{2}',{3},'{4}',{5}, {6}, {7});".format(event.id, event.magnitude, event.location.replace("'"," "),
+            "VALUES ('{0}',{1},'{2}',{3},'{4}',{5}, {6}, {7});".format(event.id, event.magnitude, location,
             event.depth, event.time.strftime('%Y-%m-%d %H:%M:%S'), round(event.latitude,2), round(event.longitude,2), stract)
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
