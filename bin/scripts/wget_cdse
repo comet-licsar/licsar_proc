@@ -22,8 +22,16 @@ fi
 source $credfile #$LiCSAR_configpath/cdse_cred
 ACCESS_TOKEN=`curl -d 'client_id=cdse-public' -d 'username='$user -d 'password='$pass -d 'grant_type=password' 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' 2>/dev/null | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
 
+eof=0
 if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
-if [ `echo $1 | grep -c zip` -eq 0 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
+if [ `echo $1 | grep -c zip` -eq 0 ]; then
+ if [ `echo $1 | grep -c EOF` -eq 0 ]; then
+  echo "Parameter is the file name, e.g. S1A....zip"; exit;
+ else
+  echo "input is EOF file, ok";
+  eof=1
+ fi
+fi
 if [ -z $2 ]; then outdir=.; else outdir=$2; fi
 
 filename=$1
@@ -45,7 +53,7 @@ ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Se
 
 #URL="${HOST}/odata/v1/Products('$ID')/\$value"
 wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'http://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
-if [ `ls -alh $outdir/$filename | gawk {'print $5'}` -eq 0 ]; then
+if [ `ls -al $outdir/$filename | gawk {'print $5'}` -eq 0 ]; then
  echo "error 404, trying through asf"
  rm $outdir/$filename
  cd $outdir

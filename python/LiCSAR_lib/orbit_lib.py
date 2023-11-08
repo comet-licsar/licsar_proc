@@ -457,15 +457,30 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB', s1ab = Non
 
 
 def downloadOrbits_CopCloud(startdate, enddate, producttype):
+    # 2023-11-08: changing from scihub to CDSE
+    # NOTE: both start/end dates should add extra day since the search is using T00:00:00
+    # producttype is either 'POEORB' or 'RESORB'
+    '''
     scihub = SentinelAPI('gnssguest', 'gnssguest','https://scihub.copernicus.eu/gnss')
     # for ONLY orbit files reprocessed in 2021
     result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate), ingestionDate='[2021-01-01T00:00:00.000Z TO NOW]')
     # for 'any' orbit files
     #result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))    
     result = scihub.to_dataframe(result)
+    '''
+    # that was... really tricky to find... CDSE documentation is really bad
+    json = requests.get("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}T00:00:00Z&completionDate={2}T00:00:00Z".format(producttype, str(startdate), str(enddate))).json()
+    tmplist = str(json).split("'")
+    filenames = []
+    for tmpstr in tmplist:
+        if tmpstr.startswith('S1') and tmpstr.endswith('EOF'):
+            filenames.append(tmpstr)
     existing = []
-    for id, row in result.iterrows():
-        outfile= os.path.join(os.environ['ORB_DIR'],'S1'+row['platformnumber'],producttype,row['filename'])
+    for filename in filenames:
+    #for id, row in result.iterrows():
+        #outfile= os.path.join(os.environ['ORB_DIR'],'S1'+row['platformnumber'],producttype,row['filename'])
+        outfile= os.path.join(os.environ['ORB_DIR'],'S1'+filename[2],producttype,filename)
+        outdirr= os.path.join(os.environ['ORB_DIR'],'S1'+filename[2],producttype)
         if not os.path.exists(outfile):
             lockfile = outfile+'.lock'
             if os.path.exists(lockfile):
@@ -474,6 +489,35 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
             else:
                 f = open(lockfile, 'wb').close()
             #download it here....
+            cmd = "cd {0}; wget_cdse {1}".format(outdirr, filename)
+            rc = os.system(cmd)
+            if not os.path.exists(outfile):
+                print('error downloading orbit file '+filename)
+                print('trying from ASF')
+                try:
+                    parser = ConfigParser()
+                    parser.read(gc.configfile)
+                    asfuser = parser.get('asf', 'asfuser')
+                    asfpass = parser.get('asf', 'asfpass')
+                    downurl = 'https://s1qc.asf.alaska.edu/aux_'+producttype.lower()+'/'+row.filename
+                    command = 'wget --user '+ asfuser +' --password '+asfpass+' -O '+outfile+' '+downurl+' 2>/dev/null'
+                    rc = os.system(command)
+                    #r = requests.get(downurl, allow_redirects=True, auth=HTTPBasicAuth(asfuser, asfpassword))
+                    #if r.status_code == 200:
+                    #    f = open(outfile, 'wb')
+                    #    f.write(r.content)
+                    #    f.close()
+                    if os.path.exists(outfile):
+                        if os.stat(outfile).st_size < 500:
+                            os.remove(outfile)
+                    if os.path.exists(outfile):
+                        print('(probably) ok')
+                    else:
+                        print('failed also from ASF using wget, sorry')
+                        #' - status: '+str(r.status_code))
+                except:
+                    print('failed also from ASF, sorry')
+            '''
             downurl = row.link.replace('https://','https://gnssguest:gnssguest@')
             try:
                 print('downloading orbit file '+row.filename)
@@ -507,6 +551,7 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
                         #' - status: '+str(r.status_code))
                 except:
                     print('failed also from ASF, sorry')
+            '''
             os.remove(lockfile)
         if os.path.exists(outfile):
             existing.append(outfile)
