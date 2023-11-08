@@ -28,7 +28,8 @@ if [ `echo $1 | grep -c zip` -eq 0 ]; then
  if [ `echo $1 | grep -c EOF` -eq 0 ]; then
   echo "Parameter is the file name, e.g. S1A....zip"; exit;
  else
-  echo "input is EOF file, ok";
+  #echo "input is EOF file, ok";
+  echo "downloading "$1
   eof=1
  fi
 fi
