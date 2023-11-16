@@ -346,7 +346,7 @@ def reunwrap(frame, pair, procdir = os.getcwd()):
     '''
     track = str(int(frame[:3]))
     ml = 1
-    from lics_unwrap import process_ifg, export_xr2tif
+    from lics_unwrap import process_ifg, export_xr2tif, wrap2phase
     ifg = process_ifg(frame, pair, procdir, ml=ml, fillby='nearest', lowpass=False, specmag=True, )
     outdir=os.path.join(os.environ['LiCSAR_public'], track, frame,'interferograms', pair)
     outunw = os.path.join(outdir, pair+'.geo.unw.tif')
