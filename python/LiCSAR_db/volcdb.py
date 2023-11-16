@@ -251,6 +251,39 @@ def delete_volclip(vid):
     return res
 
 
+def replace_volclips_by_larger_area(new_cliparea_geo):
+    """ This will delete db records (only) of volclips in given cliparea and link to volcanoes in this area
+
+    Args:
+        new_cliparea_geo (str):  licsbas style string, i.e. lon1/lon2/lat1/lat2
+
+    Returns:
+        gpd.DataFrame:  table for the new volclip with its volcanoes
+    """
+    #lon1, lon2, lat1, lat2 = -22.725, -21.6375, 63.787, 64.03855
+    #new_cliparea_geo = str(lon1) + '/' + str(lon2) + '/' + str(lat1) + '/' + str(lat2)
+    lon1, lon2, lat1, lat2 = np.array(new_cliparea_geo.split('/')).astype(float)
+    roi = fc.lonlat_to_poly(lon1, lon2, lat1, lat2)
+    volcs = get_volcanoes_in_polygon(roi)  # , volcstable)
+    #
+    # now delete the smaller volclips of those volcanoes
+    firstrun = True
+    for v in volcs.volc_id:
+        # print(v)
+        vids = get_volclip_vids(v)
+        for vid in vids:
+            # print(vid)
+            delete_volclip(vid)
+        if firstrun:
+            newclip = create_volclip_for_volcano(v, new_cliparea_geo)
+        else:
+            add_volcano_to_volclip(v, newclip)
+        firstrun = False
+    #
+    volclip = get_volclips_gpd(newclip)
+    return volclip
+
+
 '''
 def get_volclip_info(vid=None): #,extended=True):
     """NOT WORKING AS POLYID ARE DROPPED FOR NOW"""
