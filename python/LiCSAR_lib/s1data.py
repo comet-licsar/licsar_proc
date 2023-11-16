@@ -156,8 +156,8 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
     if outAspd or not asf:
         # 2023-11-06 - searching through CDSE, solution by Manu Delgado Blasco (many thanks!) https://github.com/sentinelsat/sentinelsat/issues/583
         # cannot find docs for OData! e.g. - use of 'sensoroperationalMode' ends by Invalid field: sensoroperationalMode (BUT WHAT ARE VALID FIELDS????)
-        json = requests.get(
-        f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=Collection/Name eq 'SENTINEL-1' and " \
+        topp = 400 # max 1000   ### 2023-11-16 fix
+        cdsequery = f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=Collection/Name eq 'SENTINEL-1' and " \
         "OData.CSC.Intersects(area=geography'SRID=4326;{0}') and ContentDate/Start gt {1}T00:00:00.000Z and ContentDate/Start lt {2}T00:00:00.000Z " \
         "and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq 'SLC') " \
         "and (Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'relativeOrbitNumber' and att/OData.CSC.IntegerAttribute/Value eq {3})" \
@@ -165,10 +165,12 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         " or Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'relativeOrbitNumber' and att/OData.CSC.IntegerAttribute/Value eq {5})) " \
         "and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'orbitDirection' and att/OData.CSC.StringAttribute/Value eq '{6}') " \
         "and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'operationalMode' and att/OData.CSC.StringAttribute/Value eq '{7}')" \
-        "".format(footprint, str(startdate), str(enddate),
+        "&$top={8}".format(footprint, str(startdate), str(enddate),
             str(track1),str(track),str(track2),
             ascdesc, sensType,
-            )).json()
+            str(topp)
+            )
+        json = requests.get(cdsequery).json()
         # for list of params in the new CDSE (THEY ARE NOT PUBLISHED!!!!!!!!!!!!!!!!! in NOV 2023 when SciHub is deactivated!!!!! this is not nice approach from ESA)
         # can be found after 'expanding the metadata', e.g. here:
         # https://catalogue.dataspace.copernicus.eu/odata/v1/Products?%24filter=contains(Name,%27S1A_EW_GRD%27)%20and%20ContentDate/Start%20gt%202022-05-03T00:00:00.000Z%20and%20ContentDate/Start%20lt%202022-05-03T12:00:00.000Z&%24expand=Attributes
@@ -177,13 +179,20 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         if dframe.empty:
             print('CDSE: empty output')
             return False
+        i = 0
+        dframefull = dframe.copy()
+        while not dframe.empty:
+            i = i+1
+            json = requests.get(cdsequery+"&$skip="+str(i*topp)).json()
+            dframe = pd.DataFrame.from_dict(json["value"])
+            dframefull = pd.concat([dframefull, dframe], ignore_index=True)
+        #
+        dframefull['title'] = dframefull['Name'].apply(lambda x: x.split('.')[0])
+        if outAspd:
+            return dframefull
         else:
-            dframe['title'] = dframe['Name'].apply(lambda x: x.split('.')[0])
-            if outAspd:
-                return dframe
-            else:
-                images = dframe['title'].values.tolist()
-                return images
+            images = dframefull['title'].values.tolist()
+            return images
         '''
         #print('warning, we use outAspd only for EIDP')
         #print('to avoid complications, the search will be performed only through scihub')

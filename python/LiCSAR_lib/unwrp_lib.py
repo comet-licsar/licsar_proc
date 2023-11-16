@@ -337,3 +337,34 @@ def demedian_unw(filename):
     os.remove(filename)
     a.tofile(filename)
 
+
+
+def reunwrap(frame, pair, procdir = os.getcwd()):
+    '''Simple function to call the updated unwrapper and regenerated the unw, by rewriting it..
+
+    e.g. frame='106D_05447_131313', pair='20210414_20210520'
+    '''
+    track = str(int(frame[:3]))
+    ml = 1
+    from lics_unwrap import process_ifg, export_xr2tif
+    ifg = process_ifg(frame, pair, procdir, ml=ml, fillby='nearest', lowpass=False, specmag=True, )
+    outdir=os.path.join(os.environ['LiCSAR_public'], track, frame,'interferograms', pair)
+    outunw = os.path.join(outdir, pair+'.geo.unw.tif')
+    outunwpng = os.path.join(outdir, pair+'.geo.unw.png')
+    outpha = os.path.join(outdir, pair+'.geo.diff_pha.tif')
+    outphapng = os.path.join(outdir, pair+'.geo.diff.png')
+    if os.path.exists(outphapng):
+        os.remove(outphapng)
+        os.remove(outunwpng)
+    #
+    os.remove(outpha)
+    os.remove(outunw)
+    ifg['origpha'].values = wrap2phase(ifg.toremove+ifg.filtpha)
+    export_xr2tif(ifg['origpha'], outpha)
+    export_xr2tif(ifg['unw'], outunw)
+    #
+    # creating previews
+    cmd = "x="+pair+"; source $LiCSARpath/lib/*; create_preview_wrapped "+outdir+"/$x/$x.geo.diff_pha.tif"
+    rc = os.system(cmd)
+    cmd = "x="+pair+"; source $LiCSARpath/lib/*; create_preview_unwrapped "+outdir+"/$x/$x.geo.unw.tif"
+    rc = os.system(cmd)
