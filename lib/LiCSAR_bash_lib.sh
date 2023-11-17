@@ -49,7 +49,7 @@ function touchscratch() {
     fi;
     echo "touching contents of directory "$dir
     for subdir in `ls $dir`; do
-     for x in `find $subdir`; do touch $x; done
+     for x in `find $dir/$subdir`; do touch $x 2>/dev/null; done
     done
     echo "done"
 }
