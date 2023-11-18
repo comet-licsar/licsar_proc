@@ -29,6 +29,8 @@ if [ -z $1 ]; then
  echo "(other params, for admins etc.)"
  echo "(-R ....... prioritise through comet responder)"
  echo "-----------------"
+ #echo "-a ....... use ampstab"
+ #echo "-A ....... use ampcoh"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -57,12 +59,14 @@ cometdev=0
 # 2023 - keep it ON
 specmag=1
 nproc=1
+ampstab=0
+ampcoh=0
 que='short-serial'
 #LB_version=LiCSBAS  # orig Yu Morishita's version
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
 
-while getopts ":M:HucTsdSClWgmPRkG:t:n:" option; do
+while getopts ":M:HucTsdSClWgmaAPRkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -105,6 +109,10 @@ while getopts ":M:HucTsdSClWgmPRkG:t:n:" option; do
      ;;
   k) keep_coh_debug=0;
      #shift
+     ;;
+  a) ampstab=1;
+     ;;
+  A) ampcoh=1;
      ;;
   T) LB_version=licsbas_comet_dev; # COMET LiCSBAS (dev branch)
      #shift
@@ -297,6 +305,16 @@ if [ $reunw -gt 0 ]; then
   extraparam=$extraparam", keep_coh_debug = True";
  else
   extraparam=$extraparam", keep_coh_debug = False"
+ fi
+ if [ $ampcoh == 1 ]; then
+  extraparam=$extraparam", use_amp_coh = True";
+ else
+  extraparam=$extraparam", use_amp_coh = False"
+ fi
+ if [ $ampstab == 1 ]; then
+  extraparam=$extraparam", use_amp_stab = True";
+ else
+  extraparam=$extraparam", use_amp_stab = False"
  fi
  if [ $cascade == 1 ]; then
   extraparam=$extraparam", cascade = True"
