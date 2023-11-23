@@ -133,12 +133,13 @@ def main():
             os.system(cmd)
     #first update the frame lists - only once per month...:
     nowis = datetime.now()
-    if nowis.day == 1:
+    if nowis.day == 9 or nowis.day == 29:
         print('updating frame list first')
         update_framelist_fabien()
     # but update also tifs for volc portal, using Fabien's script, every 10 days
     #if nowis.day in [1,8,15,22,29]:
-    if nowis.day in [1,11,21]:
+    #if nowis.day in [5,15,25]:
+    if nowis.day in [5,15,24, 26, 28]:
         print('done. now updating the png files - Fabien script')
         cmd = 'cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/python_script/FINAL_scripts; sbatch run_LiCSAR_volcano_makefigure_final_withGACOS.sh'
         os.system(cmd)

@@ -192,7 +192,10 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
             return dframefull
         else:
             images = dframefull['title'].values.tolist()
-            return images
+            # DEBUG: ASF uses a bit different filename. So adding this here, as ASF is used as backup (and I don't know how to search with filename from ASF to do it through wget_alaska.sh
+            df = search_alaska(frameName, footprint, startdate, enddate, sensType)
+            images += df['granuleName'].values.tolist()
+            return list(set(images))
         '''
         #print('warning, we use outAspd only for EIDP')
         #print('to avoid complications, the search will be performed only through scihub')
