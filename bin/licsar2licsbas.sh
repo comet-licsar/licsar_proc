@@ -138,22 +138,26 @@ if [ $nproc -gt 1 ]; then
  fi 
 fi
 
-frame=$1
-if [ `echo $frame | grep -c '_'` -lt 1 ]; then
- echo "this is not a frame - check your input parameters please, yet continuing"
-fi
-
 if [ -d GEOC ]; then
  echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
  dolocal=1;
 fi
 
+# frame info
+if [ -f sourceframe ]; then frame=`cat sourceframe`; echo "setting frame from sourceframe file to "$frame;
+    else frame=$1;
+fi
+
+if [ `echo $frame | grep -c '_'` -lt 1 ]; then
+ echo "this is not a frame - check your input parameters please, yet continuing"
+fi
+
 thisdir=`pwd`
 if [ $dolocal == 0 ]; then
-if [ ! `pwd | rev | cut -d '/' -f1 | rev` == $frame ]; then
- mkdir $frame
- cd $frame
-fi
+ if [ ! `pwd | rev | cut -d '/' -f1 | rev` == $frame ]; then
+  mkdir $frame
+  cd $frame
+ fi;
 fi
 
 defdates=1
