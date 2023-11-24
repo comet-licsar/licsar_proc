@@ -66,31 +66,7 @@ que='short-serial'
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
 
-
-frame=$1
-if [ `echo $frame | grep -c '_'` -lt 1 ]; then
- echo "this is not a frame - check your input parameters please, yet continuing"
-fi
-
-
-if [ -d GEOC ]; then
- echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
- dolocal=1;
-fi
-
-
-thisdir=`pwd`
-if [ $dolocal == 0 ]; then
-if [ ! `pwd | rev | cut -d '/' -f1 | rev` == $frame ]; then
- mkdir $frame
- cd $frame
-fi
-fi
-
-# first store the original command:
-echo $0 $@ > "command.in"
-
-
+discmd="$0 $@"
 while getopts ":M:HucTsdSClWgmaAPRkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
@@ -162,6 +138,23 @@ if [ $nproc -gt 1 ]; then
  fi 
 fi
 
+frame=$1
+if [ `echo $frame | grep -c '_'` -lt 1 ]; then
+ echo "this is not a frame - check your input parameters please, yet continuing"
+fi
+
+if [ -d GEOC ]; then
+ echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
+ dolocal=1;
+fi
+
+thisdir=`pwd`
+if [ $dolocal == 0 ]; then
+if [ ! `pwd | rev | cut -d '/' -f1 | rev` == $frame ]; then
+ mkdir $frame
+ cd $frame
+fi
+fi
 
 defdates=1
 startdate=20141001
@@ -280,7 +273,8 @@ fi
 fi
 
 cd $workdir
-
+# first store the original command:
+echo $discmd > "command.in"
 
 if [ $reunw -gt 0 ]; then
  #echo "preparing for custom multilooking - just run ./multirun.sh"
