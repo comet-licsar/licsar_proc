@@ -1,4 +1,23 @@
 import pygmt
+import matplotlib.pyplot as plt
+
+
+def plot3(A,B,C):
+    '''inputs are three xr.dataarrays to plot'''
+    origfigsize = plt.rcParams['figure.figsize']
+    plt.rcParams["figure.figsize"] = [18,4]
+    plt.subplot(1,3,1)
+    #AA.origpha
+    A.rename('rad').plot()
+    plt.subplot(1,3,2)
+    #AA.unwlow
+    B.rename('rad').plot()
+    plt.subplot(1,3,3)
+    #AA.toremove
+    C.rename('rad').plot()
+    plt.show()
+    plt.rcParams['figure.figsize']=origfigsize
+
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None):

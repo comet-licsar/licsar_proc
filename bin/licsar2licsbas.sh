@@ -301,7 +301,7 @@ if [ $reunw -gt 0 ]; then
    echo "smooth run selected - disabling goldstein filter. better you disable smooth, it is considered obsolete now"
   extraparam=$extraparam", smooth = True, goldstein = False"
  fi
- if [ lowpass == 1 ]; then
+ if [ $lowpass == 1 ]; then
   extraparam=$extraparam", lowpass = True"
  fi
  # adding possibility to change coh threshold here
