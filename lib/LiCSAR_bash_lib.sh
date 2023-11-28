@@ -1064,6 +1064,7 @@ function createSLCtab(){
 
 
 function createSLCtab_frame(){
+    # usage: FULLPATH_TO_SLC/$epoch/$epoch slc[or rslc] $frame > tab/$epoch'_tab'
   local frame=$3
   if [ `echo $frame | wc -m` != 18 ]; then echo "not a frame ID"; return; fi
   if [ `echo $frame | cut -d '_' -f3 | cut -c -2` == 00 ]; then
