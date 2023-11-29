@@ -139,10 +139,10 @@ def main():
     # but update also tifs for volc portal, using Fabien's script, every 10 days
     #if nowis.day in [1,8,15,22,29]:
     #if nowis.day in [5,15,25]:
-    if nowis.day in [5,15,24, 26, 28]:
-        print('done. now updating the png files - Fabien script')
-        cmd = 'cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/python_script/FINAL_scripts; sbatch run_LiCSAR_volcano_makefigure_final_withGACOS.sh'
-        os.system(cmd)
+    #if nowis.day in [5,15,24, 26, 28]:
+    print('done. now updating the png files - Fabien script')
+    cmd = 'cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/python_script/FINAL_scripts; sbatch run_LiCSAR_volcano_makefigure_final_withGACOS.sh'
+    os.system(cmd)
     print('ok, everything finished')
 
 
