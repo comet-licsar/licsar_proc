@@ -193,8 +193,11 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         else:
             images = dframefull['title'].values.tolist()
             # DEBUG: ASF uses a bit different filename. So adding this here, as ASF is used as backup (and I don't know how to search with filename from ASF to do it through wget_alaska.sh
-            df = search_alaska(frameName, footprint, startdate, enddate, sensType)
-            images += df['granuleName'].values.tolist()
+            try:
+                df = search_alaska(frameName, footprint, startdate, enddate, sensType)
+                images += df['granuleName'].values.tolist()
+            except:
+                print('error in connection to ASF')
             return list(set(images))
         '''
         #print('warning, we use outAspd only for EIDP')
