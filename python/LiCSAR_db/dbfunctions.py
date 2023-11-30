@@ -26,7 +26,8 @@ def Conn_sqlalchemy(dbname='licsar_live'):
     sqlpass = parser.get('sqlinfo', 'dbpass')
     
     engine = create_engine(
-    'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}?charset=utf8'.format(
+    # 'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}?charset=utf8'.format(
+    'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}?charset=utf-8'.format(
         usr=sqluser,
         psswd=sqlpass,
         hst=sqlhost,
