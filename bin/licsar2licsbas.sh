@@ -31,6 +31,7 @@ if [ -z $1 ]; then
  echo "-----------------"
  #echo "-a ....... use ampstab"
  #echo "-A ....... use ampcoh"
+ #echo "-F ....... will force start from filtered ifgs (DOES NOT WORK IN LOCAL (HIRES) NOR CASCADE. TESTING ONLY)
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -61,13 +62,14 @@ specmag=1
 nproc=1
 ampstab=0
 ampcoh=0
+filtifg=0
 que='short-serial'
 #LB_version=LiCSBAS  # orig Yu Morishita's version
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
 
 discmd="$0 $@"
-while getopts ":M:HucTsdSClWgmaAPRkG:t:n:" option; do
+while getopts ":M:HucTsdSClWgmaAFPRkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
@@ -96,6 +98,8 @@ while getopts ":M:HucTsdSClWgmaAPRkG:t:n:" option; do
   s) smooth=1;
      #shift
      ;;
+  F) filtifg=1;
+    ;;
   P) que='comet';
      ;;
   R) que='comet_responder';
@@ -304,7 +308,10 @@ if [ $reunw -gt 0 ]; then
  if [ $lowpass == 1 ]; then
   extraparam=$extraparam", lowpass = True"
  fi
- # adding possibility to change coh threshold here
+ if [ $filtifg == 1 ]; then
+   extraparam=$extraparam", prefer_unfiltered = False"
+ fi
+ # adding possibility to change consistence threshold (mask before unw) here
  extraparam=$extraparam", thres = "$thres
  if [ $keep_coh_debug == 1 ]; then
   extraparam=$extraparam", keep_coh_debug = True";
