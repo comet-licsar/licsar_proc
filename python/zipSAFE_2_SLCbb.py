@@ -20,7 +20,7 @@ def pyC_zip2slc(zipfilepath):
   if os.path.basename(zipfilepath).split('_')[1] == 'IW':
     list_annfile=['annotation/s1.-iw1-slc-vv', 'annotation/s1.-iw2-slc-vv', 'annotation/s1.-iw3-slc-vv']
   else:
-    print('the zip file has unexpected name. Assuming non-TOPS mode')
+    #print('the zip file has unexpected name. Assuming non-TOPS mode')
     smode = os.path.basename(zipfilepath).split('_')[1].lower()
     list_annfile = ['annotation/s1.-'+smode+'-slc-vv']
   for fnames in zfile.namelist(): # Loop over all fileanames within the zip file
