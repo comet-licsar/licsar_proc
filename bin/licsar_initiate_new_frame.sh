@@ -85,8 +85,9 @@ fi
   exit
  fi
  if [ `echo $frame | grep -o '_' | wc -l` != 2 ]; then
-  echo "Wrong frame name. Stopping"
-  exit
+  echo "Wrong frame name. Will try to continue (if not sure, cancel by CTRL-C)"
+  #exit
+  sleep 2
  fi
 
 mkdir -p $curdir/$tr/$frame
