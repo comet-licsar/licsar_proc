@@ -279,7 +279,11 @@ def main(argv=None):
     #imburstlist = lq.get_frame_bursts_on_date(framename,masterdate)
     # ok, so the burstlist of frame should be kept ok - master epoch should have same bursts..
     imburstlist = lq.get_bursts_in_frame(framename)
-    rc = make_frame_image(masterdate,framename,imburstlist,procdir, lq,job_id, autodownload = autodownload)
+    if framename.split('_')[1] == 'SM':
+        acqMode='sm'
+    else:
+        acqMode = 'iw'
+    rc = make_frame_image(masterdate,framename,imburstlist,procdir, lq, job_id, acqMode=acqMode, autodownload = autodownload)
     if rc != 0:
         print('error initialising frame reference')
         return 1

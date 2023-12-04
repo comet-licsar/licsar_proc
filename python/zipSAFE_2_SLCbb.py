@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, zipfile, re
+import sys, zipfile, re, os
 import xml.etree.ElementTree as et
 
 # Subroutine to output central coordinates from a SAFE zip_file
@@ -17,7 +17,12 @@ def pyC_zip2slc(zipfilepath):
   #slc = [[ ] for x in range(3)] # Allocate a list of 3 lists
 
   # Identify the annotation files containing the coordinates of the bursts
-  list_annfile=['annotation/s1.-iw1-slc-vv', 'annotation/s1.-iw2-slc-vv', 'annotation/s1.-iw3-slc-vv']
+  if os.path.basename(zipfilepath).split('_')[1] == 'IW':
+    list_annfile=['annotation/s1.-iw1-slc-vv', 'annotation/s1.-iw2-slc-vv', 'annotation/s1.-iw3-slc-vv']
+  else:
+    print('the zip file has unexpected name. Assuming non-TOPS mode')
+    smode = os.path.basename(zipfilepath).split('_')[1].lower()
+    list_annfile = ['annotation/s1.-'+smode+'-slc-vv']
   for fnames in zfile.namelist(): # Loop over all fileanames within the zip file
     # Reset the lo and la lists 
     lo=[];  la=[];
