@@ -171,7 +171,10 @@ else
  rm -f $curdir/$tr/$frame/SLC/*/2*T*.I*sl* 2>/dev/null
  #removing also the mosaic 
  #rm -f $curdir/$tr/$frame/SLC/*/
- rm -f $curdir/$tr/$frame/SLC/*/2???????.slc 2>/dev/null
+ if [ ! `echo $frame | cut -d '_' -f 2` == 'SM' ]; then
+   # do not remove for stripmaps
+   rm -f $curdir/$tr/$frame/SLC/*/2???????.slc 2>/dev/null
+ fi
  echo "done"
 
 if [ $clip == 1 ]; then

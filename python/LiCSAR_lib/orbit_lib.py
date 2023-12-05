@@ -457,6 +457,17 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB', s1ab = Non
 
 
 def downloadOrbits_CopCloud(startdate, enddate, producttype):
+    '''
+    Downloads orbits between given dates from CDSE.
+
+    Args:
+        startdate: dt.datetime or dt.date
+        enddate: dt.datetime or dt.date
+        producttype: 'POEORB' or 'RESORB'
+
+    Returns:
+        list of downloaded orbit filenames
+    '''
     # 2023-11-08: changing from scihub to CDSE
     # NOTE: both start/end dates should add extra day since the search is using T00:00:00
     # producttype is either 'POEORB' or 'RESORB'
@@ -468,6 +479,11 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
     #result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))    
     result = scihub.to_dataframe(result)
     '''
+    try:
+        startdate = startdate.date()
+        enddate = enddate.date()
+    except:
+        pass
     # that was... really tricky to find... CDSE documentation is really bad
     json = requests.get("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}T00:00:00Z&completionDate={2}T00:00:00Z".format(producttype, str(startdate), str(enddate))).json()
     tmplist = str(json).split("'")
@@ -575,6 +591,7 @@ def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
     except:
         print('not succeeded')
         return False
+'''
     #
     #
     # old unused lines
@@ -590,7 +607,7 @@ def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
     #should be anyway just one orbit file...
     #return a
     return wheresavePath
-
+'''
 
 ################################################################################
 # Get Orbit Url
