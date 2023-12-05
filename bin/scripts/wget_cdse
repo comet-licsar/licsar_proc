@@ -40,7 +40,7 @@ BN=`basename $filename .zip`
 
 #get file ID
 #ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
-ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
+ID=`wget -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
 
 # download to given outdir:
 #wget -O $outdir/$filename
@@ -53,13 +53,15 @@ ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Se
 #fi
 
 #URL="${HOST}/odata/v1/Products('$ID')/\$value"
-wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'http://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
+wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'https://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
 if [ `ls -al $outdir/$filename | gawk {'print $5'}` -eq 0 ]; then
- echo "error 404, trying through asf"
  rm $outdir/$filename
- cd $outdir
- wget_alaska $filename
- cd -
+ if [ $eof == 0 ]; then
+   echo "error getting from CDSE, trying through ASF"
+   cd $outdir
+   wget_alaska $filename
+   cd -
+ fi
 fi
 
 
