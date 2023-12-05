@@ -290,11 +290,19 @@ def main(argv=None):
 ############################################################ Coregister slave images to master
     createdRslcs = []
     lutdir = os.path.join(procdir,'LUT')  # changed to expected place
+    acqMode = 'iw'
+    if framename.split('_')[1] == 'SM':
+        acqMode = 'sm'
+        print('processing stripmap frame - EXPERIMENTAL')
     for sd in slavedatelistsort:
         lut1 = os.path.join(rslcdir,sd.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d_')+sd.strftime('%Y%m%d.slc.mli.lt'))
         lut2 = os.path.join(lutdir,sd.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d_')+sd.strftime('%Y%m%d.slc.mli.lt'))
         if (os.path.exists(lut1) or os.path.exists(lut2)) and not forceRecreate:
-            rc = recoreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir,lq)
+            if acqMode == 'iw':
+                rc = recoreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir,lq)
+            else:
+                print('recoregistration for stripmaps is not ready yet, reprocessing instead!')
+                rc = coreg_slave_sm(sd,slcdir,rslcdir,masterdate,framename,procdir,lq, -1)
             with open(reportfile,'a') as f:
                 if rc == 0:
                     f.write('\nAcquisition {0} has been coregistered correctly.'.format(sd))
@@ -320,7 +328,10 @@ def main(argv=None):
                 elif rc == 7:
                     f.write('\nAcquisition {0} does not have a lookup table or other LUT-related error'.format(sd))
         else:
-            rc = coreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, eidp = eidp)
+            if acqMode == 'iw':
+                rc = coreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, eidp = eidp)
+            else:
+                rc = coreg_slave_sm(sd, slcdir, rslcdir, masterdate, framename, procdir, lq, job_id)
             with open(reportfile,'a') as f:
                 if rc == 0:
                     f.write('\nAcquisition {0} has been coregistered correctly.'.format(sd))
