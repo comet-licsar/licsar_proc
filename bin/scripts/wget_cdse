@@ -54,7 +54,7 @@ ID=`wget -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/S
 
 #URL="${HOST}/odata/v1/Products('$ID')/\$value"
 wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'https://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
-if [ `ls -al $outdir/$filename | gawk {'print $5'}` -eq 0 ]; then
+if [ `ls -al $outdir/$filename | gawk {'print $5'}` -lt 10000 ]; then
  rm $outdir/$filename
  if [ $eof == 0 ]; then
    echo "error getting from CDSE, trying through ASF"
