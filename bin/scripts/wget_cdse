@@ -61,6 +61,10 @@ if [ `ls -al $outdir/$filename | gawk {'print $5'}` -eq 0 ]; then
    cd $outdir
    wget_alaska $filename
    cd -
+ else
+   cd $outdir
+   wget_alaska_eof $filename
+   cd -
  fi
 fi
 
