@@ -75,6 +75,10 @@ REPORT_FILE = LISTPATH + COUNTRY + '_report.txt'
 # distance around volcano (degrees) to crop data:
 DX = 0.5
 DY = 0.5
+# for stripmaps
+DXSM = 0.1
+DYSM = 0.1
+
 # wavelength constants:
 WAVELENGTH = 0.055465
 RAD2CM = (WAVELENGTH / (4 * pi)) * 100
@@ -267,6 +271,14 @@ def get_frame_volcanoes(options):
     paths = options['paths']
     log_lock = options['mp_log_lock']
 
+    # choose which DX/DY
+    if 'SM' in frame:
+        ddx = DXSM
+        ddy = DYSM
+    else:
+        ddx = DX
+        ddy = DY
+
     # define a log message wrapper which includes lock file:
     def _log_message(message):
         log_message(message, mp_lock=log_lock)
@@ -311,8 +323,8 @@ def get_frame_volcanoes(options):
         xv = float(columns[2])
         yv = float(columns[1])
         # 1- SELECT THE VOLCANO BELONGING TO THE FRAME
-        if (xv > (Xmin + DX / 2) and xv < (Xmax - DX / 2) and
-                yv > (Ymin + DX / 2) and yv < (Ymax - DX / 2)):
+        if (xv > (Xmin + ddx / 2) and xv < (Xmax - ddx / 2) and
+                yv > (Ymin + ddy / 2) and yv < (Ymax - ddy / 2)):
             # log a message about this volcano:
             _log_message('{0} :: Contains {1}'.format(frame, volcano))
             # store options for this volcano:
@@ -352,6 +364,15 @@ def process_frame_volcano(options):
     xv = options['xv']
     yv = options['yv']
 
+    ''' in case the clip from 'smaller extent' is a problem, will need to do:
+    # choose which DX/DY
+    if 'SM' in frame:
+        ddx = DXSM
+        ddy = DYSM
+    else:
+        ddx = DX
+        ddy = DY
+    '''
     # label for this volcano / frame:
     volc_label = '{0}_{1}'.format(volcano, frame)
 
