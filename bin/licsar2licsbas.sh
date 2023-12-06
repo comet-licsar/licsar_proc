@@ -325,6 +325,9 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $ampstab == 1 ]; then
   extraparam=$extraparam", use_amp_stab = True";
+  if [ $smooth == 1 ]; then
+    extraparam=$extraparam", fillby = 'gauss'";  # for test, might really help
+  fi
  else
   extraparam=$extraparam", use_amp_stab = False"
  fi
