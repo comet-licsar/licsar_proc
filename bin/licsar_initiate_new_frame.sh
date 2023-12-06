@@ -11,6 +11,7 @@ a=4
 dolocal=0
 tienshan=0
 clip=0
+sm=0 # stripmap frame
 
 if [ -z $1 ];
 then
@@ -76,7 +77,12 @@ fi
  if [ ${frame:9:1} == 'H' ]; then
   a=1; r=5; outres=0.00015; dolocal=1;
  fi
- 
+ if [ `echo $frame | cut -d '_' -f 2` == 'SM' ]; then
+   sm=1 #stripmap
+   a=11; r=7; outres=0.0002777; dolocal=1;
+   echo "Stripmap settings - overriding to"
+   echo "a=11; r=7; outres=0.0002777"
+ fi
  tr=`echo $frame | cut -d '_' -f1 | sed 's/^0//' | sed 's/^0//' | rev | cut -c 2- | rev`
  rmdir $curdir/$tr/$frame 2>/dev/null
  if [ -d $curdir/$tr/$frame ]; then
@@ -171,7 +177,7 @@ else
  rm -f $curdir/$tr/$frame/SLC/*/2*T*.I*sl* 2>/dev/null
  #removing also the mosaic 
  #rm -f $curdir/$tr/$frame/SLC/*/
- if [ ! `echo $frame | cut -d '_' -f 2` == 'SM' ]; then
+ if [ $sm == 0 ]; then
    # do not remove for stripmaps
    rm -f $curdir/$tr/$frame/SLC/*/2???????.slc 2>/dev/null
  fi
@@ -187,7 +193,7 @@ if [ $clip == 1 ]; then
    gdal_translate -projwin $ulx $uly $lrx $lry -co "COMPRESS=DEFLATE" -of GTiff -a_srs epsg:4326 $tif $tif.clip.tif
    mv $tif.clip.tif $tif
  done
- # just to clean the small png preview file
+ # just to clean the small png preview file (that were not clipped)
  rm $LiCSAR_public/$tr/$frame/epochs/*/*png
 fi
 fi

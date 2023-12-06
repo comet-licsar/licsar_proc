@@ -961,8 +961,16 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                     print("applying orbit correction to {0}".format(parFile))
                     S1_OPOD_vec(parFile,slcOrbit,logfilename)
             else:
-                print('ERROR: no orbit files available, continuing using only predicted orbits')
-                #return 2
+                print('ERROR: no orbit files available, cancelling for stripmap as we want the best here')
+                return 2
+            # Multilooking
+            multicall = 'multilookSLC {0} {1} {2} 1 {3} &> {4}'.format(
+                date.strftime('%Y%m%d'), gc.rglks, gc.azlks, imdir,
+                logfilename)
+            rc = os.system(multicall)
+            if rc != 0:
+                print('Something went wrong multilooking'.format(logfilename), file=sys.stderr)
+                return 3
     else:
 ############################################################ Failed to process this date
         # One of the read files failed, continue with next date
