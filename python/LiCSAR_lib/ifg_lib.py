@@ -168,7 +168,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
 ############################################################ geocoding..
     if not os.path.exists(os.path.join(procdir, 'GEOC')):
         os.mkdir(os.path.join(procdir, 'GEOC'))
-    if not os.path.exists(os.path.join(procdir, 'GEOC', pair)):
+    if not os.path.exists(os.path.join(procdir, 'GEOC', pair, pair+'.geo.diff_pha.tif')):
         rc = geocode_ifg(procdir, pair)
 ############################################################ Log coherence to database
     if job_id != -1:
@@ -183,7 +183,7 @@ def geocode_ifg(procdir, pair, extraparam = ''):
     rc = os.system('create_geoctiffs_to_pub.sh -C {0} {1} {2}'.format(extraparam, procdir, pair))
     #rc = os.system('create_geoctiffs_to_pub.sh -I {0} {1} {2}'.format(extraparam, procdir, pair))
     rc = os.system('create_geoctiffs_to_pub.sh -u -I {0} {1} {2}'.format(extraparam, procdir, pair))
-    rc = os.system('rm {0}/GEOC/{1}/*.diff {0}/GEOC/{1}/*.cc {0}/GEOC/{1}/*.diff_pha'.format(procdir, pair))
+    rc = os.system('rm {0}/GEOC/{1}/*.diff {0}/GEOC/{1}/*.cc {0}/GEOC/{1}/*.diff_pha {0}/GEOC/{1}/*.diff_unfiltered {0}/GEOC/{1}/*.diff_unfiltered_pha 2>/dev/null'.format(procdir, pair))
     return rc
 
 
