@@ -15,7 +15,7 @@ line=$1
 
 # e.g. S1A_OPER_AUX_RESORB_OPOD_20231120T162617_V20231120T123954_20231120T155724.EOF
 eofstr=`echo $line | cut -d '_' -f4`
-if [ eofstr == "RESORB" ]; then
+if [ $eofstr == "RESORB" ]; then
     eoftype='resorb'
 else
     eoftype='poeorb'
