@@ -89,6 +89,7 @@ while getopts ":M:HucTsdSClWgmaAFPRkG:t:n:" option; do
   c) cascade=1;
      ;;
   g) dogacos=1;
+     echo "checking gacos (debug)";
      ;;
   d) cometdev=1;
      ;;
@@ -196,7 +197,8 @@ source $metadir/metadata.txt #this will bring 'master=' info
  
 mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
-  mkdir GACOS 2>/dev/null
+  mkdir GACOS # 2>/dev/null
+  echo "debug gacos 1"
 fi
 cd GEOC
 for meta in E N U hgt; do
