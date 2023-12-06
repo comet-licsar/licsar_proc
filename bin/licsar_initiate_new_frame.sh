@@ -79,9 +79,9 @@ fi
  fi
  if [ `echo $frame | cut -d '_' -f 2` == 'SM' ]; then
    sm=1 #stripmap
-   a=11; r=7; outres=0.0002777; dolocal=1;
+   a=7; r=11; outres=0.0002777; dolocal=1;
    echo "Stripmap settings - overriding to"
-   echo "a=11; r=7; outres=0.0002777"
+   echo "a=7; r=11; outres=0.0002777"
  fi
  tr=`echo $frame | cut -d '_' -f1 | sed 's/^0//' | sed 's/^0//' | rev | cut -c 2- | rev`
  rmdir $curdir/$tr/$frame 2>/dev/null
