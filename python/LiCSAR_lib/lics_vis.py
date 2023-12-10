@@ -1,5 +1,6 @@
 import pygmt
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot3(A,B,C):
