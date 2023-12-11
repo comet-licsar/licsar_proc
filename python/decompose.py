@@ -54,6 +54,23 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     framesetvel = []
     frameset = []
     firstrun = True
+    # getting years in all ncs:
+    yearsall = None
+    for nc in framencs:
+        frame = os.path.basename(nc).split('.')[0]
+        framenc = xr.open_dataset(nc)
+        years = framenc.time.dt.year.values
+        years = list(set(years))
+        # print(years)
+        if not yearsall:
+            yearsall = years
+        else:
+            for y in yearsall.copy():
+                if y not in years:
+                    yearsall.remove(y)
+    if len(yearsall)==0:
+        print('no overlapping year, cancelling annual decomposition')
+        return False
     for nc in framencs:
         frame = os.path.basename(nc).split('.')[0]
         print('extracting frame '+frame)
@@ -78,7 +95,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         framesetvel.append((framevel.values, heading.values, inc.values))
         if annual:
             # doing the annuals!
-            nc1 = calculate_annual_vels(framenc)
+            nc1 = calculate_annual_vels(framenc, yearsall)
             frameset.append((nc1['vel_annual'], heading.values, inc.values))
     dec = xr.Dataset()
     U = template.copy()
@@ -121,15 +138,17 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
 
 
 import LiCSBAS_inv_lib as inv_lib
-def calculate_annual_vels(cube):
+def calculate_annual_vels(cube, commonyears = None):
     """Will calculate annual velocities from LiCSBAS results
     
     Args:
         cube (xr.Dataset): loaded netcdf file, extracted using e.g. LiCSBAS_out2nc.py
-    
+        commonyears (list): list of years to decompose
     Returns:
         xr.Dataset with new dataarray: vel_annual
     """
+    if commonyears:
+        cube = cube.sel(time=np.isin(cube.time.dt.year.values, commonyears))
     annualset = cube.cum.resample(time='AS')
     firstrun = True
     for yeardt, yearcum in annualset:
