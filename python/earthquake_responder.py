@@ -309,6 +309,7 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
 
 def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
     #toi is Time Of Interest - and should be as datetime
+    maxpostseismicdays = 90
     doi = toi.date()
     track = str(int(frame[0:3]))
     global public_path
@@ -681,7 +682,7 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, i
                 print('some issue with event '+event.id)
 
 
-def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False):
+def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False, onlycoseismic = True):
     """
     Perform the earthquake frames processing.
 
@@ -771,7 +772,8 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             frame = frame[0]
             track = str(int(frame[0:3]))
             #if not os.path.exists(os.path.join(procdir,'EQR',frame,'')
-            new_kmls = create_kmls(frame,event.time, True, overwrite)
+            new_kmls = create_kmls(frame,event.time, onlycoseismic, overwrite)
+            # create_kmls(frame, toi, onlycoseismic = False, overwrite = False)
             if new_kmls:
                 eqsfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'
                 if not misc.grep1line(event.id,eqsfile):
