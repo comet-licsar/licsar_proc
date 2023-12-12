@@ -378,7 +378,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
                         print('detected old version of the kmz - overwriting it')
                         os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
             else:
-                os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
+                os.system('create_kmz.sh {0} {1} 1'.format(os.path.join(products_path,pifg), frame))
             if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
                 print('some error happened during KMZ generation of '+pifg)
             else:
