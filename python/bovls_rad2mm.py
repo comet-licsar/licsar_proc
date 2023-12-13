@@ -31,6 +31,11 @@ tr = int(frame[:3])
 #variables from variables
 batch=os.environ['BATCH_CACHE_DIR']
 tif=os.path.join(batch,frame,'GEOC',pair,pair+'.geo.bovldiff.adf.tif')
+if not os.path.exists(tif):
+    print('ERROR, the file does not exist in:')
+    print(tif)
+    exit()
+
 outtif=os.path.join(batch,frame,'GEOC',pair,pair+'.geo.bovldiff.adf.mm.tif')
 metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
 primepoch = misc.grep1line('master=',metafile).split('=')[1]

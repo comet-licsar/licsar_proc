@@ -127,6 +127,9 @@ if [ $filterit == 1 ]; then
 fi
 create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.tif
 
+#9. transform to mm
+bovls_rad2mm.py $frame $pair
+
 # clean:
 rm GEOC/$pair/ddiff* 2>/dev/null
 echo "done - check preview of:"
