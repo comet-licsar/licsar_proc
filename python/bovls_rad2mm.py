@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from lics_unwrap import *
 import framecare as fc
 from scipy import ndimage 
