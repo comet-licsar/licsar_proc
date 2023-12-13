@@ -20,7 +20,7 @@ else
   echo "no CDSE credentials found, exiting - please add user= and pass= variables to your ~/.cdse_cred file"
 fi
 source $credfile #$LiCSAR_configpath/cdse_cred
-ACCESS_TOKEN=`curl -d 'client_id=cdse-public' -d 'username='$user -d 'password='$pass -d 'grant_type=password' 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' 2>/dev/null | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
+
 
 eof=0
 if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
@@ -38,22 +38,68 @@ if [ -z $2 ]; then outdir=.; else outdir=$2; fi
 filename=$1
 BN=`basename $filename .zip`
 
-#get file ID
-#ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
-ID=`wget -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
+allok=1
+function generate_new_token() {
+  # this will create refresh token and return access token
+  tokens=`curl -d 'client_id=cdse-public' -d 'username='$user -d 'password='$pass -d 'grant_type=password' 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' 2>/dev/null`
+  ACCESS_TOKEN=`echo $tokens | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
+  REFRESH_TOKEN=`echo $tokens | python3 -m json.tool | grep "refresh_token" | awk -F\" '{print $4}'`
+  echo $REFRESH_TOKEN > ~/.cdse_refresh_token
+  echo $ACCESS_TOKEN
+}
 
-# download to given outdir:
-#wget -O $outdir/$filename
+function refresh_the_token() {
+	REFRESH_TOKEN=`cat ~/.cdse_refresh_token`
+	tokens=`curl --location --request POST 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token' \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'grant_type=refresh_token' \
+  --data-urlencode 'refresh_token='$REFRESH_TOKEN \
+  --data-urlencode 'client_id=cdse-public' 2>/dev/null`
+  # maybe needed for new refresh token.. but... will ignore this for now:
+  # REFRESH_TOKEN=`echo $tokens | python3 -m json.tool | grep "refresh_token" | awk -F\" '{print $4}'`
+  # echo $REFRESH_TOKEN > ~/.cdse_refresh_token
+  ACCESS_TOKEN=`echo $tokens | python3 -m json.tool | grep "access_token" | awk -F\" '{print $4}'`
+  echo $ACCESS_TOKEN
+}
 
-#sed -i 's/\r//' tmp_wget.txt 
-#ID=`grep "-" tmp_wget.txt`; rm tmp_wget.txt
-#if [ "$ID" == 'Id' -o "$ID" == "" ]; then#
-    #>&2 echo Product with name \"$BN\" not found
-#exit 1
-#fi
+# Playing with tokens
+	if [ -f ~/.cdse_refresh_token ]; then
+	 # use refresh token to regenerate access token
+	 ACCESS_TOKEN=`refresh_the_token`
+	else
+	 ACCESS_TOKEN=`generate_new_token`
+	fi
 
-#URL="${HOST}/odata/v1/Products('$ID')/\$value"
-wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'https://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
+	if [ `echo $ACCESS_TOKEN | wc -m` -lt 2000 ]; then
+	 echo "some error with CDSE tokening. Creating new ACCESS TOKEN"
+	 ACCESS_TOKEN=`generate_new_token`
+	fi
+
+	if [ `echo $ACCESS_TOKEN | wc -m` -lt 2000 ]; then
+	 echo "ERROR with CDSE - cannot get correct Access Token - cancelling CDSE"
+	 echo "see yourself - the (wrong) ACCESS_TOKEN says:"
+	 echo $ACCESS_TOKEN
+	 allok=0
+	 echo ""
+	fi 
+
+
+if [ $allok == 1 ]; then
+	#get file ID
+	#ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
+	ID=`wget -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
+	# download to given outdir:
+	#wget -O $outdir/$filename
+	#sed -i 's/\r//' tmp_wget.txt 
+	#ID=`grep "-" tmp_wget.txt`; rm tmp_wget.txt
+	#if [ "$ID" == 'Id' -o "$ID" == "" ]; then#
+		#>&2 echo Product with name \"$BN\" not found
+	#exit 1
+	#fi
+	#URL="${HOST}/odata/v1/Products('$ID')/\$value"
+	wget  --header "Authorization: Bearer $ACCESS_TOKEN" 'https://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
+fi
+
 if [ `ls -al $outdir/$filename | gawk {'print $5'}` -lt 10000 ]; then
  rm $outdir/$filename
  if [ $eof == 0 ]; then
