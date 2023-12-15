@@ -76,6 +76,7 @@ if [ ! -z $input ]; then
 else
  ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f1 > $frame.inp.tmp
  ls $prod_dir/$track/$frame/int*/20*_* -d | rev | cut -d '/' -f1 | rev | cut -d '_' -f2 >> $frame.inp.tmp
+ ls $prod_dir/$track/$frame/epochs/20* -d | rev | cut -d '/' -f1 | rev >> $frame.inp.tmp
  sort -u $frame.inp.tmp >$frame.inp.tmp2
 fi
 for epoch in `cat $frame.inp.tmp2`; do
