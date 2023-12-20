@@ -86,7 +86,8 @@ def get_volc_info(volcid=None):
         cond = ''
     sql = "select volc_id,name,lat,lon,alt,priority, ST_AsBinary(geometry) as geom from volcanoes"+cond+";"
     engine=Conn_sqlalchemy()
-    a = gpd.GeoDataFrame.from_postgis(text(sql), engine, geom_col='geom' )
+    with engine.connect() as conn:
+        a = gpd.GeoDataFrame.from_postgis(text(sql), conn, geom_col='geom')
     #a = do_pd_query(sql)
     #a['geometry'] = a.geometry.apply(wkt.loads)
     return a
@@ -371,8 +372,9 @@ def get_volclips_gpd(vid=None):
     #sql = "SELECT ST_AsBinary(geometry) as geom from volclips {0};".format(cond)
     sql = "SELECT v.volc_id,v.name,vc.vid,ST_AsBinary(vc.geometry) as geom from volclips vc inner join volclip2volcs vf on vf.vid=vc.vid inner join volcanoes v on vf.volc_id=v.volc_id {0};".format(cond)
     engine=Conn_sqlalchemy()
+    with engine.connect() as conn:
+        volclips = gpd.GeoDataFrame.from_postgis(text(sql), conn, geom_col='geom')
     #volclips = gpd.GeoDataFrame.from_postgis(sql, engine, geom_col='geom' )
-    volclips = gpd.GeoDataFrame.from_postgis(text(sql), engine, geom_col='geom')
     return volclips
 
 
