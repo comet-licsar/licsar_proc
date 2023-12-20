@@ -28,9 +28,9 @@ def Conn_sqlalchemy(dbname='licsar_live'):
     engine = create_engine(
     # 'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}?charset=utf8'.format(
     # 12/2023 - after JASMIN updates, there are some servers using utf8 and other utf-8 in the mysql lib settings
-    #'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}?charset=utf-8'.format(
+    'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}?charset=utf-8'.format(
     # using the wrong returns ugly error. Fortunately... things work ok without specifying anything....
-    'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}'.format(
+    #'mysql+pymysql://{usr}:{psswd}@{hst}/{dbname}'.format(
         usr=sqluser,
         psswd=sqlpass,
         hst=sqlhost,
