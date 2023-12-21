@@ -124,11 +124,31 @@ data2geotiff geo/EQA.dem_par GEOC/$pair/ddiff_pha.geo 2 GEOC/$pair/$pair.geo.bov
 #8. create preview
 if [ $filterit == 1 ]; then
  create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.adf.tif
+else
+ create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.tif
 fi
-create_preview_wrapped GEOC/$pair/$pair.geo.bovldiff.tif
 
 #9. transform to mm
 bovls_rad2mm.py $frame $pair
+
+# 10. compress the final outputs
+if [ $filterit == 1 ]; then tadf='adf.'; else tadf=''; fi
+if [ -f GEOC/$pair/$pair.geo.bovldiff.$tadf'tif' ]; then
+ mv GEOC/$pair/$pair.geo.bovldiff.$tadf'tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'temp.tif';
+ gdal_translate -co COMPRESS=DEFLATE -co PREDICTOR=3 -of GTiff -a_srs EPSG:4326 GEOC/$pair/$pair.geo.bovldiff.$tadf'temp.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'tif'
+ rm GEOC/$pair/$pair.geo.bovldiff.$tadf'temp.tif'
+fi
+if [ -f GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif' ]; then
+ mv GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif';
+ gdal_translate -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 -of GTiff -a_srs EPSG:4326 GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif'
+ rm GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif'
+fi
+#20181029_20190103.geo.bovldiff.adf.mm.tif
+if [ -f GEOC/$pair/$pair.geo.bovldiff.$tadf'mm.tif' ]; then
+ mv GEOC/$pair/$pair.geo.bovldiff.$tadf'mm.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'mm.temp.tif';
+ gdal_translate -co COMPRESS=DEFLATE -co PREDICTOR=3 -of GTiff -a_srs EPSG:4326 GEOC/$pair/$pair.geo.bovldiff.$tadf'mm.temp.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'mm.tif'
+ rm GEOC/$pair/$pair.geo.bovldiff.$tadf'mm.temp.tif'
+fi
 
 # clean:
 rm GEOC/$pair/ddiff* 2>/dev/null
