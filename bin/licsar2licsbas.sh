@@ -379,6 +379,7 @@ fi
 
 #preparing batch file
 module load $LB_version
+rm -f batch_LiCSBAS.sh 2>/dev/null
 copy_batch_LiCSBAS.sh >/dev/null
 
 if [ $reunw -gt 0 ]; then # && [ $clip == 1 ]; then
