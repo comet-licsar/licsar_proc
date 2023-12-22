@@ -67,12 +67,15 @@ que='short-serial'
 #LB_version=LiCSBAS  # orig Yu Morishita's version
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
+bovls=0
 
 discmd="$0 $@"
-while getopts ":M:HucTsdSClWgmaAFPRkG:t:n:" option; do
+while getopts ":M:HucTsdbSClWgmaAFPRkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
+     ;;
+  b) bovls=1;
      ;;
   n) nproc=${OPTARG};
      #que='par-single'; # unless changed to comet queue

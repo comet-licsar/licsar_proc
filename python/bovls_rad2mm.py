@@ -28,15 +28,21 @@ pair=sys.argv[2]
 
 tr = int(frame[:3])
 
-#variables from variables
-batch=os.environ['BATCH_CACHE_DIR']
-tif=os.path.join(batch,frame,'GEOC',pair,pair+'.geo.bovldiff.adf.tif')
+tif=os.path.join('GEOC',pair,pair+'.geo.bovldiff.adf.tif')
+outtif=os.path.join('GEOC',pair,pair+'.geo.bovldiff.adf.mm.tif')
+
+if not os.path.exists(tif):
+    print('the file does not exist here, trying to find it in batchdir')
+    batch=os.environ['BATCH_CACHE_DIR']
+    tif=os.path.join(batch,frame,'GEOC',pair,pair+'.geo.bovldiff.adf.tif')
+    outtif = os.path.join(batch, frame, 'GEOC', pair, pair + '.geo.bovldiff.adf.mm.tif')
+
 if not os.path.exists(tif):
     print('ERROR, the file does not exist in:')
     print(tif)
     exit()
 
-outtif=os.path.join(batch,frame,'GEOC',pair,pair+'.geo.bovldiff.adf.mm.tif')
+
 metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
 primepoch = misc.grep1line('master=',metafile).split('=')[1]
 path_to_slcdir = os.path.join(os.environ['LiCSAR_procdir'], str(tr), frame, 'SLC', primepoch)
