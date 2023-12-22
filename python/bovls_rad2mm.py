@@ -93,12 +93,12 @@ outbovl = bovlpha*0
 for subswath in sw_overlaps_dict.keys():
     # Create a GeoDataFrame for the current subswath
     crs = {"init": "epsg:4326"}
+    sw_overlaps_dict[subswath] = sw_overlaps_dict[subswath].set_crs(crs, allow_override=True)
     g = gpd.GeoDataFrame(
         {'bovl': sw_overlaps_dict[subswath].index.values},
         geometry=sw_overlaps_dict[subswath].geometry,
         crs={"init": "epsg:4326"}
     )
-    g=g.set_crs(crs, allow_override=True)
     # Create a GeoCube with the same spatial dimensions as 'aa'
     bovls = make_geocube(vector_data=g, like=aa.rio.set_spatial_dims(x_dim='lon', y_dim='lat'))
     bovls = bovls.rename({'x': 'lon', 'y': 'lat'})
