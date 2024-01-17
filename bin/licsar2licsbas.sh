@@ -307,7 +307,7 @@ if [ $reunw -gt 0 ]; then
   extraparam=", hgtcorr = False"
  fi
  if [ $smooth == 1 ]; then
-   echo "smooth run selected - disabling goldstein filter. better you disable smooth, it is considered obsolete now"
+   echo "smooth run selected - disabling goldstein filter." # better you disable smooth, it is considered obsolete now"
   extraparam=$extraparam", smooth = True, goldstein = False"
  fi
  if [ $lowpass == 1 ]; then
