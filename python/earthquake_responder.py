@@ -228,7 +228,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
     e2f['download'] = e2f['track']*0
     e2f['preevent_acq_days'] = e2f['track']*0
-    event = get_event_details(eventid)
+    event = get_event_details(lq.get_usgsid(eventid))
     for i, f in e2f.iterrows():
         #check if we have geometry here:
         if len(f.the_geom) < 5:
