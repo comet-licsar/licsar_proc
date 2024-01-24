@@ -181,7 +181,10 @@ def reset_frame(frame, eventid='us7000ckx5'):
 
 def get_days_since_last_acq(frame, eventtime = dt.datetime.now(), metafile = False):
     masterdate = fc.get_master(frame, asdate = True, metafile = metafile)
-    preepochs = s1.get_epochs_for_frame(frame, startdate = masterdate, enddate = eventtime.date())
+    if not masterdate:
+        preepochs = s1.get_epochs_for_frame(frame, enddate = eventtime.date())
+    else:
+        preepochs = s1.get_epochs_for_frame(frame, startdate = masterdate, enddate = eventtime.date())
     preepochs.sort()
     lastone = preepochs[-1]
     lastone = dt.datetime.strptime(lastone, '%Y%m%d')
