@@ -259,8 +259,13 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         e2f.at[i, 'download'] = downlink
         # 2024/01: adding days since last acquisition
         if do_preevent_days:
-            e2f.at[i, 'preevent_acq_days'] = get_days_since_last_acq(f['frame'], eventtime = event.time)
-        #
+            try:
+                preevent_days = get_days_since_last_acq(f['frame'], eventtime = event.time)
+                e2f.at[i, 'preevent_acq_days'] = preevent_days
+            except:
+                print('error getting preevent_acq_days for frame '+f['frame']+' and event ')
+                print(eventid)
+            #
         strincsv = e2f[dbcols].loc[i].to_csv(sep = ';', index = False, header=False).replace('\n',';').replace('"','')[:-1]
         #minimal string to see if there is related line (to be deleted then)
         minstrincsv = f.frame+';'+f.usgsid
