@@ -132,6 +132,7 @@ def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/publi
         return False
     e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
     e2f['download'] = e2f['track']*0
+    e2f['preevent_acq_days'] = e2f['track']*0  # let's keep 0 for that case
     for i, f in e2f.iterrows():
         #check if we have geometry here:
         if len(f.the_geom) < 5:
@@ -149,9 +150,10 @@ def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/publi
         downlink = "<a href='{0}/{1}/{2}/' target='_blank'>Link</a>".format(web_path, f['track'], f['frame'])
         #if we do not have this combination of frame and event id, include it
         e2f.at[i, 'download'] = downlink
+        #e2f.at[i, 'preevent_acq_days'] = get_days_since_last_acq(f['frame'], eventtime = event.time)
     #e2f['download'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/{0}/{1} target='_blank'>Link<a>".format(track, framename)
     #dbcols = ['the_geom','frame','usgsid','download', 'location','next_possible', 'next_expected']
-    dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected']
+    dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected', 'preevent_acq_days']
     e2f[dbcols].query('download != ""').to_csv(csvfile, mode='w', sep = ';', index = False, header=False)
     return True
 
@@ -177,12 +179,21 @@ def reset_frame(frame, eventid='us7000ckx5'):
     return True
 
 
+def get_days_since_last_acq(frame, eventtime = dt.datetime.now()):
+    masterdate = fc.get_master(frame, asdate = True)
+    preepochs = s1.get_epochs_for_frame(frame, startdate = masterdate, enddate = eventtime.date())
+    preepochs.sort()
+    lastone = preepochs[-1]
+    lastone = dt.datetime.strptime(lastone, '%Y%m%d')
+    return (eventtime - lastone).days
+
+
 def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv', delete = False):
     """
        This csv will be loaded to the eq responder map
        WARNING - would read all event frames from database and only add them to the csv file if it is not there yet
     """
-    dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected']
+    dbcols = ['the_geom','frame','usgsid','download', 'next_possible', 'next_expected', 'preevent_acq_days']
     if os.path.exists(csvfile+'.lock'):
         print('file lock detected, waiting 10 minutes - should be enough for ARC to finish')
         time.sleep(10*60)
@@ -216,6 +227,8 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         return False
     e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
     e2f['download'] = e2f['track']*0
+    e2f['preevent_acq_days'] = e2f['track']*0
+    event = get_event_details(eventid)
     for i, f in e2f.iterrows():
         #check if we have geometry here:
         if len(f.the_geom) < 5:
@@ -233,6 +246,9 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         downlink = "<a href='{0}/{1}/{2}/' target='_blank'>Link</a>".format(web_path, f['track'], f['frame'])
         #f.download = downlink
         e2f.at[i, 'download'] = downlink
+        # 2024/01: adding days since last acquisition
+        e2f.at[i, 'preevent_acq_days'] = get_days_since_last_acq(f['frame'], eventtime = event.time)
+        #
         strincsv = e2f[dbcols].loc[i].to_csv(sep = ';', index = False, header=False).replace('\n',';').replace('"','')[:-1]
         #minimal string to see if there is related line (to be deleted then)
         minstrincsv = f.frame+';'+f.usgsid
