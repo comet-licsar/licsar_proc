@@ -190,6 +190,9 @@ def get_days_since_last_acq(frame, eventtime = dt.datetime.now()):
 
 def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv', delete = False):
     """
+       eventid -- USGS ID of given event
+       delete -- perform deletion of the given event from the csvfile, instead of adding it
+
        This csv will be loaded to the eq responder map
        WARNING - would read all event frames from database and only add them to the csv file if it is not there yet
     """
@@ -228,7 +231,15 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
     e2f['download'] = e2f['track']*0
     e2f['preevent_acq_days'] = e2f['track']*0
-    event = get_event_details(lq.get_usgsid(eventid))
+    #event = get_event_details(lq.get_usgsid(eventid))
+    do_preevent_days = True
+    try:
+        event = get_event_details(eventid)
+    except:
+        print('ERROR getting event details for USGS ID: ')
+        print(eventid)
+        print('Skipping preevent_acq_days')
+        do_preevent_days = False
     for i, f in e2f.iterrows():
         #check if we have geometry here:
         if len(f.the_geom) < 5:
@@ -247,7 +258,8 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         #f.download = downlink
         e2f.at[i, 'download'] = downlink
         # 2024/01: adding days since last acquisition
-        e2f.at[i, 'preevent_acq_days'] = get_days_since_last_acq(f['frame'], eventtime = event.time)
+        if do_preevent_days:
+            e2f.at[i, 'preevent_acq_days'] = get_days_since_last_acq(f['frame'], eventtime = event.time)
         #
         strincsv = e2f[dbcols].loc[i].to_csv(sep = ';', index = False, header=False).replace('\n',';').replace('"','')[:-1]
         #minimal string to see if there is related line (to be deleted then)
