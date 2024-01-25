@@ -343,8 +343,23 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
         return selected_ifgs
 
 
-def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
-    #toi is Time Of Interest - and should be as datetime
+def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = None):
+    #toi is Time Of Interest - and should be as
+    try:
+        usgskmlfile = str(event.id) + '.kml'
+        if not os.path.exists(usgskmlfile):
+            try:
+                usgskml=event.getDetailURL().replace('geojson','kml')
+            except:
+                print('WARNING - the event '+event.id+' appears to have no kml file existing at USGS - putting a standard link')
+                usgskml='https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/{}.kml'.format(event.id)
+            print('downloading USGS KML file for '+str(event.id))
+            os.system('wget -O {0} {1} 2>/dev/null'.format(usgskmlfile,usgskml))
+            if not os.path.exists(usgskmlfile):
+                print('error downloading the file')
+                usgskmlfile = None
+    except:
+        usgskmlfile = None
     maxpostseismicdays = 90
     doi = toi.date()
     track = str(int(frame[0:3]))
@@ -406,6 +421,8 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False):
         else:
             cond = (is_coseismic or is_postseismic)
         if cond:
+            if usgskmlfile:
+                os.system('cp {0} {1}/.'.format(usgskmlfile, os.path.join(products_path,pifg)))
             if not overwrite:
                 if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
                     os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
@@ -808,7 +825,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             frame = frame[0]
             track = str(int(frame[0:3]))
             #if not os.path.exists(os.path.join(procdir,'EQR',frame,'')
-            new_kmls = create_kmls(frame,event.time, onlycoseismic, overwrite)
+            new_kmls = create_kmls(frame,event.time, onlycoseismic, overwrite, event)
             # create_kmls(frame, toi, onlycoseismic = False, overwrite = False)
             if new_kmls:
                 eqsfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'
@@ -926,7 +943,7 @@ def main():
                             #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
                             os.system('licsar_make_frame.sh -f -E -P -S -N {0} 0 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
                             #this way is a kind of prototype and should be improved
-                            new_kmls = create_kmls(frame,event.time)
+                            new_kmls = create_kmls(frame,event.time, event=event)
                             #try:
                             #    new_kmls = create_kmls(frame,event.time)
                             #except:

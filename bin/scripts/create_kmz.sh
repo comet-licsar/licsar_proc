@@ -103,7 +103,9 @@ cat << EOF > $kmlfile
          </LookAt>
 EOF
 
-eqkml=`ls -t ../../*.kml 2>/dev/null | head -n1 2>/dev/null`
+# to add USGS eq event kml - needs to be in the folder of the ifg
+#eqkml=`ls -t ../../*.kml 2>/dev/null | head -n1 2>/dev/null`
+eqkml=`ls -t *.kml 2>/dev/null | head -n1 2>/dev/null`
 if [ ! -z $eqkml ]; then
  if [ `tail -n1 $eqkml | grep -c USGS` -gt 0 ]; then
   tail -n1 $eqkml | cut -d '>' -f 2- | rev | cut -d '<' -f 2- | rev >> $kmlfile
