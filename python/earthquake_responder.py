@@ -344,7 +344,8 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
 
 
 def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = None):
-    #toi is Time Of Interest - and should be as
+    #toi is Time Of Interest - and should be dt.datetime (as in event.time)
+    global public_path
     try:
         usgskmlfile = os.path.join(public_path, 'EQ', str(event.id) + '.kml')
         if not os.path.exists(usgskmlfile):
@@ -363,7 +364,6 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
     maxpostseismicdays = 90
     doi = toi.date()
     track = str(int(frame[0:3]))
-    global public_path
     products_path = os.path.join(public_path, track, frame, 'interferograms')
     frameproc_path = os.path.join(procdir_path, track, frame)
     if not os.path.exists(products_path):
