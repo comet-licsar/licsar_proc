@@ -105,10 +105,13 @@ EOF
 
 # to add USGS eq event kml - needs to be in the folder of the ifg
 #eqkml=`ls -t ../../*.kml 2>/dev/null | head -n1 2>/dev/null`
-eqkml=`ls -t *.kml 2>/dev/null | head -n1 2>/dev/null`
+eqkml=`ls -t *.kml 2>/dev/null | sed '/doc.kml/d' | head -n1 2>/dev/null`
 if [ ! -z $eqkml ]; then
  if [ `tail -n1 $eqkml | grep -c USGS` -gt 0 ]; then
   tail -n1 $eqkml | cut -d '>' -f 2- | rev | cut -d '<' -f 2- | rev >> $kmlfile
+ else
+  echo "the "$eqkml" is perhaps corrupt. moving away"
+  mv $eqkml $eqkml.deleted
  fi
 fi
 
@@ -202,7 +205,7 @@ for topic in $todo; do
   fi
   #this is necessary for tif, but not for maskedf.. but why not
   gmt grdclip $infile -Gtokml.nc -Sr0/NaN
-  gmt grd2kml -Ag -C$cpt -nn+t0.1 -T$keyword -N$keyword tokml.nc 2>/dev/null
+  gmt grd2kml -Ag0 -C$cpt -nn+t0.1 -T$keyword -N$keyword tokml.nc 2>/dev/null
   rm tokml.nc $maskedf 2>/dev/null
  fi
  #compressing to PNG8

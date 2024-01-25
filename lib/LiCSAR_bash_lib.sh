@@ -409,7 +409,7 @@ function create_preview_offsets() {
      # overcoming the annoying gridline/pixel registration issue... finally
      gmt grdconvert $infile -G$infile.nc
      gmt grdedit -T $infile.nc
-     gmt grd2kml -Ag -C`dirname $outfile`/$code.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile.nc 2>/dev/null
+     gmt grd2kml -Ag0 -C`dirname $outfile`/$code.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile.nc 2>/dev/null
      rm $infile.nc
    else
     rm `dirname $outfile`/$code.cpt
@@ -491,9 +491,10 @@ function create_preview_unwrapped() {
    rm $barpng $outfile.unw.cpt
   else
    #echo "preparing for kml"
-   gmt grd2kml -Ag -C$outfile.unw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd $unwfile 2>/dev/null
+   gmt grdclip $unwfile -Gtokml.nc -Sr0/NaN
+   gmt grd2kml -Ag0 -C$outfile.unw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd tokml.nc 2>/dev/null
   fi
-  rm $maskedfile $hillshade $unwfile $outfile.unw.cpt 2>/dev/null
+  rm $maskedfile $hillshade $unwfile $outfile.unw.cpt tokml.nc 2>/dev/null
   rm gmt.history 2>/dev/null
   else
     echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
