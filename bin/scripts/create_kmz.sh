@@ -38,7 +38,7 @@ fi
 
 ### let's make it
 #echo "version 10/2020 by ML - use of GMT GRD2KML"
-echo "version 02/2023 by ML - adding rng/azi offsets if exist"
+echo "version 02/2023 by ML - adding rng offsets if exist"
 echo "generating kmz file for pair "$pair
 
 cd $1
@@ -75,7 +75,7 @@ fi
 
 if [ -f $pair.geo.rng.tif ]; then
  do_off=1
- echo "including offsets - not adding unfiltered ifgs"
+ echo "including (only range) offsets - and not adding unfiltered ifg"
  do_ifgu=0
 else
  do_off=0
@@ -134,7 +134,8 @@ if [ $do_ifgu -eq 1 ]; then
  todo="diff_pha diff_unfiltered_pha cc unw"
 fi
 if [ $do_off -eq 1 ]; then
- todo="diff_pha cc unw azi rng"
+ # todo="diff_pha cc azi rng unw"
+ todo="diff_pha cc azi rng unw"
 fi
 
 for topic in $todo; do
@@ -304,3 +305,4 @@ mv $outfilee.zip $outfilee.kmz
 
 #cleaning
 rm -r $tododirs logos gmt.history scalebar_*.png *.cpt $kmlfile 2>/dev/null
+rm *.masked.tif *.temp.png *.temp.nc tempmasked.nc 2>/dev/null
