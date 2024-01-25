@@ -346,7 +346,7 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
 def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = None):
     #toi is Time Of Interest - and should be as
     try:
-        usgskmlfile = str(event.id) + '.kml'
+        usgskmlfile = os.path.join(public_path, 'EQ', str(event.id) + '.kml')
         if not os.path.exists(usgskmlfile):
             try:
                 usgskml=event.getDetailURL().replace('geojson','kml')
