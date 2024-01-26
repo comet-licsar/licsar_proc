@@ -266,7 +266,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         preevent_days = -999
         greppedstr = misc.grep1line(minstrincsv, csvfile)
         if greppedstr:
-            if greppedstr.split(',')[:-1] == strincsv.split(',')[:-1]:    # splitting due to preevent_days as it takes long..
+            if greppedstr.split(';')[:-1] == strincsv.split(';')[:-1]:    # splitting due to preevent_days as it takes long..
                 #so this line exists in csvfile, so skipping it..
                 e2f = e2f.drop(index=i)
             else:
@@ -279,10 +279,10 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
                     strincsv = strincsv + ',' + ffxstr
                 '''
                 try:
-                    preevent_days = int(greppedstr.split(',')[-1])
+                    preevent_days = int(greppedstr.split(';')[-1])
                     do_preevent_days = False
                 except:
-                    print('error reading preevent_days from csv: '+str(greppedstr.split(',')[-1]))
+                    print('error reading preevent_days from csv: '+str(greppedstr.split(';')[-1]))
                 # delete that line
                 rc = os.system("sed -i '/{0}/d' {1}".format(minstrincsv, csvfile))
         elif do_preevent_days:
