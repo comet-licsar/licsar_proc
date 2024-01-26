@@ -280,7 +280,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
                 '''
                 try:
                     preevent_days = int(greppedstr.split(',')[-1])
-                    do_preevent_days False
+                    do_preevent_days = False
                 except:
                     print('error reading preevent_days from csv: '+str(greppedstr.split(',')[-1]))
                 # delete that line
