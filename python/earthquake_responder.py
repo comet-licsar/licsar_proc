@@ -260,26 +260,39 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         downlink = "<a href='{0}/{1}/{2}/' target='_blank'>Link</a>".format(web_path, f['track'], f['frame'])
         #f.download = downlink
         e2f.at[i, 'download'] = downlink
-        # 2024/01: adding days since last acquisition
-        if do_preevent_days:
-            try:
-                preevent_days = get_days_since_last_acq(f['frame'], eventtime = event.time, metafile = metafile)
-                e2f.at[i, 'preevent_acq_days'] = preevent_days
-            except:
-                print('error getting preevent_acq_days for frame '+f['frame']+' and event ')
-                print(eventid)
-            #
         strincsv = e2f[dbcols].loc[i].to_csv(sep = ';', index = False, header=False).replace('\n',';').replace('"','')[:-1]
         #minimal string to see if there is related line (to be deleted then)
         minstrincsv = f.frame+';'+f.usgsid
+        preevent_days = -999
         greppedstr = misc.grep1line(minstrincsv, csvfile)
         if greppedstr:
-            if greppedstr == strincsv:
-                #so this line exists i csvfile, so skipping it..
+            if greppedstr.split(',')[:-1] == strincsv.split(',')[:-1]:    # splitting due to preevent_days as it takes long..
+                #so this line exists in csvfile, so skipping it..
                 e2f = e2f.drop(index=i)
             else:
-                #we will need to update this line..
+                '''
+                # 2024/01: adding days since last acquisition
+                fixstr = strincsv.split(',')
+                fixstr[-1] = greppedstr.split(',')[-1]
+                strincsv = ''
+                for ffxstr in fixstr:
+                    strincsv = strincsv + ',' + ffxstr
+                '''
+                try:
+                    preevent_days = int(greppedstr.split(',')[-1])
+                    do_preevent_days False
+                except:
+                    print('error reading preevent_days from csv: '+str(greppedstr.split(',')[-1]))
+                # delete that line
                 rc = os.system("sed -i '/{0}/d' {1}".format(minstrincsv, csvfile))
+        elif do_preevent_days:
+            try:
+                preevent_days = get_days_since_last_acq(f['frame'], eventtime=event.time, metafile=metafile)
+                #strincsv = e2f[dbcols].loc[i].to_csv(sep=';', index=False, header=False).replace('\n', ';').replace('"', '')[:-1]
+            except:
+                print('error getting preevent_acq_days for frame ' + f['frame'] + ' and event ')
+                print(eventid)
+        e2f.at[i, 'preevent_acq_days'] = preevent_days
         #if we do not have this combination of frame and event id, include it
         #if not misc.grep1line(f['frame']+';'+eventid, csvfile):
         #    e2f.at[i, 'download'] = downlink
