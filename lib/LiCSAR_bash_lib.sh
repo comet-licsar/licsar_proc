@@ -159,7 +159,7 @@ function prepare_landmask() {
       fi
       if [ ! `gmt grdinfo $masknc | grep "node registration used" | gawk {'print $2'}` == 'Pixel' ]; then
          #just convert to pixel registration.. doing in pixel reg as sometimes the geo coords are a bit off
-         gmt grdedit $masknc -G$masknc.nc -T -R$tmpfile1
+         gmt grdedit $masknc -G$masknc.nc -T #-R$tmpfile1
          mv $masknc.nc $masknc
       fi
       gmt grdmath $tmpfile1 $masknc MUL 0 NAN = $filedir/tempmasked.nc
