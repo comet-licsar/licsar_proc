@@ -248,6 +248,7 @@ cat << EOF >> $kmlfile
 </Document>
 EOF
 
+rm tempmasked.nc tempmask.nc 2>/dev/null
 done
 
 

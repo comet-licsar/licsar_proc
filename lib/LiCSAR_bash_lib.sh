@@ -472,7 +472,9 @@ function create_preview_unwrapped() {
     outfile=`echo $unwfile | rev | cut -c 4- | rev`png
     # correct for median
     unwfile=$origfile.tmp.tif
-    gmt grdmath $origfile $origfile MEDIAN SUB = $unwfile=gd:Gtiff
+    gmt grdclip $origfile -G$unwfile.nc -Sr0/NaN
+    gmt grdmath $unwfile.nc $unwfile.nc MEDIAN SUB = $unwfile=gd:Gtiff
+    rm $unwfile.nc
   extracmd=''
   if [ ! -z $2 ]; then
    frame=$2
