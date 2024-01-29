@@ -326,8 +326,8 @@ function create_colourbar_m() {
   minval=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
   maxval=`echo $minmaxcolour | cut -d '/' -f2 `
   
-  minval=`python -c 'print(round('$minval'))'` #'*5.546/(4*3.14159265)))'`
-  maxval=`python -c 'print(round('$maxval'))'` #'*5.546/(4*3.14159265)))'`
+  minval=`python -c 'print(round('$minval',1))'` #'*5.546/(4*3.14159265)))'`
+  maxval=`python -c 'print(round('$maxval',1))'` #'*5.546/(4*3.14159265)))'`
   #add also real min and max values
   minmaxreal=`gmt grdinfo -T $infile`
   minrealval=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
