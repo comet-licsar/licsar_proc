@@ -135,8 +135,8 @@ if [ $do_ifgu -eq 1 ]; then
 fi
 if [ $do_off -eq 1 ]; then
  # todo="diff_pha cc azi rng unw"
- #todo="diff_pha diff_unfiltered_pha cc rng unw"
- todo="diff_pha diff_unfiltered_pha cc azi rng unw"
+ todo="diff_pha diff_unfiltered_pha cc rng unw"
+ #todo="diff_pha diff_unfiltered_pha cc azi rng unw"
 fi
 
 for topic in $todo; do
