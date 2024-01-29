@@ -306,4 +306,4 @@ mv $outfilee.zip $outfilee.kmz
 
 #cleaning
 rm -r $tododirs logos gmt.history scalebar_*.png *.cpt $kmlfile 2>/dev/null
-rm *.masked.tif *.temp.png *.temp.nc tempmasked.nc 2>/dev/null
+rm *.masked.tif *.temp.png *.temp.nc tempmasked.nc *.tmp.tif 2>/dev/null
