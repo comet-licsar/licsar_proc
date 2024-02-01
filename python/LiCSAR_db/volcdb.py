@@ -362,6 +362,22 @@ def get_volcano_from_vid(vid):
     a=sqlout2list(a)[0]
     return a
 
+def get_licsbas_clipstring_volclip(vid):
+    """Gets clip string of LiCSBAS from a volclip"""
+    return get_licsbas_clipstring_geom(get_volclips_gpd(vid).head(1).geom)
+
+def get_licsbas_clipstring_geom(geom):
+    """Gets clip string of LiCSBAS from a record of Geoseries
+
+    Returns:
+        string (in form 'lon1/lon2/lat1/lat2' )
+    """
+    a = round(float(geom.bounds.minx), 5)
+    b = round(float(geom.bounds.maxx), 5)
+    c = round(float(geom.bounds.miny), 5)
+    d = round(float(geom.bounds.maxy), 5)
+    return str(a)+'/'+str(b)+'/'+str(c)+'/'+str(d)
+
 
 def get_volclips_gpd(vid=None):
     """Gets volclips as geodatabase - either one if given vid, or all"""
