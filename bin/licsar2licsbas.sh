@@ -17,6 +17,7 @@ if [ -z $1 ]; then
  echo "-l ....... if the reunwrapping is to be performed, would do Gaussian lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
  #echo "-m ....... OBSOLETE: keeping alway on (would be off only with -s) with reunwrapping with Goldstein filter on (by default), use coh based on spectral magnitude - recommended param, please use this by default"
  echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter)"
+ echo "-m ....... use GAMMA ADF for filtering if Goldstein filter is selected (does not work together with -s)"
  echo "-t 0.35 .. change consistence threshold to 0.35 (default) during reunwrapping"
  echo "-H ....... this will use hgt to support the (re-)unwrapping"
  echo "-- Control over LiCSBAS processing --"
@@ -28,10 +29,10 @@ if [ -z $1 ]; then
  echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping)"
  echo "(other params, for admins etc.)"
  echo "(-R ....... prioritise through comet responder)"
- echo "-----------------"
- #echo "-a ....... use ampstab"
+ #echo "-----------------"
+ echo "-a ....... use amplitude stability to subset pixels. Testing. Might be useful in challenging areas such as jungles"
  #echo "-A ....... use ampcoh"
- #echo "-F ....... will force start from filtered ifgs (DOES NOT WORK IN LOCAL (HIRES) NOR CASCADE. TESTING ONLY)
+ echo "-F ....... will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -53,6 +54,7 @@ keep_coh_debug=1
 #LB_version=LiCSBAS
 cascade=0
 smooth=0
+gammadf=0
 lowpass=0
 wls=0
 cometdev=0
@@ -83,9 +85,9 @@ while getopts ":M:HucTsdbSClWgmaAFPRkG:t:n:" option; do
   H) hgts=1;
      #shift
      ;;
-  m) specmag=1;
-     echo 'parameter -m is obsolete, the Goldstein is always on now';
-     ;;
+  #m) specmag=1;
+  #   echo 'parameter -m is obsolete, the Goldstein is always on now';
+  #   ;;
   u) reunw=1;
      #shift
      ;;
@@ -102,6 +104,8 @@ while getopts ":M:HucTsdbSClWgmaAFPRkG:t:n:" option; do
   s) smooth=1;
      #shift
      ;;
+  m) gammadf=1;
+    ;;
   F) filtifg=1;
     ;;
   P) que='comet';
@@ -309,6 +313,11 @@ if [ $reunw -gt 0 ]; then
  if [ $smooth == 1 ]; then
    echo "smooth run selected - disabling goldstein filter." # better you disable smooth, it is considered obsolete now"
   extraparam=$extraparam", smooth = True, goldstein = False"
+ fi
+ if [ $gammadf == 1 ]; then
+   echo "using GAMMA ADF for the spatial filtering (and consistence)"
+   if [ $smooth == 1 ]; then echo "WARNING: smooth option is ON - ADF will not be used. Remove -s to turn it ON."; fi
+   extraparam=$extraparam", use_gamma = True"
  fi
  if [ $lowpass == 1 ]; then
   extraparam=$extraparam", lowpass = True"
