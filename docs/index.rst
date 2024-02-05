@@ -121,9 +121,9 @@ Post-processing
 Reunwrapping existing interferograms
 ^^^^^^^^^^^^^^^^^^^^^^^
 Standard LiCSAR products use general parameters for unwrapping. Here we document the python tool ``lics_unwrap.py`` that performs `published procedures <https://ieeexplore.ieee.org/document/9884337>`_ .
-We will soon augment it to allow processing directly from command line as part of LiCSBAS, for now you may check the :ref:`API documentation<apidoc_unwrap>`.
+This approach is implemented in LiCSBAS as LiCSBAS02to05_unwrap.py and details available at :ref:`API documentation<apidoc_unwrap>`.
 
-But to show an example here, this is how we could use range offsets to support unwrapping (in dev, but functional):
+To show an example, this is how we could use range offsets [px] to support unwrapping:
 ::
    from lics_unwrap import *
    ifgdir = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/21/021D_05266_252525/interferograms/20230129_20230210'
@@ -152,15 +152,15 @@ Afterwards, you may just fine tune parameters of LiCSBAS step 15 (and 16) and re
   #Parameters:
   ### Basic parameters
   ##-M 10 .... this will do extra multilooking (in this example, 10x multilooking)
-  ##-g ....... use GACOS if available for most of the epochs
-  ##-S ....... (obsolete but still kept parameter) strict mode - in case of GACOS, use it only if available for ALL ifgs
+  ##-g ....... use GACOS if available for at least half of the epochs (and use only ifgs with both epochs having GACOS correction, other will be skipped)
   ##-G lon1/lon2/lat1/lat2  .... clip to this AOI
+  ##-u ....... use the reunwrapping procedure
   ### Control over reunwrapping
-  ##-u ....... use the (extra Gaussian-improved multilooking and) reunwrapping procedure (useful if multilooking..)
   ##-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)
   ##-l ....... if the reunwrapping is to be performed, would do lowpass filter (should be safe unless in tricky areas as islands; good to use by default)
   ##-m ....... with reunwrapping with Goldstein filter on (by defaule), use coh based on spectral magnitude (otherwise nyquist-limited phase difference coherence) - recommended param
   ##-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter, and disable -m)
+  ##-m ....... use GAMMA ADF for filtering if Goldstein filter is selected (does not work together with -s)
   ##-t 0.35 .. change coherence threshold to 0.35 (default) during reunwrapping (-u)
   ##-H ....... this will use hgt to support unwrapping (only if using reunwrapping)
   ### Control over LiCSBAS processing
