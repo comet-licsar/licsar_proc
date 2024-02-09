@@ -1,19 +1,34 @@
 
 
 # script to reunwrap all and save as geo.unw_GACOS.tif
-cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/current/central_america
+for aam in /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/current/central_america /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/current/south_america; do
+cd $aam
+pwd
 for x in *_*_*_*; do
+  echo $x
  frame=`echo $x | rev | cut -c -17 | rev`
- echo "from lics_unwrap import process_ifg_pair" > todo.py
+ ddir=/work/scratch-pw3/licsar/earmla/batchdir/reunw/$x
+ mkdir $ddir
+ echo "from lics_unwrap import process_ifg_pair" > $ddir/todo.py
+ echo "import os" >> $ddir/todo.py
  for pp in `ls $x/tif/*.unw.tif `; do
-  pair=`echo $pp | rev | cut -c 13-29 | rev`
-  mv $pp $pp.backup
-  mkdir /work/scratch-pw3/licsar/earmla/batchdir/reunw/$x
-  echo "process_ifg_pair('"$phatif"', '"$cohtif"', procpairdir='/work/scratch-pw3/licsar/earmla/batchdir/reunw/"$x"', ml=1, fillby='nearest', thres=0.35, specmag=True, pre_detrend=False, outtif='"$pp"')" >> todo.py
-
-
-
+   if [ ! -f $pp.backup ]; then
+    pair=`echo $pp | rev | cut -c 13-29 | rev`
+    phatif=`echo $pp | sed 's/unw/diff_pha/'`
+    cohtif=`echo $pp | sed 's/unw/cc/'`
+    mv $pp $pp.backup
+    echo "try:" >> $ddir/todo.py
+    echo "    process_ifg_pair('"$phatif"', '"$cohtif"', procpairdir='/work/scratch-pw3/licsar/earmla/batchdir/reunw/"$x"', ml=1, fillby='nearest', thres=0.35, specmag=True, pre_detrend=False, outtif='"$pp"')" >> $ddir/todo.py
+    echo "except:" >> $ddir/todo.py
+    echo "    print('error in pair "$pair"')" >> $ddir/todo.py
+    echo "" >> $ddir/todo.py
+    echo "" >> $ddir/todo.py
+   fi
  done
+ chmod 777 $ddir/todo.py
+ #python3 $ddir/todo.py # send to JASMIN!
+ bsub2slurm.sh -o $ddir/reunw.out -e $ddir/reunw.err -J reunw_$x -q short-serial -n 1 -W 12:59 -M 8200 python3 $ddir/todo.py # send to JASMIN!
+done
 done
 
 
