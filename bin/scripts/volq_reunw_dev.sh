@@ -11,12 +11,24 @@ for x in *_*_*_*; do
  mkdir $ddir
  echo "from lics_unwrap import process_ifg_pair" > $ddir/todo.py
  echo "import os" >> $ddir/todo.py
- for pp in `ls $x/tif/*.unw.tif `; do
+ allprocessed=1
+ for phatif in `ls $x/tif/*.diff_pha.tif `; do
+   pp=`echo $phatif | sed 's/diff_pha/unw/'`
+   procit=0
    if [ ! -f $pp.backup ]; then
+     procit=1
+     mv $pp $pp.backup
+   elif [ ! -f $pp ]; then
+     procit=1
+   fi
+   # one more check - if unw exists but is bad
+   if [ $procit == 0 ]; then
+     if [ `gdalinfo $pp | grep -c Description` == 0 ]; then rm $pp; procit=1; fi #
+   fi
+   if [ $procit == 1 ]; then
+    allprocessed=0
     pair=`echo $pp | rev | cut -c 13-29 | rev`
-    phatif=`echo $pp | sed 's/unw/diff_pha/'`
-    cohtif=`echo $pp | sed 's/unw/cc/'`
-    mv $pp $pp.backup
+    cohtif=`echo $phatif | sed 's/diff_pha/cc/'`
     echo "try:" >> $ddir/todo.py
     echo "    process_ifg_pair('"$phatif"', '"$cohtif"', procpairdir='/work/scratch-pw3/licsar/earmla/batchdir/reunw/"$x"', ml=1, fillby='nearest', thres=0.35, specmag=True, pre_detrend=False, outtif='"$pp"')" >> $ddir/todo.py
     echo "except:" >> $ddir/todo.py
@@ -27,7 +39,11 @@ for x in *_*_*_*; do
  done
  chmod 777 $ddir/todo.py
  #python3 $ddir/todo.py # send to JASMIN!
- bsub2slurm.sh -o $ddir/reunw.out -e $ddir/reunw.err -J reunw_$x -q short-serial -n 1 -W 12:59 -M 8200 python3 $ddir/todo.py # send to JASMIN!
+ if [ $allprocessed == 0 ]; then
+  bsub2slurm.sh -o $ddir/reunw.out -e $ddir/reunw.err -J reunw_$x -q short-serial -n 1 -W 12:59 -M 8200 python3 $ddir/todo.py # send to JASMIN!
+ else
+   echo "all unws already reprocessed, doing nothing"
+ fi
 done
 done
 

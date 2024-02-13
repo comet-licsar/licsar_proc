@@ -275,6 +275,7 @@ if [ -f $hillshadefile ]; then
 
 function create_colourbar_unw() {
     infile=$1
+    scalebarfile=`dirname $infile`/scalebar_unwrapped.png
   minmaxcolour=`gmt grdinfo -T+a1+s $infile`
   #create legend
   #need to prepare a colorbar based on these values!!!!
@@ -301,16 +302,15 @@ function create_colourbar_unw() {
   else
    xsize=80
   fi
-  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png temp_scale_unw.png
-  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" temp_scale_unw.png scalebar_unwrapped.png
-  mv scalebar_unwrapped.png temp_scale_unw.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png $infile.temp_scale_unw.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" $infile.temp_scale_unw.png $infile.scalebar_unwrapped.png
+  mv $infile.scalebar_unwrapped.png $infile.temp_scale_unw.png
   #add real values
-  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" temp_scale_unw.png scalebar_unwrapped.png
-  mv scalebar_unwrapped.png temp_scale_unw.png
-  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" temp_scale_unw.png scalebar_unwrapped.png
-  rm temp_scale_unw.png
-  
-  scalebarfile='scalebar_unwrapped.png'
+  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" $infile.temp_scale_unw.png $infile.scalebar_unwrapped.png
+  mv $infile.scalebar_unwrapped.png $infile.temp_scale_unw.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" $infile.temp_scale_unw.png $scalebarfile
+  rm $infile.temp_scale_unw.png
+
   echo $scalebarfile
 }
 
