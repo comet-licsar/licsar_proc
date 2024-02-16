@@ -198,6 +198,9 @@ if [ $clip == 1 ]; then
 fi
 fi
 
+echo "checking for volcanoes in the frame (auto-init if the same relorb was not initialised yet)"
+python3 -c "import volcdb; volcdb.initialise_subsets_in_frame('"$frame"')"
+
 echo "changing permissions"
 mkdir $LiCSAR_public/$tr/$frame/interferograms
 chmod -R 775 $curdir/$tr/$frame $LiCSAR_public/$tr/$frame

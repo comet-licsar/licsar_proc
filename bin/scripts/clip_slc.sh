@@ -109,6 +109,8 @@ hei=$6
 resol=$7   # in degrees, so e.g. 0.00027 for 30 m
 rgl=`echo $resol"*111000/2.3" | bc`
 azl=`echo $resol"*111000/14" | bc`
+if [ $azl == 0 ]; then azl=1; fi
+if [ $rgl == 0 ]; then rgl=1; fi
 resol_m=`python -c "print(round("$resol"*111111))"`
 
 if [ $hei == 0 ]; then
