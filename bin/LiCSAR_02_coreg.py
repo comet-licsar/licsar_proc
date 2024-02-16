@@ -37,6 +37,7 @@ LiCSAR_02_coreg.py -f <framename> -d </path/to/processing/location> -m <masterda
     -R    Force clean recreation of rslcs - by default if it finds an existing lookup table
           it will use this instead
     (-E   little tweaks for eq responder - e.g. skip SD quality check)
+    (--skiphei  will skip use of DEM, e.g. in case of Hunga Tonga, the DEM=0 masked most of the caldera)
 
 guys.. if you work with existing LiCSAR frame, please use -i to prevent re-geocoding
 
@@ -84,16 +85,19 @@ def main(argv=None):
     reportfile = None
     forceRecreate = False
     eidp = False
+    skiphei = False
 ############################################################ Parse arguments
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhkiCcREl:f:d:m:j:y:z:p:T:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "vhkiCcREl:f:d:m:j:y:z:p:T:", ["version", "help","skiphei"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
             if o == '-h' or o == '--help':
                 print(__doc__)
                 return 0
+            elif o == '--skiphei':
+                skiphei = True
             elif o == '-v' or o == '--version':
                 print("")
                 print("Current version: %s" % gc.config['VERSION'])
@@ -329,7 +333,7 @@ def main(argv=None):
                     f.write('\nAcquisition {0} does not have a lookup table or other LUT-related error'.format(sd))
         else:
             if acqMode == 'iw':
-                rc = coreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, eidp = eidp)
+                rc = coreg_slave(sd,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, eidp = eidp, skiphei = skiphei)
             else:
                 rc = coreg_slave_sm(sd, slcdir, rslcdir, masterdate, framename, procdir, lq, job_id)
             with open(reportfile,'a') as f:
