@@ -15,7 +15,7 @@ import global_config as gc
 ################################################################################
 #Make interferograms functions
 ################################################################################
-def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks, geo = True):
+def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks, geo = True, skiphei = False):
     """
     Makes a singular interferogram between the SLC on given master and slave dates.
     """
@@ -80,7 +80,7 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
                                  origmasterdate.strftime('%Y%m%d'),
                                  origmasterdate.strftime('%Y%m%d')+'.rslc.par')
     hgtfile = os.path.join(procdir,'geo',origmasterdate.strftime('%Y%m%d')+'.hgt')
-    if not os.path.exists(hgtfile):
+    if (not os.path.exists(hgtfile)) or skiphei:
         print('warning, no DEM found. will use only orbits for simulated phase screen')
         hgtfile = '-'
     simfile = os.path.join(ifgthisdir,pair+'.sim_unw')
