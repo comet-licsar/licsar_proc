@@ -394,6 +394,18 @@ def get_volclips_gpd(vid=None):
     return volclips
 
 
+def initialise_subsets_in_frame(frame):
+    """Function to init all subsets in given frame"""
+    poly=fc.get_polygon_from_frame(frame)
+    volcs = get_volcanoes_in_polygon(poly)['volc_id'].values
+    for v in volcs:
+        vids = get_volclip_vids(v)
+        for vid in vids:
+            initialise_subset_volclip(vid, frame = frame)
+    
+
+
+
 def initialise_subset_volclip(vid, frame = None, resol_m = 30, full_overlap=True):
     """This will initialise the volclip subset for given frame and volclip.
     If frame is 'None', it will do this for all relevant (fully overlapping) frames.

@@ -354,7 +354,7 @@ def get_mli_size(mlifile):
 # Co-register slave function
 ################################################################################
 #def coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id):
-def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,crop = False, eidp = False):
+def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,crop = False, eidp = False, skiphei = False):
     # so far we were using same procedure as original GAMMA's S1_coreg_TOPS
     # the only introduced difference was using intensity cross correlation, but this seems not needed
     # so in order to keep the processing GAMMA-compatible also for future, let's use their original script
@@ -430,6 +430,8 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
     extracmd = ' '
     if slave3datestr:
         extracmd = '--RSLC3_tab {0} --RSLC3_ID {1}'.format(slave3tab, slave3datestr)
+    if skiphei:
+        demhgt = '-'
     #cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --use_existing --no_int --no_cleaning --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
     # 2023/10: ML: tricking the coreg for iono effect in azimuth (pixel shift higher than can be captured by SD). no azi offset is applied to resample after ICC! coh will be a bit lower (azimuth-based) if orbits are not ok or if iono gradient is too strong
     cmd = 'lics_ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --it1 2 --use_existing --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
@@ -498,7 +500,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
 
 #########################################################################
 
-def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181, eidp = False, skipmissing = True):
+def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181, eidp = False, skipmissing = True, skiphei = False):
     """ Coregister and resample slave to master geometry
     masterdate is of type dt.datetime.date...
     """
@@ -679,7 +681,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     if 1==1:        #print('All bursts available, no recropping of master necessary...')
         print('debug place 1')
         #coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id)
-        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile, eidp = eidp)
+        rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile, eidp = eidp, skiphei = skiphei)
         if rc != 0:
             print("\nError:", file=sys.stderr)
             print("Something went wrong during coregistration", file=sys.stderr)
@@ -748,7 +750,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
         rc = os.system(cmd)
         if os.listdir(slaverslcdir):
             #so this went ok... now let's just use it for processing
-            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaverslcdir,slaverslcdir,slave_croptab,slaverfilename,slave3tab,qualityfile, eidp=eidp)
+            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaverslcdir,slaverslcdir,slave_croptab,slaverfilename,slave3tab,qualityfile, eidp=eidp, skiphei = skiphei)
             if rc != 0:
                 print("\nError:", file=sys.stderr)
                 print("Something went wrong during coregistration", file=sys.stderr)
@@ -910,7 +912,7 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
             rc = geocode_dem(masterrslcdir,geocropdir,demdir,
                     procdir,masterdate.strftime('%Y%m%d')+croptext,gc.outres)
         #finally the coregistration itself
-            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3_croptab,qualityfile,True, eidp = eidp)
+            rc = coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3_croptab,qualityfile,True, eidp = eidp, skiphei = skiphei)
             if rc != 0:
                 print("\nError:", file=sys.stderr)
                 print("Something went wrong during coregistration", file=sys.stderr)

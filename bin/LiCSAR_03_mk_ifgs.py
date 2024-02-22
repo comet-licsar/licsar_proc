@@ -35,6 +35,7 @@ LiCSAR_03_mk_ifgs.py -d </path/to/processing/location>
                 this is a fairly safe option which reduces space.
             2 - clean rslc's and subswathes after interferogram creation.
     -T <file> Write to report file <file>. Defaults to FRAME-mk-ifgs-report
+    (--skiphei  will skip use of DEM, e.g. in case of Hunga Tonga, the DEM=0 masked most of the caldera)
 """
 
 ################################################################################
@@ -75,10 +76,11 @@ def main(argv=None):
     reportfile = None
     rglks = gc.rglks
     azlks = gc.azlks
+    skiphei = False
 ############################################################ Process Args.
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhi:f:d:j:y:p:z:n:r:a:c:T:", ["version", "help"])
+            opts, args = getopt.getopt(argv[1:], "vhi:f:d:j:y:p:z:n:r:a:c:T:", ["version", "help", "skiphei"])
         except getopt.error as msg:
             raise Usage(msg)
         for o, a in opts:
@@ -115,6 +117,8 @@ def main(argv=None):
                 cleanLvl = int(a)
             elif o == '-T':
                 reportfile = a
+            elif o == '--skiphei':
+                skiphei = True
 
         if parallelise:
             try:
@@ -263,9 +267,9 @@ def main(argv=None):
         except:
             print('')
             
-    def do_ifg_for_date_pair(date_pair, write_output=False):
+    def do_ifg_for_date_pair(date_pair, write_output=False, skiphei=skiphei):
         procDate = ''
-        rc = make_interferogram(masterdate,date_pair[0],date_pair[1],procdir, lq,job_id, rglks, azlks)
+        rc = make_interferogram(masterdate,date_pair[0],date_pair[1],procdir, lq,job_id, rglks, azlks, skiphei=skiphei)
         if write_output:
             with open(reportfile,'a') as f:
                 if rc == 0:
