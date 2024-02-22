@@ -449,6 +449,13 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
                 print('some error happened during KMZ generation of '+pifg)
             else:
                 selected_ifgs.append(pifg)
+        # adding preseismic ifg
+        if is_preseismic:
+            # do only short ifg
+            if ( datetime.strptime(str(slv), '%Y%m%d').date() - datetime.strptime(str(mas), '%Y%m%d').date() ).days <19:
+                # do only ifg just before the event
+                if ( datetime.strptime(str(doi_str),'%Y%m%d').date() - datetime.strptime(str(slv),'%Y%m%d').date()).days < 12 :
+                    selected_ifgs.append(pifg)
     return selected_ifgs
 
 
@@ -850,9 +857,10 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                 f=open(eventfile, "a+")
                 for kml in new_kmls:
                     track = str(int(frame[0:3]))
-                    fullwebpath = os.path.join(web_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')
-                    newline = '<a href="{0}">{1}: {2}.kmz</a> <br /> \n'.format(fullwebpath, frame, kml)
-                    f.write(newline)
+                    if os.path.exists(os.path.join(public_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')):
+                        fullwebpath = os.path.join(web_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')
+                        newline = '<a href="{0}">{1}: {2}.kmz</a> <br /> \n'.format(fullwebpath, frame, kml)
+                        f.write(newline)
                     fullwebpath_metadata = os.path.join(web_path, track, frame, 'metadata')
                     newline = '<a href="{0}">{1} metadata</a> <br /> \n'.format(fullwebpath_metadata, frame)
                     f.write(newline)
