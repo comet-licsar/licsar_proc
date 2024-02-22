@@ -1,7 +1,10 @@
 import pygmt
 import matplotlib.pyplot as plt
 import numpy as np
-
+try:
+    import contextily as ctx
+except:
+    print('contextily is not installed')
 
 def plot3(A,B,C):
     '''inputs are three xr.dataarrays to plot'''
@@ -18,6 +21,38 @@ def plot3(A,B,C):
     C.rename('rad').plot()
     plt.show()
     plt.rcParams['figure.figsize']=origfigsize
+
+
+def volcano_clip_plot(volcid, bevel = 0.1):
+    '''plots volcano given by its volcano id - see volcdb'''
+    #volcid = 243040
+    volcrecord = volc.get_volc_info(volcid)
+    vid = volc.get_volclip_vids(volcid)[0]
+    volclip = volc.get_volclips_gpd(vid)
+    # CTX
+    sourcetiles = ctx.providers.Esri.WorldImagery
+    lon1, lon2, lat1, lat2 = float(volclip.bounds.minx), float(volclip.bounds.maxx), float(volclip.bounds.miny), float(
+        volclip.bounds.maxy)
+    fig = pygmt.Figure()
+    region = [lon1 - bevel, lon2 + bevel, lat1 - bevel, lat2 + bevel]
+    fig.tilemap(
+        region=region,  # projection=projection,
+        # region=[-157.84, -157.8, 21.255, 21.285],
+        # projection="M12c",
+        # Set level of details (0-22)
+        # Higher levels mean a zoom level closer to the Earth's
+        # surface with more tiles covering a smaller
+        # geographic area and thus more details and vice versa
+        # Please note, not all zoom levels are always available
+        zoom=14,
+        # Use tiles from OpenStreetMap tile server
+        source=sourcetiles
+    )
+    fig.coast(region=region, shorelines=True)  # , water="lightblue")
+    fig.plot(volclip.geom)
+    fig.plot(volcrecord.geom, color='red')
+    # fig.plot(gpd_overlaps)
+    return fig #fig.show()
 
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
