@@ -85,7 +85,7 @@ def main(argv=None):
     reportfile = None
     forceRecreate = False
     eidp = False
-    skiphei = False
+    skiphei = gc.skiphei
 ############################################################ Parse arguments
     try:
         try:

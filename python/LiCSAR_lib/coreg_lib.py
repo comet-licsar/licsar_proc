@@ -354,7 +354,7 @@ def get_mli_size(mlifile):
 # Co-register slave function
 ################################################################################
 #def coreg_slave_common(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id):
-def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,crop = False, eidp = False, skiphei = False):
+def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,slaverslcdir,slaveslctab,slaverfilename,slave3tab,qualityfile,crop = False, eidp = False, skiphei = gc.skiphei):
     # so far we were using same procedure as original GAMMA's S1_coreg_TOPS
     # the only introduced difference was using intensity cross correlation, but this seems not needed
     # so in order to keep the processing GAMMA-compatible also for future, let's use their original script
@@ -500,7 +500,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
 
 #########################################################################
 
-def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181, eidp = False, skipmissing = True, skiphei = False):
+def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_id, maxdays_sd = 181, eidp = False, skipmissing = True, skiphei = gc.skiphei):
     """ Coregister and resample slave to master geometry
     masterdate is of type dt.datetime.date...
     """

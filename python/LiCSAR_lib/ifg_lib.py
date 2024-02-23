@@ -15,7 +15,7 @@ import global_config as gc
 ################################################################################
 #Make interferograms functions
 ################################################################################
-def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks, geo = True, skiphei = False):
+def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks, geo = True, skiphei = gc.skiphei):
     """
     Makes a singular interferogram between the SLC on given master and slave dates.
     """

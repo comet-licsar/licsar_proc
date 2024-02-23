@@ -2,6 +2,9 @@ import os
 import sys
 import subprocess as subp
 
+# coregistration options
+skiphei = False
+
 #max ifg combinations
 ifg_connections = 4
 
