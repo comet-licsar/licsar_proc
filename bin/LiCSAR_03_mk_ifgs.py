@@ -179,6 +179,11 @@ def main(argv=None):
     for l in geodirlist:
         if l[-4:] == '.hgt' and l[0] == '2':
             masterdatestr = l[:8]
+    if not masterdatestr:
+        print('WARNING: no hgt file found in geo folder')
+        for l in geodirlist:
+            if l[-3:] == '.lt' and l[0] == '2':
+                masterdatestr = l[:8]
     if masterdatestr:
         masterdate = dt.date(int(masterdatestr[:4]),int(masterdatestr[4:6]),int(masterdatestr[6:8]))
     else:
