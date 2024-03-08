@@ -243,6 +243,11 @@ if [ ! -d $geodir ]; then
 	chmod -R 775 $outdir 2>/dev/null
 	
 	rm geo; rmdir GEOC #; mv GEOC GEOC.$resol_m'm'
+
+	# not the best way, but easy
+	track=`track_from_frame $frame`
+	issrtm=`grep applied_DEM $LiCSAR_public/$track/$frame/metadata/metadata.txt | grep -c SRTM`
+	if [ $issrtm == 1 ]; then echo "Replacing SRTM - keeping on backup folders"; clip_slc_update_dem.sh; fi
 	cd $origdir
 	
 	
