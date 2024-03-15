@@ -136,6 +136,12 @@ def get_status_table_all_volcs():
     return vtable
 
 
+def get_volcanoes_in_frame(frame):
+    '''will get all volcanoes in given frame'''
+    polygon = get_polygon_from_frame(frame)
+    return get_volcanoes_in_polygon(polygon)
+
+
 def get_volcanoes_in_polygon(polygon, volcs = None):
     """Will get volcanoes in the gpd (e.g., volcs=get_volc_info() ) that are within given polygon (shapely.geometry.Polygon).
     You may create the polygon from lon/lat borders, e.g. using fc.lonlat_to_poly(lon1, lon2, lat1, lat2)"""
@@ -333,6 +339,21 @@ def init_all_subsets(volcid = None, full_overlap=True, only_classed=True):
                     if os.path.exists(subsetdir):
                         os.system('rm -rf '+subsetdir)
 
+"""
+def init_volcs_in_frame(frame, full_overlap=True):
+    '''will init all volcs within given frame'''
+    volcs = get_volcanoes_in_frame(frame)
+    for i,volc in volcs.iterrows():
+        print(volc['name'])
+        vid = get_volclip_vids(int(volc['volc_id']))[0]
+        try:
+            initialise_subset_volclip(vid, frame,full_overlap=full_overlap)
+        except:
+            print('error with init, cleaning')
+            subsetdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/'+str(vid)+'/'+frame[:4]
+            if os.path.exists(subsetdir):
+                os.system('rm -rf '+subsetdir)
+"""
 
 def get_volcano_frames(volcid):
     """Gets frames covering the given volcano.
