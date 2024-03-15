@@ -135,6 +135,8 @@ else
   mkdir -p RSLC/$m
   for slcfile in `ls $curdir/$tr/$frame/SLC/$m/*`; do ln -s $slcfile `echo $slcfile | sed 's/SLC/RSLC/' | sed 's/slc/rslc/'`; done
  fi
+ # 2024 - fix GAMMA error in centre_range
+ cd SLC/$m; update_range_dist.py; cd -
  LiCSAR_05_mk_angles_master
  echo "Generating E-N-U files"
  if [ ! -f $curdir/$tr/$frame/geo/$m.lt_fine ]; then ln -s $curdir/$tr/$frame/geo/$m.lt $curdir/$tr/$frame/geo/$m.lt_fine; fi
