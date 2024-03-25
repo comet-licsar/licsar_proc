@@ -155,9 +155,9 @@ lambda=`awk '$1 == "radar_frequency:" {print 29979245800/$2}' ${procdir}/SLC/$ma
 # update 2022: set hgt file and warp towards it
 frame=`basename $procdir`
 tr=`track_from_frame $frame`
-hgtfile=`ls GEOC/geo/*.geo.hgt.tif 2>/dev/null | head -n 1 2>/dev/null`
+hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
 if [ -z $hgtfile ]; then
- hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+ hgtfile=`ls GEOC/geo/*.geo.hgt.tif 2>/dev/null | head -n 1 2>/dev/null`
 fi
 
 #echo "Running doGeocoding step" #" for unwrapped"
@@ -216,6 +216,7 @@ if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
     mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig2.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif
    fi
    gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 -a_srs EPSG:4326 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif >> $logfile 2>/dev/null
+   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.orig.tif
 #   data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/GEOC/${ifg}/${ifg}.geo.disp 2 ${procdir}/GEOC/${ifg}/${ifg}.geo.disp.tif 0.0  >> $logfile 2>/dev/null
    echo "Generating preview PNG"
   if [ $mask -eq 1 ]; then
@@ -402,7 +403,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  #raspwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
  # Clean
- rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' 2>/dev/null
+ rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2>/dev/null
 fi
 fi
 
@@ -479,7 +480,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/$
    convert -transparent black ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.full.png
   fi
   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp 2>/dev/null
-  rm ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/cc.cpt 2>/dev/null
+  rm ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/cc.cpt ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc 2>/dev/null
 fi
 fi
 

@@ -108,11 +108,11 @@ if [ $dryrun -gt 0 ]; then
 fi
 
 if [ $dolocal == 1 ]; then
-     echo "rglks = "$r > local_config.py
-     echo "azlks = "$a >> local_config.py
-     echo "outres = "$outres >> local_config.py
+     echo "rglks="$r > local_config.py
+     echo "azlks="$a >> local_config.py
+     echo "outres="$outres >> local_config.py
      if [ $clip == 1 ]; then
-       echo "cliparea = "$cliparea >> local_config.py
+       echo "cliparea='"$cliparea"'" >> local_config.py
      fi
 fi
 if [ $tienshan == 1 ]; then
@@ -190,8 +190,8 @@ if [ $clip == 1 ]; then
  echo "clipping to requested area - WARNING, MUST BE lon1<lon2 etc"
  ulx=`echo $cliparea | cut -d '/' -f3`
  uly=`echo $cliparea | cut -d '/' -f2`
- lrx=`echo $cliparea | cut -d '/' -f4`
- lry=`echo $cliparea | cut -d '/' -f1`
+ lrx=`echo $cliparea | cut -d '/' -f4 | sed "s/'//"`
+ lry=`echo $cliparea | cut -d '/' -f1 | sed "s/'//"`
  for tif in `ls $LiCSAR_public/$tr/$frame/metadata/*tif $LiCSAR_public/$tr/$frame/epochs/*/*tif`; do
    gdal_translate -projwin $ulx $uly $lrx $lry -co "COMPRESS=DEFLATE" -of GTiff -a_srs epsg:4326 $tif $tif.clip.tif
    mv $tif.clip.tif $tif

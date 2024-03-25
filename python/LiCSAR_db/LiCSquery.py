@@ -132,6 +132,9 @@ def delete_frame_only(frame):
 def clone_frame(frameold, framenew, step = 1, oldpolyid = None, newpolyid = None):
     """
     copies frame definition to a new name ('cloning' of frame). not tested without admin rights...
+    works in two steps:
+    1, copy the frame records to the new name (and show old and new polyids)
+    2, use the returned polyids and set the polygons and link bursts
     """
     if step ==1:
         sql = "DROP TABLE IF EXISTS temp_tb; CREATE TEMPORARY TABLE temp_tb ENGINE=MEMORY (SELECT * FROM polygs where polyid_name='{0}');".format(frameold)
