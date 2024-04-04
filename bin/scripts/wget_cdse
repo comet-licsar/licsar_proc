@@ -38,6 +38,17 @@ if [ -z $2 ]; then outdir=.; else outdir=$2; fi
 filename=$1
 BN=`basename $filename .zip`
 
+# trying ASF first anyway
+cd $outdir; wget_alaska $filename;
+if [ -f $filename ]; then
+  if [ `ls -al $filename | gawk {'print $5'}` -gt 500000 ]; then
+   echo "downloaded from ASF (instead of slower CDSE)"
+   exit
+  else
+   rm $filename # as broken
+  fi
+fi
+
 allok=1
 function generate_new_token() {
   # this will create refresh token and return access token
