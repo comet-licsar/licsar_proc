@@ -186,27 +186,28 @@ else
  fi
  echo "done"
 
-if [ $clip == 1 ]; then
- echo "clipping to requested area - WARNING, MUST BE lon1<lon2 etc"
- ulx=`echo $cliparea | cut -d '/' -f3`
- uly=`echo $cliparea | cut -d '/' -f2`
- lrx=`echo $cliparea | cut -d '/' -f4 | sed "s/'//"`
- lry=`echo $cliparea | cut -d '/' -f1 | sed "s/'//"`
- for tif in `ls $LiCSAR_public/$tr/$frame/metadata/*tif $LiCSAR_public/$tr/$frame/epochs/*/*tif`; do
-   gdal_translate -projwin $ulx $uly $lrx $lry -co "COMPRESS=DEFLATE" -of GTiff -a_srs epsg:4326 $tif $tif.clip.tif
-   mv $tif.clip.tif $tif
- done
- # just to clean the small png preview file (that were not clipped)
- rm $LiCSAR_public/$tr/$frame/epochs/*/*png
-fi
-fi
+  if [ $clip == 1 ]; then
+   echo "clipping to requested area - WARNING, MUST BE lon1<lon2 etc"
+   ulx=`echo $cliparea | cut -d '/' -f3`
+   uly=`echo $cliparea | cut -d '/' -f2`
+   lrx=`echo $cliparea | cut -d '/' -f4 | sed "s/'//"`
+   lry=`echo $cliparea | cut -d '/' -f1 | sed "s/'//"`
+   for tif in `ls $LiCSAR_public/$tr/$frame/metadata/*tif $LiCSAR_public/$tr/$frame/epochs/*/*tif`; do
+     gdal_translate -projwin $ulx $uly $lrx $lry -co "COMPRESS=DEFLATE" -of GTiff -a_srs epsg:4326 $tif $tif.clip.tif
+     mv $tif.clip.tif $tif
+   done
+   # just to clean the small png preview file (that were not clipped)
+   rm $LiCSAR_public/$tr/$frame/epochs/*/*png
+  fi
 
-echo "checking for volcanoes in the frame (auto-init if the same relorb was not initialised yet)"
-python3 -c "import volcdb; volcdb.initialise_subsets_in_frame('"$frame"')"
 
-echo "changing permissions"
-mkdir $LiCSAR_public/$tr/$frame/interferograms
-chmod -R 775 $curdir/$tr/$frame $LiCSAR_public/$tr/$frame
-chgrp -R gws_lics_admin $curdir/$tr/$frame
-chgrp -R gws_lics_admin $LiCSAR_public/$tr/$frame
-chmod 777 $LiCSAR_public/$tr/$frame/* # as some users outside the admin group will use store_to_curdir.sh
+  echo "checking for volcanoes in the frame (auto-init if the same relorb was not initialised yet)"
+  python3 -c "import volcdb; volcdb.initialise_subsets_in_frame('"$frame"')"
+
+  echo "changing permissions"
+  mkdir $LiCSAR_public/$tr/$frame/interferograms
+  chmod -R 775 $curdir/$tr/$frame $LiCSAR_public/$tr/$frame
+  chgrp -R gws_lics_admin $curdir/$tr/$frame
+  chgrp -R gws_lics_admin $LiCSAR_public/$tr/$frame
+  chmod 777 $LiCSAR_public/$tr/$frame/* # as some users outside the admin group will use store_to_curdir.sh
+fi
