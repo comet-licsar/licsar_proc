@@ -243,7 +243,7 @@ def check_convert_dem(indem, fix_geoid = False):
         print('not implemented yet, see help of dem_import - need to add  $DIFF_HOME/scripts/egm2008-5.dem or $DIFF_HOME/scripts/egm96.dem')
         geoid = '-'
         geoidpar = '-'
-    if indem[:-3] == 'tif':
+    if indem[-3:] == 'tif':
         dembin = indem[:-4]
         dempar = dembin + '_par'
         if not os.path.exists(dempar):
