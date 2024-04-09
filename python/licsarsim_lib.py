@@ -55,10 +55,10 @@ def get_h_i_r_from_parfile(parfile):
     return heading, inc, crange
 
 
-def main_simsar(indem, heading = -13, incidence_angle = 32, center_range_slc = 820000):
+def main_simsar(indem, heading = -13, incidence_angle = 32, center_range_slc = 820000, extraext = ''):
     startime = time.time()
     simparams = extract_simparams(indem, heading, incidence_angle, center_range_slc)
-    outfile = simulate_intensity(indem, simparams)
+    outfile = simulate_intensity(indem, simparams, extraext = extraext)
     print('')
     timeitsec = time.time() - startime
     print('Finished in {0} seconds. Output file: {1}'.format(str(np.round(timeitsec, 2)), outfile))
@@ -261,7 +261,7 @@ def check_convert_dem(indem, fix_geoid = False):
     return demtif, dembin, dempar
 
 
-def simulate_intensity(indem = 'dem_crop.dem', simparams = None):
+def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     ''' function to use simparams with the DEM to generate the simsar output
 
     Args:
@@ -274,6 +274,8 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None):
     demtif, dembin, dempar = check_convert_dem(indem)
     #
     strid = 'H'+str(int(np.round(simparams['heading'])))+'.I'+str(int(np.round(simparams['incidence_angle'])))
+    if extraext:
+        strid = strid + '.' + extraext
     mlipar = 'simsar.'+strid+'.par'
     if not os.path.exists(mlipar):
         # prep some of the params:
@@ -318,5 +320,5 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None):
     #runcmd(cmd, "Exporting to "+pixareamaptif)
     if cmdone:
         print('done. to preview, do (in python):')
-        print("from lics_vis import vis_tif; vis_tif('simsar.geo.tif')")
+        print("from lics_vis import vis_tif; vis_tif('"+simsartif+"')")
     return simsartif
