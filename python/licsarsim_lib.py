@@ -54,6 +54,7 @@ def get_h_i_r_from_parfile(parfile):
     crange = get_param_gamma('center_range_slc', parfile, floatt=True, pos=0)
     return heading, inc, crange
 
+
 def main_simsar(indem, heading = -13, incidence_angle = 32, center_range_slc = 820000):
     startime = time.time()
     simparams = extract_simparams(indem, heading, incidence_angle, center_range_slc)

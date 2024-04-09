@@ -16,7 +16,7 @@ import s1data as s1
 
 public_path = os.environ['LiCSAR_public']
 procdir_path = os.environ['LiCSAR_procdir']
-web_path = 'https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products'
+web_path = 'https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products'
 web_path_maps = 'https://comet.nerc.ac.uk/earthquakes'
 
 eqcsvfile = "/home/home02/earmla/pokuseq.csv"
