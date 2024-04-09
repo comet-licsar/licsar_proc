@@ -348,6 +348,8 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
             selected_ifgs.append(pifg)
     if return_shortest:
         ifgs = pd.DataFrame(selected_ifgs)
+        if ifgs.empty:
+            return False
         ifgs['btemp']=0
         ifgs['btemp']=ifgs[0].apply(misc.datediff_pair)
         return ifgs.sort_values(by='btemp').head(1)[0].values[0]
@@ -451,10 +453,10 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
                 selected_ifgs.append(pifg)
         # adding preseismic ifg
         if is_preseismic:
-            # do only short ifg
-            if ( datetime.strptime(str(slv), '%Y%m%d').date() - datetime.strptime(str(mas), '%Y%m%d').date() ).days <19:
-                # do only ifg just before the event
-                if ( datetime.strptime(str(doi_str),'%Y%m%d').date() - datetime.strptime(str(slv),'%Y%m%d').date()).days < 12 :
+            # do only short ifg, or two
+            if ( datetime.strptime(str(slv), '%Y%m%d').date() - datetime.strptime(str(mas), '%Y%m%d').date() ).days <25:
+                # do only ifg just before the event (or two ifgs)
+                if ( datetime.strptime(str(doi_str),'%Y%m%d').date() - datetime.strptime(str(slv),'%Y%m%d').date()).days < 15 :
                     selected_ifgs.append(pifg)
     return selected_ifgs
 
@@ -717,7 +719,7 @@ def is_blacklisted(eventid, blacklistfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         return False
 
 
-def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, ingestedonly = False):
+def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, ingestedonly = False, onlycoseismic = False, only_non_existing_coseismic = True):
     """
     This will process all earthquakes in given range:
     Step 1 would perform full processing (licsar_make_frame),
@@ -750,12 +752,12 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, i
             else:
                 makeactive = False
             try:
-                process_eq(event.id, step, overwrite, makeactive)
+                process_eq(event.id, step, overwrite, makeactive, onlycoseismic = onlycoseismic, only_non_existing_coseismic = only_non_existing_coseismic)
             except:
                 print('some issue with event '+event.id)
 
 
-def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False, onlycoseismic = True):
+def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False, onlycoseismic = True, only_non_existing_coseismic = True):
     """
     Perform the earthquake frames processing.
 
@@ -765,7 +767,8 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
         overwrite: if True will overwrite existing data
         makeactive: if True, will also make the event active in EIDP
         skipchecks: will skip some default checks, e.g. by default we limit processing by depth
-
+        onlycoseismic: will generate only coseismic kmls (step 2)
+        only_non_existing_coseismic: will process frames in step 1 only if they have no coseismic ifg
     """
     event =  get_event_by_id(eventid)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
@@ -797,6 +800,13 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             print('no KML exists for this event')
         f.close()
     frames = get_frames_in_event(event, radius)
+    if step == 1 and only_non_existing_coseismic:
+        framesok = []
+        for frame in frames:
+            # remove frames that already have some coseismic ifg:
+            if not list_coseismic_ifgs(frame, event.time, return_shortest=True):
+                framesok.append(frame)
+        frames = framesok
     print('selected frames are:')
     print(frames)
     if len(frames) == 0:
