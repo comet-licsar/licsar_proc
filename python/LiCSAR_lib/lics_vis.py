@@ -110,10 +110,12 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     return fig
 
 
-def vis_tif(tifile, stdscale = 1):
+def vis_tif(tifile, stdscale = 1, todb = False):
     import rioxarray
     arr = rioxarray.open_rasterio(tifile)
     arr=arr.where(arr !=0)
+    if todb:
+        arr.values = np.log10(arr.values)
     tmean = float(arr.mean())
     tstd = float(arr.std())
     arr.plot(vmin=tmean-stdscale*tstd, vmax=tmean+stdscale*tstd)

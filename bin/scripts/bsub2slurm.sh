@@ -98,7 +98,7 @@ while true; do
              #jobid=$(sacct -n --format="JobID" --name $myJOBNAME | head -n1 | cut -d '.' -f1)
              jobid=''
              count=1
-             max_count=3
+             max_count=1  # 2024 - bottleneck. doing it only once
              jobid=$(squeue -h --name=${myJOBNAME} --format='%i' | tail -n1)
              while [ -z "${jobid}" ] && [ ${count} -le ${max_count} ]
              do
@@ -108,7 +108,7 @@ while true; do
                 # great solution by Rich Rigby! as sometimes jobs were not found...
                 jobid=$(squeue -h --name=${myJOBNAME} --format='%i' | tail -n1)
                 count=$((${count}+1))
-                sleep 3
+                #sleep 3
              done
              #jobid=$(squeue -n $myJOBNAME | sed '/JOBID/d' | head -n1 | gawk {'print $1'})
              #jobid=$myJOBNAME
@@ -119,13 +119,16 @@ while true; do
                #echo "ERROR: dependency not satisfied - seems job "$myJOBNAME" is not active.."
                #echo "trying with archived processing info, but expect problems"
                #jobid=$(sacct -n --name $myJOBNAME | head -n1 | gawk {'print $1'})
-               jobid=$(sacct -n --format=jobid --name=${myJOBNAME} | egrep '^[0-9]+\s' | sort -n | tail -n 1 | sed 's/ //g')
-               echo "trying alternative solution to figure jobID using:"
-               echo "sacct -n --format=jobid --name="$myJOBNAME" | egrep '^[0-9]+\s' | sort -n | tail -n 1 | sed 's/ //g'"
-               if [ ! -z $jobid ]; then
-                jobids=$jobids':'$jobid
-               else
-                echo "Job still not found - skipping this dependency"
+               domore=''
+               if [ ! -z $domore ]; then
+                 jobid=$(sacct -n --format=jobid --name=${myJOBNAME} | egrep '^[0-9]+\s' | sort -n | tail -n 1 | sed 's/ //g')
+                 echo "trying alternative solution to figure jobID using:"
+                 echo "sacct -n --format=jobid --name="$myJOBNAME" | egrep '^[0-9]+\s' | sort -n | tail -n 1 | sed 's/ //g'"
+                 if [ ! -z $jobid ]; then
+                  jobids=$jobids':'$jobid
+                 else
+                  echo "Job still not found - skipping this dependency"
+                 fi
                fi
                #exit
              fi
