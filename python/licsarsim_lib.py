@@ -40,6 +40,20 @@ import time
 # INPUTS:
 # DEM must be clipped to target area - you should use Geotiff (but gamma DEM should also work - just it might fail in some later step if par does not exist)
 
+
+'''
+# example:
+from licsarsim_lib import *
+parfile = '1000.054A.mli.par'
+h,i,r = get_h_i_r_from_parfile(parfile)
+extraext = parfile[:-8]  # extra text in output filenames
+indem = parfile.split('.')[0]+'.dem'
+main_simsar(indem, h,i,r, extraext)
+# to preview:
+from lics_vis import vis_tif; vis_tif('simsar.H-13.I39.1000.054A.geo.tif')
+# to preview the orig mli:
+vis_tif('1000.163D.geo.mli.tif', to_amp_db = True)
+'''
 def get_h_i_r_from_parfile(parfile):
     ''' Gets inputs to main_simsar function from given par file
 
@@ -284,6 +298,9 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     #
     # minimalistically to get only intensity:
     demseg = 'demseg'
+    # this will be needed for parallelism.. so.. turning it on
+    if extraext:
+        demseg = demseg + '.' + extraext
     demsegpar = demseg+'.par'
     lut = 'lut.'+strid
     lsmap = '-'
@@ -320,5 +337,6 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     #runcmd(cmd, "Exporting to "+pixareamaptif)
     if cmdone:
         print('done. to preview, do (in python):')
+        print('note, simsar output is probably amplitude [dB], i.e. log10(sqrt(intensity))')
         print("from lics_vis import vis_tif; vis_tif('"+simsartif+"')")
     return simsartif
