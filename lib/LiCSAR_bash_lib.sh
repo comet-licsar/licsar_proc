@@ -439,9 +439,15 @@ function create_preview_offsets() {
 
 function create_preview_vel() {
 	# so the colour scale was generated as:
-	# 
+	# ...
+    # btw if second param is 0, it will downsample by 30%
   if [ ! -z $1 ]; then
     local velfile=$1
+    if [ `echo $velfile | rev | cut -d '.' -f1 | rev` == 'nc' ]; then
+     extraname="?vel"
+    else
+     extraname=''
+    fi
     echo "generating preview for "$velfile
     outfile=`echo $velfile | rev | cut -c 4- | rev`png
     extracmd_convert=''
@@ -450,7 +456,7 @@ function create_preview_vel() {
       extracmd_convert='-resize 30%'
      fi
     fi
-    gmt grdimage $velfile -C$LiCSARpath/misc/vel.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
+    gmt grdimage $velfile$extraname -C$LiCSARpath/misc/vel.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
     #to flatten it (and fix transparency...sometimes needed..):
     convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
     rm $outfile.temp.png
