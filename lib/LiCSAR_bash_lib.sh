@@ -438,8 +438,9 @@ function create_preview_offsets() {
 }
 
 function create_preview_vel() {
-	# so the colour scale was generated as:
-	# ...
+	# so the colour scale was pre-generated as:
+	# https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/scalebar_vel_30.png
+    # fixed in +-30 mm/year (!)
     # btw if second param is 0, it will downsample by 30%
   if [ ! -z $1 ]; then
     local velfile=$1
@@ -449,7 +450,7 @@ function create_preview_vel() {
      extraname=''
     fi
     echo "generating preview for "$velfile
-    outfile=`echo $velfile | rev | cut -c 4- | rev`png
+    outfile=`echo $velfile | rev | cut -c 4- | rev`.png
     extracmd_convert=''
     if [ ! -z $2 ]; then
      if [ $2 == 0 ]; then

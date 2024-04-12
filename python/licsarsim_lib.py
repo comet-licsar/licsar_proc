@@ -39,7 +39,36 @@ import time
 
 # INPUTS:
 # DEM must be clipped to target area - you should use Geotiff (but gamma DEM should also work - just it might fail in some later step if par does not exist)
-
+'''
+# adding calibrated mlis:
+pp=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc
+OUTDIR=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/for_simsar
+cd $pp
+for vv in `ls -d [1-9]*[0-9]`; do
+ #if [ ! $vv == 1000 ]; then
+ #if [ ! $vv == 1001 ]; then
+ echo $vv
+ cd $pp
+ for fr in `ls $vv`; do
+  cd $pp/$vv/$fr
+  m=`ls SLC | head -n1`
+  outname=$vv.$fr
+  radcal_MLI SLC/$m/$m.slc.mli SLC/$m/$m.slc.mli.par - SLC/$m/$m.slc.mli.calibrated - 1 >/dev/null 2>/dev/null;
+  mv SLC/$m/$m.slc.mli SLC/$m/$m.slc.mli.orig;
+  cd SLC/$m; ln -s $m.slc.mli.calibrated $m.slc.mli; cd ../..;
+  mv GEOC.MLI.30m/$m GEOC.MLI.30m/$m.uncalibrated;
+  if [ ! -d geo ]; then ln -s geo.30m geo; fi;
+  if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.30m GEOC.MLI; fi;
+  create_geoctiffs_to_pub.sh -M `pwd` $m >/dev/null 2>/dev/null; rm geo GEOC.MLI;
+  cp GEOC.MLI.30m/$m/$m.geo.mli.tif $OUTDIR/$outname.geo.mli.radcal.tif
+  # return it back
+  rm SLC/$m/$m.slc.mli
+  mv SLC/$m/$m.slc.mli.orig SLC/$m/$m.slc.mli
+ done
+ #fi
+ #fi
+done
+'''
 
 '''
 # example:
@@ -53,6 +82,8 @@ main_simsar(indem, h,i,r, extraext)
 from lics_vis import vis_tif; vis_tif('simsar.H-13.I39.1000.054A.geo.tif')
 # to preview the orig mli:
 vis_tif('1000.163D.geo.mli.tif', to_amp_db = True)
+# 
+# NOTE: the input mlis should be calibrated first! 
 '''
 def get_h_i_r_from_parfile(parfile):
     ''' Gets inputs to main_simsar function from given par file

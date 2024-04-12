@@ -79,16 +79,16 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="998"
+     inkscape:window-width="788"
+     inkscape:window-height="427"
      id="namedview467"
      showgrid="false"
      inkscape:zoom="0.94309936"
-     inkscape:cx="391.57192"
+     inkscape:cx="447.61412"
      inkscape:cy="130.78084"
-     inkscape:window-x="1920"
-     inkscape:window-y="26"
-     inkscape:window-maximized="1"
+     inkscape:window-x="2336"
+     inkscape:window-y="515"
+     inkscape:window-maximized="0"
      inkscape:current-layer="g210"
      showguides="true"
      inkscape:guide-bbox="true">
@@ -158,6 +158,13 @@
      id="g210"
      inkscape:export-xdpi="120"
      inkscape:export-ydpi="120">
+    <rect
+       style="opacity:1;vector-effect:none;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:6.29291344;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="rect2751"
+       width="1027.3792"
+       height="167.39153"
+       x="0.084228516"
+       y="-2.5719794e-06" />
     <image
        width="1025.6"
        height="164"
