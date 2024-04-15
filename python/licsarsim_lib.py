@@ -6,23 +6,54 @@
 Steps:
 for one temporal epoch:
 Inputs:
- - a DEM (geotiff) - will be simulated elsewhere
- - heading, centre inc angle, inc angle spread (e.g. +-5 deg) - target rg/azi sampling? (maybe not)
+ - a DEM (geotiff)
+ - heading, centre inc angle, centre inc angle
  - other params (corresponding to Sentinel-1 IW 'mid-swath')
 Outputs:
  - geocoded simulated intensity
 
-This will probably:
- - estimate satellite position (update SOVs)
- - convert DEM to radar coords
- - create geocoding tables for this DEM
- - simulate rdc intensity
- - geocode the simulated intensity
+This will:
+ - estimate satellite position (update SOVs) - primary contribution here
+ - use gamma script to simulate S1 SAR intensity directly in geo coordinates (same resolution as input DEM)
+    - this script can also output in rdc if needed
+
+Naming convention of 
+A) sample data:
+e.g. 1000.054A.geo.mli.radcal.tif:
+       1    2   3   4     5
+ - 1 - volcano clip ID (LiCSVolc database)
+ - 2 - relative orbit number + satellite pass (A for ascending, D for descending)
+ - 3 - coordinates (geo: geographic system, rdc: radar coordinates)
+ - 4 - type; mli = multilooked intensity
+ - 5 - 'radiometrically calibrated'
+
+B) sample outputs: (i.e. running the Example below on all DEM and related real data par files)
+e.g. simsar.H-13.I39.1000.054A.geo.tif:
+              1    2   3    4
+ - 1 - applied heading (by default same as source mli.par file but can be changed for the simulation) [degrees from N]
+ - 2 - applied incidence angle at the central pixel (see 1) [degrees, this angle is on the ground between the vertical and the satellite]
+ - 3 - see A.1
+ - 4 - see A.2
  
 
 Versions:
 0.0.1:
  - output is simulated SAR intensity geocoded in the same resolution as the input DEM
+ 
+Example:
+from licsarsim_lib import *
+parfile = '1000.054A.mli.par'
+h,i,r = get_h_i_r_from_parfile(parfile)
+extraext = parfile[:-8]  # extra text in output filenames
+indem = parfile.split('.')[0]+'.dem'
+main_simsar(indem, h,i,r, extraext)
+# to preview:
+from lics_vis import vis_tif; vis_tif('simsar.H-13.I39.1000.054A.geo.tif')
+# to preview the orig (radiometrically calibrated) mli:
+vis_tif('1000.163D.geo.mli.radcal.tif')
+# vis_tif('1000.163D.geo.mli.tif', to_amp_db = True)
+# 
+# NOTE: the input mlis should be calibrated first! 
 '''
 
 from orbit_lib import *
@@ -45,8 +76,6 @@ pp=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc
 OUTDIR=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/for_simsar
 cd $pp
 for vv in `ls -d [1-9]*[0-9]`; do
- #if [ ! $vv == 1000 ]; then
- #if [ ! $vv == 1001 ]; then
  echo $vv
  cd $pp
  for fr in `ls $vv`; do
@@ -65,26 +94,10 @@ for vv in `ls -d [1-9]*[0-9]`; do
   rm SLC/$m/$m.slc.mli
   mv SLC/$m/$m.slc.mli.orig SLC/$m/$m.slc.mli
  done
- #fi
- #fi
 done
 '''
 
-'''
-# example:
-from licsarsim_lib import *
-parfile = '1000.054A.mli.par'
-h,i,r = get_h_i_r_from_parfile(parfile)
-extraext = parfile[:-8]  # extra text in output filenames
-indem = parfile.split('.')[0]+'.dem'
-main_simsar(indem, h,i,r, extraext)
-# to preview:
-from lics_vis import vis_tif; vis_tif('simsar.H-13.I39.1000.054A.geo.tif')
-# to preview the orig mli:
-vis_tif('1000.163D.geo.mli.tif', to_amp_db = True)
-# 
-# NOTE: the input mlis should be calibrated first! 
-'''
+
 def get_h_i_r_from_parfile(parfile):
     ''' Gets inputs to main_simsar function from given par file
 
