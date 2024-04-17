@@ -800,6 +800,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             print('no KML exists for this event')
         f.close()
     frames = get_frames_in_event(event, radius)
+    frames = lq.sqlout2list(frames)
     if step == 1 and only_non_existing_coseismic:
         framesok = []
         for frame in frames:
