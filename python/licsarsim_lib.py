@@ -40,13 +40,21 @@ Versions:
 0.0.1:
  - output is simulated SAR intensity geocoded in the same resolution as the input DEM
  
-Example:
+Example to generate for all available frames per given volcano:
+volclip='23'
 from licsarsim_lib import *
-parfile = '1000.054A.mli.par'
-h,i,r = get_h_i_r_from_parfile(parfile)
-extraext = parfile[:-8]  # extra text in output filenames
-indem = parfile.split('.')[0]+'.dem'
-main_simsar(indem, h,i,r, extraext)
+indem = volclip+'.dem'
+for parfile in glob.glob(volclip+'.????.mli.par'):
+    h,i,r = get_h_i_r_from_parfile(parfile)
+    extraext = parfile[:-8]
+    main_simsar(indem, h,i,r, extraext)
+    
+## parfile = '1000.054A.mli.par'
+## h,i,r = get_h_i_r_from_parfile(parfile)
+## extraext = parfile[:-8]  # extra text in output filenames
+## indem = parfile.split('.')[0]+'.dem'
+## main_simsar(indem, h,i,r, extraext)
+
 # to preview:
 from lics_vis import vis_tif; vis_tif('simsar.H-13.I39.1000.054A.geo.tif')
 # to preview the orig (radiometrically calibrated) mli:
@@ -60,7 +68,7 @@ from orbit_lib import *
 from daz_iono import *
 import nvector as nv
 # better to use py_gamma directly, but will just run direct commands
-import os
+import os, glob
 import subprocess as subp
 #from LiCSAR_misc import grep1
 from daz_lib_licsar import get_param_gamma
@@ -381,6 +389,6 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     #runcmd(cmd, "Exporting to "+pixareamaptif)
     if cmdone:
         print('done. to preview, do (in python):')
-        print('note, simsar output is probably amplitude [dB], i.e. log10(sqrt(intensity))')
+        #print('note, simsar output is probably amplitude [dB], i.e. log10(sqrt(intensity))')
         print("from lics_vis import vis_tif; vis_tif('"+simsartif+"')")
     return simsartif
