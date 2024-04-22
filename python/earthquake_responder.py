@@ -797,6 +797,8 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             print('no KML exists for this event')
         f.close()
     frames = get_frames_in_event(event, radius)
+    if isinstance(frames, tuple):
+        frames=lq.sqlout2list(frames)
     print('selected frames are:')
     print(frames)
     if len(frames) == 0:
@@ -806,13 +808,13 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
     if not eqid:
         eqid = lq.get_eqid(event.id)
     for frame in frames:
-        rc = import_to_licsinfo_eq2frame(eqid, event, frame[0], active = makeactive)
+        rc = import_to_licsinfo_eq2frame(eqid, event, frame, active = makeactive)
     if step == 1:
         print('{0} frames detected for event {1}, will be processing them'.format(str(len(frames)),event.id))
         indate = event.time-timedelta(days=max_days)
         offdate = event.time+timedelta(days=25)
         for frame in frames:
-            frame = frame[0]
+            #frame = frame[0]
             track = str(int(frame[0:3]))
             if not os.path.exists(os.path.join(public_path,track,frame)):
                 print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
@@ -842,7 +844,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
     elif step == 2:
         #second run - generate kmls:
         for frame in frames:
-            frame = frame[0]
+            #frame = frame[0]
             track = str(int(frame[0:3]))
             #if not os.path.exists(os.path.join(procdir,'EQR',frame,'')
             new_kmls = create_kmls(frame,event.time, onlycoseismic, overwrite, event)
@@ -876,7 +878,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
     elif step == 3:
         # run no. 3 - export to EPOS and GEP
         for frame in frames:
-            frame = frame[0]
+            #frame = frame[0]
             track = str(int(frame[0:3]))
             shortestpair = list_coseismic_ifgs(frame, event.time, return_shortest=True)
             if shortestpair:
