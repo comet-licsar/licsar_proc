@@ -57,6 +57,25 @@ def volcano_clip_plot(volcid, bevel = 0.1):
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None):
+    ''' Function to generate (nice) plot of given grid using pyGMT
+    
+    Args:
+        grid (xr.DataArray): input grid to plot
+        title (str):  title (note too long title will disbalance the figure)
+        label (str):  label below the colour scale
+        lims (list):  colour scale limits
+        cmap (str):   colour scale map (try 'vik' for E-W)
+        photobg (bool): will plot orthophotomap as the background (if False, DEM relief is used)
+        plotvec (geopandas etc): will plot vector data to the map, using pyGMT defaults
+    
+    Returns:
+        pygmt.figure.Figure
+    '''
+    try:
+        grid = grid.load()
+    except:
+        print('error loading the input dataarray to memory')
+        return False
     # try cmap 'vik' for E-W
     #
     # grid = a['U'].where(a.mask < 5) - 10
@@ -112,7 +131,9 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
 
 def vis_tif(tifile, stdscale = 1, to_amp_db = False):
     ''' to show a tif file
-    to_amp_db - useful for LiCSAR epoch mli tifs - will convert to amplitude [dB]
+    Args:
+        stdscale (float):  how many stddev are used to form min/max limits for colourscale
+        to_amp_db (bool):  will convert intensity to amplitude in dB - useful for LiCSAR epoch mli tifs
     '''
     import rioxarray
     arr = rioxarray.open_rasterio(tifile)
