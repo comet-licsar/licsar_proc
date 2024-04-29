@@ -3,8 +3,13 @@ import sys
 import subprocess as subp
 import re
 import zipfile
-import sys, traceback
-from osgeo import gdal, gdalconst
+#import sys, traceback
+try:
+    from osgeo import gdal, gdalconst
+except:
+    print('GDAL not loaded - reproject_to_match will not work')
+
+
 import datetime as dt
 
 class nostdout(object):
@@ -100,6 +105,14 @@ def getipf(parfile):
     line = grep1('IPF', parfile)
     res = float(line.split('IPF')[1].split(')')[0])
     return res
+
+
+def get_param_gamma(param, parfile, floatt = True, pos = 0):
+    a = grep1line(param,parfile).split()[1+pos]
+    if floatt:
+        a = float(a)
+    return a
+
 
 #########################
 ## sed helper

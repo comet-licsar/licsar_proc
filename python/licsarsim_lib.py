@@ -58,7 +58,7 @@ for parfile in glob.glob(volclip+'.????.mli.par'):
 # to preview:
 from lics_vis import vis_tif; vis_tif('simsar.H-13.I39.1000.054A.geo.tif')
 # to preview the orig (radiometrically calibrated) mli:
-vis_tif('1000.163D.geo.mli.radcal.tif')
+vis_tif('1000.163D.geo.mli.radcal.tif', to_amp_db = True)
 # vis_tif('1000.163D.geo.mli.tif', to_amp_db = True)
 # 
 # NOTE: the input mlis should be calibrated first! 
@@ -70,8 +70,8 @@ import nvector as nv
 # better to use py_gamma directly, but will just run direct commands
 import os, glob
 import subprocess as subp
-#from LiCSAR_misc import grep1
-from daz_lib_licsar import get_param_gamma
+from LiCSAR_misc import get_param_gamma
+#from daz_lib_licsar import get_param_gamma   # daz was using framecare
 import rioxarray
 import numpy as np
 import time
