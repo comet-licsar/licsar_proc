@@ -17,12 +17,13 @@ import pyproj
 import numpy as np
 import glob 
 
-from sentinelsat.sentinel import SentinelAPI
-try:
-    from eof.download import download_eofs
-except:
-    print('sentineleof library is not installed (useful, see: https://github.com/scottstanie/sentineleof ) - no worries, we have workaround')
-    #print('warning, you do not have sentineleof python library installed. expect problems with orbits (but maybe fixed now..)')
+# these below were very useful for data on SciHub, but not anymore in CDSE... that was not really offering any adequate alternative MONTHS after they got live (had to comment about it). ML
+#from sentinelsat.sentinel import SentinelAPI
+#try:
+#    from eof.download import download_eofs
+#except:
+#    print('sentineleof library is not installed (useful, see: https://github.com/scottstanie/sentineleof ) - no worries, we have workaround')
+#    #print('warning, you do not have sentineleof python library installed. expect problems with orbits (but maybe fixed now..)')
 
 
 try:
