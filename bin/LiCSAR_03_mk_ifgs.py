@@ -153,12 +153,12 @@ def main(argv=None):
     if framename:
         if not lq.connection_established():
             print("\nERROR:", file=sys.stderr)
-            print("Could not establish a stable database connection. No processing can happen.", file=sys.stderr)
-            return 1
+            print("Could not establish a stable database connection. Continuing anyway.", file=sys.stderr)
+            #return 1
         if not lq.check_frame(framename):
             print("\nERROR:", file=sys.stderr)
-            print("Frame {0} was not found in database.".format(framename), file=sys.stderr)
-            return 1
+            print("Frame {0} was not found in database. Skipping the frame check routines".format(framename), file=sys.stderr)
+            #return 1
 
     if not os.path.exists(procdir):
         print("\nERROR:", file=sys.stderr)
