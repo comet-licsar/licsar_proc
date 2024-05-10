@@ -239,19 +239,25 @@ def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, beta=0
 
 
 # 2022-10-18 - this should be pretty good one (next only use weights or something)
-def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0):
+def decompose_np(vel_asc, vel_desc, aschead, deschead, ascinc, descinc, beta=0, do_velUN = True):
     """Decomposes values from ascending and descending np (or xr) arrays, using heading and inc. angle
     (these might be arrays of same size of just float values)
     
     Args:
         beta (float): angle of expected horizontal motion direction, clockwise from the E, in degrees
+        do_velUN (boolean): if yes, extract v_{UN} instead of v_U, following Qi et al, 2022: doi=10.1029/2F2022JB024176
     """
     vel_E = np.zeros(vel_desc.shape)
     vel_U = np.zeros(vel_desc.shape)
     #
-    U_asc = np.cos(np.radians(ascinc))
+    if do_velUN:
+        U_asc = np.sqrt(1 - (np.sin(np.radians(ascinc))**2) * (np.cos(np.radians(aschead))**2))
+        U_desc = np.sqrt(1 - (np.sin(np.radians(descinc)) ** 2) * (np.cos(np.radians(deschead)) ** 2))
+    else:
+        U_asc = np.cos(np.radians(ascinc))
+        U_desc = np.cos(np.radians(descinc))
+    #
     E_asc = -np.sin(np.radians(ascinc))*np.cos(np.radians(aschead+beta))
-    U_desc = np.cos(np.radians(descinc))
     E_desc = -np.sin(np.radians(descinc))*np.cos(np.radians(deschead+beta))
     #
     for ii in np.arange(0,vel_E.shape[0]):

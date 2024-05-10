@@ -128,7 +128,11 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     #
     center_time=grep1line('center_time',metafile).split('=')[1]
     heading=float(grep1line('heading',metafile).split('=')[1])
-    centre_range_m=float(grep1line('centre_range_m',metafile).split('=')[1])
+    # centre_range_m=float(grep1line('centre_range_m',metafile).split('=')[1])
+    try:
+        centre_range_m = float(grep1line('centre_range_ok_m',metafile).split('=')[1]) # 2024: GAMMA had a bug wrongly informing on centre_range (may differ by 20 km or so!). fixed most of it
+    except:
+        centre_range_m=float(grep1line('centre_range_m',metafile).split('=')[1])
     #
     master=str(grep1line('master',metafile).split('=')[1])
     #
