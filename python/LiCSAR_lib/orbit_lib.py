@@ -439,7 +439,7 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB', s1ab = Non
         ddate = ddatetime.date()
     except:
         ddate = ddatetime
-    listfiles = downloadOrbits_CopCloud(ddate-dt.timedelta(days=1), ddate+dt.timedelta(days=1), producttype)
+    listfiles = downloadOrbits_CopCloud(ddate-dt.timedelta(days=2), ddate+dt.timedelta(days=2), producttype)
     if s1ab:
         listf2 = []
         for f in listfiles:
