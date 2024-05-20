@@ -55,7 +55,7 @@ def get_resolution(hgt, in_m=True):
 
 
 
-def make_ionocorr_pair(frame, pair, source = 'code', outif=None):
+def make_ionocorr_pair(frame, pair, source = 'code', fixed_f2_height_km = 450, outif=None):
     """ This will generate ionospheric correction for given frame-pair.
     It would optionally output the result to a geotiff.
     
@@ -63,6 +63,7 @@ def make_ionocorr_pair(frame, pair, source = 'code', outif=None):
         frame (str):    frame ID
         pair (str):     pair (e.g. '20180930_20181012')
         source (str):   source model for TEC values. Either 'iri' or 'code'.
+        fixed_f2_height_km (int):  if None, it will estimate this using IRI
         outif (str):    if given, will export the iono phase screen to given geotiff
     Returns:
         xr.DataArray:   estimated ionospheric phase screen
@@ -70,8 +71,8 @@ def make_ionocorr_pair(frame, pair, source = 'code', outif=None):
     ifg = load_ifg(frame, pair)
     epochs = pair.split('_')
     #
-    tecphase1 = make_ionocorr_epoch(frame, epochs[0], source = source)
-    tecphase2 = make_ionocorr_epoch(frame, epochs[1], source = source)
+    tecphase1 = make_ionocorr_epoch(frame, epochs[0], fixed_f2_height_km = fixed_f2_height_km, source = source)
+    tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, source = source)
         # and their difference
     tecdiff = tecphase1 - tecphase2  # 07/2023: should it be this way/opposite???!!!! (i think so)
     #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
