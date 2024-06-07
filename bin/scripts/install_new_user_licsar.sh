@@ -9,8 +9,10 @@ sleep 1
 
 echo "setting new default path to BATCH_CACHE_DIR and creating it: "
 source ~/.bashrc
-sed -i 's/^export BATCH_CACHE_DIR/\#export BATCH_CACHE_DIR/' ~/.bashrc
 
+# ensure standard path (ok for New Users)
+sed -i 's/^export BATCH_CACHE_DIR/\#export BATCH_CACHE_DIR/' ~/.bashrc
+echo "export BATCH_CACHE_DIR=/work/scratch-pw3/licsar/"$USER"/batchdir" >> ~/.bashrc
 
 
 if [ `grep -c "export oldbatch=" ~/.bashrc` -lt 1 ]; then
@@ -18,7 +20,6 @@ if [ `grep -c "export oldbatch=" ~/.bashrc` -lt 1 ]; then
  if [ ! -z $oldbatch ]; then
   echo "export oldbatch="$oldbatch >> ~/.bashrc
  fi
- echo "export BATCH_CACHE_DIR=/work/scratch-pw3/licsar/"$USER"/batchdir" >> ~/.bashrc
 fi
 
 
