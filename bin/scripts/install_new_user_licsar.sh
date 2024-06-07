@@ -9,7 +9,7 @@ sleep 1
 
 echo "setting new default path to BATCH_CACHE_DIR and creating it: "
 source ~/.bashrc
-sed -i 's/export BATCH_CACHE_DIR/\#export BATCH_CACHE_DIR/' ~/.bashrc
+sed -i 's/^export BATCH_CACHE_DIR/\#export BATCH_CACHE_DIR/' ~/.bashrc
 
 
 
@@ -35,8 +35,8 @@ if [ -z $oldbatch ]; then
  echo "no previous BATCH_CACHE_DIR was set (this is ok for New Users)"
 else
 if [ $oldbatch == $BATCH_CACHE_DIR ]; then
- echo "ERROR - it seems you might have run this procedure already - cancelling"
- exit
+ echo "it seems you might have run this procedure already - adding only details"
+ #exit
  #"if so, please run following command manually:"
  #echo "rsync -r YOUROLDBATCHDIR/* "$BATCH_CACHE_DIR
 else
