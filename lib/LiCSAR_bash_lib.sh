@@ -470,6 +470,18 @@ function create_preview_vel() {
 }
 
 
+function compress_phatif() {
+  if [ ! -z $2 ]; then
+    local inpha=$1
+    local outpha=$2
+    gdal_translate -of GTiff -ot Byte -scale -3.141593 3.141593 1 255 -a_nodata 0 -co COMPRESS=DEFLATE -co PREDICTOR=2 $inpha $outpha # 2>/dev/null
+  else
+    echo "Usage:  compress_phatif phafile.tif outphafile.tif"
+    echo "this will convert to 8 bits ifg (254 values, 0 will be NaN)"
+    return 0
+  fi
+}
+
 function create_preview_unwrapped() {
   if [ ! -z $1 ]; then
     local unwfile=$1
