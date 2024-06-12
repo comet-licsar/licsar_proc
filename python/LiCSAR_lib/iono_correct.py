@@ -5,7 +5,7 @@ from scipy.constants import speed_of_light
 import numpy as np
 from scipy.interpolate import griddata
 from LiCSAR_misc import *
-
+import framecare as fc
 
 def get_tecs_func(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 11:26:38'), pd.Timestamp('2014-11-29 11:26:38')]):
     return get_tecs(lat, lon, 800, acq_times[0:2], False)
@@ -239,6 +239,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
 # test frame: 144A_04689_111111
 def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_height_km = 450, alpha = 0.85):
     ''' use either 'code' or 'iri' as the source model for the correction
+    This function will generate ionosphere phase screens (LOS) [rad] per epoch.
+    
     Args:
         frame (str)
         source (str): either 'iri' or 'code'
@@ -251,14 +253,16 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
     hgt = load_tif2xr(hgt)
     mask = (hgt != 0) * (~np.isnan(hgt))
     if not epochslist:
-        epochslist = os.listdir(os.path.join(framepubdir, 'epochs')) # careful, non-epoch folders would cause error!
+        epochslist = list(set(fc.get_epochs(frame) + fc.get_epochs_from_ifg_list_pubdir(frame)))
+        #epochslist = os.listdir(os.path.join(framepubdir, 'epochs')) # careful, non-epoch folders would cause error!
     for epoch in epochslist:
         print(epoch)
         epochdir = os.path.join(framepubdir, 'epochs', epoch)
         if not os.path.exists(epochdir):
             os.mkdir(epochdir)
         tif = os.path.join(epochdir, epoch+'.geo.iono.'+source+'.tif')
-        xrda = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha)
-        xrda = xrda.where(mask)
-        export_xr2tif(xrda, tif)
+        if not os.path.exists(tif):
+            xrda = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha)
+            xrda = xrda.where(mask)
+            export_xr2tif(xrda, tif)
 

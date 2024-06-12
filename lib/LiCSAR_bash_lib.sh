@@ -80,6 +80,18 @@ function clean_public() {
     done
 }
 
+function create_LOS_tide_frame_allepochs() {
+  local frame=$1
+  if [ -z $1 ]; then echo "error, not provided frame ID"; return 1; fi
+  track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+  epochspath=$LiCSAR_public/$track/$frame/epochs
+  for epoch in `ls $epochspath`; do
+    if [ ! -f $epochspath/$epoch/$epoch'.tide.geo.tif' ]; then
+      create_LOS_tide $frame $epoch
+    fi
+  done
+}
+
 function create_LOS_tide() {
   if [ "$#" == "2" ]; then
     local frame=$1
@@ -93,6 +105,7 @@ function create_LOS_tide() {
       echo "tide file for "$date1" already exists"
       return 0
     fi
+    if [ ! -d $epochpath ]; then mkdir $epochpath; fi
     echo "generating solid Earth tide in LOS for date "$date1
     source $LiCSAR_public/$track/$frame/metadata/metadata.txt
     U=$LiCSAR_public/$track/$frame/metadata/$frame.geo.U.tif
@@ -100,7 +113,9 @@ function create_LOS_tide() {
     N=$LiCSAR_public/$track/$frame/metadata/$frame.geo.N.tif
     mkdir -p $epochpath
     gmt earthtide -T$datem1'T'$center_time -G$epochpath/tmp_tides.%s.nc -R$U -Cv,e,n 2>/dev/null
-    gmt grdmath $U $epochpath/tmp_tides.v.nc MUL $E $epochpath/tmp_tides.e.nc MUL ADD $N $epochpath/tmp_tides.n.nc MUL ADD = $epochpath/$date1'.tide.geo.tif'=gd:GTiff
+    gmt grdmath $U $epochpath/tmp_tides.v.nc MUL $E $epochpath/tmp_tides.e.nc MUL ADD $N $epochpath/tmp_tides.n.nc MUL ADD 0 NAN = $epochpath/$date1'.tide.geo.T.tif'=gd:GTiff
+    gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $epochpath/$date1'.tide.geo.T.tif' $epochpath/$date1'.tide.geo.tif'
+    rm $epochpath/$date1'.tide.geo.T.tif'
     rm $epochpath/tmp_tides.*.nc
   else
     echo "Usage: create_LOS_tide frame_id date"
