@@ -68,12 +68,19 @@ def make_ionocorr_pair(frame, pair, source = 'code', fixed_f2_height_km = 450, o
     Returns:
         xr.DataArray:   estimated ionospheric phase screen
     """
-    ifg = load_ifg(frame, pair)
+    ifg = load_ifg(frame, pair, unw = False, prefer_unfiltered = False) # just to get mask etc.
     epochs = pair.split('_')
-    #
-    tecphase1 = make_ionocorr_epoch(frame, epochs[0], fixed_f2_height_km = fixed_f2_height_km, source = source)
-    tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, source = source)
-        # and their difference
+    tecphase1 = os.path.join(os.environ['LiCSAR_public'], ,frame,'epochs',epochs[0],epochs[0]+'.')
+    tecphase2 = 
+    if os.path.exists(tecphase1):
+        tecphase1 = load_tif2xr(tecphase1)
+    else:
+        tecphase1 = make_ionocorr_epoch(frame, epochs[0], fixed_f2_height_km = fixed_f2_height_km, source = source)
+    if os.path.exists(tecphase2):
+        tecphase2 = load_tif2xr(tecphase2)
+    else:
+        tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, source = source)
+    # do their difference
     tecdiff = tecphase1 - tecphase2  # 07/2023: should it be this way/opposite???!!!! (i think so)
     #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
     #tecdiff = interpolate_nans_bivariate(tecdiff)
@@ -81,7 +88,9 @@ def make_ionocorr_pair(frame, pair, source = 'code', fixed_f2_height_km = 450, o
     #tecdiff = interpolate_nans_bivariate(tecdiff) # not needed?
     #    if np.max(np.isnan(tecdiff.values)):
     #        tecdiff = interpolate_nans_bivariate(tecdiff)
-    tecdiff = tecdiff.where(ifg.mask_extent == 1)
+    ifg['tecdiff'] = ifg['mask']*0.1
+    ifg.tecdiff.values = tecdiff.values
+    tecdiff = ifg.tecdiff.where(ifg.mask_extent == 1).rename('tecdiff_pha')
     if outif:
         export_xr2tif(tecdiff,outif)
     return tecdiff
