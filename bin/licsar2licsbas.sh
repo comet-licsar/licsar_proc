@@ -397,13 +397,13 @@ if [ $iono -gt 0 ]; then
  cd GEOC
  # using them to either pha or unw tifs (to GEOC)
  disdir=`pwd`
- hgtfile=$metadir/$frame.geo.hgt.tif
+ #hgtfile=$metadir/$frame.geo.hgt.tif
  tmpy=`pwd`/../tmp.py
  echo "from iono_correct import correct_iono_pair;" > $tmpy
  for pair in `ls -d 20??????_20??????`; do
    cd $pair
    # here use the linked
-   infile=$pair.geo.$extofproc.tif
+   infile=`pwd`/$pair.geo.$extofproc.tif
    if [ ! -L $infile ]; then
      echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
      exit
@@ -436,7 +436,7 @@ if [ $iono -gt 0 ]; then
         #  fi
         #
         rm $infile
-        ln -s $outfile $infile
+        ln -s `basename $outfile` `basename $infile`
      else
        echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
      fi
