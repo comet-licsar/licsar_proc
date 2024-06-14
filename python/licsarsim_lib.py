@@ -392,3 +392,94 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
         #print('note, simsar output is probably amplitude [dB], i.e. log10(sqrt(intensity))')
         print("from lics_vis import vis_tif; vis_tif('"+simsartif+"')")
     return simsartif
+
+
+
+
+# 2024/06: for despeckling:
+# 1, export MLIs to tif (in RDCs)
+# 2, apply despeckling
+# 3, resample to geocode
+
+def rslc2mli(rslc, outtif = None):
+    '''this will create intensity (i.e. amplitude squared) from the complex RSLC
+    to convert the mli to dB, one may just do   10*np.log10(np.sqrt(mli))
+    '''
+    outmli = rslc[:-4]+'mli'
+    if not outtif:
+        outtif = outmli+'.tif'
+    cmd = 'multi_look {0} {0}.par {1} {1}.par 1 1 >/dev/null'.format(rslc, outmli)
+    os.system(cmd)
+    wid = get_param_gamma('range_samples', outmli+'.par', floatt=False) # str
+    cmd = 'data2tiff {0} {1} 2 {2} >/dev/null'.format(outmli, wid, outtif)
+    os.system(cmd)
+    # cleaning
+    if os.path.exists(outmli):
+        os.remove(outmli)
+        #os.remove(outmli+'.par')
+    return outtif
+
+
+def geocode_tif(tif, lut = 'geo/20160901.lt_fine', 
+                mlipar = 'RSLC/20220322/20220322.mli.par', 
+                eqapar = 'geo/EQA.dem_par', diffpar = 'geo/20160901.diff_par', outtif = None):
+    '''once despeckled and stored as tif in RDC, you should be able to geocode given a LUT
+    Note, tif should be the despeckled tif, mlipar can be any previously existing mli.par file (must have same dimensions)'''
+    a = rioxarray.open_rasterio(tif)
+    tmpbin = tif+'.bin'
+    if not outtif:
+        outtif = tif[:-3]+'geo.tif'
+    a.values.byteswap().astype(np.float32).tofile(tmpbin)
+    width = len(a['x'])
+    # first multilook
+    rgfactor = get_param_gamma('range_looks', diffpar, floatt=False) # str
+    azfactor = get_param_gamma('azimuth_looks', diffpar, floatt=False) # str
+    cmd = 'multi_look_MLI {0} {1} {0}2 {0}2.par {2} {3} >/dev/null'.format(tmpbin, mlipar, rgfactor, azfactor)
+    os.system(cmd)
+    width_lut = get_param_gamma('width', eqapar, floatt=False) # str
+    cmd = 'geocode_back {0}2 {1} {2} {3} {4} - 1 0 >/dev/null'.format(tmpbin, str(width), lut, outtif+'.bin', width_lut)
+    print('geocoding')
+    os.system(cmd)
+    cmd = 'data2geotiff {0} {1} 2 {2} >/dev/null'.format(eqapar, outtif+'.bin', outtif)
+    os.system(cmd)
+    # cleaning
+    if os.path.exists(outtif+'.bin'):
+        os.remove(outtif+'.bin')
+    if os.path.exists(tmpbin):
+        os.remove(tmpbin)
+    if os.path.exists(tmpbin+'2'):
+        os.remove(tmpbin+'2')
+    if os.path.exists(tmpbin+'2.par'):
+        os.remove(tmpbin+'2.par')
+    return outtif
+
+'''
+inpath=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/20
+for fr in `ls $inpath`; do
+  echo $fr
+  mkdir $fr
+  cp -r $inpath/$fr/RSLC $fr/.  # i know.. but.. fast
+  mkdir $fr/geo
+  cp $inpath/$fr/geo*/EQA.dem_par $inpath/$fr/geo*/*.lt_fine $inpath/$fr/geo*/2*.diff_par $fr/geo/.
+done
+
+py:  this below should do whole job.. given the despeckle function is included J
+import glob
+fr='015A'
+frames = ['015A', '095D', '117A', '168D']
+for fr in frames:
+    print(fr)
+    rslcs = glob.glob(fr+'/RSLC/20*/*.rslc')
+    lut = glob.glob(fr+'/geo/*lt_fine')[0]
+    diffpar = glob.glob(fr+'/geo/*diff_par')[0]
+    eqapar = fr+'/geo/EQA.dem_par'
+    mlipar = None
+    for rslc in rslcs:
+        rdctif = rslc2mli(rslc)
+        print(rdctif)
+        if not mlipar:
+            mlipar = rslc[:-4]+'mli.par'
+        # then step 2 despeckle...
+        # rdctif = '/path/to/despeckled.tif'
+        geocode_tif(rdctif)
+'''
