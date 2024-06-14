@@ -12,6 +12,9 @@ if [ -z $1 ]; then
  echo "-S ....... (obsolete but still kept parameter) strict mode - in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
  echo "-u ....... use the reunwrapping procedure (useful if multilooking..)"
+ echo "-- Additional corrections --"
+ echo "-i ....... perform ionosphere correction (using CODE GIM)"
+ echo "-e ....... perform solid Earth tides correction"
  echo "-- Control over reunwrapping (with -u) --"
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-l ....... if the reunwrapping is to be performed, would do Gaussian lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
@@ -70,15 +73,25 @@ que='short-serial'
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
 bovls=0
+setides=0
+iono=0
+prelb_backup=0
 
 discmd="$0 $@"
-while getopts ":M:HucTsdbSClWgmaAFPRkG:t:n:" option; do
+while getopts ":M:HucTsdbSClWgmaAieFPRkG:t:n:" option; do
  case "${option}" in
   M) multi=${OPTARG};
      #shift
      ;;
   b) bovls=1;
+     echo "setting to process bovl data. Not ready yet (although LiCSBAS is.. with a workaround)"
      ;;
+  i) iono=1;
+     prelb_backup=1;
+    ;;
+  e) setides=1;
+    prelb_backup=1;
+    ;;
   n) nproc=${OPTARG};
      #que='par-single'; # unless changed to comet queue
      ;;
@@ -150,6 +163,22 @@ if [ $nproc -gt 1 ]; then
  fi 
 fi
 
+# what extension is used as input?
+if [ $reunw -gt 0 ]; then
+  if [ $filtifg -gt 0 ]; then
+    extofproc='diff_pha'
+  else
+    extofproc='diff_unfiltered_pha'
+  fi
+elif [ $bovls -gt 0 ]; then
+  if [ $prelb_backup -gt 0 ]; then
+    echo "Error - you tried running longwave signal removal from burst overlap interferograms - not implemented in this tool"
+    exit
+  fi
+else
+  extofproc='unw'
+fi
+
 if [ -d GEOC ]; then
  echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
  dolocal=1;
@@ -188,6 +217,14 @@ track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
 
 indir=$LiCSAR_public/$track/$frame/interferograms
 epochdir=$LiCSAR_public/$track/$frame/epochs
+
+if [ ! -d $epochdir ]; then
+  echo "warning, epochs directory does not exist for this frame"
+  if [ $prelb_backup -gt 0 ]; then
+    echo "and you requested longwave signal estimation. Please make sure you provided correct frame ID, cancelling for now"
+    exit
+  fi
+fi
 metadir=$LiCSAR_public/$track/$frame/metadata
 workdir=`pwd`
 source $metadir/metadata.txt #this will bring 'master=' info
@@ -218,7 +255,8 @@ for meta in E N U hgt; do
 done
 if [ $dolocal == 1 ]; then
  if [ ! -f $frame.geo.hgt.tif ]; then
-  echo "warning, doing local proc only - avoiding possible problems by just removing ENU files"
+  #echo "warning, doing local proc only - avoiding possible problems (mismatch frame vs local data) by just removing the linked ENU files"
+  # 2024 - what problems? TODO (becoming forgetful..)
   rm $frame.geo.?.tif
  fi
 fi
@@ -260,23 +298,49 @@ done
 fi
 
 if [ $dolocal == 0 ]; then
+  disdir=`pwd`
+  echo "Linking tif files from the LiCSAR_public directory"
 if [ ! -z $2 ]; then
   echo "limiting the dataset to dates between "$startdate" and "$enddate
     #cp $epochdir/$epoch/$epoch.sltd.geo.tif ../GACOS/. 2>/dev/null
   for ifg in `ls $indir/20* -d 2>/dev/null`; do
    if [ `basename $ifg | cut -d '_' -f1` -ge $startdate ]; then
     if [ `basename $ifg | cut -d '_' -f2` -le $enddate ]; then
-      ln -s $ifg;
+      #ln -s $ifg;
+      pair=`basename $ifg`
+      mkdir -p $pair
+      cd $pair
+      for ff in `ls $ifg/*tif`; do
+        ln -s $ff
+      done
+      cd $disdir
     fi
    fi
   done
 else
- for ifg in `ls $indir/20* -d 2>/dev/null`; do ln -s $ifg; done
- #echo "nah, not ready yet, do full proc, without startdate enddate please.."
+ for ifg in `ls $indir/20* -d 2>/dev/null`; do
+    pair=`basename $ifg`
+    mkdir -p $pair
+    cd $pair
+    for ff in `ls $ifg/*tif`; do
+      ln -s $ff
+    done
+    cd $disdir
+ done
 fi
 fi
 
+# restore the backed up prev tifs if any
+echo "checking on temporary backup (in case of another run in the same dir)"
+for pair in `ls -d 20??????_20??????`; do
+  for toback in `ls $pair/*.prelb.tif 2>/dev/null`; do
+    toorig=$pair/`basename $toback .prelb.tif` # e.g. geo.unw.tif
+    rm $toorig
+    mv $toback $toorig
+  done
+done
 
+# in GEOC
 if [ $dogacos == 1 ]; then
 # strict means gacos will be used only if available for ALL data
  #using GACOS only if there is at least for half of the epochs
@@ -289,9 +353,129 @@ else
 fi
 fi
 
+# in GEOC
+# backup the orig ext (and link them)
+if [ $prelb_backup -gt 0 ]; then
+  echo "Creating temporary backup of the input ifgs"
+  #extofproc= ...
+  disdir=`pwd`
+  for pair in `ls -d 20??????_20??????`; do
+    cd $pair
+    toback=$pair.geo.$extofproc.tif
+    if [ ! -f $toback ]; then
+      echo "error, no original "$extofproc" tif exists for pair "$pair". removing"
+      cd $disdir; mkdir -p ../GEOC.removed; mv $pair ../GEOC.removed/.
+    else
+      if [ ! -f $toback.prelb.tif ]; then
+        mv $toback $toback.prelb.tif
+        ln -s $toback.prelb.tif $toback
+      else
+        echo "Inconsistency detected - inform Milan for debugging"; exit
+      fi
+      cd $disdir
+    fi
+  done
+fi
+
 cd $workdir
 # first store the original command:
 echo $discmd > "command.in"
+
+
+if [ $setides -gt 0 ]; then
+ echo "checking/generating solid earth tides data"
+ create_LOS_tide_frame_allepochs $frame
+ echo "applying the SET correction"
+ # now using them to create either pha or unw tifs (to GEOC)
+fi
+
+
+if [ $iono -gt 0 ]; then
+ echo "checking/generating ionospheric correction data"
+ python3 -c "from iono_correct import *; make_all_frame_epochs('"$frame"')"
+ echo "applying the ionospheric correction"
+ cd GEOC
+ # using them to either pha or unw tifs (to GEOC)
+ disdir=`pwd`
+ hgtfile=$metadir/$frame.geo.hgt.tif
+ tmpy=`pwd`/../tmp.py
+ echo "from iono_correct import correct_iono_pair;" > $tmpy
+ for pair in `ls -d 20??????_20??????`; do
+   cd $pair
+   # here use the linked
+   infile=$pair.geo.$extofproc.tif
+   if [ ! -L $infile ]; then
+     echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
+     exit
+   fi
+   # as input, and then store as .iono.
+   # and make the link back!
+   date1=`echo $pair | cut -d '_' -f1`
+   date2=`echo $pair | cut -d '_' -f2`
+   #$epochdir
+   if [ $setides -gt 0 ]; then
+     outfile=`pwd`/$pair.geo.$extofproc.notides.noiono.tif
+   else
+     outfile=`pwd`/$pair.geo.$extofproc.noiono.tif
+   fi
+   if [ ! -f $outfile ]; then
+     ionod1=$epochdir/$date1/$date1.geo.iono.code.tif
+     ionod2=$epochdir/$date2/$date2.geo.iono.code.tif   # should be A-B....
+     if [ -f $ionod1 ] && [ -f $ionod2 ]; then
+        #echo $pair
+        #python3 -c "from iono_correct import *;
+        echo "correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
+        #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
+        #gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
+        #if [ ! -f $outfile ]; then
+        #  if [ -f $hgtfile ]; then
+        #     echo "some error, trying to correct"
+        #     gdalwarp2match.py $ionod1 $hgtfile $ionod1.tmp.tif; rm $ionod1; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $ionod1.tmp.tif $ionod1
+        #     gdalwarp2match.py $ionod2 $hgtfile $ionod2.tmp.tif; rm $ionod2; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $ionod2.tmp.tif $ionod2
+        #     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
+        #  fi
+        #
+        rm $infile
+        ln -s $outfile $infile
+     else
+       echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
+     fi
+   fi
+   #if [ -f $outfile ]; then
+   #  rm $infile # that's just a link
+   #  ln -s $outfile $infile
+   #fi
+   cd $disdir
+ done
+ echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
+ python3 $tmpy
+ #rm $tmpy
+ cd $workdir
+fi
+
+
+#hgtfile=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/metadata/012A_05443_131313.geo.hgt.tif
+ #epath=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/epochs
+ #ifgspath=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/interferograms
+ #frame=012A_05443_131313
+ #ext=diff_pha
+ #for ifg in `ls interferograms`; do
+ # date1=`echo $ifg | cut -d '_' -f1`
+ # date2=`echo $ifg | cut -d '_' -f2`
+ # #infile=$ifgpath/$ifg/$ifg.geo.diff_pha.tif
+ # infilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.tif
+ # outfilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.noiono.tif
+ # if [ ! -f $outfilee ]; then
+ # if [ -f $epath/$date1/$date1.geo.iono.code.tif ] && [ -f $epath/$date2/$date2.geo.iono.code.tif ]; then
+ #   #doit=1
+ #   ionod1=$epath/$date1/$date1.geo.iono.code.tif
+ #   ionod2=$epath/$date2/$date2.geo.iono.code.tif   # should be A-B....
+ #   correct_ifg_tides_public $frame $ifg $ext
+ #   gdalwarp2match.py $infilee $hgtfile $infilee'.tmp.tif'
+ #   mv $infilee'.tmp.tif' $infilee
+ #   gmt grdmath $infilee'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB WRAP = $outfilee'=gd:Gtiff'
+ #   #gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB WRAP = $outfile'=gd:Gtiff'
+
 
 if [ $reunw -gt 0 ]; then
  #echo "preparing for custom multilooking - just run ./multirun.sh"

@@ -87,6 +87,48 @@ def make_ionocorr_pair(frame, pair, source = 'code', fixed_f2_height_km = 450, o
     return tecdiff
 
 
+def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile = None, source = 'code', fixed_f2_height_km = 450, outif=None):
+    """ This will correct the ifg pair
+
+    Args:
+        frame (str):    frame ID
+        pair (str):     pair (e.g. '20180930_20181012')
+        ifgtype (str):  one of 'diff_pha', 'diff_unfiltered_pha', 'unw' to correct (or any other extension but apart from 'unw' it will wrap the phase)
+        dolocal (bool): if True, it will try to find the ifg in local GEOC folder
+        infile (str):   if given, it will use this path to load the tif instead of loading from LiCSAR_public
+        source (str):   source model for TEC values. Either 'iri' or 'code'.
+        fixed_f2_height_km (int):  if None, it will estimate this using IRI
+        outif (str):    if given, will export the iono phase screen to given geotiff
+    Returns:
+        xr.DataArray:  corrected ifg
+    """
+    if ifgtype == 'unw':
+        unw = True
+    else:
+        unw = False
+    if not infile:
+        if ifgtype == 'diff_unfiltered_pha':
+            prefer_unfiltered = True
+        else:
+            prefer_unfiltered = False
+        ifgcube = load_ifg(frame, pair, unw = unw, dolocal = dolocal, mag = False, cliparea_geo = None, prefer_unfiltered = prefer_unfiltered)
+        if unw:
+            ifg = ifgcube['unw']
+        else:
+            ifg = ifgcube['pha']
+        ifg = ifg * ifgcube['mask']
+        ifgcube = None
+    else:
+        ifg = load_tif2xr(infile)
+    ifg = ifg.where(ifg != 0)
+    tecdiff = make_ionocorr_pair(frame, pair, source=source, fixed_f2_height_km=fixed_f2_height_km, outif=None)
+    ifg.values = ifg.values - tecdiff.values # AREA_OR_POINT might clash. Assuming same it may differ by 1/2 pixel (ok for ionosphere..)
+    if not unw:
+        ifg = wrap2phase(ifg)
+    if outif:
+        export_xr2tif(ifg, outif)
+    return ifg
+
 
 def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450, alpha = 0.85):
     """
@@ -118,7 +160,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     avg_incidence_angle = float(inc.mean())
     # get hgt # no need anymore (2023/08)
     metadir = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata')
-    metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata','metadata.txt')
+    metafile = os.path.join(metadir,'metadata.txt')
     #hgtfile=os.path.join(metadir, frame+'.geo.hgt.tif')
     #hgt = load_tif2xr(hgtfile)
     #hgt = hgt.where(hgt != 0)
@@ -249,8 +291,8 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
         alpha (float): for CODE only
     '''
     framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
-    hgt = os.path.join(framepubdir, 'metadata', frame+'.geo.hgt.tif')
-    hgt = load_tif2xr(hgt)
+    hgtfile = os.path.join(framepubdir, 'metadata', frame+'.geo.hgt.tif')
+    hgt = load_tif2xr(hgtfile)
     mask = (hgt != 0) * (~np.isnan(hgt))
     if not epochslist:
         epochslist = list(set(fc.get_epochs(frame) + fc.get_epochs_from_ifg_list_pubdir(frame)))
@@ -264,5 +306,5 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
         if not os.path.exists(tif):
             xrda = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha)
             xrda = xrda.where(mask)
-            export_xr2tif(xrda, tif)
-
+            export_xr2tif(xrda, tif) #, refto=hgtfile)
+            # but it still does not really fit - ok, because the xarray outputs here are gridline-registered while our ifgs are pixel registered...hmmm..
