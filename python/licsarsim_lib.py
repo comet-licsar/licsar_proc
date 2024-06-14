@@ -475,11 +475,18 @@ for fr in frames:
     eqapar = fr+'/geo/EQA.dem_par'
     mlipar = None
     for rslc in rslcs:
-        rdctif = rslc2mli(rslc)
-        print(rdctif)
+        try:
+            rdctif = rslc2mli(rslc)
+            print(rdctif)
+        except:
+            print('erroneous')
         if not mlipar:
             mlipar = rslc[:-4]+'mli.par'
+            os.system('cp '+mlipar+' '+fr+'/geo/.')
         # then step 2 despeckle...
         # rdctif = '/path/to/despeckled.tif'
-        geocode_tif(rdctif)
+        #geocode_tif(rdctif)
+
+
+
 '''
