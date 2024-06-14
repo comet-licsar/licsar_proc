@@ -68,10 +68,11 @@ def make_ionocorr_pair(frame, pair, source = 'code', fixed_f2_height_km = 450, o
     Returns:
         xr.DataArray:   estimated ionospheric phase screen
     """
+    # TODO - this below will mean we cannot use local ifgs. But can/must be (easily) improved!
     ifg = load_ifg(frame, pair, unw = False, prefer_unfiltered = False) # just to get mask etc.
     epochs = pair.split('_')
-    tecphase1 = os.path.join(os.environ['LiCSAR_public'], ,frame,'epochs',epochs[0],epochs[0]+'.')
-    tecphase2 = 
+    tecphase1 = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'epochs',epochs[0],epochs[0]+'.geo.iono.'+source+'.tif')
+    tecphase2 = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'epochs',epochs[1],epochs[1]+'.geo.iono.'+source+'.tif')
     if os.path.exists(tecphase1):
         tecphase1 = load_tif2xr(tecphase1)
     else:
