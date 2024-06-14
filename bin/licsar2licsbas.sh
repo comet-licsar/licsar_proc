@@ -387,6 +387,35 @@ if [ $setides -gt 0 ]; then
  create_LOS_tide_frame_allepochs $frame
  echo "applying the SET correction"
  # now using them to create either pha or unw tifs (to GEOC)
+ cd GEOC; disdir=`pwd`
+ for pair in `ls -d 20??????_20??????`; do
+   cd $pair
+   infile=`pwd`/$pair.geo.$extofproc.tif
+   if [ ! -L $infile ]; then
+     echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
+     exit
+   fi
+   date1=`echo $pair | cut -d '_' -f1`
+   date2=`echo $pair | cut -d '_' -f2`
+   outfile=`pwd`/$pair.geo.$extofproc.notides.tif
+   if [ ! -f $outfile ]; then
+     tided1=$epochdir/$date1/$date1.tide.geo.tif
+     tided2=$epochdir/$date2/$date2.tide.geo.tif   # should be A-B....
+     if [ -f $tided1 ] && [ -f $tided2 ]; then
+        #echo $pair
+        if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
+        gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
+        if [ -f $outfile ]; then
+          rm $infile
+          ln -s `basename $outfile` `basename $infile`
+        fi
+     else
+       echo "WARNING: SET estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
+     fi
+   fi
+   cd $disdir
+ done
+ cd $workdir
 fi
 
 
