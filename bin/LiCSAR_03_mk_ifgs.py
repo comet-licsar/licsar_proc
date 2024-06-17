@@ -213,9 +213,10 @@ def main(argv=None):
         with open(ifgListFile) as f:
             for line in f:
                 mtch = re.search('(\d+)[-_\s]+(\d+)',line)
-                procslavelist += mtch.groups()
-                date_pair = [dt.datetime.strptime(ds,'%Y%m%d') for ds in mtch.groups()]
-                date_pairs.append(date_pair)
+                if mtch != None:
+                    procslavelist += mtch.groups()
+                    date_pair = [dt.datetime.strptime(ds,'%Y%m%d') for ds in mtch.groups()]
+                    date_pairs.append(date_pair)
 
         print(date_pairs)
         procslavelist = list(set(procslavelist))
