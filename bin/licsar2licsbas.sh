@@ -459,6 +459,7 @@ if [ $iono -gt 0 ]; then
      if [ -f $ionod1 ] && [ -f $ionod2 ]; then
         #echo $pair
         #python3 -c "from iono_correct import *;
+        echo "print('"$pair"')" >> $tmpy
         echo "try:" >> $tmpy
         echo "    correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
         echo "except:" >> $tmpy

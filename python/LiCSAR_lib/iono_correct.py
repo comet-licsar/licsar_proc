@@ -69,7 +69,7 @@ def make_ionocorr_pair(frame, pair, source = 'code', fixed_f2_height_km = 450, o
         xr.DataArray:   estimated ionospheric phase screen
     """
     # TODO - this below will mean we cannot use local ifgs. But can/must be (easily) improved!
-    ifg = load_ifg(frame, pair, unw = False, prefer_unfiltered = False) # just to get mask etc.
+    ifg = load_ifg(frame, pair, unw = False, mag = False, prefer_unfiltered = False, stdout = False) # just to get mask etc.
     epochs = pair.split('_')
     tecphase1 = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'epochs',epochs[0],epochs[0]+'.geo.iono.'+source+'.tif')
     tecphase2 = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'epochs',epochs[1],epochs[1]+'.geo.iono.'+source+'.tif')
@@ -82,7 +82,7 @@ def make_ionocorr_pair(frame, pair, source = 'code', fixed_f2_height_km = 450, o
     else:
         tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, source = source)
     # do their difference
-    tecdiff = tecphase1 - tecphase2  # 07/2023: should it be this way/opposite???!!!! (i think so)
+    tecdiff = tecphase1 - tecphase2
     #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
     #tecdiff = interpolate_nans_bivariate(tecdiff)
     #tecdiff = tecdiff.interp_like(ifg, method='linear', kwargs={"bounds_error": False, "fill_value": None})
@@ -309,12 +309,12 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
         epochslist.sort()
         #epochslist = os.listdir(os.path.join(framepubdir, 'epochs')) # careful, non-epoch folders would cause error!
     for epoch in epochslist:
-        print(epoch)
         epochdir = os.path.join(framepubdir, 'epochs', epoch)
         if not os.path.exists(epochdir):
             os.mkdir(epochdir)
         tif = os.path.join(epochdir, epoch+'.geo.iono.'+source+'.tif')
         if not os.path.exists(tif):
+            print(epoch)
             xrda = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha)
             xrda = xrda.where(mask)
             export_xr2tif(xrda, tif) #, refto=hgtfile)
