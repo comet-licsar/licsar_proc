@@ -306,6 +306,7 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
     mask = (hgt != 0) * (~np.isnan(hgt))
     if not epochslist:
         epochslist = list(set(fc.get_epochs(frame) + fc.get_epochs_from_ifg_list_pubdir(frame)))
+        epochslist.sort()
         #epochslist = os.listdir(os.path.join(framepubdir, 'epochs')) # careful, non-epoch folders would cause error!
     for epoch in epochslist:
         print(epoch)
