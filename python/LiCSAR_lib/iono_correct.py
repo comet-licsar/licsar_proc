@@ -121,7 +121,8 @@ def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile
             prefer_unfiltered = True
         else:
             prefer_unfiltered = False
-        ifgcube = load_ifg(frame, pair, unw = unw, dolocal = dolocal, mag = False, cliparea_geo = None, prefer_unfiltered = prefer_unfiltered)
+        ifgcube = load_ifg(frame, pair, unw = unw, dolocal = dolocal, mag = False, cliparea_geo = None,
+                           prefer_unfiltered = prefer_unfiltered, stdout = False)
         if unw:
             ifg = ifgcube['unw']
         else:
@@ -134,7 +135,7 @@ def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile
     tecdiff = make_ionocorr_pair(frame, pair, source=source, fixed_f2_height_km=fixed_f2_height_km, outif=None)
     ifg.values = ifg.values - tecdiff.values # AREA_OR_POINT might clash. Assuming same it may differ by 1/2 pixel (ok for ionosphere..)
     if not unw:
-        ifg = wrap2phase(ifg)
+        ifg.values = wrap2phase(ifg.values)
     if outif:
         export_xr2tif(ifg, outif)
     return ifg
