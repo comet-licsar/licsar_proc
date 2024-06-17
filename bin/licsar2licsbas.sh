@@ -406,7 +406,7 @@ if [ $setides -gt 0 ]; then
         if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
         gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
         if [ -f $outfile ]; then
-          rm $infile
+          rm $infile  # only removing the link
           ln -s `basename $outfile` `basename $infile`
         fi
      else
@@ -429,6 +429,11 @@ if [ $iono -gt 0 ]; then
  #hgtfile=$metadir/$frame.geo.hgt.tif
  tmpy=`pwd`/../tmp.py
  echo "from iono_correct import correct_iono_pair;" > $tmpy
+ if [ $setides -gt 0 ]; then
+     outext=$extofproc.notides.noiono
+ else
+     outext=$extofproc.noiono
+ fi
  for pair in `ls -d 20??????_20??????`; do
    cd $pair
    # here use the linked
@@ -442,18 +447,17 @@ if [ $iono -gt 0 ]; then
    date1=`echo $pair | cut -d '_' -f1`
    date2=`echo $pair | cut -d '_' -f2`
    #$epochdir
-   if [ $setides -gt 0 ]; then
-     outfile=`pwd`/$pair.geo.$extofproc.notides.noiono.tif
-   else
-     outfile=`pwd`/$pair.geo.$extofproc.noiono.tif
-   fi
+   outfile=`pwd`/$pair.geo.$outext.tif
    if [ ! -f $outfile ]; then
      ionod1=$epochdir/$date1/$date1.geo.iono.code.tif
      ionod2=$epochdir/$date2/$date2.geo.iono.code.tif   # should be A-B....
      if [ -f $ionod1 ] && [ -f $ionod2 ]; then
         #echo $pair
         #python3 -c "from iono_correct import *;
-        echo "correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
+        echo "try:" >> $tmpy
+        echo "    correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
+        echo "except:" >> $tmpy
+        echo "    print('error correcting pair "$pair"')" >> $tmpy
         #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
         #gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
         #if [ ! -f $outfile ]; then
@@ -464,7 +468,8 @@ if [ $iono -gt 0 ]; then
         #     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
         #  fi
         #
-        rm $infile
+        rm $infile.backup 2>/dev/null
+        mv $infile $infile.backup
         ln -s `basename $outfile` `basename $infile`
      else
        echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
@@ -478,6 +483,13 @@ if [ $iono -gt 0 ]; then
  done
  echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
  python3 $tmpy
+ for pair in `ls -d 20??????_20??????`; do
+   outlink=$pair/$pair.geo.$outext.tif
+   if [ ! -e ${outlink} ]; then
+     rm $outlink
+     mv $outlink.backup $outlink
+   fi
+ done
  #rm $tmpy
  cd $workdir
 fi
