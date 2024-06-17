@@ -473,9 +473,9 @@ if [ $iono -gt 0 ]; then
         #     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
         #  fi
         #
-        rm $infile.backup 2>/dev/null
-        mv $infile $infile.backup
-        ln -s `basename $outfile` `basename $infile`
+        #rm $infile.backup 2>/dev/null
+        #mv $infile $infile.backup
+        #ln -s `basename $outfile` `basename $infile`
      else
        echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
      fi
@@ -486,16 +486,29 @@ if [ $iono -gt 0 ]; then
    #fi
    cd $disdir
  done
- echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
- python3 $tmpy
+ pairstoproc=`grep frame $tmpy | wc -l`
+ if [ $pairstoproc -gt 0 ]; then
+  echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
+  python3 $tmpy
+ fi
+ disdir=`pwd`
  for pair in `ls -d 20??????_20??????`; do
-   outlink=$pair/$pair.geo.$outext.tif
-   if [ ! -e ${outlink} ]; then
-     rm $outlink
-     mv $outlink.backup $outlink
+   cd $pair
+   outfile=$pair.geo.$outext.tif
+   if [ -e ${outfile} ]; then
+     # link this one instead of this link
+     ifglink=$pair.geo.$extofproc.tif
+     if [ -L $ifglink ]; then
+        rm $ifglink
+        ln -s $outfile $ifglink
+     else
+        echo "ERROR, the file "$ifglink" should be a link - not continuing"
+        exit
+     fi
    fi
+   cd $disdir
  done
- #rm $tmpy
+ rm $tmpy
  cd $workdir
 fi
 
