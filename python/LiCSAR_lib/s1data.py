@@ -70,6 +70,8 @@ def get_bperps_asf(product_id):
             mdates.append(mdate)
         pdict = {'ref_date': mdates, 'date': bdates, 'bperp': bperps, 'btemp': btemps}
         bperpd = pd.DataFrame(pdict)
+        bperpd=bperpd.dropna()
+        bperpd=bperpd.drop_duplicates()
         return bperpd
     except:
         print('ERROR: perhaps install asf_search, or it did not find the data')

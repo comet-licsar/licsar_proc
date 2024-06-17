@@ -208,16 +208,39 @@ imdates = tools_lib.ifgdates2imdates(ifgdates)
 #    io_lib.make_dummy_bperp(bperp_file, imdates)
 
 
+
 try:
     bperp, ismissing = read_bperp_file(bperp_file, imdates, return_missflag = True)
     if ismissing:
         print('some epochs have missing bperps, trying to find them through ASF')
-        frame=os.path.basename(framedir)
         import framecare as fc
-        rc = fc.make_bperp_file(frame, bperp_file)
+        frame=os.path.basename(framedir)
+        bperp=np.array(bperp)
+        imdates=np.array(imdates)
+        missingdates = imdates[bperp==0]
+        refdate = fc.get_master(frame)
+        missingdates = missingdates[missingdates != refdate]
+        # load existing
+        prevbp = pd.read_csv(bperp_file, header=None, sep = ' ')
+        prevbp.columns = ['ref_date', 'date', 'bperp', 'btemp']
+        # get new
+        bpd = fc.make_bperp_file(frame, bperp_file, donotstore = True)
+        for m in missingdates:
+            mpd = bpd[bpd.date==m]
+            if not mpd.empty:
+                mbperp = mpd.bperp.mean()
+                mbtemp = mpd.btemp.values[0]
+            else:
+                mbperp = 0
+                mbtemp = fc.datediff(refdate, m)
+                print('no ASF information for epoch '+m+'. Storing only bperp=0')
+            prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), mbperp, int(mbtemp) ]
+        prevbp = prevbp.sort_values('btemp').reset_index(drop=True)
+        #bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
+        prevbp.to_csv(bperp_file, sep = ' ', index = False, header = False)
         bperp = read_bperp_file(bperp_file, imdates)
 except:
-    print('error reading baselines file! trying to recreate through ASF')
+    print('error reading baselines file! trying to fully recreate through ASF')
     try:
         if os.path.exists(bperp_file):
             os.remove(bperp_file)
