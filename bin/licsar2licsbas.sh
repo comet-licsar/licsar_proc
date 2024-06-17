@@ -193,6 +193,10 @@ if [ `echo $frame | grep -c '_'` -lt 1 ]; then
  echo "this is not a frame - check your input parameters please, yet continuing"
 fi
 
+
+
+# INIT
+source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 thisdir=`pwd`
 if [ $dolocal == 0 ]; then
  if [ ! `pwd | rev | cut -d '/' -f1 | rev` == $frame ]; then
@@ -389,6 +393,7 @@ if [ $setides -gt 0 ]; then
  # now using them to create either pha or unw tifs (to GEOC)
  cd GEOC; disdir=`pwd`
  for pair in `ls -d 20??????_20??????`; do
+   echo $pair
    cd $pair
    infile=`pwd`/$pair.geo.$extofproc.tif
    if [ ! -L $infile ]; then
