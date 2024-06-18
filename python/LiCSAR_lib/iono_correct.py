@@ -280,6 +280,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     f0 = 5.4050005e9
     # inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
     # ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+    # we change the sign here as the effect on phase is opposite (ionospheric phase advance; less negative in case of stronger ionosphere)
     ionoxr = 4 * np.pi * 40.308193 / speed_of_light / f0 * ionoxr
     tecphase = ionoxr #get_tecphase(epoch)
     tecphase = interpolate_nans_bivariate(tecphase)

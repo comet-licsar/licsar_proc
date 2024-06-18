@@ -409,7 +409,7 @@ if [ $setides -gt 0 ]; then
      if [ -f $tided1 ] && [ -f $tided2 ]; then
         #echo $pair
         if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
-        gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
+        gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided1 $tided2 SUB 226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
         if [ -f $outfile ]; then
           rm $infile  # only removing the link
           ln -s `basename $outfile` `basename $infile`
