@@ -332,6 +332,8 @@ else
     cd $disdir
  done
 fi
+ # once done, switch to 'local' so we can use those linked data further
+ dolocal=1
 fi
 
 # restore the backed up prev tifs if any
