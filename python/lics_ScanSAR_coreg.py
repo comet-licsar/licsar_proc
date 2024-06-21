@@ -1102,8 +1102,9 @@ def main():
       daz_list = doff_par.get_value('azimuth_offset_polynomial', dtype = float)
       dr = dr_list[0]
       daz = daz_list[0]
-      
-      daz_value_icc = daz_value_icc + daz # ML, see above
+      if it == 1:
+        daz_value_icc = daz # ML, see above ### but need to add daz_value_icc only from the first iteration
+
       dr_list_mli = [0] * 6
       dr_list_mli[0] = dr_list[0]/rlks
       dr_list_mli[1] = dr_list[1]*rlks/rlks
