@@ -764,11 +764,11 @@ if [ $run_jasmin -eq 1 ]; then
   # so here we have already unwrapped data and we will just post-correct the ramps
   if [ $setides -gt 0 ]; then
     #echo "insert code to post-correct SET here"
-    echo "python3 -c \"from lics_tstools import *; cumcube_remove_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000)" >> jasmin_run.sh
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000)" >> jasmin_run.sh
   fi
   if [ $iono -gt 0 ]; then
     #echo "insert code to post-correct iono here"
-    echo "python3 -c \"from lics_tstools import *; cumcube_remove_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi))\"" >> jasmin_run.sh
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi))\"" >> jasmin_run.sh
   fi
  fi
  
