@@ -332,6 +332,8 @@ else
     cd $disdir
  done
 fi
+ # once done, switch to 'local' so we can use those linked data further
+ dolocal=1
 fi
 
 # restore the backed up prev tifs if any
@@ -387,130 +389,174 @@ echo $discmd > "command.in"
 
 
 if [ $setides -gt 0 ]; then
- echo "checking/generating solid earth tides data"
- create_LOS_tide_frame_allepochs $frame
- echo "applying the SET correction"
- # now using them to create either pha or unw tifs (to GEOC)
- cd GEOC; disdir=`pwd`
- for pair in `ls -d 20??????_20??????`; do
-   echo $pair
-   cd $pair
-   infile=`pwd`/$pair.geo.$extofproc.tif
-   if [ ! -L $infile ]; then
-     echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
-     exit
-   fi
-   date1=`echo $pair | cut -d '_' -f1`
-   date2=`echo $pair | cut -d '_' -f2`
-   outfile=`pwd`/$pair.geo.$extofproc.notides.tif
-   if [ ! -f $outfile ]; then
-     tided1=$epochdir/$date1/$date1.tide.geo.tif
-     tided2=$epochdir/$date2/$date2.tide.geo.tif   # should be A-B....
-     if [ -f $tided1 ] && [ -f $tided2 ]; then
-        #echo $pair
-        if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
-        gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided1 $tided2 SUB 226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
-        if [ -f $outfile ]; then
-          rm $infile  # only removing the link
-          ln -s `basename $outfile` `basename $infile`
+  echo "checking/generating solid earth tides data"
+  create_LOS_tide_frame_allepochs $frame
+  if [ $reunw -gt 0 ]; then  # in such case we correct before unwrapping
+     echo "applying the SET correction"
+	 # now using them to create either pha or unw tifs (to GEOC)
+	 cd GEOC; disdir=`pwd`
+	 for pair in `ls -d 20??????_20??????`; do
+	   echo $pair
+	   cd $pair
+	   infile=`pwd`/$pair.geo.$extofproc.tif
+	   if [ ! -L $infile ]; then
+		 echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
+		 exit
+	   fi
+	   date1=`echo $pair | cut -d '_' -f1`
+	   date2=`echo $pair | cut -d '_' -f2`
+	   outfile=`pwd`/$pair.geo.$extofproc.notides.tif
+	   if [ ! -f $outfile ]; then
+		 tided1=$epochdir/$date1/$date1.tide.geo.tif
+		 tided2=$epochdir/$date2/$date2.tide.geo.tif   # should be A-B....
+		 if [ -f $tided1 ] && [ -f $tided2 ]; then
+			#echo $pair
+			if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
+			gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided1 $tided2 SUB 226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
+			if [ -f $outfile ]; then
+			  rm $infile  # only removing the link
+			  ln -s `basename $outfile` `basename $infile`
+			fi
+		 else
+		   echo "WARNING: SET estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
+		 fi
+	   fi
+	   cd $disdir
+	 done
+  #else   # i mean, link it anyway, as we might want to check loading to cube etc.
+  else
+    echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  fi
+   # correct only on epoch level, i.e. now just link to 
+   echo "Linking solid earth tide corrections per epoch"
+   mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
+   extfull=tide.geo.tif
+   for epochpath in `ls $epochdir/20?????? -d`; do
+      epoch=`basename $epochpath`
+      if [ -f $epochpath/$epoch.$extfull ]; then
+        if [ ! -e $epoch/$epoch.$extfull ]; then
+         mkdir -p $epoch
+         cd $epoch
+         ln -s $epochpath/$epoch.$extfull
+         cd ..
         fi
-     else
-       echo "WARNING: SET estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
-     fi
-   fi
+      fi
+   done
    cd $disdir
- done
- cd $workdir
+  #fi
+  cd $workdir
 fi
 
 
 if [ $iono -gt 0 ]; then
  echo "checking/generating ionospheric correction data"
  python3 -c "from iono_correct import *; make_all_frame_epochs('"$frame"')"
- echo "applying the ionospheric correction"
- cd GEOC
- # using them to either pha or unw tifs (to GEOC)
- disdir=`pwd`
- #hgtfile=$metadir/$frame.geo.hgt.tif
- tmpy=`pwd`/../tmp.py
- echo "from iono_correct import correct_iono_pair;" > $tmpy
- if [ $setides -gt 0 ]; then
-     outext=$extofproc.notides.noiono
- else
-     outext=$extofproc.noiono
- fi
- for pair in `ls -d 20??????_20??????`; do
-   cd $pair
-   # here use the linked
-   infile=`pwd`/$pair.geo.$extofproc.tif
-   if [ ! -L $infile ]; then
-     echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
-     exit
-   fi
-   # as input, and then store as .iono.
-   # and make the link back!
-   date1=`echo $pair | cut -d '_' -f1`
-   date2=`echo $pair | cut -d '_' -f2`
-   #$epochdir
-   outfile=`pwd`/$pair.geo.$outext.tif
-   if [ ! -f $outfile ]; then
-     ionod1=$epochdir/$date1/$date1.geo.iono.code.tif
-     ionod2=$epochdir/$date2/$date2.geo.iono.code.tif   # should be A-B....
-     if [ -f $ionod1 ] && [ -f $ionod2 ]; then
-        #echo $pair
-        #python3 -c "from iono_correct import *;
-        echo "print('"$pair"')" >> $tmpy
-        echo "try:" >> $tmpy
-        echo "    correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
-        echo "except:" >> $tmpy
-        echo "    print('error correcting pair "$pair"')" >> $tmpy
-        #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
-        #gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
-        #if [ ! -f $outfile ]; then
-        #  if [ -f $hgtfile ]; then
-        #     echo "some error, trying to correct"
-        #     gdalwarp2match.py $ionod1 $hgtfile $ionod1.tmp.tif; rm $ionod1; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $ionod1.tmp.tif $ionod1
-        #     gdalwarp2match.py $ionod2 $hgtfile $ionod2.tmp.tif; rm $ionod2; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $ionod2.tmp.tif $ionod2
-        #     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
-        #  fi
-        #
-        #rm $infile.backup 2>/dev/null
-        #mv $infile $infile.backup
-        #ln -s `basename $outfile` `basename $infile`
-     else
-       echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
-     fi
-   fi
-   #if [ -f $outfile ]; then
-   #  rm $infile # that's just a link
-   #  ln -s $outfile $infile
-   #fi
+ if [ $reunw -gt 0 ]; then
+	 echo "applying the ionospheric correction"
+	 cd GEOC
+	 # using them to either pha or unw tifs (to GEOC)
+	 disdir=`pwd`
+	 #hgtfile=$metadir/$frame.geo.hgt.tif
+	 tmpy=`pwd`/../tmp.py
+	 echo "from iono_correct import correct_iono_pair;" > $tmpy
+	 if [ $setides -gt 0 ]; then
+		 outext=$extofproc.notides.noiono
+	 else
+		 outext=$extofproc.noiono
+	 fi
+	 for pair in `ls -d 20??????_20??????`; do
+	   cd $pair
+	   # here use the linked
+	   infile=`pwd`/$pair.geo.$extofproc.tif
+	   if [ ! -L $infile ]; then
+		 echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
+		 exit
+	   fi
+	   # as input, and then store as .iono.
+	   # and make the link back!
+	   date1=`echo $pair | cut -d '_' -f1`
+	   date2=`echo $pair | cut -d '_' -f2`
+	   #$epochdir
+	   outfile=`pwd`/$pair.geo.$outext.tif
+	   if [ ! -f $outfile ]; then
+		 ionod1=$epochdir/$date1/$date1.geo.iono.code.tif
+		 ionod2=$epochdir/$date2/$date2.geo.iono.code.tif   # should be A-B....
+		 if [ -f $ionod1 ] && [ -f $ionod2 ]; then
+			#echo $pair
+			#python3 -c "from iono_correct import *;
+			echo "print('"$pair"')" >> $tmpy
+			echo "try:" >> $tmpy
+			echo "    correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
+			echo "except:" >> $tmpy
+			echo "    print('error correcting pair "$pair"')" >> $tmpy
+			#if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
+			#gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
+			#if [ ! -f $outfile ]; then
+			#  if [ -f $hgtfile ]; then
+			#     echo "some error, trying to correct"
+			#     gdalwarp2match.py $ionod1 $hgtfile $ionod1.tmp.tif; rm $ionod1; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $ionod1.tmp.tif $ionod1
+			#     gdalwarp2match.py $ionod2 $hgtfile $ionod2.tmp.tif; rm $ionod2; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $ionod2.tmp.tif $ionod2
+			#     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB $grdmextra = $outfile'=gd:Gtiff'
+			#  fi
+			#
+			#rm $infile.backup 2>/dev/null
+			#mv $infile $infile.backup
+			#ln -s `basename $outfile` `basename $infile`
+		 else
+		   echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
+		 fi
+	   fi
+	   #if [ -f $outfile ]; then
+	   #  rm $infile # that's just a link
+	   #  ln -s $outfile $infile
+	   #fi
+	   cd $disdir
+	 done
+	 pairstoproc=`grep frame $tmpy | wc -l`
+	 if [ $pairstoproc -gt 0 ]; then
+	  echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
+	  python3 $tmpy
+	 fi
+	 disdir=`pwd`
+	 for pair in `ls -d 20??????_20??????`; do
+	   cd $pair
+	   outfile=$pair.geo.$outext.tif
+	   if [ -e ${outfile} ]; then
+		 # link this one instead of this link
+		 ifglink=$pair.geo.$extofproc.tif
+		 if [ -L $ifglink ]; then
+			rm $ifglink
+			ln -s $outfile $ifglink
+		 else
+			echo "ERROR, the file "$ifglink" should be a link - not continuing"
+			exit
+		 fi
+	   fi
+	   cd $disdir
+	 done
+	 rm $tmpy
+  else
+   echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  fi
+  #else
+   # correct only on epoch level, i.e. now just link to 
+   echo "Linking iono corrections per epoch"
+   mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
+   extfull=geo.iono.code.tif
+   for epochpath in `ls $epochdir/20?????? -d`; do
+      epoch=`basename $epochpath`
+      if [ -f $epochpath/$epoch.$extfull ]; then
+        if [ ! -e $epoch/$epoch.$extfull ]; then
+         mkdir -p $epoch
+         cd $epoch
+         ln -s $epochpath/$epoch.$extfull
+         cd ..
+        fi
+      fi
+   done
    cd $disdir
- done
- pairstoproc=`grep frame $tmpy | wc -l`
- if [ $pairstoproc -gt 0 ]; then
-  echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
-  python3 $tmpy
- fi
- disdir=`pwd`
- for pair in `ls -d 20??????_20??????`; do
-   cd $pair
-   outfile=$pair.geo.$outext.tif
-   if [ -e ${outfile} ]; then
-     # link this one instead of this link
-     ifglink=$pair.geo.$extofproc.tif
-     if [ -L $ifglink ]; then
-        rm $ifglink
-        ln -s $outfile $ifglink
-     else
-        echo "ERROR, the file "$ifglink" should be a link - not continuing"
-        exit
-     fi
-   fi
-   cd $disdir
- done
- rm $tmpy
- cd $workdir
+  #fi
+  cd $workdir
 fi
 
 
@@ -710,9 +756,24 @@ if [ $run_jasmin -eq 1 ]; then
  #fi
  echo "module load "$LB_version >> jasmin_run.sh
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
- #include generation of outputs
+ 
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
+ tsdir=TS_$geocd
+ if [ $reunw -eq 0 ]; then
+  # so here we have already unwrapped data and we will just post-correct the ramps
+  if [ $setides -gt 0 ]; then
+    #echo "insert code to post-correct SET here"
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000)" >> jasmin_run.sh
+  fi
+  if [ $iono -gt 0 ]; then
+    #echo "insert code to post-correct iono here"
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi))\"" >> jasmin_run.sh
+  fi
+ fi
+ 
+ #include generation of outputs
+
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
