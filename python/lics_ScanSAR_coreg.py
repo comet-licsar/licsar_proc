@@ -7,6 +7,11 @@ import ntpath
 import getopt
 import re
 import numpy as np
+
+
+# NOTE FOR TODO:
+# there was a bug causing cc_azi in daz table being doubled if >140 mm. Fixed and installed on 26th June
+
 try:
   import py_gamma as pg
 except ImportError as e:
