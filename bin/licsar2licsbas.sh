@@ -395,6 +395,10 @@ if [ $setides -gt 0 ]; then
      echo "applying the SET correction"
 	 # now using them to create either pha or unw tifs (to GEOC)
 	 cd GEOC; disdir=`pwd`
+	 hgtfile=`ls *.geo.hgt.tif | head -n 1`
+	 regt=`gmt grdinfo $hgtfile | grep registration | gawk {'print $2'}`
+	 #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi   # now use only for wrapped data..
+	 grdmextra='WRAP'
 	 for pair in `ls -d 20??????_20??????`; do
 	   echo $pair
 	   cd $pair
@@ -411,8 +415,15 @@ if [ $setides -gt 0 ]; then
 		 tided2=$epochdir/$date2/$date2.tide.geo.tif   # should be A-B....
 		 if [ -f $tided1 ] && [ -f $tided2 ]; then
 			#echo $pair
-			if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi
-			gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided1 $tided2 SUB 226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
+			#
+			if [ `gmt grdinfo $infile | grep registration | gawk {'print $2'}` == $regt ]; then  #Pixel ]; then
+			 gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided1 $tided2 SUB 226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
+			else
+			 # half pixel issue in older frames! but ok for tides, so:
+			 # echo "print('"$pair"')" >> $tmpy
+			 echo "Warning, the pair "$pair" is in pixel registration. Slower workaround"
+			 ifg_remove_tides.py $hgtfile $infile $tided1 $tided2 $outfile
+			fi
 			if [ -f $outfile ]; then
 			  rm $infile  # only removing the link
 			  ln -s `basename $outfile` `basename $infile`
@@ -456,7 +467,7 @@ if [ $iono -gt 0 ]; then
 	 cd GEOC
 	 # using them to either pha or unw tifs (to GEOC)
 	 disdir=`pwd`
-	 #hgtfile=$metadir/$frame.geo.hgt.tif
+	 #hgtfile=`ls *.geo.hgt.tif | head -n 1`
 	 tmpy=`pwd`/../tmp.py
 	 echo "from iono_correct import correct_iono_pair;" > $tmpy
 	 if [ $setides -gt 0 ]; then
