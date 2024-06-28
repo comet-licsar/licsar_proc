@@ -395,7 +395,7 @@ if [ $setides -gt 0 ]; then
      echo "applying the SET correction"
 	 # now using them to create either pha or unw tifs (to GEOC)
 	 cd GEOC; disdir=`pwd`
-	 hgtfile=`ls *.geo.hgt.tif | head -n 1`
+	 hgtfile=$disdir/`ls *.geo.hgt.tif | head -n 1`
 	 regt=`gmt grdinfo $hgtfile | grep registration | gawk {'print $2'}`
 	 #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi   # now use only for wrapped data..
 	 grdmextra='WRAP'
