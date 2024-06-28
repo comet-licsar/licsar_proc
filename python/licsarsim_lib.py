@@ -437,7 +437,8 @@ def geocode_tif(tif, lut = 'geo/20160901.lt_fine',
     cmd = 'multi_look_MLI {0} {1} {0}2 {0}2.par {2} {3} >/dev/null'.format(tmpbin, mlipar, rgfactor, azfactor)
     os.system(cmd)
     width_lut = get_param_gamma('width', eqapar, floatt=False) # str
-    cmd = 'geocode_back {0}2 {1} {2} {3} {4} - 1 0 >/dev/null'.format(tmpbin, str(width), lut, outtif+'.bin', width_lut)
+    width_mli = get_param_gamma('range_samples',tmpbin+'2.par', floatt=False)
+    cmd = 'geocode_back {0}2 {1} {2} {3} {4} - 1 0 >/dev/null'.format(tmpbin, width_mli, lut, outtif+'.bin', width_lut)
     print('geocoding')
     os.system(cmd)
     cmd = 'data2geotiff {0} {1} 2 {2} >/dev/null'.format(eqapar, outtif+'.bin', outtif)
