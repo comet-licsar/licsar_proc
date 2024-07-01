@@ -295,7 +295,7 @@ for epoch in `ls $epochdir`; do
   if [ $epoch -ge $startdate ] && [ $epoch -le $enddate ]; then
     gacosfile=$epochdir/$epoch/$epoch.sltd.geo.tif
     if [ -f $gacosfile ]; then
-     ln -s $gacosfile $workdir/GACOS/$epoch.sltd.geo.tif
+     ln -s $gacosfile $workdir/GACOS/$epoch.sltd.geo.tif 2>/dev/null
     fi
   fi
 done
