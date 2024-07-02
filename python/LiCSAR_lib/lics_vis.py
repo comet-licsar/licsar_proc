@@ -86,6 +86,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     minlat, maxlat = float(np.min(grid.lat)), float(np.max(grid.lat))
 
     fig = pygmt.Figure()
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx") #, MAP_FRAME_TYPE="plain")
     projection = "M13c" # 'R13c' for Robinson etc.
     region = [minlon, maxlon, minlat, maxlat]
     fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
