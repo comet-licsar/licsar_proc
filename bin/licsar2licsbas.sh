@@ -28,6 +28,7 @@ if [ -z $1 ]; then
  echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future this may also add --singular)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "-- Processing tweaks --"
+ echo "-h 14 .... set your own number of processing hours (14 by default)"
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
  echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping)"
  echo "(other params, for admins etc.)"
@@ -76,10 +77,13 @@ bovls=0
 setides=0
 iono=0
 prelb_backup=0
+lotushours=0
 
 discmd="$0 $@"
-while getopts ":M:HucTsdbSClWgmaAieFPRkG:t:n:" option; do
+while getopts ":M:h:HucTsdbSClWgmaAieFPRkG:t:n:" option; do
  case "${option}" in
+  h) lotushours=${OPTARG};
+     ;;
   M) multi=${OPTARG};
      #shift
      ;;
@@ -235,9 +239,15 @@ source $metadir/metadata.txt #this will bring 'master=' info
 
 
  # setting for JASMIN processing
- hours=14
- if [ $multi -eq 1 ]; then
-  hours=23
+ if [ $lotushours -eq 0 ]; then
+  hours=14
+  if [ $multi -eq 1 ]; then
+   hours=23
+  fi
+ else
+  hours=$lotushours
+  echo "setting processing time to "$hours
+  echo "(expecting you know what you are doing - i.e. non-comet queue has limit up to 23:59)"
  fi
  memm=8192 # requesting 8GB RAM per processor
  let memmfull=$nproc'*'$memm
