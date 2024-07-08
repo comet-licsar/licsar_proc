@@ -4,13 +4,13 @@
 
 if [ -z $1 ]; then 
  echo "USAGE: provide pair, and keep being in the frame folder"
- echo "e.g. create_bovl_ifg.sh 20230115_20230127 [1] ... to generate bovl ddiff ifg between those dates. Optional param [1] would filter the bovl"
+ echo "e.g. create_bovl_ifg.sh 20230115_20230127 [0] ... to generate bovl ddiff ifg between those dates. Optional param [0] would NOT filter the bovl"
  exit
 fi
 
-filterit=0
+filterit=1
 if [ ! -z $2 ]; then
- if [ $2 == 1 ]; then filterit=1;
+ if [ $2 == 0 ]; then filterit=0;
  else
   echo "provided unexpected extra parameter, cancelling now"; exit
  fi

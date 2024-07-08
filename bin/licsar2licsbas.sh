@@ -338,6 +338,8 @@ fi
 
 # restore the backed up prev tifs if any
 echo "checking on temporary backup (in case of another run in the same dir)"
+noprelb=`ls 20*/*prelb.tif 2>/dev/null | wc -l`
+if [ $noprelb -gt 0 ]; then
 for pair in `ls -d 20??????_20??????`; do
   for toback in `ls $pair/*.prelb.tif 2>/dev/null`; do
     toorig=$pair/`basename $toback .prelb.tif` # e.g. geo.unw.tif
@@ -345,6 +347,8 @@ for pair in `ls -d 20??????_20??????`; do
     mv $toback $toorig
   done
 done
+fi
+
 
 # in GEOC
 if [ $dogacos == 1 ]; then
