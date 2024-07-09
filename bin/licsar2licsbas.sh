@@ -15,6 +15,7 @@ if [ -z $1 ]; then
  echo "-- Additional corrections --"
  echo "-i ....... perform ionosphere correction (using CODE GIM)"
  echo "-e ....... perform solid Earth tides correction"
+ echo "-O ....... outputs of external corrections will be stored in the datacube itself (currently with -i, -e, testing -g)"
  echo "-- Control over reunwrapping (with -u) --"
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-l ....... if the reunwrapping is to be performed, would do Gaussian lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
@@ -76,11 +77,12 @@ LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 bovls=0
 setides=0
 iono=0
+storeext2cube=0
 prelb_backup=0
 lotushours=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSClWgmaAieFPRkG:t:n:" option; do
+while getopts ":M:h:HucTsdbSClWgmaAieFOPRkG:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -105,6 +107,8 @@ while getopts ":M:h:HucTsdbSClWgmaAieFPRkG:t:n:" option; do
   #m) specmag=1;
   #   echo 'parameter -m is obsolete, the Goldstein is always on now';
   #   ;;
+  O) storeext2cube=1;
+     ;;
   u) reunw=1;
      #shift
      ;;
@@ -246,7 +250,7 @@ source $metadir/metadata.txt #this will bring 'master=' info
   fi
  else
   hours=$lotushours
-  echo "setting processing time to "$hours
+  echo "setting processing time to "$hours":59"
   echo "(expecting you know what you are doing - i.e. non-comet queue has limit up to 23:59)"
  fi
  memm=8192 # requesting 8GB RAM per processor
@@ -791,21 +795,26 @@ if [ $run_jasmin -eq 1 ]; then
     #echo "insert code to post-correct SET here"
     echo "Note: SET corrections will be applied to cum_filt only"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000)\"" >> jasmin_run.sh
-    echo "Additionally, the corrections will be stored in cum.h5 as layer tide"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000, directcorrect = False)\"" >> jasmin_run.sh
     #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.code.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
   fi
   if [ $iono -gt 0 ]; then
     #echo "insert code to post-correct iono here"
     echo "Note: iono corrections will be applied to cum_filt only"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi))\"" >> jasmin_run.sh
+  fi
+ fi
+ 
+ if [ $storeext2cube -gt 0 ]; then
+  #include generation of outputs
+  if [ $setides -gt 0 ]; then
+    echo "Additionally, the corrections will be stored in cum.h5 as layer tide"
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000, directcorrect = False)\"" >> jasmin_run.sh
+  fi
+  if [ $iono -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
  fi
- 
- #include generation of outputs
-
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
@@ -820,7 +829,7 @@ if [ $run_jasmin -eq 1 ]; then
 
 
  # jasmin proc
- cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":00 -M "$memmfull" -q "$que" ./jasmin_run.sh"
+ cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":59 -M "$memmfull" -q "$que" ./jasmin_run.sh"
  echo $cmd > jasmin_run_cmd.sh
  chmod 777 jasmin_run.sh
  chmod 777 jasmin_run_cmd.sh
