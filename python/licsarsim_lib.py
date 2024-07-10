@@ -454,6 +454,27 @@ def geocode_tif(tif, lut = 'geo/20160901.lt_fine',
         os.remove(tmpbin+'2.par')
     return outtif
 
+
+
+def rslc2tif(rslc, outtif = None ):
+    '''this will convert given SLC in binary format to complex-valued TIF
+    '''
+    if not outtif:
+        outtif = rslc+'.tif'
+    wid = get_param_gamma('range_samples', rslc+'.par', floatt=False) # str
+    datatype = get_param_gamma('image_format', rslc + '.par', floatt=False)  # str
+    if datatype == 'SCOMPLEX':
+        gammatype = '3'
+    elif datatype == 'FCOMPLEX':
+        gammatype = '4'
+    else:
+        print('Something wrong with the data type - is this COMPLEX SLC?')
+        return False
+    cmd = 'data2tiff {0} {1} {2} {3} >/dev/null'.format(rslc, wid, gammatype, outtif)
+    os.system(cmd)
+    return outtif
+
+
 '''
 inpath=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/20
 for fr in `ls $inpath`; do
