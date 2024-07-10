@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 import rioxarray as r
 import numpy as np
