@@ -73,6 +73,7 @@ import subprocess as subp
 from LiCSAR_misc import get_param_gamma
 #from daz_lib_licsar import get_param_gamma   # daz was using framecare
 import rioxarray
+import xarray as xr
 import numpy as np
 import time
 
@@ -472,7 +473,33 @@ def rslc2tif(rslc, outtif = None ):
         return False
     cmd = 'data2tiff {0} {1} {2} {3} >/dev/null'.format(rslc, wid, gammatype, outtif)
     os.system(cmd)
+    # this below is ugly but working
+    a=rioxarray.open_rasterio(outtif)
+    b=a.copy()
+    b.values=a.real.astype(np.int16)
+    c=a.copy()
+    c.values=a.imag.astype(np.int16)
+    c = c.assign_coords({'band': [2]})
+    out = xr.concat([b,c], dim='band')
+    os.system('rm '+outtif)
+    out.rio.to_raster(outtif)
     return outtif
+
+'''
+a=rioxarray.open_rasterio('20160901.slc.tif')
+
+b=a.copy()
+b.values=a.real.astype(np.int16)
+
+c=a.copy()
+c.values=a.imag.astype(np.int16)
+c = c.assign_coords({'band': [2]})
+import xarray as xr
+
+out = xr.concat([b,c], dim='band')
+out.rio.to_raster('test2.tif')
+
+'''
 
 
 '''
