@@ -21,6 +21,40 @@ import numpy as np
 from scipy import interpolate
 
 
+def mm2rad_s1(inmm, rad2mm=False):
+    """Converts from mm to radians (for Sentinel-1)
+    """
+    #speed_of_light = 299792458 #m/s
+    speed_of_light = 299702547  #m/s ... in case of all-in-air
+    radar_freq = 5.405e9  #for S1
+    wavelength = speed_of_light/radar_freq #meter
+    coef_r2m = wavelength/4/np.pi*1000 #rad -> mm,
+    if rad2mm:
+        # apologies for the inmm/outrad naming
+        outrad = inmm*coef_r2m
+    else:
+        outrad = inmm/coef_r2m
+    return outrad
+
+
+def rad2mm_s1(inrad):
+    return mm2rad_s1(inrad, rad2mm=True)
+
+
+def ztd2sltd(icamsh5, ugeo, outif = None):
+    ''' Function to convert output of ICAMS ZTD to SLTD (in corresponding coordinates)'''
+    ugeo = rioxarray.open_rasterio(ugeo)
+    icams = xr.open_dataset(icamsh5)
+    icams = icams.interp_like(ugeo, method='linear')
+    icams = icams.where(~np.nan(ugeo))
+    icams = icams.where(ugeo != 0) # just in case..
+    icams = icams/ugeo
+    if outif:
+        ugeo.values = icams.values
+        ugeo.rio.to_raster(outif, compress='deflate')
+    return icams
+
+
 def interpolate_nans(array, method='cubic'):
     """Interpolation of NaN values in a grid
 
