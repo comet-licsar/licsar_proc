@@ -58,7 +58,7 @@ def ztd2sltd(icamsh5, ugeo, outif = None):
     icams.values = mm2rad_s1(icams.values*1000)
     if outif:
         import lics_unwrap as lu
-        lu.export_xr2tif(icams, tif, dogdal = False, set_to_pixel_registration = True)
+        lu.export_xr2tif(icams, outif, dogdal = False, set_to_pixel_registration = True)
     return icams
 
 
