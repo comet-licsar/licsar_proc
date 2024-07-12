@@ -45,13 +45,20 @@ def ztd2sltd(icamsh5, ugeo, outif = None):
     ''' Function to convert output of ICAMS ZTD to SLTD (in corresponding coordinates)'''
     ugeo = rioxarray.open_rasterio(ugeo)
     icams = xr.open_dataset(icamsh5)
-    icams = icams.interp_like(ugeo, method='linear')
-    icams = icams.where(~np.nan(ugeo))
-    icams = icams.where(ugeo != 0) # just in case..
-    icams = icams/ugeo
+    # converting icams to standard geofile -- expecting tot_delay variable..
+    sizey, sizex = icams.tot_delay.shape
+    lon = float(icams.attrs['X_FIRST']) + float(icams.attrs['X_STEP'])*np.arange(sizex) - 0.5*float(icams.attrs['X_STEP'])
+    lat = float(icams.attrs['Y_FIRST']) + float(icams.attrs['Y_STEP'])*np.arange(sizey) - 0.5*float(icams.attrs['Y_STEP'])
+    icams = xr.DataArray(icams.tot_delay.values.reshape(sizey,sizex), coords=[lat, lon], dims=["lat", "lon"])
+    ugeox = xr.DataArray(ugeo[0].values, coords=[ugeo.y.values, ugeo.x.values], dims=["lat", "lon"])
+    icams = icams.interp_like(ugeox, method='linear')
+    icams = icams.where(~np.isnan(ugeox))
+    icams = icams.where(ugeox != 0) # just in case..
+    icams = icams/ugeox  # converted to sltd [m]
+    icams.values = mm2rad_s1(icams.values*1000)
     if outif:
-        ugeo.values = icams.values
-        ugeo.rio.to_raster(outif, compress='deflate')
+        import lics_unwrap as lu
+        lu.export_xr2tif(icams, tif, dogdal = False, set_to_pixel_registration = True)
     return icams
 
 
