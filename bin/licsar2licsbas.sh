@@ -794,7 +794,7 @@ if [ $run_jasmin -eq 1 ]; then
   if [ $setides -gt 0 ]; then
     #echo "insert code to post-correct SET here"
     echo "Note: SET corrections will be applied to cum_filt only"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000)\"" >> jasmin_run.sh
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1000)\"" >> jasmin_run.sh
     #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.code.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
   fi
   if [ $iono -gt 0 ]; then

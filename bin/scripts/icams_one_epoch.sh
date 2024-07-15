@@ -16,6 +16,14 @@ epochsdir=$framedir/epochs
 metadir=$framedir/metadata
 epochdir=$epochsdir/$epoch
 
+icamsout=icams/ERA5/sar/$epoch'_tot.h5'
+sltdout=$epochdir/$epoch.icams.sltd.geo.tif
+
+if [ -f $sltdout ]; then
+  echo "ICAMS correction already exists, cancelling for epoch "$epoch
+  exit
+fi
+
 if [ ! -d $epochdir ]; then mkdir $epochdir; fi
 
 hgt=$metadir/$frame.geo.hgt.tif
@@ -33,12 +41,6 @@ ttime=`grep center_time $metadir/metadata.txt | cut -d '=' -f2 | cut -c -5`
 #epoch=`basename $ppwd`
 
 tropo_icams_date.py $epoch --region " "$wesn" " --imaging-time $ttime --dem-tif $hgt --resolution $resol
-
- 
-
-icamsout=icams/ERA5/sar/$epoch'_tot.h5'
-
-sltdout=$epochdir/$epoch.icams.sltd.geo.tif
 
 python3 -c "import lics_processing as lp; lp.ztd2sltd('"$icamsout"', '"$U"', outif = '"$sltdout"')"
 
