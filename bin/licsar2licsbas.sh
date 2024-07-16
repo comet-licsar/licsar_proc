@@ -808,11 +808,15 @@ if [ $run_jasmin -eq 1 ]; then
   #include generation of outputs
   if [ $setides -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer tide"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1/1000, directcorrect = False)\"" >> jasmin_run.sh
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1000, directcorrect = False)\"" >> jasmin_run.sh
   fi
   if [ $iono -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
+  fi
+  if [ $gacos -gt 0 ]; then
+    echo "Additionally, the corrections will be stored in cum.h5 as layer gacos"
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
  fi
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
