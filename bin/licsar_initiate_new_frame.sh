@@ -12,6 +12,7 @@ dolocal=0
 tienshan=0
 clip=0
 sm=0 # stripmap frame
+dobovls=0
 
 if [ -z $1 ];
 then
@@ -22,6 +23,7 @@ then
  echo "parameters:"
  echo " -H - do master in high resolution (r=5, a=1, res approx 15 m) - auto-applied if H is in framename"
  echo " -M - do master in medium resolution (towards 56 m outputs)"
+ echo " -b - have the frame auto-generate also burst overlap interferograms"
  echo " -R 0.1 - custom resolution (here towards 0.1 deg) - note multilooking remains a=4,r=20, unless changed"
  echo " -a,-r - custom multilooking factors"
  echo " -D /path/to/dem.tif - use custom DEM - you may want to use gdal_merge.py -a_nodata -32768 .."
@@ -33,7 +35,7 @@ then
 fi
 
 #improved getopts, finally
-while getopts ":HMR:a:r:TD:V:L:C:" option; do
+while getopts ":HMbR:a:r:TD:V:L:C:" option; do
  case "${option}" in
   H) a=1; r=5; outres=0.00015; dolocal=1; echo "high resolution option enabled"
      ;;
@@ -47,6 +49,8 @@ while getopts ":HMR:a:r:TD:V:L:C:" option; do
      ;;
   D) setupmasterextra=$setupmasterextra" -D "$OPTARG;
      #shift
+     ;;
+  b) dobovls=1;
      ;;
   T) tienshan=1; outres=0.0005; dolocal=1
      ;;
@@ -117,6 +121,9 @@ if [ $dolocal == 1 ]; then
 fi
 if [ $tienshan == 1 ]; then
     echo "tienshan = "1 >> local_config.py
+fi
+if [ $dobovls == 1 ]; then
+  echo "bovl=1" >>local_config.py
 fi
 
 echo "Setting the master image and DEM for frame "$frame
