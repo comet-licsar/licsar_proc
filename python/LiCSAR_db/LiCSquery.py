@@ -135,6 +135,7 @@ def clone_frame(frameold, framenew, step = 1, oldpolyid = None, newpolyid = None
     works in two steps:
     1, copy the frame records to the new name (and show old and new polyids)
     2, use the returned polyids and set the polygons and link bursts
+    (or step 0 to do this automatically... careful...)
     """
     if step ==1:
         sql = "DROP TABLE IF EXISTS temp_tb; CREATE TEMPORARY TABLE temp_tb ENGINE=MEMORY (SELECT * FROM polygs where polyid_name='{0}');".format(frameold)
@@ -156,17 +157,61 @@ def clone_frame(frameold, framenew, step = 1, oldpolyid = None, newpolyid = None
     if step == 2:
         #newpolyid = sqlout2list(res)[0]
         sql = "insert into polygs2gis (polyid, geom) select {0},s.geom from polygs2gis s where polyid={1};".format(str(newpolyid),str(oldpolyid))
-        print(sql)
-        #res = do_query(sql, True)
+        #print(sql)
+        res = do_query(sql, True)
         sql = "insert into polygs2bursts (polyid, bid) select {0},bid from polygs2bursts where polyid={1};".format(str(newpolyid),str(oldpolyid))
-        print(sql)
-        #res = do_query(sql, True)
+        #print(sql)
+        res = do_query(sql, True)
         sql = "DROP TABLE IF EXISTS temp_tb;"
-        print(sql)
-        #res = do_query(sql, True)
+        #print(sql)
+        res = do_query(sql, True)
         #return True
-    #return res
-
+    if step == 0:
+        # not working.... engine memory??
+        sql = "DROP TABLE IF EXISTS temp_tb; CREATE TEMPORARY TABLE temp_tb ENGINE=MEMORY (SELECT * FROM polygs where polyid_name='{0}');".format(
+            frameold)
+        res = do_query(sql, True)
+        sql = "ALTER TABLE temp_tb DROP polyid; update temp_tb set polyid_name='{0}' where polyid_name='{1}';".format(
+            framenew, frameold)
+        res = do_query(sql, True)
+        sql = "insert into polygs select NULL,t.* from temp_tb t;"
+        res = do_query(sql, True)
+        sql = "select polyid from polygs where polyid_name='{0}';".format(frameold)
+        oldpolyid = sqlout2list(res)[0]
+        sql = "select polyid from polygs where polyid_name='{0}';".format(framenew)
+        newpolyid = sqlout2list(res)[0]
+        sql = "insert into polygs2gis (polyid, geom) select {0},s.geom from polygs2gis s where polyid={1};".format(
+            str(newpolyid), str(oldpolyid))
+        res = do_query(sql, True)
+        sql = "insert into polygs2bursts (polyid, bid) select {0},bid from polygs2bursts where polyid={1};".format(
+            str(newpolyid), str(oldpolyid))
+        res = do_query(sql, True)
+        sql = "DROP TABLE IF EXISTS temp_tb;"
+        res = do_query(sql, True)
+    return True
+'''
+frameold='115A_05608_131313'
+framenew='115A_05609_131313'
+sql = "DROP TABLE IF EXISTS temp_tb; CREATE TEMPORARY TABLE temp_tb ENGINE=MEMORY (SELECT * FROM polygs where polyid_name='{0}');".format(frameold)
+res = do_query(sql, True)
+sql = "ALTER TABLE temp_tb DROP polyid; update temp_tb set polyid_name='{0}' where polyid_name='{1}';".format(
+    framenew, frameold)
+res = do_query(sql, True)
+sql = "insert into polygs select NULL,t.* from temp_tb t;"
+res = do_query(sql, True)
+sql = "select polyid from polygs where polyid_name='{0}';".format(frameold)
+oldpolyid = sqlout2list(res)[0]
+sql = "select polyid from polygs where polyid_name='{0}';".format(framenew)
+newpolyid = sqlout2list(res)[0]
+sql = "insert into polygs2gis (polyid, geom) select {0},s.geom from polygs2gis s where polyid={1};".format(
+    str(newpolyid), str(oldpolyid))
+res = do_query(sql, True)
+sql = "insert into polygs2bursts (polyid, bid) select {0},bid from polygs2bursts where polyid={1};".format(
+    str(newpolyid), str(oldpolyid))
+res = do_query(sql, True)
+sql = "DROP TABLE IF EXISTS temp_tb;"
+res = do_query(sql, True)
+'''
 
 def delete_frame_files(frame):
     #e.g. in case of messed up bursts, this should help:
