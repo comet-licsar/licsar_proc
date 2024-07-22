@@ -300,6 +300,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
         #    e2f.at[i, 'download'] = ''
     #e2f['download'] = "<a href='http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/{0}/{1} target='_blank'>Link<a>".format(track, framename)
     #dbcols = ['the_geom','frame','usgsid','download', 'location','next_possible', 'next_expected']
+    e2f=e2f.drop_duplicates().reset_index(drop=True)
     e2f[dbcols].to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
     #e2f[dbcols].query('download != ""').to_csv(csvfile, mode='a', sep = ';', index = False, header=False)
     return True
