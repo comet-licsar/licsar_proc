@@ -759,7 +759,7 @@ done
 function get_frame_days_since_last_done_epoch() {
  frame=$1
  tr=`track_from_frame $frame`
- lastep=`ls $LiCSAR_public/$tr/$fr/epochs | grep 20 | tail -n 1`
+ lastep=`ls $LiCSAR_public/$tr/$frame/epochs | grep 20 | tail -n 1`
  datediff $lastep
 }
 
