@@ -35,6 +35,7 @@ if [ -z $1 ]; then
  echo "(other params, for admins etc.)"
  echo "(-R ....... prioritise through comet responder)"
  #echo "-----------------"
+ echo "-I ....... use ICAMS - NOTE THIS WILL NOT OUTPUT AS ICAMS-CORRECTED DATASET - it will only generate and load ICAMS to the cum.h5 as icams layer (plus gacos layer to allow diff correction manually)"
  echo "-a ....... use amplitude stability to subset pixels. Testing. Might be useful in challenging areas such as jungles"
  #echo "-A ....... use ampcoh"
  echo "-F ....... will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
@@ -80,9 +81,10 @@ iono=0
 storeext2cube=0
 prelb_backup=0
 lotushours=0
+icams=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSClWgmaAieFOPRkG:t:n:" option; do
+while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRkG:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -104,6 +106,10 @@ while getopts ":M:h:HucTsdbSClWgmaAieFOPRkG:t:n:" option; do
   H) hgts=1;
      #shift
      ;;
+  I) icams=1;
+    echo "Warning, ICAMS will be only loaded into the cum.h5 datacube. Please chat with earmla - you may want to do gacos-icams difference and correct cum TS yourself"
+    storeext2cube=1;
+    ;;
   #m) specmag=1;
   #   echo 'parameter -m is obsolete, the Goldstein is always on now';
   #   ;;
@@ -405,6 +411,28 @@ cd $workdir
 # first store the original command:
 echo $discmd > "command.in"
 
+if [ $icams -gt 0 ]; then
+  echo "regenerating ICAMS data if possible"
+  if [ ! -f ~/.cdsapirc ]; then
+    echo "ERROR - no .cdsapirc found - skipping ICAMS generation. Check with earmla (in dev)"
+  else
+    create_ICAMS_frame_allepochs $frame
+  fi
+  echo "Linking existing ICAMS corrections per epoch"
+   mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
+   extfull=icams.sltd.geo.tif
+   for epochpath in `ls $epochdir/20?????? -d`; do
+      epoch=`basename $epochpath`
+      if [ -f $epochpath/$epoch.$extfull ]; then
+        if [ ! -e $epoch/$epoch.$extfull ]; then
+         mkdir -p $epoch
+         cd $epoch
+         ln -s $epochpath/$epoch.$extfull
+         cd ..
+        fi
+      fi
+   done
+fi
 
 if [ $setides -gt 0 ]; then
   echo "checking/generating solid earth tides data"
@@ -816,7 +844,11 @@ if [ $run_jasmin -eq 1 ]; then
   fi
   if [ $gacos -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer gacos"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GACOS', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
+  fi
+  if [ $icams -gt 0 ]; then
+    echo "Additionally, the corrections will be stored in cum.h5 as layer icams"
+    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'icams.sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
  fi
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh

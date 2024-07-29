@@ -3,13 +3,17 @@ module load ICAMS
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh  
 
 if [ -z $1 ]; then
- echo "Usage: icams_one_epoch.sh FRAMEID EPOCHDATE"
+ echo "Usage: icams_one_epoch.sh FRAMEID EPOCHDATE [CLEANIT]"
  exit
 fi
 
 
 frame=$1
 epoch=$2
+cleanit=0
+if [ ! -z $3 ]; then
+  cleanit=$3
+fi
 
 framedir=$LiCSAR_public/`track_from_frame $frame`/$frame
 epochsdir=$framedir/epochs
@@ -44,6 +48,8 @@ tropo_icams_date.py $epoch --region " "$wesn" " --imaging-time $ttime --dem-tif 
 
 python3 -c "import lics_processing as lp; lp.ztd2sltd('"$icamsout"', '"$U"', outif = '"$sltdout"')"
 
+if [ $cleanit -gt 0 ]; then
 # clean?
-#rm -r icams
+rm -r icams ttt
+fi
 

@@ -92,6 +92,20 @@ function create_LOS_tide_frame_allepochs() {
   done
 }
 
+function create_ICAMS_frame_allepochs() {
+  local frame=$1
+  if [ -z $1 ]; then echo "error, not provided frame ID"; return 1; fi
+  track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+  epochspath=$LiCSAR_public/$track/$frame/epochs
+  #cd $epochspath
+  for epoch in `ls $epochspath`; do
+    if [ ! -f $epochspath/$epoch/$epoch'.icams.sltd.geo.tif' ]; then
+      icams_one_epoch.sh $frame $epoch 0
+    fi
+  done
+  #rm -r icams ttt
+}
+
 function create_LOS_tide() {
   if [ "$#" == "2" ]; then
     local frame=$1
