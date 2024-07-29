@@ -414,10 +414,12 @@ echo $discmd > "command.in"
 if [ $icams -gt 0 ]; then
   echo "regenerating ICAMS data if possible"
   if [ ! -f ~/.cdsapirc ]; then
-    echo "ERROR - no .cdsapirc found - skipping ICAMS generation. Check with earmla (in dev)"
-  else
-    create_ICAMS_frame_allepochs $frame
+    echo "WARNING - you did not register to cdsapi. Will now use limited access through general LiCSAR account"
+    cp $LiCSAR_configpath/.cdsapirc ~/.
+    #echo "ERROR - no .cdsapirc found - skipping ICAMS generation. Check with earmla (in dev)"
   fi
+    create_ICAMS_frame_allepochs $frame
+  #fi
   echo "Linking existing ICAMS corrections per epoch"
    mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
    extfull=icams.sltd.geo.tif
