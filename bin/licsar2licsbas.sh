@@ -37,6 +37,7 @@ if [ -z $1 ]; then
  #echo "-----------------"
  echo "-I ....... use ICAMS - NOTE THIS WILL NOT OUTPUT AS ICAMS-CORRECTED DATASET - it will only generate and load ICAMS to the cum.h5 as icams layer (plus gacos layer to allow diff correction manually)"
  echo "-a ....... use amplitude stability to subset pixels. Testing. Might be useful in challenging areas such as jungles"
+ echo "-w ....... will avoid using landmask"
  #echo "-A ....... use ampcoh"
  echo "-F ....... will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
@@ -82,9 +83,10 @@ storeext2cube=0
 prelb_backup=0
 lotushours=0
 icams=0
+landmask=1
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRkG:t:n:" option; do
+while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRwkG:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -105,6 +107,8 @@ while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRkG:t:n:" option; do
      ;;
   H) hgts=1;
      #shift
+     ;;
+  w) landmask=0;
      ;;
   I) icams=1;
     echo "Warning, ICAMS will be only loaded into the cum.h5 datacube. Please chat with earmla - you may want to do gacos-icams difference and correct cum TS yourself"
@@ -724,6 +728,9 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $nproc -gt 1 ]; then
    extraparam=$extraparam",  nproc = "$nproc
+ fi
+ if [ $landmask -lt 1 ]; then
+   extraparam=$extraparam", do_landmask = False"
  fi
  #cp $LiCSAR_procdir/$track/$frame/geo/EQA.dem_par GEOC/.
  echo "python3 -c \"from lics_unwrap import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
