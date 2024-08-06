@@ -120,7 +120,7 @@ def main(argv=None):
     batchMode = 'M'
     startDate = dt.datetime.strptime('2016-01-01','%Y-%m-%d')
     endDate = dt.datetime.now()
-    retentionDate = None
+    retentionDate = dt.datetime.now()+dt.timedelta(14)
     notify = False
     userEmail = None
 
