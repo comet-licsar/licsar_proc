@@ -424,7 +424,7 @@ def get_bursts_in_file(filename):
     return do_query(sql_q)
 
 
-def get_bursts_in_frame(frame):
+def get_bursts_in_frame(frame, get_full = False):
     # takes frame, returns list with burstid, centre_lon and 
     # centre_lat of all bursts in frame
     frametest = check_frame(frame)
@@ -432,11 +432,17 @@ def get_bursts_in_frame(frame):
         print('\nWarning!\nFrame {0} not found in database'.format(frame))
         return []
     else:
-        sql_q = "select distinct bursts.bid_tanx, bursts.centre_lon, "\
-            "bursts.centre_lat from bursts " \
-            "inner join polygs2bursts on polygs2bursts.bid=bursts.bid " \
-            "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
-            "where polygs.polyid_name='{0}';".format(frame)
+        if get_full:
+            sql_q = "select distinct bursts.* from bursts " \
+                "inner join polygs2bursts on polygs2bursts.bid=bursts.bid " \
+                "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
+                "where polygs.polyid_name='{0}';".format(frame)
+        else:
+            sql_q = "select distinct bursts.bid_tanx, bursts.centre_lon, "\
+                "bursts.centre_lat from bursts " \
+                "inner join polygs2bursts on polygs2bursts.bid=bursts.bid " \
+                "inner join polygs on polygs2bursts.polyid=polygs.polyid "\
+                "where polygs.polyid_name='{0}';".format(frame)
         return do_query(sql_q)
 
 
@@ -632,7 +638,52 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
             "order by files.name asc;".format(frame,t1,t2)
     return do_query(sql_q)
 
+'''
+def get_first_common_time(frame, date):
+    # this will get first time acquired in both frame and first file related to the given frame epoch. For bperp calculation..
+    #date=dt.datetime.strptime(date,'%Y%m%d').date()
+    epochfile1 = get_frame_files_date(frame,date)[0][1]
+    s1ab = epochfile1.split('_')[0]
+    epochstart = get_time_of_file(epochfile1)
+    epochbursts = sqlout2list(get_bursts_in_file(epochfile1))
+    epochbursts.sort()
+    epochfirstburst = epochbursts[0]
+    framebursts = sqlout2list(get_bidtanxs_in_frame(frame))
+    framebursts.sort()
+    for e in epochbursts:
+        if e in framebursts:
+            break
+    commonburst = e
+    diffinseconds = (int(commonburst.split('_')[-1])-int(epochfirstburst.split('_')[-1]))*0.1
+    epochcommontime = epochstart+dt.timedelta(seconds=diffinseconds)
+    return commonburst, epochcommontime, s1ab
 
+
+epochs = ['20141122']
+primepoch = fc.get_master(frame, asdate = True)
+pb, pt, ps1ab = get_first_common_time(frame, primepoch)
+from orbit_lib import *
+import nvector as nv
+porbit = get_orbit_filenames_for_datetime(pt, producttype='POEORB',s1ab=ps1ab)[-1]
+porbitxr = load_eof(porbit)
+ploc = get_coords_in_time(porbitxr, pt, method='cubic', return_as_nv = True)
+#ploc2 = get_coords_in_time(porbitxr, pt+dt.timedelta(seconds=1), method='cubic', return_as_nv = True)
+#pathA = nv.GeoPath(ploc, ploc2)
+for e in epochs:
+    eb, et, es1ab = get_first_common_time(frame, dt.datetime.strptime(e,'%Y%m%d').date())
+    epdbt = (int(eb.split('_')[-1])-int(pb.split('_')[-1]))*0.1
+    primetime, epochtime = pt+dt.timedelta(seconds=epdbt), et
+    eorbit = get_orbit_filenames_for_datetime(et, producttype='POEORB',s1ab=es1ab)[-1]
+    eorbitxr = load_eof(eorbit)
+    #
+    ploc = get_coords_in_time(porbitxr, pt, method='cubic', return_as_nv = True)
+    eloc = get_coords_in_time(eorbitxr, et, method='cubic', return_as_nv = True)
+    # following http://doris.tudelft.nl/usermanual/node182.html  :
+    B = nv.diff_positions(ploc, eloc).length
+    Bpar = ploc.z - eloc.z
+    Bperp = np.sqrt(B*B - Bpar*Bpar)   # ok, but for the sign i need to get slant range etc.
+    
+'''
 def get_frame_files_date(frame,date):
     # takes frame and one datetime.date object and returns
     # polygon name, file name and file path for all files 
