@@ -28,6 +28,8 @@ if [ -z $1 ]; then
  echo "-T ....... use testing version of LiCSBAS"
  echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future this may also add --singular)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
+ echo "-r ....... perform deramping (degree 1)"
+ echo "-L ....... use linear hgt correlation slope correction"
  echo "-- Processing tweaks --"
  echo "-h 14 .... set your own number of processing hours (14 by default)"
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
@@ -79,14 +81,16 @@ LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 bovls=0
 setides=0
 iono=0
+deramp=0
 storeext2cube=0
 prelb_backup=0
 lotushours=0
 icams=0
 landmask=1
+hgtcorrlicsbas=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRwkG:t:n:" option; do
+while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRrLwkG:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -98,6 +102,10 @@ while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRwkG:t:n:" option; do
      ;;
   i) iono=1;
      prelb_backup=1;
+    ;;
+  r) deramp=1;
+    ;;
+  L) hgtcorrlicsbas=1;
     ;;
   e) setides=1;
     prelb_backup=1;
@@ -788,6 +796,10 @@ if [ $wls == 1 ]; then
  sed -i 's/p13_inv_alg=\"\"/p13_inv_alg=\"WLS\"/' batch_LiCSBAS.sh
 fi
 
+if [ $deramp == 1 ]; then
+ sed -i 's/p16_deg_deramp=\"\"/p16_deg_deramp=\"1\"/' batch_LiCSBAS.sh
+fi
+
 # set comet dev functions...
 sed -i "s/^cometdev=.*/cometdev=\'"$cometdev"\'/" batch_LiCSBAS.sh
 
@@ -796,7 +808,10 @@ sed -i "s/^cometdev=.*/cometdev=\'"$cometdev"\'/" batch_LiCSBAS.sh
 #sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"'$half'/' batch_LiCSBAS.sh
 sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"1000/' batch_LiCSBAS.sh   # skipping the loop closure for now - for all approaches
 #sed -i 's/p16_deg_deramp=\"/p16_deg_deramp=\"1/' batch_LiCSBAS.sh   # nah, let's not deramp by default
-sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
+
+if [ $hgtcorrlicsbas -gt 0 ]; then
+ sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
+fi
 
 if [ $dogacos -gt 0 ]; then
  sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
