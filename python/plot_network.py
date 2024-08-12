@@ -234,6 +234,15 @@ try:
                 mbperp = 0
                 mbtemp = fc.datediff(refdate, m)
                 print('no ASF information for epoch '+m+'. Storing only bperp=0')
+                ''' NOT COMPLETE YET - SOMETHING IS WRONG IN THIS BELOW:
+                print('no ASF information for epoch '+m+'. Estimating from LiCSAR db - slow way now') #Storing only bperp=0')
+                try:
+                    mepl, mbperpl = fc.get_bperp_estimates(frame, epochs = [m])
+                    mbperp = round(mbperpl[0])
+                except:
+                    print('ERROR for epoch '+m+'. Setting zero.')
+                    mbperp = 0
+                '''
             prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), mbperp, int(mbtemp) ]
         prevbp = prevbp.sort_values('btemp').reset_index(drop=True)
         #bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
