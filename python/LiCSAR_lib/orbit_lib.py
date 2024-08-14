@@ -112,7 +112,7 @@ def get_coords_in_time(orbxr, timesample, method='cubic', return_as_nv = False):
                                   float(coords['z']))  # refElp.xyz_to_llh(vec1.getPosition())
         # import nvector as nv
         wgs84 = nv.FrameE(name='WGS84')
-        point = wgs84.GeoPoint(latitude=lonlath1[1], longitude=lonlath1[0], z = lonlath1[2], degrees=True)
+        point = wgs84.GeoPoint(longitude=lonlath1[0], latitude=lonlath1[1], z = lonlath1[2], degrees=True)
         return point
     else:
         return coords
