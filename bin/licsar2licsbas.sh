@@ -483,6 +483,8 @@ if [ $setides -gt 0 ]; then
 			 # echo "print('"$pair"')" >> $tmpy
 			 echo "Warning, the pair "$pair" is in pixel registration. Slower workaround"
 			 ifg_remove_tides.py $hgtfile $infile $tided1 $tided2 $outfile
+			 # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
+			 # may work anyway...
 			fi
 			if [ -f $outfile ]; then
 			  rm $infile  # only removing the link

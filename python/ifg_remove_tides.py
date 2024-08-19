@@ -17,7 +17,7 @@ t2=r.open_rasterio(t2f)
 
 h.values=i.values
 dt=(t1-t2)*226.56
-h=h-dt
+h.values=h.values-dt.values
 h.values=np.angle(np.exp(1j*h.values))
 
 h.rio.to_raster(ofile)
