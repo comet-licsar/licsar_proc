@@ -202,7 +202,10 @@ ifgdates = tools_lib.get_ifgdates(ifgdir)
 imdates = tools_lib.ifgdates2imdates(ifgdates)
 
 
-#if not os.path.exists(bperp_file):
+if not os.path.exists(bperp_file):
+    print('No baselines file exists. The Bperps will be estimated')
+    import framecare as fc
+    fc.make_bperp_file(frame, bperp_file, donotstore=False)
 #    print('Make dummy bperp')
 #    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
 #    io_lib.make_dummy_bperp(bperp_file, imdates)
@@ -224,7 +227,7 @@ try:
         prevbp = pd.read_csv(bperp_file, header=None, sep = ' ')
         prevbp.columns = ['ref_date', 'date', 'bperp', 'btemp']
         # get new
-        bpd = fc.make_bperp_file(frame, bperp_file, donotstore = True)
+        bpd = fc.make_bperp_file(frame, bperp_file, asfonly = True, donotstore = True)
         for m in missingdates:
             mpd = bpd[bpd.date==m]
             if not mpd.empty:
