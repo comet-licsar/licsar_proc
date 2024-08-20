@@ -16,6 +16,7 @@ import xml.etree.ElementTree as ET
 import pyproj
 import numpy as np
 import glob 
+import xarray as xr
 
 # these below were very useful for data on SciHub, but not anymore in CDSE... that was not really offering any adequate alternative MONTHS after they got live (had to comment about it). ML
 #from sentinelsat.sentinel import SentinelAPI
@@ -116,6 +117,61 @@ def get_coords_in_time(orbxr, timesample, method='cubic', return_as_nv = False):
         return point
     else:
         return coords
+
+
+def get_satpos_observing_point(orbxr, pcp, pt):
+    ''' Gets accurate satellite position and time when it observes given location pcp on the surface. It requires approx time pt of observing this
+    orbxr... xr.DataArray - orbit loaded using the function (see above)
+    pcp .... nv.GeoPoint - point on ground
+    pt ..... dt.datetime - approx observation time
+    '''
+    # get coords for point at the approx observation time
+    ploc = get_coords_in_time(orbxr, pt, method='cubic', return_as_nv=True)
+    # get the second coord for satellite path (heading)
+    ploc2 = get_coords_in_time(orbxr, pt + dt.timedelta(seconds=3), method='cubic', return_as_nv=True)
+    #
+    # convert to nvector (might have been simpler with .to_nvector)
+    n_EA1_E = nv.lat_lon2n_E(ploc.latitude, ploc.longitude)
+    n_EA2_E = nv.lat_lon2n_E(ploc2.latitude, ploc2.longitude)
+    n_EB_E = nv.lat_lon2n_E(pcp.latitude, pcp.longitude)
+    path = (n_EA1_E, n_EA2_E)
+    # get satellite footprint ('precise' ground location, nadir) during observing that point
+    latlon_sat = nv.n_E2lat_lon(nv.closest_point_on_great_circle(path, n_EB_E))  # n_E2lat_lon
+    lat, lon = (latlon_sat[0][0], latlon_sat[1][0])
+    #
+    # prep interpolation - get values for up to 5 datapoints before and after the coarse observation time
+    intdates = list(orbxr.time.values[orbxr.time.values < np.datetime64(pt)][-5:]) + list(
+        orbxr.time.values[orbxr.time.values >= np.datetime64(pt)][:5])
+    intlons = []
+    intlats = []
+    intzs = []  # heights - needed to get the satpos
+    intdsecs = []  # time adjustment in seconds, to get precise time observing the point (theoretically! main difference from Bperp we get from InSAR processor)
+    for i in range(len(intdates)):
+        intp = get_coords_in_time(orbxr, intdates[i], method='cubic', return_as_nv=True)
+        intlons.append(float(intp.longitude))
+        intlats.append(float(intp.latitude))
+        intzs.append(float(intp.z))
+        intdsecs.append(pt.timestamp() - pd.Timestamp(intdates[i]).to_pydatetime().timestamp())
+    #
+    # now get altitude - only interpolate based on lon - is that enough? just in case doing in both:
+    intcube = xr.DataArray(data=intzs, dims=("lon"), coords={"lon": intlons})
+    satalt1 = float(intcube.interp(lon=lon, method='cubic'))
+    intcube = xr.DataArray(data=intzs, dims=("lat"), coords={"lat": intlats})
+    satalt2 = float(intcube.interp(lat=lat, method='cubic'))
+    satalt = np.mean([satalt1, satalt2])
+    #
+    # and time diff:
+    intcube = xr.DataArray(data=intdsecs, dims=("lon"), coords={"lon": intlons})
+    dsec1 = float(intcube.interp(lon=lon, method='cubic'))
+    intcube = xr.DataArray(data=intdsecs, dims=("lat"), coords={"lat": intlats})
+    dsec2 = float(intcube.interp(lat=lat, method='cubic'))
+    dsec = np.mean([dsec1, dsec2])
+    #
+    # print(dsec)
+    # print(satalt)
+    ploc = nv.GeoPoint(latitude=lat, longitude=lon, z=satalt)
+    ptime = pt + dt.timedelta(seconds=dsec)
+    return ploc, ptime
 
 
 def getoldorbpath(orbfiles):
