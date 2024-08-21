@@ -80,6 +80,16 @@ function clean_public() {
     done
 }
 
+function nla_check_frame_status() {
+  if [ -z $1 ]; then echo "Usage: just add frame ID as param";
+  else
+    local frame=$1
+    req=`nla.py requests | grep $frame | gawk {'print $1'} | head -n 1`
+    if [ -z $req ]; then echo "ERROR - no NLA request for this frame";
+      else nla.py req $req | grep ^Label -A 6; fi
+  fi
+}
+
 function create_LOS_tide_frame_allepochs() {
   local frame=$1
   if [ -z $1 ]; then echo "error, not provided frame ID"; return 1; fi

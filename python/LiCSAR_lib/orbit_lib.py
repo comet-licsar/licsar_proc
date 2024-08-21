@@ -510,6 +510,10 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB', s1ab = Non
         if pd.Timestamp(datein)<ddatetime and pd.Timestamp(dateout)>ddatetime:
             listf2.append(f)
     listfiles = listf2
+    if not listfiles:
+        print('ERROR, no orbit available for '+str(ddatetime))
+        if s1ab:
+            print('satellite '+s1ab)
     return listfiles
 
 
