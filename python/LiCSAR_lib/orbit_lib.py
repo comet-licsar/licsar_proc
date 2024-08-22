@@ -126,9 +126,9 @@ def get_satpos_observing_point(orbxr, pcp, pt):
     pt ..... dt.datetime - approx observation time
     '''
     # get coords for point at the approx observation time
-    ploc = get_coords_in_time(orbxr, pt, method='cubic', return_as_nv=True)
+    ploc = get_coords_in_time(orbxr, pt - dt.timedelta(seconds=1.5), method='cubic', return_as_nv=True)
     # get the second coord for satellite path (heading)
-    ploc2 = get_coords_in_time(orbxr, pt + dt.timedelta(seconds=3), method='cubic', return_as_nv=True)
+    ploc2 = get_coords_in_time(orbxr, pt + dt.timedelta(seconds=1.5), method='cubic', return_as_nv=True)
     #
     # convert to nvector (might have been simpler with .to_nvector)
     n_EA1_E = nv.lat_lon2n_E(ploc.latitude, ploc.longitude)
@@ -151,7 +151,7 @@ def get_satpos_observing_point(orbxr, pcp, pt):
         intlons.append(float(intp.longitude))
         intlats.append(float(intp.latitude))
         intzs.append(float(intp.z))
-        intdsecs.append(pt.timestamp() - pd.Timestamp(intdates[i]).to_pydatetime().timestamp())
+        intdsecs.append(pd.Timestamp(intdates[i]).to_pydatetime().timestamp() - pt.timestamp())
     #
     # now get altitude - only interpolate based on lon - is that enough? just in case doing in both:
     intcube = xr.DataArray(data=intzs, dims=("lon"), coords={"lon": intlons})
