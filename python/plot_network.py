@@ -12,6 +12,7 @@ import LiCSBAS_tools_lib as tools_lib
 import LiCSBAS_inv_lib as inv_lib
 import datetime as dt
 import s1data as s1
+import pandas as pd
 
 #%%
 def read_bperp_file(bperp_file, imdates, return_missflag = False):
@@ -205,7 +206,8 @@ imdates = tools_lib.ifgdates2imdates(ifgdates)
 if not os.path.exists(bperp_file):
     print('No baselines file exists. The Bperps will be estimated')
     import framecare as fc
-    fc.make_bperp_file(frame, bperp_file, donotstore=False)
+    frame = os.path.basename(framedir)
+    bpd = fc.make_bperp_file(frame, bperp_file, donotstore=False)
 #    print('Make dummy bperp')
 #    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
 #    io_lib.make_dummy_bperp(bperp_file, imdates)
@@ -214,6 +216,13 @@ if not os.path.exists(bperp_file):
 
 try:
     bperp, ismissing = read_bperp_file(bperp_file, imdates, return_missflag = True)
+    # double check missing - count zeroes
+    if not ismissing:
+        if len(bperp)>1:
+            absbp=np.abs(bperp)
+            absbp.sort()
+            if absbp[1] == 0:
+                ismissing = True
     if ismissing:
         print('some epochs have missing bperps, trying to find them through ASF')
         import framecare as fc
@@ -226,17 +235,24 @@ try:
         # load existing
         prevbp = pd.read_csv(bperp_file, header=None, sep = ' ')
         prevbp.columns = ['ref_date', 'date', 'bperp', 'btemp']
-        # get new
+        print('TODO - remove missingepochs from prevbp')
+        # get new - try first only from ASF (more accurate)
         bpd = fc.make_bperp_file(frame, bperp_file, asfonly = True, donotstore = True)
+        stillmissing = []
         for m in missingdates:
+            # first drop it from the prevbp:
+            mint = int(m)
+            prevbp = prevbp.drop(prevbp[prevbp.date == mint].index)
             mpd = bpd[bpd.date==m]
             if not mpd.empty:
                 mbperp = mpd.bperp.mean()
                 mbtemp = mpd.btemp.values[0]
+                prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), mbperp, int(mbtemp)] # new line
             else:
-                mbperp = 0
-                mbtemp = fc.datediff(refdate, m)
-                print('no ASF information for epoch '+m+'. Storing only bperp=0')
+                #mbperp = 0
+                #mbtemp = fc.datediff(refdate, m)
+                print('no ASF information for epoch '+m+'. Adding for LiCSAR estimation.') #Storing only bperp=0')
+                stillmissing.append(m)
                 ''' NOT COMPLETE YET - SOMETHING IS WRONG IN THIS BELOW:
                 print('no ASF information for epoch '+m+'. Estimating from LiCSAR db - slow way now') #Storing only bperp=0')
                 try:
@@ -246,7 +262,14 @@ try:
                     print('ERROR for epoch '+m+'. Setting zero.')
                     mbperp = 0
                 '''
-            prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), mbperp, int(mbtemp) ]
+        if stillmissing:
+            bperps = fc.estimate_bperps(frame, stillmissing, return_epochsdt=False)
+            i = 0
+            for m in stillmissing:
+                mbperp = bperps[i]
+                mbtemp = fc.datediff(refdate, m)
+                prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), mbperp, int(mbtemp) ]
+                i = i+1
         prevbp = prevbp.sort_values('btemp').reset_index(drop=True)
         #bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
         prevbp.to_csv(bperp_file, sep = ' ', index = False, header = False)
