@@ -230,12 +230,16 @@ try:
         bperp=np.array(bperp)
         imdates=np.array(imdates)
         missingdates = imdates[bperp==0]
+        missingdates2 = imdates[np.abs(bperp)>400]
+        missingdates = np.concatenate((missingdates2, missingdates))
+        missingdates2 = imdates[np.isnan(bperp)]
+        missingdates = np.concatenate((missingdates2, missingdates))
         refdate = fc.get_master(frame)
         missingdates = missingdates[missingdates != refdate]
         # load existing
         prevbp = pd.read_csv(bperp_file, header=None, sep = ' ')
         prevbp.columns = ['ref_date', 'date', 'bperp', 'btemp']
-        print('TODO - remove missingepochs from prevbp')
+        #print('TODO - remove missingepochs from prevbp')
         # get new - try first only from ASF (more accurate)
         bpd = fc.make_bperp_file(frame, bperp_file, asfonly = True, donotstore = True)
         stillmissing = []
