@@ -408,7 +408,7 @@ if [ $prelb_backup -gt 0 ]; then
     toback=$pair.geo.$extofproc.tif
     if [ ! -f $toback ]; then
       echo "error, no original "$extofproc" tif exists for pair "$pair". removing"
-      cd $disdir; mkdir -p ../GEOC.removed; mv $pair ../GEOC.removed/.
+      cd $disdir; mkdir -p ../GEOC.removed; if [ -d ../GEOC.removed/$pair ]; then rm -rf ../GEOC.removed/$pair; fi; mv $pair ../GEOC.removed/.
     else
       if [ ! -f $toback.prelb.tif ]; then
         mv $toback $toback.prelb.tif
