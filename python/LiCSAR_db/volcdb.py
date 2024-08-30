@@ -116,6 +116,65 @@ def get_status_table_volc(volcid):
     return vidtable
 
 
+def get_status_details_volc(volcid = None, vid = None):
+    '''Provide either volcano ID or volclip id (vid) to extract RSLCs per subframe'''
+    if not vid
+        if not volcid:
+            print('provide either volcid or vid')
+            return
+        else:
+            vid = get_volclip_vids(volcid)[0]
+    vtb = get_status_table_volc(volcid)
+    import os
+    volclip_path = os.path.join(os.environ['LiCSAR_procdir'], 'subsets', 'volc', str(vid))
+    allrslcs = []
+    for subframe in vtb['subframe'].values:
+        rslcs = os.listdir(os.path.join(volclip_path, subframe, 'RSLC'))
+        allrslcs.append(rslcs)
+        #print(len(rslcs))
+    return vtb.subframe.values, allrslcs
+
+
+def plot_status_details_volc(volcid=None, vid=None):
+    '''just copied from jupyter ntb'''
+    frames, allrslcs = get_status_details_volc(volcid=volcid, vid=vid)
+    import pygmt
+    import numpy as np
+    import pandas as pd
+    import datetime as dt
+    #
+    today = dt.datetime.now()
+    fig = pygmt.Figure()
+    ys = np.ones(len(allrslcs)).cumsum()
+    miny, maxy = 0, len(ys) + 1
+    minx, maxx = dt.datetime(2014, 10, 1), today
+    #
+    fig.basemap(
+        region=[minx, maxx, miny, maxy],
+        projection="X12c/4c",
+        frame=["xaf+ltime", "yaf+lsubframe", "WSrt+texisting hires clips"],
+    )
+    #
+    for i in range(len(allrslcs)):
+        fill = 'black'
+        rslcs = allrslcs[i]
+
+        x = pd.to_datetime(rslcs)
+        y = np.ones(len(rslcs)) * ys[i]
+
+        fig.plot(
+            x=x,
+            y=y,
+            style="p0.05c",
+            fill=fill,
+            # Set the legend label,
+            transparency=25,  # set transparency level for all symbols
+        )
+    #
+    # fig.legend(transparency=30)  # set transparency level for legends
+    return fig
+
+
 def get_status_table_all_volcs():
     """Gets current processing status of all volcanoes (number of already existing RSLCs of their volclips).
     Will get table in the form of:

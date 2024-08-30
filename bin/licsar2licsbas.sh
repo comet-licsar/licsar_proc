@@ -22,7 +22,7 @@ if [ -z $1 ]; then
  #echo "-m ....... OBSOLETE: keeping alway on (would be off only with -s) with reunwrapping with Goldstein filter on (by default), use coh based on spectral magnitude - recommended param, please use this by default"
  echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter)"
  echo "-m ....... use GAMMA ADF for filtering if Goldstein filter is selected (does not work together with -s)"
- echo "-t 0.35 .. change consistence threshold to 0.35 (default) during reunwrapping"
+ echo "-t 0.2 .. change consistence threshold to 0.2 (should be default, quite good for ML10.. but now default is set to 0 !) during reunwrapping"
  echo "-H ....... this will use hgt to support the (re-)unwrapping"
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
@@ -48,7 +48,9 @@ if [ -z $1 ]; then
  exit
 fi
 
-thres=0.35
+thres=0
+echo "WARNING - 2024-08-30: indeed current noise estimation is removing edges such as phase jumps. Setting thres=0 by default to avoid this but then we do not really mask noise - expect very different results.."
+echo "(of course, you can return this by manually setting -t 0.23 for example .. sorry if you already did and see this message)"
 dolocal=0
 dogacos=0
 multi=1
@@ -451,6 +453,7 @@ fi
 if [ $setides -gt 0 ]; then
   echo "checking/generating solid earth tides data"
   create_LOS_tide_frame_allepochs $frame
+  disprocdir=`pwd`
   if [ $reunw -gt 0 ]; then  # in such case we correct before unwrapping
      echo "applying the SET correction"
 	 # now using them to create either pha or unw tifs (to GEOC)
@@ -502,6 +505,7 @@ if [ $setides -gt 0 ]; then
   fi
    # correct only on epoch level, i.e. now just link to 
    echo "Linking solid earth tide corrections per epoch"
+   cd $disprocdir
    mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
    extfull=tide.geo.tif
    for epochpath in `ls $epochdir/20?????? -d`; do
@@ -511,11 +515,11 @@ if [ $setides -gt 0 ]; then
          mkdir -p $epoch
          cd $epoch
          ln -s $epochpath/$epoch.$extfull
-         cd ..
+         cd $disdir
         fi
       fi
    done
-   cd $disdir
+   cd $disprocdir
   #fi
   cd $workdir
 fi
@@ -524,6 +528,7 @@ fi
 if [ $iono -gt 0 ]; then
  echo "checking/generating ionospheric correction data"
  python3 -c "from iono_correct import *; make_all_frame_epochs('"$frame"')"
+ disprocdir=`pwd`
  if [ $reunw -gt 0 ]; then
 	 echo "applying the ionospheric correction"
 	 cd GEOC
@@ -614,6 +619,7 @@ if [ $iono -gt 0 ]; then
   #else
    # correct only on epoch level, i.e. now just link to 
    echo "Linking iono corrections per epoch"
+   cd $disprocdir
    mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
    extfull=geo.iono.code.tif
    for epochpath in `ls $epochdir/20?????? -d`; do
@@ -623,11 +629,11 @@ if [ $iono -gt 0 ]; then
          mkdir -p $epoch
          cd $epoch
          ln -s $epochpath/$epoch.$extfull
-         cd ..
+         cd $disdir
         fi
       fi
    done
-   cd $disdir
+   cd $disprocdir
   #fi
   cd $workdir
 fi
