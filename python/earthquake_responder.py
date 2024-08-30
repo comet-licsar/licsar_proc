@@ -439,6 +439,9 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
         if cond:
             if usgskmlfile:
                 os.system('cp {0} {1}/.'.format(usgskmlfile, os.path.join(products_path,pifg)))
+            if misc.datediff_pair(pifg) > 30:
+                print('Identified coseismic ifg with long Btemp - skipping this one: '+pifg)
+                continue
             if not overwrite:
                 if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
                     os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
