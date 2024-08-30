@@ -851,7 +851,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                     print('..preparing frame {0} and sending processing jobs to LOTUS'.format(frame))
                     #print('licsar_make_frame.sh -n {0} 0 1 {1} {2}'.format('065D_05281_111313',str(indate.date()),str(offdate.date())))
                     #os.system('licsar_make_frame.sh -E -S {0} 1 1 {1} {2} >/dev/null 2>/dev/null'.format(frame,str(indate.date()),str(offdate.date())))
-                    os.system('licsar_make_frame.sh -f -P -S {0} 1 1 {1} {2}'.format(frame,str(indate.date()),str(offdate.date())))
+                    os.system('licsar_make_frame.sh -f -S {0} 1 1 {1} {2}'.format(frame,str(indate.date()),str(offdate.date())))
     elif step == 2:
         #second run - generate kmls:
         for frame in frames:
