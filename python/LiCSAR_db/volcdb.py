@@ -118,7 +118,7 @@ def get_status_table_volc(volcid):
 
 def get_status_details_volc(volcid = None, vid = None):
     '''Provide either volcano ID or volclip id (vid) to extract RSLCs per subframe'''
-    if not vid
+    if not vid:
         if not volcid:
             print('provide either volcid or vid')
             return
