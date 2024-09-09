@@ -509,7 +509,7 @@ def downloadIfgs(track,frame):
         os.mkdir(outDir)
     rc = os.system('chmod -R 777 '+outDir+' 2>/dev/null')
     #get list of ifgs:
-    webaddr = 'http://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/'+str(track)+'/'+str(frame)+'/interferograms'
+    webaddr = 'https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/'+str(track)+'/'+str(frame)+'/interferograms/'
     print('getting list of interferograms in LiCSAR')
     a = requests.get(webaddr)
     b = html.fromstring(a.content)
