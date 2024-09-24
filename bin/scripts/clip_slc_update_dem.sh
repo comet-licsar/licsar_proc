@@ -23,11 +23,14 @@ mk_copdem DEM/dem_crop $lonlats
 echo "preparing geocoding tables"
 master=`ls SLC | head -n 1` # should be only one
 masterslcdir=RSLC/$master
-geodir=`ls geo.*m -d | head -n 1`
-mv $geodir GEOC* backup_oldDEM/.
+
+# update only resolution version that was set by local_config.py
+source local_config.py # must have resol_m
+geodir=geo.$resol_m'm'  #`ls geo.*m -d | head -n 1`
+mv $geodir GEOC.MLI.$resol_m'm' GEOC.meta.$resol_m'm' backup_oldDEM/. 2>/dev/null
 mkdir $geodir
-resol_m=`echo $geodir | cut -d '.' -f 2 | cut -d 'm' -f 1`
-resol=`cat sourcecmd.txt | rev | gawk {'print $1'} | rev`
+#resol_m=`echo $geodir | cut -d '.' -f 2 | cut -d 'm' -f 1`
+resol=$outres #`cat sourcecmd.txt | rev | gawk {'print $1'} | rev`
 
 python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
 	 geocode_dem('"$masterslcdir"', '"$geodir"', 'DEM' , '.', '"$master"', "$resol")" > log/geo_update.log 2> log/geo_update.err
