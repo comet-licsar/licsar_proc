@@ -130,6 +130,29 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     return fig
 
 
+def get_region(cube):
+    '''extracts pyGMT-compliant region from given xr dataset/dataarray'''
+    if 'longitude' in cube:
+        x='longitude'
+        y='latitude'
+    elif 'lon' in cube:
+        x='lon'
+        y='lat'
+    elif 'x' in cube:
+        x='x'
+        y='y'
+    else:
+        print('no proper dimension')
+        return False
+    a=cube
+    llcrnrlon=float(a[x].min().values) # lower left corner longitude 
+    llcrnrlat=float(a[y].min().values) # lower left corner latitude
+    urcrnrlon=float(a[x].max().values) # upper right corner longitude
+    urcrnrlat=float(a[y].max().values) # upper right corner latitude
+    region=[llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat]
+    return region
+
+
 def vis_tif(tifile, stdscale = 1, to_amp_db = False):
     ''' to show a tif file
     Args:
