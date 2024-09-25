@@ -563,21 +563,21 @@ def process_frame_volcano(options):
                                 input_file, temp_file
                             ])
                             call([
-                                'gdal_translate', '-q', '-ot', 'float32',
+                                'gdal_translate', '-co', 'COMPRESS=Deflate', '-q', '-ot', 'float32',
                                 '-scale', str(1), str(255), str(0), str(1),
                                 temp_file, output_file
                             ])
                             os.remove(temp_file)
                         else:
                             call([
-                                'gdalwarp', '-q', '-t_srs', 'EPSG:4326', '-te',
+                                'gdalwarp', '-co', 'COMPRESS=Deflate', '-q', '-t_srs', 'EPSG:4326', '-te',
                                 str(xmin), str(ymin), str(xmax), str(ymax),
                                 '-ts', str(DX * 1000), str(DY * 1000), input_file,
                                 output_file
                             ])
                     else:
                         call([
-                            'gdalwarp', '-q', '-t_srs', 'EPSG:4326', '-te',
+                            'gdalwarp', '-q', '-co', 'COMPRESS=Deflate', '-t_srs', 'EPSG:4326', '-te',
                             str(xmin), str(ymin), str(xmax), str(ymax), '-ts',
                             str(DX * 1000), str(DY * 1000), input_file,
                             output_file
