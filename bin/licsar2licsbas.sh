@@ -338,17 +338,17 @@ fi
 if [ $dolocal == 0 ]; then
   disdir=`pwd`
   echo "Linking tif files from the LiCSAR_public directory"
+  ls $indir | grep '_' > tmp.ifgs
 if [ ! -z $2 ]; then
   echo "limiting the dataset to dates between "$startdate" and "$enddate
     #cp $epochdir/$epoch/$epoch.sltd.geo.tif ../GACOS/. 2>/dev/null
-  for ifg in `ls $indir/20* -d 2>/dev/null`; do
-   if [ `basename $ifg | cut -d '_' -f1` -ge $startdate ]; then
-    if [ `basename $ifg | cut -d '_' -f2` -le $enddate ]; then
+  for pair in `cat tmp.ifgs`; do
+   if [ `echo $pair | cut -d '_' -f1` -ge $startdate ]; then
+    if [ `echo $pair | cut -d '_' -f2` -le $enddate ]; then
       #ln -s $ifg;
-      pair=`basename $ifg`
       mkdir -p $pair
       cd $pair
-      for ff in `ls $ifg/*tif`; do
+      for ff in `ls $indir/$pair/*tif`; do
         ln -s $ff
       done
       cd $disdir
@@ -356,17 +356,17 @@ if [ ! -z $2 ]; then
    fi
   done
 else
- for ifg in `ls $indir/20* -d 2>/dev/null`; do
-    pair=`basename $ifg`
+ for pair in `cat tmp.ifgs`; do
     mkdir -p $pair
     cd $pair
-    for ff in `ls $ifg/*tif`; do
+    for ff in `ls $indir/$pair/*tif`; do
       ln -s $ff
     done
     cd $disdir
  done
 fi
  # once done, switch to 'local' so we can use those linked data further
+ rm tmp.ifgs
  dolocal=1
 fi
 
