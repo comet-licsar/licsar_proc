@@ -26,6 +26,18 @@ masterslcdir=RSLC/$master
 
 # update only resolution version that was set by local_config.py
 source local_config.py # must have resol_m
+
+# we may now want different resolution and multilooking than earlier, so....
+mli=RSLC/$master/$master.rslc.mli.par
+reprocmli=0
+if [ ! `get_value $mli azimuth_looks` == $azlks ]; then reprocmli=1; fi
+if [ ! `get_value $mli range_looks` == $rglks ]; then reprocmli=1; fi
+if [ $reprocmli == 1 ]; then
+  echo "regenerating ref epoch MLI"
+  rm RSLC/$master/$master.rslc.mli RSLC/$master/$master.rslc.mli.par
+  multi_look RSLC/$master/$master.rslc RSLC/$master/$master.rslc.par RSLC/$master/$master.rslc.mli RSLC/$master/$master.rslc.mli.par $rglks $azlks >/dev/null 2>/dev/null
+fi
+
 geodir=geo.$resol_m'm'  #`ls geo.*m -d | head -n 1`
 mv $geodir GEOC.MLI.$resol_m'm' GEOC.meta.$resol_m'm' backup_oldDEM/. 2>/dev/null
 mkdir $geodir
