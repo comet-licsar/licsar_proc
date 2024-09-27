@@ -346,23 +346,27 @@ if [ ! -z $2 ]; then
    if [ `echo $pair | cut -d '_' -f1` -ge $startdate ]; then
     if [ `echo $pair | cut -d '_' -f2` -le $enddate ]; then
       #ln -s $ifg;
-      mkdir -p $pair
-      cd $pair
-      for ff in `ls $indir/$pair/*tif`; do
-        ln -s $ff
-      done
-      cd $disdir
+      if [ ! -d $pair ]; then
+        mkdir -p $pair
+        cd $pair
+        for ff in `ls $indir/$pair/*tif`; do
+          ln -s $ff
+        done
+        cd $disdir
+      fi
     fi
    fi
   done
 else
  for pair in `cat tmp.ifgs`; do
+   if [ ! -d $pair ]; then
     mkdir -p $pair
     cd $pair
     for ff in `ls $indir/$pair/*tif`; do
       ln -s $ff
     done
     cd $disdir
+   fi
  done
 fi
  # once done, switch to 'local' so we can use those linked data further
