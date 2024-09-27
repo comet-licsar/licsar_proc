@@ -30,8 +30,13 @@ source local_config.py # must have resol_m
 # we may now want different resolution and multilooking than earlier, so....
 mli=RSLC/$master/$master.rslc.mli.par
 reprocmli=0
-if [ ! `get_value $mli azimuth_looks` == $azlks ]; then reprocmli=1; fi
-if [ ! `get_value $mli range_looks` == $rglks ]; then reprocmli=1; fi
+if [ ! -f $mli ]; then
+  reprocmli=1
+else
+ if [ ! `get_value $mli azimuth_looks` == $azlks ]; then reprocmli=1; fi
+ if [ ! `get_value $mli range_looks` == $rglks ]; then reprocmli=1; fi
+fi
+
 if [ $reprocmli == 1 ]; then
   echo "regenerating ref epoch MLI"
   rm RSLC/$master/$master.rslc.mli RSLC/$master/$master.rslc.mli.par
