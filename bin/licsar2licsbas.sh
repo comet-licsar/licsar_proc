@@ -24,6 +24,7 @@ if [ -z $1 ]; then
  echo "-m ....... use GAMMA ADF for filtering if Goldstein filter is selected (does not work together with -s)"
  echo "-t 0.2 .. change consistence threshold to 0.2 (should be default, quite good for ML10.. but now default is set to 0 !) during reunwrapping"
  echo "-H ....... this will use hgt to support the (re-)unwrapping"
+ echo "-f ....... during reunwrapping, store also as GeoTIFFs"
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future this may also add --singular)"
@@ -90,9 +91,10 @@ lotushours=0
 icams=0
 landmask=1
 hgtcorrlicsbas=0
+outifs=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRrLwkG:t:n:" option; do
+while getopts ":M:h:HucTsdbSClWgmaAiIeFfOPRrLwkG:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -111,6 +113,8 @@ while getopts ":M:h:HucTsdbSClWgmaAiIeFOPRrLwkG:t:n:" option; do
     ;;
   e) setides=1;
     prelb_backup=1;
+    ;;
+  f) outifs=1;
     ;;
   n) nproc=${OPTARG};
      #que='par-single'; # unless changed to comet queue
@@ -751,6 +755,9 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $landmask -lt 1 ]; then
    extraparam=$extraparam", do_landmask = False"
+ fi
+ if [ $outifs - gt 1 ]; then
+   extraparam=$extraparam", export_to_tif = True"
  fi
  #cp $LiCSAR_procdir/$track/$frame/geo/EQA.dem_par GEOC/.
  echo "python3 -c \"from lics_unwrap import process_frame; process_frame('"$frame"', ml="$multi $extraparam")\"" >> multirun.sh
