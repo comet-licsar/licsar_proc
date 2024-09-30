@@ -1,7 +1,7 @@
 #!/bin/bash
 # to change the DEM - can include this in clip_slc.sh if needed...
 # now we will replace the DEM to Copernicus DEM (can be changed to any if you generate DEM/dem_crop.dem yourself
-source $LiCSARpath/lib/LiCSAR_bash_lib.sh 
+source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 # please run this inside the subset directory, e.g.
 # cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/firat/043A
