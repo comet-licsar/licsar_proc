@@ -112,4 +112,9 @@ try:
 except subprocess.CalledProcessError as e:
     print(f"An error occurred while executing gdal_translate: {e}")
 
+# some cleaning
+if os.path.exists(output_coh_temp_path):
+    os.remove(output_coh_temp_path)
+
+
 print(BLUE + "Super-sbovldiff successfully created!" + ENDC)
