@@ -140,8 +140,9 @@ if [ -f GEOC/$pair/$pair.geo.bovldiff.$tadf'tif' ]; then
 fi
 if [ -f GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif' ]; then
  mv GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif';
- gdal_translate -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 -of GTiff -a_srs EPSG:4326 GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif'
- rm GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif'
+ gdal_translate -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=2 -of GTiff -a_srs EPSG:4326 GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif' ##compressed as float32 MNergizci
+ #gdal_translate -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 -of GTiff -a_srs EPSG:4326 GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif' GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.tif'
+ rm GEOC/$pair/$pair.geo.bovldiff.$tadf'cc.temp.tif' # float32 is needed to merge with soi MNergizci
 fi
 #20181029_20190103.geo.bovldiff.adf.mm.tif
 if [ -f GEOC/$pair/$pair.geo.bovldiff.$tadf'mm.tif' ]; then

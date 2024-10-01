@@ -92,6 +92,7 @@ def open_geotiff(path, fill_value=0):
         bovl_data = band.ReadAsArray()
 
         # Replace NaN values with the specified fill_value
+        #print(bovl_data.dtype)
         bovl_data[np.isnan(bovl_data)] = fill_value
 
         return bovl_data
