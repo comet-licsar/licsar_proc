@@ -23,9 +23,43 @@ def plot3(A,B,C):
     plt.rcParams['figure.figsize']=origfigsize
 
 
+def licsbas_pygmt_plot(cube, title = 'vel', vminmax = [-15, 15],
+                       toplot = 'vel', volcid = None):
+    ''' plots licsbas result in netcdf, loaded to xr.Dataset (cube).
+    if volcano ID is set, it will add its symbol to the plot.
+    '''
+    import geopandas as gpd
+    from shapely.geometry import Point
+    refpoint = Point((cube.ref_lon, cube.ref_lat))
+    refpoint = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[refpoint])
+
+    #print('Plotting velocity layer on DEM')
+    grid = cube[toplot]
+    if maskit:
+        grid = grid.where(cube.mask == 1)
+    if volcid:
+        import volcdb as v
+        vid = v.get_volclip_vids(volcid)[0]
+        vgpd = v.get_volclips_gpd(vid)
+        # vgpd.geom.bounds
+        minlon = float(vgpd.geom.bounds.minx)
+        minlat = float(vgpd.geom.bounds.miny)
+        maxlon = float(vgpd.geom.bounds.maxx)
+        maxlat = float(vgpd.geom.bounds.maxy)
+        grid = grid.sel(lon=slice(minlon, maxlon), lat=slice(minlat, maxlat))
+    #grid = grid.load()
+    gridgmt = pygmt_plot(grid, title, 'mm/year', vminmax)
+    gridgmt.plot(data=refpoint, pen="4p,magenta4")
+    if volcid:
+        volctb = v.get_volc_info(volcid)
+        gridgmt.plot(data=volctb.geom, style="t8p", pen="0.5p,black", fill="red")
+
+
+
 def volcano_clip_plot(volcid, bevel = 0.1):
     '''plots volcano given by its volcano id - see volcdb'''
     #volcid = 243040
+    import volcdb as volc
     volcrecord = volc.get_volc_info(volcid)
     vid = volc.get_volclip_vids(volcid)[0]
     volclip = volc.get_volclips_gpd(vid)
@@ -55,8 +89,19 @@ def volcano_clip_plot(volcid, bevel = 0.1):
     return fig #fig.show()
 
 
+def pygmt_plot_interactive(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
+                           lims, cmap="roma", photobg=False, plotvec=None):
+    import IntPyGMT.IntPyGMT_overlay as ingmt
+    # print("%matplotlib widget")
+    tempng = '/tmp/pygmt_pi.png'
+    fig, region, projection, xshift, yshift = pygmt_plot(grid, title, label, lims,
+               cmap, photobg, plotvec, interactive=True)
+    fig.savefig(tempng)
+    ingmt.gmt_png(tempng, region, projection, xshift, yshift)
+
+
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
-               cmap="roma", photobg=False, plotvec=None):
+               cmap="roma", photobg=False, plotvec=None, interactive = False):
     ''' Function to generate (nice) plot of given grid using pyGMT
     
     Args:
@@ -85,10 +130,16 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     minlon, maxlon = float(np.min(grid.lon)), float(np.max(grid.lon))
     minlat, maxlat = float(np.min(grid.lat)), float(np.max(grid.lat))
 
+
     fig = pygmt.Figure()
     pygmt.config(FORMAT_GEO_MAP="ddd.xx") #, MAP_FRAME_TYPE="plain")
     projection = "M13c" # 'R13c' for Robinson etc.
     region = [minlon, maxlon, minlat, maxlat]
+
+    if interactive:
+        xshift = '1.5c'
+        yshift = '2.5c'
+        fig.shift_origin(xshift=xshift, yshift=yshift)
     fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
 
     if photobg:
@@ -127,7 +178,10 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         fig.plot(plotvec, projection=projection, region=region)
     fig.colorbar(frame='a10+l"{}"'.format(label))
     # fig.show()
-    return fig
+    if interactive:
+        return fig, region, projection, xshift, yshift
+    else:
+        return fig
 
 
 def get_region(cube):
