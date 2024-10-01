@@ -81,7 +81,7 @@ def extract_burst_overlaps(frame):
 ##############################################
 def open_geotiff(path, fill_value=0):
     '''
-    This code help open geotiff with gdal and remove nan to zero!
+    This code help open geotiff with gdal and remove nan to zero if the values are floating!
     '''
     try:
         bovl = gdal.Open(path, gdal.GA_ReadOnly)
@@ -91,9 +91,10 @@ def open_geotiff(path, fill_value=0):
         band = bovl.GetRasterBand(1)
         bovl_data = band.ReadAsArray()
 
-        # Replace NaN values with the specified fill_value
-        #print(bovl_data.dtype)
-        bovl_data[np.isnan(bovl_data)] = fill_value
+        # Replace NaN values with the specified fill_value if the data are floating type
+        # print(bovl_data.dtype)
+        if np.issubdtype(bovl_data.dtype, np.floating):
+            bovl_data[np.isnan(bovl_data)] = fill_value
 
         return bovl_data
     except Exception as e:

@@ -41,8 +41,8 @@ output_path = os.path.join(GEOC_folder, pair, pair + '.geo.sbovldiff.adf.mm.tif'
 # Coherence paths
 boi_coh_path = os.path.join(GEOC_folder, pair, pair + '.geo.bovldiff.adf.cc.tif')
 soi_coh_path = os.path.join(GEOC_folder, pair, pair + '_soi_adf_coh.geo.tif')
+output_coh_temp_path = os.path.join(GEOC_folder, pair, pair + '.geo.sbovldiff.adf.cc_temp.tif')
 output_coh_path = os.path.join(GEOC_folder, pair, pair + '.geo.sbovldiff.adf.cc.tif')
-
 # Open input GeoTIFF files
 if os.path.exists(boi_path):
     boi_mm = open_geotiff(boi_path, fill_value=np.nan)
@@ -77,18 +77,39 @@ soi_mm[soi_mm==0]= np.nan
 super_sboi[np.isnan(super_sboi)] = soi_mm[np.isnan(super_sboi)]
 
 # Process and scale coherence data
+boi_coh = boi_coh/255 
+boi_coh[boi_coh==0] = np.nan
 super_sboi_coh = boi_coh.copy()
 super_sboi_coh[super_sboi_coh==0] = np.nan
 soi_coh[soi_coh==0]=np.nan
 super_sboi_coh[np.isnan(super_sboi_coh)] = soi_coh[np.isnan(super_sboi_coh)]
 
-# Scale coherence data to 0-255
-super_sboi_coh[super_sboi_coh==0] = np.nan 
-super_sboi_coh = np.clip(super_sboi_coh * 255, 0, 255)
+##Milan's recommendation
+# super_sboi_coh[super_sboi_coh==0] = np.nan
+super_sboi_coh[np.isnan(super_sboi_coh)] = 0
 
 
 # Export the result to a GeoTIFF
 export_to_tiff(output_path, super_sboi, boi_path)
-export_to_tiff(output_coh_path, super_sboi_coh, boi_path)
+export_to_tiff(output_coh_temp_path, super_sboi_coh, boi_path)
+
+# Applying gdal_translate with subprocess
+exec_str = [
+    "gdal_translate",
+    "-ot", "Byte",
+    "-scale", "0", "1", "0", "255",
+    "-co", "COMPRESS=DEFLATE",
+    "-co", "PREDICTOR=2",
+    "-of", "GTiff",
+    "-a_srs", "EPSG:4326",
+    output_coh_temp_path,
+    output_coh_path
+]
+
+# Run the gdal_translate command
+try:
+    subprocess.run(exec_str, check=True)
+except subprocess.CalledProcessError as e:
+    print(f"An error occurred while executing gdal_translate: {e}")
 
 print(BLUE + "Super-sbovldiff successfully created!" + ENDC)
