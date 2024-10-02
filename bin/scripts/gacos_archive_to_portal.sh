@@ -31,7 +31,7 @@ for rsc in $work_dir/$frame/*.ztd; do
   fi
 done
 
-for geotif in $work_dir/$frame/*.geo.tif; do
+for geotif in $work_dir/$frame/*.sltd.geo.tif; do
    #date=$(echo $geotif | awk -F"." '{print $1}' | awk -F'/' '{print $12}')
    date=`basename $geotif | cut -d '.' -f1`
    mkdir -p  $prod_dir/$track/$frame/epochs/$date

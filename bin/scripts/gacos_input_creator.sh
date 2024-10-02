@@ -80,7 +80,7 @@ else
  sort -u $frame.inp.tmp >$frame.inp.tmp2
 fi
 for epoch in `cat $frame.inp.tmp2`; do
-    if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.ztd.geo.tif ]; then
+    if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.sltd.geo.tif ]; then
      if [ `datediff $epoch` -ge $minbtemp ]; then
       echo $epoch >> $frame.inp
      fi
@@ -94,7 +94,7 @@ exit
 
 if [ -f $prod_dir/$track/$frame/metadata/baselines ]; then
    for epoch in `awk '{print $2}' $prod_dir/$track/$frame/metadata/baselines`; do
-    if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.ztd.geo.tif ]; then
+    if [ ! -f $prod_dir/$track/$frame/epochs/$epoch/$epoch.sltd.geo.tif ]; then
      echo $epoch >> $frame.inp
     fi
    done
