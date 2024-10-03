@@ -90,7 +90,7 @@ def volcano_clip_plot(volcid, bevel = 0.1):
 
 
 def pygmt_plot_interactive(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
-                           lims, cmap="roma", photobg=False, plotvec=None):
+                           cmap="roma", photobg=False, plotvec=None):
     import IntPyGMT.IntPyGMT_overlay as ingmt
     # print("%matplotlib widget")
     tempng = '/tmp/pygmt_pi.png'
