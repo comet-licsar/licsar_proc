@@ -508,13 +508,13 @@ if [ $setides -gt 0 ]; then
 	   cd $disdir
 	 done
   #else   # i mean, link it anyway, as we might want to check loading to cube etc.
-  else
-    echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  #else
+  #  echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
   fi
    # correct only on epoch level, i.e. now just link to 
    echo "Linking solid earth tide corrections per epoch"
    cd $disprocdir
-   mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
+   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
    extfull=tide.geo.tif
    for epochpath in `ls $epochdir/20?????? -d`; do
       epoch=`basename $epochpath`
@@ -621,14 +621,14 @@ if [ $iono -gt 0 ]; then
 	   cd $disdir
 	 done
 	 rm $tmpy
-  else
-   echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  #else
+  # echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
   fi
   #else
    # correct only on epoch level, i.e. now just link to 
    echo "Linking iono corrections per epoch"
    cd $disprocdir
-   mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
+   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
    extfull=geo.iono.code.tif
    for epochpath in `ls $epochdir/20?????? -d`; do
       epoch=`basename $epochpath`
