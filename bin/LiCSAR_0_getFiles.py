@@ -199,7 +199,7 @@ def main(argv=None):
         if 'neodc' not in zipf:
             removeddate = acq_dates.pop(zipFiles.index(zipf))
             zipFiles.remove(zipf)
-    
+
 
     filesDF = pd.DataFrame({'files':zipFiles,'onTape':False},index=pd.to_datetime(acq_dates))
     filesDF = filesDF.drop_duplicates()

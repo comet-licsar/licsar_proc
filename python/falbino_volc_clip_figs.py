@@ -495,13 +495,11 @@ def process_frame_volcano(options):
         for file in files:
             if (file.endswith('diff_pha.tif') | file.endswith('cc.tif') |
                     file.endswith('unw.tif') | file.endswith('mli.tif') |
-                    file.endswith('sltd.geo.tif') |
-                    file.endswith('ztd.geo.tif')):
+                    file.endswith('sltd.geo.tif') ):
                 filecrop = volcano + '_' + file
                 masterdate = filecrop[len(volcano) + 1:len(volcano) + 9]
                 slavedate = filecrop[len(volcano) + 10:len(volcano) + 18]
-                if (file.endswith('mli.tif') | file.endswith('sltd.geo.tif') |
-                        file.endswith('ztd.geo.tif')):
+                if (file.endswith('mli.tif') | file.endswith('sltd.geo.tif') ):
                     output_file = os.path.join(direpoch, filecrop)
                 else:
                     output_file = os.path.join(dirtif, filecrop)
