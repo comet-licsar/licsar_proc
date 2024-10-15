@@ -268,11 +268,12 @@ try:
                 '''
         if stillmissing:
             bperps = fc.estimate_bperps(frame, stillmissing, return_epochsdt=False)
+            bperps = bperps.astype(int)
             i = 0
             for m in stillmissing:
                 mbperp = bperps[i]
                 mbtemp = fc.datediff(refdate, m)
-                prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), mbperp, int(mbtemp) ]
+                prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), int(mbperp), int(mbtemp) ]
                 i = i+1
         prevbp = prevbp.sort_values('btemp').reset_index(drop=True)
         #bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
