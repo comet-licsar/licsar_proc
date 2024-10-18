@@ -5,11 +5,11 @@ export grouppath="/gws/nopw/j04/nceo_geohazards_vol1"
 export LiCSAR_procdir="/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
 export softwarepath="/gws/smf/j04/nceo_geohazards/software"
 export nlapath="/gws/smf/j04/nceo_geohazards/software/nla"
+export ingestConfig=/gws/nopw/j04/nceo_geohazards_vol1/config/LiCSAR/liveConfig.cnf
+export bkup_dir=/gws/nopw/j04/nceo_geohazards_vol1/bkups
 
 # added 2023/08
 GAMMA_HOME="/gws/smf/j04/nceo_geohazards/software/GAMMA/20221129"
-export ingestConfig=/gws/nopw/j04/nceo_geohazards_vol1/config/LiCSAR/liveConfig.cnf
-export bkup_dir=/gws/nopw/j04/nceo_geohazards_vol1/bkups
 export GAMMA_HOME="/gws/smf/j04/nceo_geohazards/software/GAMMA/20221129"
 export MSP_HOME="$GAMMA_HOME/MSP"
 export ISP_HOME="$GAMMA_HOME/ISP"

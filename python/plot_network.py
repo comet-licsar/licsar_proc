@@ -277,6 +277,7 @@ try:
                 i = i+1
         prevbp = prevbp.sort_values('btemp').reset_index(drop=True)
         #bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
+        bperps = bperps.astype(int)  # for some reason we still export as floats!
         prevbp.to_csv(bperp_file, sep = ' ', index = False, header = False)
         bperp = read_bperp_file(bperp_file, imdates)
 except:
