@@ -758,7 +758,7 @@ if [ $reunw -gt 0 ]; then
  if [ $landmask -lt 1 ]; then
    extraparam=$extraparam", do_landmask = False"
  fi
- if [ $outifs - gt 1 ]; then
+ if [ $outifs -gt 0 ]; then
    extraparam=$extraparam", export_to_tif = True"
  fi
  #cp $LiCSAR_procdir/$track/$frame/geo/EQA.dem_par GEOC/.
