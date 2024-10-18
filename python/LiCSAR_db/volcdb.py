@@ -309,7 +309,13 @@ def add_volcano_to_volclip(volcid, vid):
 
 
 def delete_volclip(vid):
-    """This will delete volcano clip definition - careful, not many checks in place
+    """This will delete volcano clip definition - careful, not many checks in place.
+    To delete from the core system in terminal for now:
+    vid=
+    mv $LiCSAR_procdir/subsets/volc/$vid $LiCSAR_procdir/subsets/volc.todel/.
+    for x in $LiCSAR_procdir/subsets/volc.todel/$vid/*/corner*; do
+      a=`basename $x`; a=`echo $a | cut -d '.' -f2`; cdproc $a; rm subsets/$vid; cd -;
+    done
     """
     sql_q = "DELETE FROM volclip2volcs where vid = {0};".format(str(vid))
     res = do_query(sql_q, True)

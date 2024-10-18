@@ -52,6 +52,7 @@ fi
 thres=0
 echo "WARNING - 2024-08-30: indeed current noise estimation is removing edges such as phase jumps. Setting thres=0 by default to avoid this but then we do not really mask noise - expect very different results.."
 echo "(of course, you can return this by manually setting -t 0.23 for example .. sorry if you already did and see this message)"
+echo "And other update (2024-10-18): using avg abs phase bias == 1 rad for masking in step 15"
 dolocal=0
 dogacos=0
 multi=1
@@ -90,6 +91,7 @@ prelb_backup=0
 lotushours=0
 icams=0
 landmask=1
+maskbias=1
 hgtcorrlicsbas=0
 outifs=0
 
@@ -844,6 +846,9 @@ if [ $clip -gt 0 ]; then
  rm tmp.sedaoi
 fi
 
+if [ $maskbias -gt 0 ]; then
+  sed -i 's/p15_avg_phasebias=\"\"/p15_avg_phasebias=\"1\"/' batch_LiCSBAS.sh
+fi
 
 if [ $run_jasmin -eq 1 ]; then
  echo "sending as job to JASMIN"
