@@ -510,13 +510,13 @@ if [ $setides -gt 0 ]; then
 	   cd $disdir
 	 done
   #else   # i mean, link it anyway, as we might want to check loading to cube etc.
-  else
-    echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  #else
+  #  echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
   fi
    # correct only on epoch level, i.e. now just link to 
    echo "Linking solid earth tide corrections per epoch"
    cd $disprocdir
-   mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
+   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
    extfull=tide.geo.tif
    for epochpath in `ls $epochdir/20?????? -d`; do
       epoch=`basename $epochpath`
@@ -623,14 +623,14 @@ if [ $iono -gt 0 ]; then
 	   cd $disdir
 	 done
 	 rm $tmpy
-  else
-   echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  #else
+  # echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
   fi
   #else
    # correct only on epoch level, i.e. now just link to 
    echo "Linking iono corrections per epoch"
    cd $disprocdir
-   mkdir -p GEOC.EPOCHS; disdir=`pwd`; cd GEOC.EPOCHS
+   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
    extfull=geo.iono.code.tif
    for epochpath in `ls $epochdir/20?????? -d`; do
       epoch=`basename $epochpath`
@@ -866,17 +866,27 @@ if [ $run_jasmin -eq 1 ]; then
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
  tsdir=TS_$geocd
  if [ $reunw -eq 0 ]; then
+   lbreproc=0
+   lbreprocname=''
   # so here we have already unwrapped data and we will just post-correct the ramps
   if [ $setides -gt 0 ]; then
     #echo "insert code to post-correct SET here"
     echo "Note: SET corrections will be applied to cum_filt only"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1000)\"" >> jasmin_run.sh
+    lbreproc=1
+    lbreprocname=$lbreprocname'.noSET'
     #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.code.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
   fi
   if [ $iono -gt 0 ]; then
     #echo "insert code to post-correct iono here"
     echo "Note: iono corrections will be applied to cum_filt only"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi))\"" >> jasmin_run.sh
+    lbreproc=1
+    lbreprocname=$lbreprocname'.noiono'
+  fi
+  if [ $lbreproc -gt 0 ]; then
+    echo "LiCSBAS_cum2vel.py -i "$tsdir"/cum_filt.h5 -o "$tsdir"/results/vel.filt"$lbreprocname".mskd --vstd --png --mask "$tsdir"/results/mask" >> jasmin_run.sh
+    echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt"$lbreprocname".mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt"$lbreprocname".mskd.geo.tif" >> jasmin_run.sh
   fi
  fi
  
@@ -899,6 +909,7 @@ if [ $run_jasmin -eq 1 ]; then
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'icams.sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
  fi
+
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
