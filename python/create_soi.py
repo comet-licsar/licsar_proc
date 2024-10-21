@@ -42,8 +42,10 @@ start_time=time.time()
 # print(BLUE + 'SBOVL is creating, please wait!!!' + ENDC)
 
 ##variables
-framedir = os.getcwd()
-frame = os.path.basename(os.getcwd())
+tempdir = os.getcwd()
+frame = os.path.basename(tempdir)
+batchdir = os.environ['BATCH_CACHE_DIR'] #this is necesarry because the framebatch_gapfill run the code in $LiCS_temp folder which not correct location.
+framedir = os.path.join(batchdir, frame)
 pair=sys.argv[1]
 #batchdir=os.environ['BATCH_CACHE_DIR']
 prime, second = pair.split('_')
