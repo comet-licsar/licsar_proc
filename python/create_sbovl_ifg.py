@@ -24,8 +24,10 @@ ORANGE = '\033[38;5;208m'
 ENDC = '\033[0m'  # ANSI code to end formatting
 
 ##variables
-framedir = os.getcwd()
-frame = os.path.basename(os.getcwd())
+tempdir = os.getcwd()
+frame = os.path.basename(tempdir)
+batchdir = os.environ['BATCH_CACHE_DIR'] ##this is necesarry because the framebatch_gapfill run the code in $LiCS_temp folder which not correct location.
+framedir = os.path.join(batchdir, frame)
 #TODO I can check the frame name is okay for format of LiCSAR_frame.
 pair = sys.argv[1]
 #batchdir = os.environ['BATCH_CACHE_DIR']
