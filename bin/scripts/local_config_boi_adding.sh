@@ -12,8 +12,13 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-# current path where the frames are located
-LiCS_proc_path="/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current"
+# Check if $LiCSAR_procdir is set
+if [ -z "$LiCSAR_procdir" ]; then
+  echo "LiCSAR_procdir is not set. Please check 'module load licsar_framebatch_testing/testing'"
+  exit 1
+fi
+
+
 
 # Define a regular expression for the correct format (with 'A' or 'B' only for the fourth character)
 regex="^[0-9]{3}[AD]_[0-9]{5}_[0-9]{6}$"
@@ -24,7 +29,7 @@ while IFS= read -r i; do
   if [[ $i =~ $regex ]]; then
     # Remove leading zeros from the first three characters
     prefix=$(echo $i | cut -c 1-3 | sed 's/^0*//')
-    path="$LiCS_proc_path/$prefix/$i"
+    path="$LiCSAR_procdir/$prefix/$i"
 
     # Check if local_config.py exists in the path
     if [ -f "$path/local_config.py" ]; then
