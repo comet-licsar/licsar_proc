@@ -2,8 +2,6 @@
 '''
 Created on 10/02/2024
 
-Last Revision August 2024
-
 @author: M. Nergizci, C. Magnard, M. Lazecky
 University of Leeds
 Gamma Remote Sensing
@@ -325,13 +323,22 @@ print('printing type and shape of the inf data')
 
 mli_par_path=os.path.join(mli1_mod1_name + '.par')
 
-if os.path.exists(mli_par_path):
-  with open(mli_par_path, 'r') as mli_par:
-    for line in mli_par:
-      if line.startswith('range_samples'):
-        width=int(line.split(':')[-1].strip())
-      elif line.startswith('azimuth_lines'):
-        az_line=int(line.split(':')[-1].strip())
+##the mli_par_path should be exist, othercase can't work properly!
+try:
+    if os.path.exists(mli_par_path):
+        with open(mli_par_path, 'r') as mli_par:
+            for line in mli_par:
+                if line.startswith('range_samples'):
+                    width = int(line.split(':')[-1].strip())
+                elif line.startswith('azimuth_lines'):
+                    az_line = int(line.split(':')[-1].strip())
+    else:
+        print(f'mli par does not exist. Please check the path: {mli_par_path}')
+        sys.exit(1)
+
+except Exception as e:
+    print(f'An error occurred: {e}')
+    sys.exit(1)
           
 diff_mod1=np.fromfile(diff_mod1_mask_name, np.complex64).byteswap()
 diff_mod2=np.fromfile(diff_mod2_mask_name, np.complex64).byteswap()
