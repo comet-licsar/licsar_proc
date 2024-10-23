@@ -89,6 +89,7 @@ master_tab_name= create_tab_file(master, framedir, frame, type='SLC')
 master_tab_name= create_tab_file(master, framedir, frame, type='RSLC')
 
 #off
+os.makedirs(os.path.join(IFG_folder, pair), exist_ok=True)
 off_par = os.path.join(framedir, 'IFG', pair, pair + '.off')
 # sim_unw = os.path.join(framedir, 'IFG', pair, pair+'.sim_unw') ##we don't need this because double differencing cancel out the topography correlated inf.
 if not os.path.exists(off_par):  # Corrected os.file.exists to os.path.exists
@@ -191,13 +192,11 @@ for i in range(nrows):
 for i in range(nrows):
     # Create the file name using f-string
     file_name = f'empty.iw{1+i}.slc'
+    full_path = os.path.join(temp_file, file_name)
     
     # Create the array
-    if not os.path.exists(os.path.join(temp_file, file_name)):
-      pg.create_array(file_name, nr[i], naz[i], 5, 0.0, 0.0) #output width nlines dtpes val val_im
-    
-    # Move the created file
-      shutil.move(file_name, temp_file)
+    if not os.path.exists(full_path):
+        pg.create_array(full_path, nr[i], naz[i], 5, 0.0, 0.0) #output width nlines dtpes val val_im
       
 SLC1_tab_mod1 = SLC1_tab.copy()
 SLC1_tab_mod2 = SLC1_tab.copy()
@@ -590,7 +589,7 @@ for suffix, polygons_filtered in [('fwr', fwr), ('bwr', bwr)]:
     # Process each and store the resulting phase data
     process_diff_data(dd_cpx, polygons_filtered,sf_array, pair, suffix, width, az_line)
 
-print('So far so good?><')
+print('HouseKeeping')
 
 #######################################
 #####producing merged adf and cc values
@@ -646,7 +645,6 @@ ddif_adf_nonscale_merg=ddif_adf_nonscale_merg.astype(np.float32)
 ddiff_adf_nonscale_merg_path=os.path.join(IFG_folder,pair, f'{pair}_soi_adf_unscaled')
 ddif_adf_nonscale_merg.byteswap().tofile(ddiff_adf_nonscale_merg_path)
 
-
 for prefix in ['coh', 'scaled']:  #unscaled
     phase_data = os.path.join(IFG_folder,pair, f'{pair}_soi_adf_{prefix}')
     geoc_file=os.path.join(GEOC_folder,pair, f'{pair}_soi_adf_{prefix}.geo')
@@ -664,20 +662,6 @@ for prefix in ['coh', 'scaled']:  #unscaled
       # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
       print(f"An error occurred while executing the command: {e}")
-
-# Removing interval dataset to use the space efficiently
-for i in os.listdir(os.path.join(IFG_folder, pair)):
-    # Check if the file name contains the specific substrings
-    if '_soi_' in i or 'mod1' in i or 'mod2' in i:
-        os.remove(os.path.join(IFG_folder, pair, i))  # Correct the os.path.join usage
-        
-# Removing interval dataset to use the space efficiently
-for i in os.listdir(os.path.join(GEOC_folder, pair)):
-    # Check if the file name contains '_soi_' and 'geo' and does not contain 'tif'
-    if ('_soi_' in i and 'geo' in i and 'tif' not in i):
-        os.remove(os.path.join(GEOC_folder, pair, i))  # Corrected to remove from the same folder
-
-
 
 # After script finishes, restore stdout and stderr
 sys.stdout = sys.__stdout__
