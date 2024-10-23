@@ -33,6 +33,7 @@ pair = sys.argv[1]
 #batchdir = os.environ['BATCH_CACHE_DIR']
 prime, second = pair.split('_')
 #framedir = os.path.join(batchdir, frame)
+IFG_folder = os.path.join(framedir, 'IFG')
 GEOC_folder = os.path.join(framedir, 'GEOC')
 
 # Define the paths
@@ -118,5 +119,17 @@ except subprocess.CalledProcessError as e:
 if os.path.exists(output_coh_temp_path):
     os.remove(output_coh_temp_path)
 
+print('Removing Interval dataset!') ##here is from create_soi.py; I neeed to remove them here becasue of paralelization! 
+# Removing interval dataset to use the space efficiently
+for i in os.listdir(os.path.join(IFG_folder, pair)):
+    # Check if the file name contains the specific substrings
+    if '_soi_' in i or 'mod1' in i or 'mod2' in i:
+        os.remove(os.path.join(IFG_folder, pair, i))  # Correct the os.path.join usage
+        
+# Removing interval dataset to use the space efficiently
+for i in os.listdir(os.path.join(GEOC_folder, pair)):
+    # Check if the file name contains '_soi_' and 'geo' and does not contain 'tif'
+    if ('_soi_' in i and 'geo' in i and 'tif' not in i):
+        os.remove(os.path.join(GEOC_folder, pair, i))  # Corrected to remove from the same folder
 
 print(BLUE + "Super-sbovldiff successfully created!" + ENDC)
