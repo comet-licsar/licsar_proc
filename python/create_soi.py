@@ -100,6 +100,7 @@ if not os.path.exists(off_par):  # Corrected os.file.exists to os.path.exists
         # Run the command and suppress the output
         subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
         # print(f"Command executed successfully: {' '.join(exec_str)}")
+        print(f'{off_par} created succesfully!')
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while executing the command: {e}")
 
@@ -269,33 +270,44 @@ for i in range(nrows):
 print(BLUE + 'mosaicking step!!' + ENDC)
 
 # Check conditions and run pg.SLC_mosaic_ScanSAR if appropriate
-pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
+if not os.path.exists(SLC1_mod1_name):
+    pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
 
-pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
+if not os.path.exists(SLC1_mod2_name):
+    pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
 
-pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod1_name, RSLC2_mod1_name, RSLC2_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
+if not os.path.exists(RSLC2_mod1_name):
+    pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod1_name, RSLC2_mod1_name, RSLC2_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
 
-pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod2_name, RSLC2_mod2_name, RSLC2_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
-
+if not os.path.exists(RSLC2_mod2_name):
+    pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod2_name, RSLC2_mod2_name, RSLC2_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
 
 print(BLUE + 'multilooking step!!' + ENDC)
 
-##multilook
-pg.multi_look(SLC1_mod1_name, SLC1_mod1_name + '.par', mli1_mod1_name, mli1_mod1_name + '.par', rlks, azlks)
+# Apply multilook if necessary
+if not os.path.exists(mli1_mod1_name):
+    pg.multi_look(SLC1_mod1_name, SLC1_mod1_name + '.par', mli1_mod1_name, mli1_mod1_name + '.par', rlks, azlks)
 
-pg.multi_look(SLC1_mod2_name, SLC1_mod2_name + '.par', mli1_mod2_name, mli1_mod2_name + '.par', rlks, azlks)
+if not os.path.exists(mli1_mod2_name):
+    pg.multi_look(SLC1_mod2_name, SLC1_mod2_name + '.par', mli1_mod2_name, mli1_mod2_name + '.par', rlks, azlks)
 
-pg.multi_look(RSLC2_mod1_name, RSLC2_mod1_name + '.par', rmli2_mod1_name, rmli2_mod1_name + '.par', rlks, azlks)
+if not os.path.exists(rmli2_mod1_name):
+    pg.multi_look(RSLC2_mod1_name, RSLC2_mod1_name + '.par', rmli2_mod1_name, rmli2_mod1_name + '.par', rlks, azlks)
 
-pg.multi_look(RSLC2_mod2_name, RSLC2_mod2_name + '.par', rmli2_mod2_name, rmli2_mod2_name + '.par', rlks, azlks)
+if not os.path.exists(rmli2_mod2_name):
+    pg.multi_look(RSLC2_mod2_name, RSLC2_mod2_name + '.par', rmli2_mod2_name, rmli2_mod2_name + '.par', rlks, azlks)
 
-mli_mosaic_par = pg.ParFile(mli1_mod1_name + '.par')
-mli_mosaic_nr = mli_mosaic_par.get_value('range_samples', dtype = int, index = 0)
-
+# Check and retrieve range_samples from mli_mosaic_par
+if os.path.exists(mli1_mod1_name + '.par'):
+    mli_mosaic_par = pg.ParFile(mli1_mod1_name + '.par')
+    mli_mosaic_nr = mli_mosaic_par.get_value('range_samples', dtype=int, index=0)
+else:
+    print(f"{mli1_mod1_name + '.par'} does not exist.")
 
 
 # calculation of differential interferograms
 # if not (os.path.exists(diff_mod1_name) and os.path.exists(diff_mod2_name)):
+print(f'double diffference is calculating!')
 pg.SLC_intf(SLC1_mod1_name, RSLC2_mod1_name, SLC1_mod1_name + '.par', RSLC2_mod1_name + '.par', off_par, diff_mod1_name, rlks, azlks, 0, '-', 0, 0)
 pg.SLC_intf(SLC1_mod2_name, RSLC2_mod2_name, SLC1_mod2_name + '.par', RSLC2_mod2_name + '.par', off_par, diff_mod2_name, rlks, azlks, 0, '-', 0, 0)
 
@@ -310,12 +322,12 @@ pg.rasmph_pwr(diff_mod2_name, mli1_mod2_name, mli_mosaic_nr)
 pg.mask_data(diff_mod1_name, mli_mosaic_nr, diff_mod1_mask_name, diff_mod2_name + '.bmp', 1)
 pg.mask_data(diff_mod2_name, mli_mosaic_nr, diff_mod2_mask_name, diff_mod1_name + '.bmp', 1)
 
-##Redundant interval data, open if you need
-# pg.rasmph_pwr(diff_mod1_mask_name, mli1_mod1_name, mli_mosaic_nr)
-# pg.rasmph_pwr(diff_mod2_mask_name, mli1_mod2_name, mli_mosaic_nr)
-# visualize differential phase of subswath overlap areas
-#pg.dis2ras(diff_mod1_mask_name + '.bmp', diff_mod2_mask_name + '.bmp')
-#pg.dis2mph(diff_mod1_mask_name, diff_mod2_mask_name, mli_mosaic_nr, mli_mosaic_nr)
+#Redundant interval data, open if you need
+pg.rasmph_pwr(diff_mod1_mask_name, mli1_mod1_name, mli_mosaic_nr)
+pg.rasmph_pwr(diff_mod2_mask_name, mli1_mod2_name, mli_mosaic_nr)
+# # visualize differential phase of subswath overlap areas
+# pg.dis2ras(diff_mod1_mask_name + '.bmp', diff_mod2_mask_name + '.bmp')
+# pg.dis2mph(diff_mod1_mask_name, diff_mod2_mask_name, mli_mosaic_nr, mli_mosaic_nr)
 
 ####make the double differencing!!
 print(BLUE + 'double difference interferogram are calculating!!!!' + ENDC)
@@ -546,6 +558,7 @@ path_to_slcdir = os.path.join(framedir, 'RSLC', prime)
 sf_array=get_sf_array(path_to_slcdir, f0=5405000500, burst_interval=2.758277)
 
 ###reopen interferogram
+print(f'shape check:{az_line}, {width}')
 dd_cpx=np.fromfile(diff_double_mask_temp, np.complex64).byteswap().reshape(az_line, width)
 
 print(BLUE + 'adf_filtering!!!!' + ENDC)
@@ -597,7 +610,6 @@ for suffix, polygons_filtered in [('fwr', fwr), ('bwr', bwr)]:
     process_diff_data(dd_cpx, polygons_filtered,sf_array, pair, suffix, width, az_line)
 
 print('HouseKeeping')
-
 #######################################
 #####producing merged adf and cc values
 bwr_ddif_coh_path=os.path.join(IFG_folder,pair, f"{pair}_bwr_soi_adf_coh")
@@ -669,6 +681,8 @@ for prefix in ['coh', 'scaled']:  #unscaled
       # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
       print(f"An error occurred while executing the command: {e}")
+
+print('All done!')
 
 # After script finishes, restore stdout and stderr
 sys.stdout = sys.__stdout__
