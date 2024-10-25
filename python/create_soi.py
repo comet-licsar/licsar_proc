@@ -322,9 +322,9 @@ pg.rasmph_pwr(diff_mod2_name, mli1_mod2_name, mli_mosaic_nr)
 pg.mask_data(diff_mod1_name, mli_mosaic_nr, diff_mod1_mask_name, diff_mod2_name + '.bmp', 1)
 pg.mask_data(diff_mod2_name, mli_mosaic_nr, diff_mod2_mask_name, diff_mod1_name + '.bmp', 1)
 
-#Redundant interval data, open if you need
-pg.rasmph_pwr(diff_mod1_mask_name, mli1_mod1_name, mli_mosaic_nr)
-pg.rasmph_pwr(diff_mod2_mask_name, mli1_mod2_name, mli_mosaic_nr)
+# #Redundant interval data, open if you need
+# pg.rasmph_pwr(diff_mod1_mask_name, mli1_mod1_name, mli_mosaic_nr)
+# pg.rasmph_pwr(diff_mod2_mask_name, mli1_mod2_name, mli_mosaic_nr)
 # # visualize differential phase of subswath overlap areas
 # pg.dis2ras(diff_mod1_mask_name + '.bmp', diff_mod2_mask_name + '.bmp')
 # pg.dis2mph(diff_mod1_mask_name, diff_mod2_mask_name, mli_mosaic_nr, mli_mosaic_nr)
