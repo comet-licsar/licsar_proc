@@ -15,10 +15,14 @@ except:
 from shapely.geometry import Polygon
 import geopandas as gpd
 import framecare as fc
+import fiona
 try:
     gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 except:
-    print('error, export to kml not working (update geopandas)')
+    pass
+    #print('error, export to kml not working (update geopandas)')
+
+fiona.drvsupport.supported_drivers['KML'] = 'rw'
 
 try:
     subvolcpath = os.path.join(os.environ['LiCSAR_procdir'], 'subsets', 'volc') #/volc/267)
