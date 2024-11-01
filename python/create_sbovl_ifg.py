@@ -122,19 +122,19 @@ if os.path.exists(output_coh_temp_path):
 print(BLUE + "Super-sbovldiff successfully created!" + ENDC)
 print(ORANGE + 'Just remove soi and boi to save space! redundant data..' + ENDC)
 
-# Removing interval dataset to use the space efficiently
-folder_path = os.path.join(GEOC_folder, pair)
+# # Removing interval dataset to use the space efficiently
+# folder_path = os.path.join(GEOC_folder, pair)
 
 
-##TODO remove the bovldiff.tif, cc.tif, adf.tif in create_bovl.sh
-for i in os.listdir(folder_path):
-    file_path = os.path.join(folder_path, i)
+# ##TODO remove the bovldiff.tif, cc.tif, adf.tif in create_bovl.sh
+# for i in os.listdir(folder_path):
+#     file_path = os.path.join(folder_path, i)
 
-    # Check for files related to sbovldiff if .geo.sbovldiff.adf.mm.tif exists
-    if os.path.exists(os.path.join(folder_path, f"{pair}.geo.sbovldiff.adf.mm.tif")):
-        if '.bovldiff' in i or '_soi_' in i:
-            os.remove(file_path)  # Uncomment to remove the file
+#     # Check for files related to sbovldiff if .geo.sbovldiff.adf.mm.tif exists
+#     if os.path.exists(os.path.join(folder_path, f"{pair}.geo.sbovldiff.adf.mm.tif")):
+#         if '.bovldiff' in i or '_soi_' in i:
+#             os.remove(file_path)  # Uncomment to remove the file
     
-    # Check if the file name contains '_soi_' and 'geo' and does not contain 'tif'
-    elif '_soi_' in i and 'geo' in i and 'tif' not in i:
-            os.remove(file_path)  # Uncomment to remove the file
+#     # Check if the file name contains '_soi_' and 'geo' and does not contain 'tif'
+#     elif '_soi_' in i and 'geo' in i and 'tif' not in i:
+#             os.remove(file_path)  # Uncomment to remove the file
