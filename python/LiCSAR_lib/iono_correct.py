@@ -141,12 +141,17 @@ def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile
     return ifg
 
 
-def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450, alpha = 0.85):
+def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450, alpha = 0.85, return_phase = True, outif=None):
     """
     Args:
         ...
         fixed_f2_height_km (int or None): CODE is valid for h=450. Still, if None, it will use IRI2016 to estimate the height (in mid point between scene centre and satellite)
         alpha (float): used only for 'CODE' - standard value is 0.85
+        return_phase (bool): if not, it will return TEC, otherwise returns phase
+        outif (str or None): output tif filename - if None, it will continue without saving
+
+    Returns:
+        xr.DataArray
     """
     #if source == 'code':
     #    # this is to grid to less points:
@@ -276,18 +281,29 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                 else:
                     ionoij = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]
                 ionoxr.values[i, j] = ionoij / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
-    # now, convert TEC values into 'phase' - simplified here (?)
-    f0 = 5.4050005e9
-    # inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
-    # ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
-    # we change the sign here as the effect on phase is opposite (ionospheric phase advance; less negative in case of stronger ionosphere)
-    ionoxr = 4 * np.pi * 40.308193 / speed_of_light / f0 * ionoxr
-    tecphase = ionoxr #get_tecphase(epoch)
-    tecphase = interpolate_nans_bivariate(tecphase)
-    tecphase = tecphase.interp_like(inc, method='linear', kwargs={"bounds_error": False, "fill_value": None})
-    if np.max(np.isnan(tecphase.values)):
-        tecphase = interpolate_nans_bivariate(tecphase)  # not the best (memory...) but needed
-    return tecphase
+    if not return_phase:
+        # if we want to return only TEC
+        ionoxr = interpolate_nans_bivariate(ionoxr)
+        ionoxr = ionoxr.interp_like(inc, method='linear', kwargs={"bounds_error": False, "fill_value": None})
+        if np.max(np.isnan(ionoxr.values)):
+            ionoxr = interpolate_nans_bivariate(ionoxr)  # not the best (memory...) but needed
+        outputxr = ionoxr
+    else:
+        # now, convert TEC values into 'phase' - simplified here (?)
+        f0 = 5.4050005e9
+        # inc = avg_incidence_angle  # e.g. 39.1918 ... oh but... it actually should be the iono-squint-corrected angle. ignoring now
+        # ionoxr = -4*np.pi*40.308193/speed_of_light/f0*ionoxr/np.cos(np.radians(incml))
+        # we change the sign here as the effect on phase is opposite (ionospheric phase advance; less negative in case of stronger ionosphere)
+        tecphase = 4 * np.pi * 40.308193 / speed_of_light / f0 * ionoxr
+        # tecphase = ionoxr #get_tecphase(epoch)
+        tecphase = interpolate_nans_bivariate(tecphase)
+        tecphase = tecphase.interp_like(inc, method='linear', kwargs={"bounds_error": False, "fill_value": None})
+        if np.max(np.isnan(tecphase.values)):
+            tecphase = interpolate_nans_bivariate(tecphase)  # not the best (memory...) but needed
+        outputxr = tecphase
+    if outif:
+        export_xr2tif(outputxr, outif)
+    return outputxr
 
 
 # test frame: 144A_04689_111111
