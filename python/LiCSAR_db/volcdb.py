@@ -109,14 +109,26 @@ def get_existing_rslcs_for_volclip(vid):
     return rtable
 
 
+def get_sourceframe_volc(vid, subframe):
+    volclippath = os.path.join(subvolcpath, str(vid))
+    volcsubframepath = os.path.join(volclippath, subframe)
+    try:
+        frame = glob.glob(volcsubframepath + '/corners_clip*')[0].split('.')[-1]
+    except:
+        print('error getting sourceframe for '+volcsubframepath)
+        frame = ''
+    return frame
+
+
 def get_status_table_volc(volcid):
     vids = get_volclip_vids(volcid)
-    vidtable = pd.DataFrame(columns=['volc_id','vid','subframe', 'no_rslcs'])
+    vidtable = pd.DataFrame(columns=['volc_id','vid','subframe', 'sourceframe', 'no_rslcs'])
     for vid in vids:
         rtable = get_existing_rslcs_for_volclip(vid)
         if not rtable.empty:
             for i,r in rtable.iterrows():
-                vidtable.loc[len(vidtable)] = [volcid, vid, r.subframe, r.no_rslcs]
+                sourceframe = get_sourceframe_volc(vid, r.subframe)
+                vidtable.loc[len(vidtable)] = [volcid, vid, r.subframe, sourceframe, r.no_rslcs]
     return vidtable
 
 
@@ -190,7 +202,7 @@ def get_status_table_all_volcs():
     """
     print('Getting processing status info for all volcanoes (ETA few minutes)')
     volcs = get_volc_info()
-    vtable = pd.DataFrame(columns=['volc_id','vid','subframe', 'no_rslcs'])
+    vtable = pd.DataFrame(columns=['volc_id','vid','subframe', 'sourceframe', 'no_rslcs'])
     for volcid in volcs.volc_id:
         volcrecs = get_status_table_volc(volcid)
         if not volcrecs.empty:
