@@ -52,8 +52,8 @@ start_time=time.time()
 ##variables
 tempdir = os.getcwd()
 frame = os.path.basename(tempdir)
-batchdir = os.environ['BATCH_CACHE_DIR'] #this is necesarry because the framebatch_gapfill run the code in $LiCS_temp folder which not correct location.
-framedir = os.path.join(batchdir, frame)
+# batchdir = os.environ['BATCH_CACHE_DIR']
+framedir = os.path.join(tempdir)
 pair=sys.argv[1]
 #batchdir=os.environ['BATCH_CACHE_DIR']
 prime, second = pair.split('_')
@@ -76,7 +76,6 @@ if (not os.path.exists(os.path.join(RSLC_folder, prime))) or (not os.path.exists
 temp_file=os.path.join(framedir, 'temp_data')
 if not os.path.exists(temp_file):
     os.makedirs(temp_file)
-
 
 # File paths for stdout and stderr
 stdout_log_path = os.path.join(temp_file, f"{pair}_soi_out.txt")
@@ -311,6 +310,7 @@ if parallel_flag:
     print('The RSLC creation steps is applied seperately, lets go for IFG/GEOC step!')
     
 os.makedirs(os.path.join(IFG_folder, pair), exist_ok=True)
+os.makedirs(os.path.join(GEOC_folder, pair), exist_ok=True)
 off_par = os.path.join(framedir, 'IFG', pair, pair + '.off')
 # sim_unw = os.path.join(framedir, 'IFG', pair, pair+'.sim_unw') ##we don't need this because double differencing cancel out the topography correlated inf.
 if not os.path.exists(off_par):  # Corrected os.file.exists to os.path.exists
