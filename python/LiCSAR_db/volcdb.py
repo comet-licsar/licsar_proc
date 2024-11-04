@@ -468,6 +468,7 @@ def get_licsbas_clipstring_volclip(vid):
     """Gets clip string of LiCSBAS from a volclip"""
     return get_licsbas_clipstring_geom(get_volclips_gpd(vid).head(1).geom)
 
+
 def get_licsbas_clipstring_geom(geom):
     """Gets clip string of LiCSBAS from a record of Geoseries
 
@@ -479,6 +480,18 @@ def get_licsbas_clipstring_geom(geom):
     c = round(float(geom.bounds.miny), 5)
     d = round(float(geom.bounds.maxy), 5)
     return str(a)+'/'+str(b)+'/'+str(c)+'/'+str(d)
+
+
+def get_licsbas_clipstring_volcano(volcid, customradius_km = 55.55/2):
+    ''' Useful to get the coords as in volcano portal (0.5 degree diameter for TOPS, 0.1 for stripmap)'''
+    g = get_volc_info(volcid)['geom']
+    clon, clat = g[0].x, g[0].y
+    radius_deg = customradius_km / 111.111
+    lon1 = round(clon - radius_deg, 5)
+    lon2 = round(clon + radius_deg, 5)
+    lat1 = round(clat - radius_deg, 5)
+    lat2 = round(clat + radius_deg, 5)
+    return str(lon1)+'/'+str(lon2)+'/'+str(lat1)+'/'+str(lat2)
 
 
 def get_volclips_gpd(vid=None):
