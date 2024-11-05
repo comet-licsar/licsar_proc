@@ -1,6 +1,7 @@
 import pygmt
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 try:
     import contextily as ctx
 except:
