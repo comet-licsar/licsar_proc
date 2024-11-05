@@ -223,3 +223,51 @@ def vis_tif(tifile, stdscale = 1, to_amp_db = False):
     tstd = float(arr.std())
     arr.plot(vmin=tmean-stdscale*tstd, vmax=tmean+stdscale*tstd)
     plt.show()
+
+
+def plot_ts_simple(cube, lon, lat, dvarname = 'cum'):
+    ''' returns a simple pygmt figure of time series of xr datacube at given lon, lat coord '''
+    time = cube.time.values
+    mindate = pd.Timestamp(cube.time.min().values).to_pydatetime().date()
+    maxdate = pd.Timestamp(cube.time.max().values).to_pydatetime().date()
+    cum_point = cube[dvarname].sel(lon=lon, lat=lat, method='nearest')
+    #if dvarname == 'amplitude':
+    #    cum_point = 20 * np.log10(cum_point.values)
+    #
+    if dvarname.find('coh') > -1:
+        miny, maxy = 0, 1
+    else:
+        #miny = float(cube[dvarname].min())
+        #maxy = float(cube[dvarname].max())
+        miny = float(cum_point.min())
+        maxy = float(cum_point.max())
+        # stddev=float(cube[dvarname].std())
+        # mean=float(cube[dvarname].mean())
+        # miny = mean-2*stddev
+        # maxy = mean+2*stddev
+    #
+    fig = pygmt.Figure()
+    #
+    fig.plot(
+        projection="X9c/4.5c",
+        region=[mindate, maxdate, miny, maxy],
+        # frame=["+t time series (%.3f, %.3f)" % (lon, lat),\
+        frame=["xa1Yfg1Y", "yafg+l" + label],
+        # "xa1Yfg1Y", "ya10f5+ldisplacement [mm]"],
+        x=time,
+        y=cum_point,
+        style="c0.1c",
+        fill="black"
+    )
+    '''
+    if dvarname2:
+        fig.plot(
+            x=time,
+            y=cube[dvarname2].sel(lon=lon, lat=lat, method='nearest'),
+            style="c0.1c",
+            fill="red"
+        )
+    '''
+    fig.basemap(frame=True)
+    return fig
+
