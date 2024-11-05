@@ -42,8 +42,8 @@ start_time = time.time()
 # Variables
 tempdir = os.getcwd()
 frame = os.path.basename(tempdir)
-batchdir = os.environ['BATCH_CACHE_DIR']
-framedir = os.path.join(batchdir, frame)
+# batchdir = os.environ['BATCH_CACHE_DIR']
+framedir = os.path.join(tempdir)
 tr = int(frame[:3])
 metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
 master = misc.grep1line('master=', metafile).split('=')[1]
@@ -91,7 +91,6 @@ def mosaic_and_multilook(epoch):
             SLC1_tab_name = create_tab_file(epoch, framedir, frame, type='RSLC')
             master_tab_name = create_tab_file(master, framedir, frame, type='SLC')
             master_tab_name = create_tab_file(master, framedir, frame, type='RSLC')
-
             # Variable names
             SLC1_tab_mod1_name = os.path.join(tab_folder, epoch + '_mod1.SLC_tab')
             SLC1_tab_mod2_name = os.path.join(tab_folder, epoch + '_mod2.SLC_tab')
@@ -164,7 +163,6 @@ if __name__ == "__main__":
     # Create empty `iw` files once
     create_empty_iw_files()
     print('empty subswaths created...')
-
     # Load epochs from the list file or from RSLC_folder
     if args.epoch_list:
         with open(args.epoch_list, "r") as f:
