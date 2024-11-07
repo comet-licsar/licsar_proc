@@ -79,6 +79,56 @@ def create_eq_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_pr
     eq_df[dbcols].to_csv(csvfile, sep = ';', index=False)
     return True
 
+def get_eq_frames_table_region(minmag = 6, maxdepth = 70, lonlatvals = (5, 120, 20, 52),
+                               datein = dt.datetime(2016, 3, 1), dateout = dt.datetime(2024, 3, 1), outcsv = None):
+    ''' originally to get eqs over AHB'''
+    lon1, lon2, lat1, lat2 = lonlatvals
+    events = search(starttime=datein,
+                    endtime=dateout,
+                    minmagnitude=minmag, limit=2000, maxdepth=maxdepth,
+                    maxlongitude=max(lon1, lon2),
+                    maxlatitude=max(lat1, lat2),
+                    minlatitude=min(lat1, lat2),
+                    minlongitude=min(lon1, lon2))
+    tab = []
+    for e in events:
+        ran = get_range_from_magnitude(e.magnitude, e.depth, unit='rad')
+        if ran:
+            g = get_frames_in_event(e, ran)  # /2)
+            frames = lq.sqlout2list(g)
+            #time.sleep(1)
+            for fr in frames:
+                if os.path.exists(os.path.join(os.environ['LiCSAR_public'], str(int(fr[:3])), fr)):
+                    tab.append((e.id, str(e.time)[:16], e.longitude, e.latitude, e.magnitude, e.depth, fr))
+    gg = pd.DataFrame(tab)
+    if outcsv:
+        gg.to_csv(outcsv, header=None, index=False)
+    return gg
+
+def export_eq_frames_to_kmls(gg):
+    ''' originally to export eq frames table over AHB
+    Note: fast function, table has 0-6 columns as e.g.:
+                0                 1        2        3    4     5                  6
+    0  us7000lsze  2024-01-22 18:09  78.6538  41.2555  7.0  13.0  034D_04714_131313
+    ...
+    '''
+    for x in list(set(list(gg[0].values))):
+        outfile = x+'.frames.kml'
+        print(x)
+        eqkml = get_usgskml(x)
+        shutil.copy(eqkml, '.')
+        ggg=gg[gg[0]==x]
+        framelist = list(ggg[6].values)
+        first = True
+        for frame in framelist:
+            fgeo = fc.frame2geopandas(frame, brute=False, use_s1burst=False, merge=True)
+            if first:
+                gpan = fgeo.copy()
+                first = False
+            else:
+                gpan = pd.concat([gpan,fgeo])
+        gpan = gpan.reset_index(drop=True)
+        fc.export_geopandas_to_kml(gpan, outfile)
 
 def add_new_event(event, updatecsv = True):
     '''
@@ -357,6 +407,14 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
         #ifgs[0].str.split('_').apply(datediff)
     else:
         return selected_ifgs
+
+def get_usgskml(eventid):
+    usgskmlfile = os.path.join(public_path, 'EQ', str(eventid) + '.kml')
+    if not os.path.exists(usgskmlfile):
+        usgskml = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/{}.kml'.format(eventid)
+        print('downloading USGS KML file for ' + str(eventid))
+        os.system('wget -O {0} {1} 2>/dev/null'.format(usgskmlfile, usgskml))
+    return usgskmlfile
 
 
 def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = None):

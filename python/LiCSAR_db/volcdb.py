@@ -4,7 +4,7 @@ MySQL database query wrappers for volcanoes
 ML 2023
 """
 import pandas as pd
-
+import glob, os
 try:
     from LiCSquery import *
     from dbfunctions import Conn_sqlalchemy
@@ -46,6 +46,8 @@ describe volcanoes;
 +----------+-----------------+------+-----+---------+-------+
 | volc_id  | int(8) unsigned | NO   | PRI | NULL    |       |
 | name     | varchar(40)     | NO   |     | NULL    |       |
+| vportal_name | varchar(40)   | YES  |     | NULL    |       |
+| vportal_area | varchar(20)   | YES  |     | NULL    |       |
 | lat      | float(7,5)      | NO   |     | NULL    |       |
 | lon      | float(8,5)      | NO   |     | NULL    |       |
 | alt      | float(5,1)      | YES  |     | NULL    |       |
@@ -88,7 +90,7 @@ def get_volc_info(volcid=None):
         cond = " where volc_id={}".format(str(volcid))
     else:
         cond = ''
-    sql = "select volc_id,name,lat,lon,alt,priority, ST_AsBinary(geometry) as geom from volcanoes"+cond+";"
+    sql = "select volc_id,name,lat,lon,alt,priority,vportal_area,vportal_name,ST_AsBinary(geometry) as geom from volcanoes"+cond+";"
     engine=Conn_sqlalchemy()
     with engine.connect() as conn:
         a = gpd.GeoDataFrame.from_postgis(text(sql), conn, geom_col='geom')
@@ -596,4 +598,45 @@ volcid = get_volcano_from_vid(vid)
     009D_02504_202119
     045A_02494_171816
 '''
-    
+
+def get_volcanoes_within(lon, lat, radius_km = 10, volcs = None):
+    ''' this will get all volcanoes in radius from given lon/lat'''
+    # radius_m = int(round(radius_km*1000))
+    # this unfortunately does not work:
+    # sql = 'SELECT * FROM volcanoes WHERE ST_DWithin(geometry, POINT({0},{1}), {2});'.format(str(lon), str(lat), str(radius_m))
+    radius_deg = radius_km/111.111
+    poly = fc.lonlat_to_poly(lon-radius_deg, lon+radius_deg, lat-radius_deg, lat+radius_deg)
+    selvolcs = get_volcanoes_in_polygon(poly, volcs)
+    return selvolcs
+
+
+def oneoff_import_volc_portal_names_to_volcdb(volcs = None):
+    ''' one-off import of volc portal names to the database...
+    should work with limited selection of volcs in pd table as from get_volc_info()'''
+    print('Importing volc portal names to the database')
+    volcprocdir = '/gws/pw/j07/comet_lics/LiCSAR_volc/volc-proc'
+    volctxts = glob.glob(volcprocdir+'/list_database/*volcano*txt')
+    if type(volcs)==type(None):
+        volcs = get_volc_info()
+    ch = []
+    for txt in volctxts:
+        txtpd = pd.read_csv(txt, header=None, delim_whitespace=True)
+        vportal_area = os.path.basename(txt).split('volcano')[0][:-1]
+        print(vportal_area)
+        #
+        for i,vrow in txtpd.iterrows():
+            vportal_name = vrow[0]
+            vlat = vrow[1]
+            vlon = vrow[2]
+            selvolc = get_volcanoes_within(lon, lat, radius_km=1, volcs=volcs)
+            if not len(selvolcs)==1:
+                ch.append((vportal_name, vlat, vlon))
+                print('please check: '+vportal_name+str(len(selvolc)))
+            else:
+                volcid=selvolc['volc_id'].values[0]
+                sql_q = "UPDATE volcanoes SET vportal_area='{0}',vportal_name='{1}'  where volc_id = {2};".format(vportal_area, vportal_name, str(volcid))
+                res = do_query(sql_q, True)
+                if not res == 1:
+                    print('Error, please check on '+str(volcid))
+                    ch.append((vportal_name, vlat, vlon))
+    return ch
