@@ -629,9 +629,12 @@ def oneoff_import_volc_portal_names_to_volcdb(volcs = None):
             vlat = vrow[1]
             vlon = vrow[2]
             selvolc = get_volcanoes_within(vlon, vlat, radius_km=1, volcs=volcs)
+            if not len(selvolc) == 0:
+                # trying increase range
+                selvolc = get_volcanoes_within(vlon, vlat, radius_km=8, volcs=volcs)
             if not len(selvolc)==1:
                 ch.append((vportal_name, vlat, vlon))
-                print('please check: '+vportal_name+str(len(selvolc)))
+                print('please check: '+vportal_name+' - found records: '+str(len(selvolc)))
             else:
                 volcid=selvolc['volc_id'].values[0]
                 sql_q = "UPDATE volcanoes SET vportal_area='{0}',vportal_name='{1}'  where volc_id = {2};".format(vportal_area, vportal_name, str(volcid))
@@ -640,3 +643,26 @@ def oneoff_import_volc_portal_names_to_volcdb(volcs = None):
                     print('Error, please check on '+str(volcid))
                     ch.append((vportal_name, vlat, vlon))
     return ch
+
+'''
+try then:
+import subprocess as sub
+volcs=get_volc_info()
+volcprocdir = '/gws/pw/j07/comet_lics/LiCSAR_volc/volc-proc'
+volctxts = glob.glob(volcprocdir+'/list_database/*volcano*txt')
+chs2 = []
+for h in chs:
+vportal_name = h[0]
+vlat, vlon = h[1], h[2]
+a = get_volcanoes_within(vlon, vlat, radius_km=9, volcs=volcs)
+    if len(a)==1:
+        print(vportal_name+' == '+a['name'].values[0])
+        vportal_area=sub.getoutput('grep -l '+vportal_name+' '+volcprocdir+'/list_database/*volcano*txt')
+        vportal_area=os.path.basename(vportal_area).split('volcano')[0][:-1]
+        volcid=a['volc_id'].values[0]
+        sql_q = "UPDATE volcanoes SET vportal_area='{0}',vportal_name='{1}'  where volc_id = {2};".format(vportal_area, vportal_name, str(volcid))
+        res = do_query(sql_q, True)
+    else:
+        print(h[0]+' found in '+str(len(a))+' records')
+        chs2.append((vportal_name, vlat, vlon))
+'''
