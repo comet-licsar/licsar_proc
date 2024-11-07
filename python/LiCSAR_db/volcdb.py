@@ -628,8 +628,8 @@ def oneoff_import_volc_portal_names_to_volcdb(volcs = None):
             vportal_name = vrow[0]
             vlat = vrow[1]
             vlon = vrow[2]
-            selvolc = get_volcanoes_within(lon, lat, radius_km=1, volcs=volcs)
-            if not len(selvolcs)==1:
+            selvolc = get_volcanoes_within(vlon, vlat, radius_km=1, volcs=volcs)
+            if not len(selvolc)==1:
                 ch.append((vportal_name, vlat, vlon))
                 print('please check: '+vportal_name+str(len(selvolc)))
             else:
