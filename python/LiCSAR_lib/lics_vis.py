@@ -102,7 +102,8 @@ def pygmt_plot_interactive(grid, title, label='deformation rate [mm/year]', lims
 
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
-               cmap="roma", photobg=False, plotvec=None, interactive = False):
+               cmap="roma", photobg=False, plotvec=None, interactive = False,
+               region = None):
     ''' Function to generate (nice) plot of given grid using pyGMT
     
     Args:
@@ -113,7 +114,8 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         cmap (str):   colour scale map (try 'vik' for E-W)
         photobg (bool): will plot orthophotomap as the background (if False, DEM relief is used)
         plotvec (geopandas etc): will plot vector data to the map, using pyGMT defaults
-    
+        region (tuple/None):  either None or set using tuple (minlon, maxlon, minlat, maxlat)
+
     Returns:
         pygmt.figure.Figure
     '''
@@ -128,8 +130,11 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     # topo_data = '@earth_relief_03s' #3 arc second global relief (SRTM3S)
     topo_data = '@earth_relief_01s'  # 3 arc second global relief (SRTM3S)
 
-    minlon, maxlon = float(np.min(grid.lon)), float(np.max(grid.lon))
-    minlat, maxlat = float(np.min(grid.lat)), float(np.max(grid.lat))
+    if not region:
+        minlon, maxlon = float(np.min(grid.lon)), float(np.max(grid.lon))
+        minlat, maxlat = float(np.min(grid.lat)), float(np.max(grid.lat))
+    else:
+        minlon, maxlon, minlat, maxlat = region
 
 
     fig = pygmt.Figure()
@@ -207,6 +212,38 @@ def get_region(cube):
     region=[llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat]
     return region
 
+
+def generate_vel_preview(nc, lims = [-100,100], title = 'vel_msk', volcid = None, outpng = None):
+    import pandas as pd
+    import geopandas as gpd
+    import xarray as xr
+    import volcdb as v
+    from shapely.geometry import Point
+    import framecare as fc
+    #
+    cube = xr.open_dataset(nc)
+    refpoint = Point((cube.ref_lon, cube.ref_lat))
+    refpoint = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[refpoint])
+    #
+    print('Plotting velocity layer on DEM')
+    grid = cube.vel.where(cube.mask==1)
+    if volcid:
+        lbstr = v.get_licsbas_clipstring_volcano(volcid) # size as in volc portal
+        minlon, maxlon, minlat, maxlat = [ float(s) for s in lbstr.split('/') ]
+        grid = grid.sel(lon=slice(minlon,maxlon), lat=slice(minlat,maxlat)).load()
+        volctb = v.get_volc_info(volcid)
+        #title = str(volctb.name.values[0])
+        poly = fc.lonlat_to_poly(minlon, maxlon, minlat, maxlat)
+        allvolcsinpoly = v.get_volcanoes_in_polygon(poly, volcs=None)
+    #
+    gridgmt = pygmt_plot(grid, title, 'mm/year', lims, 'vik', region = (minlon, maxlon, minlat, maxlat))
+    gridgmt.plot(data=refpoint, pen="4p,magenta4")
+    if volcid:
+        gridgmt.plot(data=allvolcsinpoly.geom, style="t6p", pen="0.5p,black", fill="blue")
+        gridgmt.plot(data=volctb.geom, style="t8p", pen="0.5p,black", fill="red")
+    if outpng:
+        gridgmt.savefig(outpng)
+    return gridgmt
 
 def vis_tif(tifile, stdscale = 1, to_amp_db = False):
     ''' to show a tif file
