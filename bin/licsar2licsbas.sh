@@ -27,7 +27,8 @@ if [ -z $1 ]; then
  echo "-f ....... during reunwrapping, store also as GeoTIFFs"
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
- echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs and --nullify, in future this may also add --singular)"
+ echo "-C 0.15 .. mask based on coherence threshold on individual ifgs"
+ echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular and coh mask of step 4)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "-r ....... perform deramping (degree 1)"
  echo "-L ....... use linear hgt correlation slope correction"
@@ -94,9 +95,10 @@ landmask=1
 maskbias=1
 hgtcorrlicsbas=0
 outifs=0
+cohmask4=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSClWgmaAiIeFfOPRrLwkG:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkC:G:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -144,8 +146,9 @@ while getopts ":M:h:HucTsdbSClWgmaAiIeFfOPRrLwkG:t:n:" option; do
      echo "checking gacos";
      ;;
   d) cometdev=1;
+     cohmask4=0.2;
      ;;
-  C) use_coh_stab=1;
+  C) cohmask4=${OPTARG};
      #shift
      ;;
   s) smooth=1;
@@ -821,6 +824,11 @@ if [ $deramp == 1 ]; then
  sed -i 's/p16_deg_deramp=\"\"/p16_deg_deramp=\"1\"/' batch_LiCSBAS.sh
 fi
 
+if [ ! $cohmask4 == 0 ]; then
+  sed -i 's/do04op_mask=\"n/do04op_mask=\"y/' batch_LiCSBAS.sh
+  sed -i 's/p04_mask_coh_thre_ifg=\"\"/p04_mask_coh_thre_ifg=\"'$cohmask4'\"/' batch_LiCSBAS.sh
+  sed -i 's/start_step=\"11\"/start_step=\"04\"/' batch_LiCSBAS.sh
+fi
 # set comet dev functions...
 sed -i "s/^cometdev=.*/cometdev=\'"$cometdev"\'/" batch_LiCSBAS.sh
 
@@ -840,7 +848,9 @@ fi
 
 if [ $clip -gt 0 ]; then
  # lon1/lon2/lat1/lat2
- sed -i 's/do05op_clip=\"n\"/do05op_clip=\"y\"/' batch_LiCSBAS.sh
+ if [ $reunw -lt 1 ]; then
+  sed -i 's/do05op_clip=\"n\"/do05op_clip=\"y\"/' batch_LiCSBAS.sh
+ fi
  echo $aoi | sed 's/\//\\\//g' > tmp.sedaoi
  sed -i 's/^p05_clip_range_geo=\"/p05_clip_range_geo=\"'`cat tmp.sedaoi`'/' batch_LiCSBAS.sh
  rm tmp.sedaoi
