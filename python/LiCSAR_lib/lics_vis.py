@@ -214,7 +214,6 @@ def get_region(cube):
 
 
 def generate_vel_preview(nc, lims = [-100,100], title = 'vel_msk', volcid = None, outpng = None):
-    import pandas as pd
     import geopandas as gpd
     import xarray as xr
     import volcdb as v
@@ -242,7 +241,7 @@ def generate_vel_preview(nc, lims = [-100,100], title = 'vel_msk', volcid = None
         gridgmt.plot(data=allvolcsinpoly.geom, style="t6p", pen="0.5p,black", fill="blue")
         gridgmt.plot(data=volctb.geom, style="t8p", pen="0.5p,black", fill="red")
     if outpng:
-        gridgmt.savefig(outpng)
+        gridgmt.savefig(outpng, dpi=120)
     return gridgmt
 
 def vis_tif(tifile, stdscale = 1, to_amp_db = False):
