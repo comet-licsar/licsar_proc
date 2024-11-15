@@ -110,7 +110,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         grid (xr.DataArray): input grid to plot
         title (str):  title (note too long title will disbalance the figure)
         label (str):  label below the colour scale
-        lims (list):  colour scale limits
+        lims (list):  colour scale limits (if None, it will do min max minus 2std)
         cmap (str):   colour scale map (try 'vik' for E-W)
         photobg (bool): will plot orthophotomap as the background (if False, DEM relief is used)
         plotvec (geopandas etc): will plot vector data to the map, using pyGMT defaults
@@ -136,6 +136,12 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     else:
         minlon, maxlon, minlat, maxlat = region
 
+    grid = grid.where(grid != 0)
+    if not lims:
+        tmean = float(grid.mean())
+        tstd = float(grid.std())
+        stdscale = 2
+        lims = [tmean - stdscale * tstd, tmean + stdscale * tstd]
 
     fig = pygmt.Figure()
     pygmt.config(FORMAT_GEO_MAP="ddd.xx") #, MAP_FRAME_TYPE="plain")
