@@ -146,7 +146,7 @@ while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkC:G:t:n:" option; do
      echo "checking gacos";
      ;;
   d) cometdev=1;
-     cohmask4=0.2;
+     # cohmask4=0.2;
      ;;
   C) cohmask4=${OPTARG};
      #shift
