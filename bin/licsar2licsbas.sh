@@ -51,9 +51,7 @@ if [ -z $1 ]; then
 fi
 
 thres=0
-echo "WARNING - 2024-08-30: indeed current noise estimation is removing edges such as phase jumps. Setting thres=0 by default to avoid this but then we do not really mask noise - expect very different results.."
-echo "(of course, you can return this by manually setting -t 0.23 for example .. sorry if you already did and see this message)"
-echo "And other update (2024-10-18): using avg abs phase bias == 1 rad for masking in step 15"
+thresdef=$thres
 dolocal=0
 dogacos=0
 multi=1
@@ -193,6 +191,19 @@ while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkC:G:t:n:" option; do
  esac
 done
 shift $((OPTIND -1))
+
+
+if [ $thres == $thresdef ]; then
+ echo "WARNING - 2024-08-30: indeed current noise estimation is removing edges such as phase jumps. Setting thres=0 by default to avoid this but then we do not really mask noise - expect very different results.."
+ echo "(of course, you can return this by manually setting -t 0.23 for example .. sorry if you already did and see this message)"
+fi
+
+if [ $cometdev == 1 ]; then
+ echo "Update 2024-10-18: using avg abs phase bias == 1 rad for masking in step 15"
+ echo "Update 2024-11-13: nullification is now not w.r.t. ref point"
+ echo "Update 2024-11-15: n_gap masking changed to n_gap_merged (multiple gaps in a row is counted as 1 gap)"
+fi
+
 
 if [ $nproc -gt 1 ]; then
  if [ $que == 'short-serial' ]; then
