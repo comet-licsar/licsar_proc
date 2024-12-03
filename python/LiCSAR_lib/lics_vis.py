@@ -33,7 +33,6 @@ def licsbas_pygmt_plot(cube, title = 'vel', vminmax = [-15, 15],
     from shapely.geometry import Point
     refpoint = Point((cube.ref_lon, cube.ref_lat))
     refpoint = gpd.GeoDataFrame(index=[0], crs='epsg:4326', geometry=[refpoint])
-
     #print('Plotting velocity layer on DEM')
     grid = cube[toplot]
     if maskit:
@@ -90,15 +89,136 @@ def volcano_clip_plot(volcid, bevel = 0.1):
     return fig #fig.show()
 
 
-def pygmt_plot_interactive(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
-                           cmap="roma", photobg=False, plotvec=None):
-    import IntPyGMT.IntPyGMT_overlay as ingmt
+def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims=[-15, 50],
+                           cmap="polar", photobg=False, plotvec=None):
+    ''' This will start a simple interactive viewer in jupyter ntb.
+    Note you need ipympl installed and the matplotlib widget must be set here.
+
+    The author is Rochelle Pun, an outstanding student that was selected in highly competitive
+    COMET Summer MSc Internship 2024 - and she did magnificent job interactivizing pygmt.
+    Her original tool resides here: https://github.com/chelle0425/IntPyGMT
+
+    We only modified this for CIW 2024 tutorial purposes on LiCSBAS'''
     # print("%matplotlib widget")
+    # first of all generate the left plot:
     tempng = '/tmp/pygmt_pi.png'
+    grid = cube['vel']
     fig, region, projection, xshift, yshift = pygmt_plot(grid, title, label, lims,
-               cmap, photobg, plotvec, interactive=True)
+                                                         cmap, photobg, plotvec, interactive=True)
+    try:
+        fig.plot(x=float(cube.ref_lon), y=float(cube.ref_lat), pen="4p,magenta4")
+    except:
+        print('error adding ref point')
+    #
     fig.savefig(tempng)
-    ingmt.gmt_png(tempng, region, projection, xshift, yshift)
+    #
+    png_path = tempng
+    spam_path = tempng + "ts.png"
+    #
+    #time_ds = cube["time"].values
+    ddpi = 150
+    #
+    if isinstance(region, str):
+        region_str = region
+    elif isinstance(region, list):
+        region_str = f"{region[0]}/{region[1]}/{region[2]}/{region[3]}"
+    #
+    def unpack_xyshift(str):
+        if str[-1].isalpha():
+            shift_value = str[:-1]
+            shift_unit = str[-1]
+        else:
+            raise Exception("invalid xshift or yshift input")
+        return float(shift_value), shift_unit
+    #
+    xshift_value, xshift_unit = unpack_xyshift(xshift)
+    yshift_value, yshift_unit = unpack_xyshift(yshift)
+    #
+    # we are working in cm
+    if xshift_unit == "c":
+        xshift_value = xshift_value
+    elif xshift_unit == "i":
+        xshift_value = xshift_value * 2.54
+    elif xshift_unit == "p":
+        xshift_value = (xshift_value * 72) * 2.54
+    else:
+        raise Exception("invalid xshift input (must be either c, i or p)")
+    #
+    # similarly for y
+    if yshift_unit == "c":
+        yshift_value = yshift_value
+    elif yshift_unit == "i":
+        yshift_value = yshift_value * 2.54
+    elif yshift_unit == "p":
+        yshift_value = (yshift_value * 72) * 2.54
+    else:
+        raise Exception("invalid yshift input (must be either c, i or p)")
+    #
+    #    # determine image dimension
+    img = Image.open(png_path)
+    width, height = img.size  # canvas (width,height) tuple in pixels
+    DPI_horz, DPI_vert = img.info.get('dpi')
+    #
+    #time = pd.to_datetime(time_ds)
+    #
+    #cum = cube["cum"]
+    # ymin = float(cube.cum.mean() - 3*cube.cum.std())
+    # ymax = float(cube.cum.mean() + 3*cube.cum.std())
+    ymin = float(cube.cum.min())
+    ymax = float(cube.cum.max())
+    #
+    def pos_to_lonlat(x, y):
+        # xyshift input in cm
+        x = (x / DPI_horz) * 2.54  # convert pixel to cm
+        x = x - xshift_value
+        y = (y / DPI_vert) * 2.54  # cm
+        height_cm = (height / DPI_vert) * 2.54
+        y = height_cm - y - yshift_value
+        x = [x]  # must be list with one value or np array
+        y = [y]
+        ### lon lat conversion using mapproject ###
+        with Session() as ses:
+            with ses.virtualfile_from_vectors(x, y) as fin:
+                args = [f'{fin}', f'-R{region_str}', f'-J{projection}', '-I', '-S']
+                with GMTTempFile() as fout:
+                    ses.call_module(module="mapproject", args=' '.join(args) + " ->" + fout.name)
+                    out = fout.read().strip()
+        lon, lat = [float(i) for i in out.split(' ')]
+        return lon, lat
+    #
+    def onclick(event):
+        # pos.append([event.xdata, event.ydata])
+        lon, lat = pos_to_lonlat(event.xdata,
+                                 event.ydata)  # pos[-1][0], pos[-1][1]) # pos[-1] represents last click (list with x, y)
+        # lonlat.append([lon, lat]) # converts x y to lon lat and appends
+        # code below shows how gmt_png can be modified for an interactive time series plot
+        # alternatively retrive lon lat using coords_from_figure(ax1)
+        # ax1.set_title(f'Click {len(pos)}: {lon}, {lat}')
+        fig = plot_ts_simple(cube, lon, lat, label='defo towards sat [mm]', dvarname='cum', miny=ymin, maxy=ymax)
+        fig.savefig(spam_path, dpi=ddpi)
+        img = mpimg.imread(spam_path)
+        ax2.imshow(img, origin='upper')
+    #
+    # fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(10, 5))
+    ax1 = fig.add_subplot(121)
+    img = mpimg.imread(png_path)
+    ax1.imshow(img, origin='upper')
+    ax1.axis('off')
+    # ax1.set_title(frame+" vel.filt (mm/yr)")
+    ax2 = fig.add_subplot(122)
+    ax2.axis('off')
+    plt.tight_layout()
+    #
+    label = 'defo towards sat [mm]'
+    ffig = plot_ts_simple(cube, float(cube.lon.mean()), float(cube.lat.mean()), label=label, dvarname='cum', miny=ymin,
+                          maxy=ymax)
+    ffig.savefig(spam_path, dpi=ddpi)
+    img = mpimg.imread(spam_path)
+    ax2.imshow(img, origin='upper')
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+    return ax1
+
 
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
@@ -250,6 +370,7 @@ def generate_vel_preview(nc, lims = [-100,100], title = 'vel_msk', volcid = None
         gridgmt.savefig(outpng, dpi=120)
     return gridgmt
 
+
 def vis_tif(tifile, stdscale = 1, to_amp_db = False):
     ''' to show a tif file
     Args:
@@ -268,49 +389,34 @@ def vis_tif(tifile, stdscale = 1, to_amp_db = False):
     plt.show()
 
 
-def plot_ts_simple(cube, lon, lat, dvarname = 'cum'):
+def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, maxy=None):
     ''' returns a simple pygmt figure of time series of xr datacube at given lon, lat coord '''
     time = cube.time.values
     mindate = pd.Timestamp(cube.time.min().values).to_pydatetime().date()
     maxdate = pd.Timestamp(cube.time.max().values).to_pydatetime().date()
     cum_point = cube[dvarname].sel(lon=lon, lat=lat, method='nearest')
-    #if dvarname == 'amplitude':
-    #    cum_point = 20 * np.log10(cum_point.values)
-    #
-    if dvarname.find('coh') > -1:
-        miny, maxy = 0, 1
-    else:
-        #miny = float(cube[dvarname].min())
-        #maxy = float(cube[dvarname].max())
-        miny = float(cum_point.min())
-        maxy = float(cum_point.max())
-        # stddev=float(cube[dvarname].std())
-        # mean=float(cube[dvarname].mean())
-        # miny = mean-2*stddev
-        # maxy = mean+2*stddev
+    if type(miny)==type(None):
+        if dvarname.find('coh') > -1:
+            miny, maxy = 0, 1
+        else:
+            miny = float(cum_point.min())
+            maxy = float(cum_point.max())
     #
     fig = pygmt.Figure()
+    pygmt.config(FONT_LABEL="10p")
     #
-    fig.plot(
-        projection="X9c/4.5c",
-        region=[mindate, maxdate, miny, maxy],
-        # frame=["+t time series (%.3f, %.3f)" % (lon, lat),\
-        frame=["xa1Yfg1Y", "yafg+l" + label],
-        # "xa1Yfg1Y", "ya10f5+ldisplacement [mm]"],
-        x=time,
-        y=cum_point,
-        style="c0.1c",
-        fill="black"
-    )
-    '''
-    if dvarname2:
+    with pygmt.config(FONT_TITLE="12p"):
         fig.plot(
+            projection="X9c/7c",
+            region=[mindate, maxdate, miny, maxy],
+            # frame=["+t time series (%.3f, %.3f)" % (lon, lat),\
+            frame=["xa1Yfg1Y", "yafg+l" + label, "+t%.3f, %.3f" % (lon, lat)],
+            # "xa1Yfg1Y", "ya10f5+ldisplacement [mm]"],
             x=time,
-            y=cube[dvarname2].sel(lon=lon, lat=lat, method='nearest'),
+            y=cum_point,
             style="c0.1c",
-            fill="red"
+            fill="black"
         )
-    '''
     fig.basemap(frame=True)
     return fig
 
