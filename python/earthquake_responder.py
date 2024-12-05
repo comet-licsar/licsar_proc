@@ -181,8 +181,8 @@ def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/publi
         print('error')
         return False
     e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
-    e2f['download'] = e2f['track']*0
-    e2f['preevent_acq_days'] = e2f['track']*0  # let's keep 0 for that case
+    e2f['download'] = ''
+    e2f['preevent_acq_days'] = 0.0  # let's keep 0 for that case
     for i, f in e2f.iterrows():
         #check if we have geometry here:
         if len(f.the_geom) < 5:
@@ -319,6 +319,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
             if greppedstr.split(';')[:-1] == strincsv.split(';')[:-1]:    # splitting due to preevent_days as it takes long..
                 #so this line exists in csvfile, so skipping it..
                 e2f = e2f.drop(index=i)
+                continue
             else:
                 '''
                 # 2024/01: adding days since last acquisition
@@ -335,7 +336,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
                     print('error reading preevent_days from csv: '+str(greppedstr.split(';')[-1]))
                 # delete that line
                 rc = os.system("sed -i '/{0}/d' {1}".format(minstrincsv, csvfile))
-        elif do_preevent_days:
+        if do_preevent_days:
             try:
                 preevent_days = get_days_since_last_acq(f['frame'], eventtime=event.time, metafile=metafile)
                 #strincsv = e2f[dbcols].loc[i].to_csv(sep=';', index=False, header=False).replace('\n', ';').replace('"', '')[:-1]
