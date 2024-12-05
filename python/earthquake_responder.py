@@ -182,7 +182,7 @@ def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/publi
         return False
     e2f['track'] = e2f.frame.apply(lambda x:str(int(x[:3])))
     e2f['download'] = ''
-    e2f['preevent_acq_days'] = 0.0  # let's keep 0 for that case
+    e2f['preevent_acq_days'] = -999 # for nan
     for i, f in e2f.iterrows():
         #check if we have geometry here:
         if len(f.the_geom) < 5:
