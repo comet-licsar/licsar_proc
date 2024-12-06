@@ -60,7 +60,7 @@ def Conn_tunnel_db():
     sql_password = parser.get('sqlinfo', 'dbpass')
     sql_port = parser.get('sqlinfo', 'port')
     sql_port = int(sql_port)
-    ssh_host = 'login1.jasmin.ac.uk'
+    ssh_host = 'login-01.jasmin.ac.uk'
     #ssh_host = 'cems-login1.cems.rl.ac.uk'
     ssh_pkey = os.path.join(os.environ['HOME'],'.ssh/id_jasmin')
     if not os.path.exists(ssh_pkey):
