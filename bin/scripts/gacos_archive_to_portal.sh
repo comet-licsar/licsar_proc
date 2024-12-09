@@ -1,6 +1,13 @@
+#!/bin/bash
+
 frame=$1
 prod_dir=$LiCSAR_public
-work_dir="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/GACOS"
+# old gacos dir:
+#work_dir="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/GACOS"
+work_dir=$LiCSAR_GACOS
+if [ -z $work_dir ]; then
+   work_dir='/work/scratch-pw3/licsar/GACOS'
+fi
 
 if [ -z $frame ]; then
  echo "Usage: parameter is frame"

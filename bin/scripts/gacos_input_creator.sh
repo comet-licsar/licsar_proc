@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ## The script is used to generate the required input file for the GACOS.sh API
 ## It takes the frame id as the input
 # optionaly, you may add second parameter to input and that will be a text file with dates to process
@@ -17,7 +19,12 @@ source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 minbtemp=3
 
 prod_dir=$LiCSAR_public
-work_dir="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/GACOS"
+# old gacos dir:
+#work_dir="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/GACOS"
+work_dir=$LiCSAR_GACOS
+if [ -z $work_dir ]; then
+   work_dir='/work/scratch-pw3/licsar/GACOS'
+fi
 
 if [ -z $prod_dir ]; then
  echo "you probably did not load licsar_proc or licsar_framebatch"
