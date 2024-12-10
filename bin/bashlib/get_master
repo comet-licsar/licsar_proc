@@ -1,0 +1,24 @@
+#!/bin/bash
+get_master() {
+ tdir=`pwd`
+ if [ ! -z $1 ]; then
+  cdproc $1
+ fi
+ #this should be run from a frame folder
+ if [ ! -d geo ]; then
+  #echo "please use get_master function only in frame folder, with geo"
+  cd $tdir
+  return 0
+ else
+  m=`ls geo/20??????.hgt 2>/dev/null| cut -d '/' -f2 | cut -d '.' -f1`
+  if [ -z $m ]; then
+   #echo "error - missing hgt file in geo folder"
+   cd $tdir
+   return 0
+  else
+   echo $m
+  fi
+ fi
+ cd $tdir
+}
+get_master $@

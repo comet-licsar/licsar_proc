@@ -1,0 +1,12 @@
+#!/bin/bash
+init_LiCSAR() {
+  # RAW_DIR variable has to be defined in the launch script!!
+  while getopts ":m:p:" OPTION ; do
+    case $OPTION in
+    m)    master="$OPTARG";;
+    p)    polygon_file="$OPTARG";;
+    esac
+  done
+  shift $((OPTIND-1))
+}
+init_LiCSAR $@

@@ -1,0 +1,9 @@
+#!/bin/bash
+UpdateOrbits() {
+  local yyyymmdd=$1
+  local ORBs_DIR=$2
+  
+  # Download precise orbits information (available from https://qc.sentinel1.eo.esa.int/aux_poeorb/) and update .slc.par files
+  # For each product, let's download the orbit files (sometimes it does more than one, if multiple slices from same date are in SLC/ folder)
+}
+UpdateOrbits $@

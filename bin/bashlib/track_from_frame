@@ -1,0 +1,6 @@
+#!/bin/bash
+track_from_frame() {
+ #input is $frame
+ echo $1 | cut -c -3 | sed 's/^0//' | sed 's/^0//'
+}
+track_from_frame $@

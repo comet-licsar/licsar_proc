@@ -1,0 +1,17 @@
+#!/bin/bash
+prepare_landmask() {
+    infile=$1
+    frame=$2
+    filedir=`dirname $infile`
+    tr=`track_from_frame $frame`
+    if [ -f $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif ]; then
+        maskfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+    elif [ -f $frame.geo.landmask.tif ]; then
+        maskfile=$frame.geo.landmask.tif
+    elif [ -f $filedir/$frame.geo.landmask.tif ]; then
+        maskfile=$filedir/$frame.geo.landmask.tif
+    else 
+        wget --no-check-certificate -O $filedir/$frame.geo.landmask.tif https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
+        if [ -f $filedir/$frame.geo.landmask.tif ]; then
+}
+prepare_landmask $@

@@ -1,0 +1,23 @@
+#!/bin/bash
+boundlims2polygon() {
+  #######################################################
+  # create a file with a list of coordinates based on some bounding limits
+  #######################################################
+  if [ "$#" == "5" ]; then
+    local west=$1
+    local east=$2
+    local south=$3
+    local north=$4  
+    local outfile=$5
+    rm -f $outfile
+    echo "$west $north" >> $outfile # upper left
+    echo "$east $north" >> $outfile # upper right
+    echo "$east $south" >> $outfile # lower right
+    echo "$west $south" >> $outfile # lower left
+    echo "$west $north" >> $outfile # upper left
+  elif [ "$#" == "3" ]; then
+    local pathmaster=$1
+    local master=$2
+    local outfile=$3
+}
+boundlims2polygon $@

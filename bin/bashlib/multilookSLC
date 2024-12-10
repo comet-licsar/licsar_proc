@@ -1,0 +1,11 @@
+#!/bin/bash
+multilookSLC() {
+  local slcdate=$1
+  local rlks=$2 
+  local azlks=$3
+  local plotme=$4
+  local slcdir=$5
+  if [ -z $slcdir ]; then slcdir=SLC/$slcdate; fi
+  # Generate a quicklook to inspect everything went correctly
+}
+multilookSLC $@

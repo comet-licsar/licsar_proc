@@ -1,0 +1,21 @@
+#!/bin/bash
+clean_public() {
+    cd $LiCSAR_public
+    for track in `seq 1 175`; do echo $track; 
+      for frame in `ls $track | grep '_'`; do
+         if [ `ls $track/$frame | wc -l` -lt 2 ]; then
+            echo "frame "$frame" seems wrongly intialized, see list:"
+            ls $track/$frame
+         fi
+         if [ -d $track/$frame/interferograms/geo ]; then rm -rf $track/$frame/interferograms/geo; fi
+         for ifg in `ls $track/$frame/interferograms`; do
+            if [ `ls $track/$frame/interferograms/$ifg | wc -l` -lt 2 ]; then
+               echo "Removing empty folder of"
+               echo $track/$frame/interferograms/$ifg
+               rm -rf $track/$frame/interferograms/$ifg
+            fi
+         done
+      done
+    done
+}
+clean_public $@

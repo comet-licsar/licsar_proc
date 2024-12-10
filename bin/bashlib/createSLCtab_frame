@@ -1,0 +1,26 @@
+#!/bin/bash
+createSLCtab_frame() {
+    # usage: FULLPATH_TO_SLC/$epoch/$epoch slc[or rslc] $frame > tab/$epoch'_tab'
+  local frame=$3
+  if [ `echo $frame | wc -m` != 18 ]; then echo "not a frame ID"; return; fi
+  if [ `echo $frame | cut -d '_' -f3 | cut -c -2` == 00 ]; then
+    if [ `echo $frame | cut -d '_' -f3 | cut -c 3-4` == 00 ]; then
+     iniw=3
+    else
+     iniw=2
+    fi
+  else
+   iniw=1
+  fi
+  if [ `echo $frame | cut -d '_' -f3 | cut -c 5-` == 00 ]; then
+   if [ `echo $frame | cut -d '_' -f3 | cut -c 3-4` == 00 ]; then
+     outiw=1
+   else
+     outiw=2
+   fi
+  else
+    outiw=3
+  fi
+  createSLCtab $1 $2 $iniw $outiw
+}
+createSLCtab_frame $@

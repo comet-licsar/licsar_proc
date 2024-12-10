@@ -1,0 +1,10 @@
+#!/bin/bash
+merge_S1cat() {
+  local slcdir=$1
+  local date1=$2
+  local date2=$3
+  local date=$4
+  if [ -z "$5" ]; then local IW1=1; else local IW1=$5; fi 
+  if [ -z "$6" ]; then local IW2=3; else local IW2=$6; fi  
+}
+merge_S1cat $@

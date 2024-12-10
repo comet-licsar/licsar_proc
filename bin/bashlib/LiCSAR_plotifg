@@ -1,0 +1,9 @@
+#!/bin/bash
+LiCSAR_plotifg() {
+  local master=$1
+  local slave=$2
+  local workdir=$3
+  local extension=$4
+  local transparencyon=$5
+}
+LiCSAR_plotifg $@

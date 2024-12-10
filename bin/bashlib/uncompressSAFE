@@ -1,0 +1,5 @@
+#!/bin/bash
+uncompressSAFE() {
+  local slcdate=$1
+}
+uncompressSAFE $@

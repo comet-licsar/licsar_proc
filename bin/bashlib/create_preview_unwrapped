@@ -1,0 +1,57 @@
+#!/bin/bash
+create_preview_unwrapped() {
+  if [ ! -z $1 ]; then
+    local unwfile=$1
+    echo "generating preview for "$unwfile
+    origfile=$unwfile
+    #local RESIZE=30
+    outfile=`echo $unwfile | rev | cut -c 4- | rev`png
+    # correct for median
+    unwfile=$origfile.tmp.tif
+    gmt grdclip $origfile -G$unwfile.nc -Sr0/NaN
+    gmt grdmath $unwfile.nc $unwfile.nc MEDIAN SUB = $unwfile=gd:Gtiff
+    rm $unwfile.nc
+  extracmd=''
+  if [ ! -z $2 ]; then
+   frame=$2
+   tr=`track_from_frame $frame`
+   #echo "trying mask and include hillshade"
+   maskedfile=`prepare_landmask $unwfile $frame`
+   if [ ! -z $maskedfile ]; then
+    unwfile=$maskedfile
+   fi
+   hillshade=`prepare_hillshade $unwfile $frame`
+   if [ ! -z $hillshade ]; then
+    extracmd='-I'$hillshade
+   fi
+  fi
+  barpng=`create_colourbar_unw $unwfile`
+  minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
+  gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.unw.cpt
+  if [ -z $3 ]; then
+   gmt grdimage $unwfile -C$outfile.unw.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+   convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
+   if [ ! -z $frame ]; then
+    if [ `echo $frame | cut -c 4` == 'A' ]; then grav='southeast'; else grav='southwest'; fi
+   else
+    # no frame? firmly bottom left corner
+    grav='southwest'
+   fi
+   convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
+   #save only the small preview..
+   mv $outfile.sm.png $outfile
+   rm $barpng $outfile.unw.cpt
+  else
+   #echo "preparing for kml"
+   gmt grdclip $unwfile -Gtokml.nc -Sr0/NaN
+   gmt grd2kml -Ag0 -C$outfile.unw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd tokml.nc 2>/dev/null
+  fi
+  rm $maskedfile $hillshade $unwfile $outfile.unw.cpt tokml.nc 2>/dev/null
+  rm gmt.history 2>/dev/null
+  else
+    echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
+    echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
+    return 0
+  fi
+}
+create_preview_unwrapped $@

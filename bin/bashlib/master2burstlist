@@ -1,0 +1,12 @@
+#!/bin/bash
+master2burstlist() {
+  #######################################################
+  # create a file with a list of coordinates based on some bounding limits
+  #######################################################
+  if [ "$#" == "4" ]; then
+    local pathmaster=$1
+    local master=$2
+    local polygon_file=$3
+    local outfile=$4
+}
+master2burstlist $@

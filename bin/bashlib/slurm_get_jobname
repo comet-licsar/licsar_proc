@@ -1,0 +1,6 @@
+#!/bin/bash
+slurm_get_jobname() {
+    jobid=$1
+    scontrol show jobid $jobid | grep JobName | cut -d '=' -f3
+}
+slurm_get_jobname $@

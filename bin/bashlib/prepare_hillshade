@@ -1,0 +1,54 @@
+#!/bin/bash
+prepare_hillshade() {
+    infile=$1
+    filedir=`dirname $infile`
+    frame=$2
+    tr=`track_from_frame $frame`
+    hgtfile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+hillshadefile=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hillshade.nc
+if [ ! -f $hgtfile ]; then
+  mkdir -p ../../geo
+  hgtfile=../../geo/$frame.geo.hgt.tif
+  if [ ! -f $hgtfile ]; then
+   #try for the last time, download it..
+   wget --no-check-certificate -O $hgtfile https://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.hgt.tif 2>/dev/null
+  fi
+  #if [ ! -f $hgtfile ]; then
+  # echo "warning, no hgt tiff file found. there will be no hillshade"
+  #fi
+fi
+
+if [ ! -f $hillshadefile ]; then
+ if [ ! -d $LiCSAR_public/$tr/$frame/metadata ]; then
+  #in such case do it only locally
+  hillshadefile=$filedir/hillshade.nc
+ fi
+fi
+
+if [ ! -f $hillshadefile ]; then
+   #do hillshade to unw..
+   #echo "(generating hillshade)"
+   if [ -f $hgtfile ]; then
+    opass=`echo $frame | cut -c 4`
+    if [ $opass == 'A' ]; then
+      deg=258
+    else
+      deg=102
+    fi
+    #gmt grdsample $hgtfile -Gtemphgt.nc -R$unw_tif 2>/dev/null
+    gmt grdgradient -A$deg -Nt1 -G$hillshadefile $hgtfile
+   fi
+fi
+
+if [ -f $hillshadefile ]; then
+      hillshadenc=$filedir/temphillshade.nc
+      rm $hillshadenc 2>/dev/null
+      gmt grdsample $hillshadefile -G$hillshadenc.tmp -R$infile -nn+t0.1 2>/dev/null
+      gmt grdcut -N1 $hillshadenc.tmp -G$hillshadenc -R$infile
+      rm $hillshadenc.tmp
+  fi
+  if [ -f $hillshadenc ]; then
+    echo $hillshadenc
+  fi
+}
+prepare_hillshade $@

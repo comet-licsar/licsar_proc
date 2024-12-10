@@ -1,0 +1,11 @@
+#!/bin/bash
+check_master() {
+  #######################################################
+  # check_master list_of_zipfiles master_date
+  #######################################################
+  local zipfile=$1
+  local master_date=$2
+  if [ -z "$master_date" ] ; then
+    # We choose the first image as master, because master_date is not available
+}
+check_master $@

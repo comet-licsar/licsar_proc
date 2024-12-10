@@ -1,0 +1,5 @@
+#!/bin/bash
+LiCSAR_plotdem() {
+  local master=$1
+}
+LiCSAR_plotdem $@

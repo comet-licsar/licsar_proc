@@ -1,0 +1,11 @@
+#!/bin/bash
+cdpub() {
+    if [ -z $1 ]; then
+        echo "please provide frame id";
+        return 0
+    fi
+    frame=$1
+    tr=`track_from_frame $frame`
+    cd $LiCSAR_public/$tr/$frame
+}
+cdpub $@

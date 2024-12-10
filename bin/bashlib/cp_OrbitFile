@@ -1,0 +1,11 @@
+#!/bin/bash
+cp_OrbitFile() {
+# I think it is fixed to find:
+# Restituted orbits need to specify the time to the hour (time of data - 3 hours)
+# Precise orbits need to specify the time to the day (time of data - 1 day)
+
+  local imageID=$1
+  local srcOrbdir=$2
+  local mvdir=$3
+}
+cp_OrbitFile $@

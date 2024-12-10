@@ -1,0 +1,4 @@
+#!/bin/bash
+mk_beta_mat_alternativemethod() {
+}
+mk_beta_mat_alternativemethod $@

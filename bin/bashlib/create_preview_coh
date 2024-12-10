@@ -1,0 +1,20 @@
+#!/bin/bash
+create_preview_coh() {
+  if [ ! -z $1 ]; then
+    local cohfile=$1
+    extracmd_convert=''
+    if [ ! -z $2 ]; then
+     extracmd_convert='-resize 30%'
+    fi
+    outfile=`echo $cohfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
+    gmt grdimage $cohfile -C$LiCSARpath/misc/cc.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
+    #to flatten it (and fix transparency...sometimes needed..):
+    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
+    rm $outfile.temp.png
+  else
+    echo "Usage: create_preview_coh cohfile [hires?]"
+    echo "(can be either geotiff or nc/grd; if hires=1, it will keep hires)"
+    return 0
+  fi
+}
+create_preview_coh $@

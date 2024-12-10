@@ -1,0 +1,6 @@
+#!/bin/bash
+sortarray() {
+# Function helps to sort a list of SLC zip files according to increasing dates
+# This is motivated that dates for dual and single polarization are differently sorted
+}
+sortarray $@

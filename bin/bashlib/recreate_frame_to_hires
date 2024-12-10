@@ -1,0 +1,46 @@
+#!/bin/bash
+recreate_frame_to_hires() {
+    #to be run for all tienshan frames that were initialised 'normally'
+    if [ -z $1 ]; then
+        echo "please provide frame id";
+        return 0
+    fi
+    echo "WARNING - expecting this frame to be from Tien Shan, check local_config.py if this is not wanted"
+    local frame=$1
+    echo "regenerating the frame files to make medium resolution outputs (56 m)"
+    tr=`track_from_frame $frame`
+    master=`get_master $frame`
+    m=$master
+    fdir=$LiCSAR_procdir/$tr/$frame
+    cd $fdir
+    echo "outres=0.0005" > local_config.py
+    echo "tienshan=1" >> local_config.py
+    mv geo backup.geo.110m
+    mkdir geo
+    echo "master is "$master
+    python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; geocode_dem('RSLC/"$master"','geo','DEM','.','"$master"',0.0005)"
+    
+    LiCSAR_05_mk_angles_master
+    echo "Generating E-N-U files"
+    submit_lookangles.py -f $frame -t $tr
+    echo "Generating land mask (would remove heights below 0 m)"
+    landmask=$LiCSAR_procdir/$tr/$frame/geo/landmask
+    hgtgeo=$LiCSAR_public/$tr/$frame/metadata/$frame.geo.hgt.tif
+    gmt grdlandmask -G$landmask.tif=gd:GTiff -R$hgtgeo -Df -N0/1/0/1/0
+    cp $landmask.tif $LiCSAR_public/$tr/$frame/metadata/$frame.geo.landmask.tif
+    echo "Generating master MLI geotiff"
+    create_geoctiffs_to_pub.sh -M `pwd` $m
+    mkdir -p $LiCSAR_public/$tr/$frame/epochs 2>/dev/null
+    rm -r $LiCSAR_public/$tr/$frame/epochs/$m 2>/dev/null
+    mv GEOC.MLI/$m $LiCSAR_public/$tr/$frame/epochs/.
+    rmdir GEOC.MLI 2>/dev/null
+    echo "Generating public metadata file"
+    submit_to_public_metadata.sh $frame
+    ifgdir=$LiCSAR_public/$tr/$frame/interferograms
+    if [ `ls $ifgdir 2>/dev/null | wc -l` -gt 0 ]; then
+        echo "backing up ifgs"
+        mkdir -p $ifgdir.backup
+        mv $ifgdir/* $ifgdir.backup/.
+    fi
+}
+recreate_frame_to_hires $@

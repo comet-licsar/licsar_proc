@@ -1,0 +1,8 @@
+#!/bin/bash
+createSLCtab() {
+  local inimage=$1
+  local ending=$2
+  if [ -z "$3" ]; then local IW1=1; else local IW1=$3; fi 
+  if [ -z "$4" ]; then local IW2=3; else local IW2=$4; fi   
+}
+createSLCtab $@

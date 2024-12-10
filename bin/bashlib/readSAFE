@@ -1,0 +1,5 @@
+#!/bin/bash
+readSAFE() {
+  local slcdate=$1
+}
+readSAFE $@

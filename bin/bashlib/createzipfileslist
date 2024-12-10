@@ -1,0 +1,8 @@
+#!/bin/bash
+createzipfileslist() {
+  RAW_DIR=$1
+  polygon_file=$2
+  # RAW_DIR is an environmental variable created in LiCSAR_config_launch
+  # generate the list of zip files to be linked [Future versions should grab this info from the database]
+}
+createzipfileslist $@

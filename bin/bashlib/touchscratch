@@ -1,0 +1,21 @@
+#!/bin/bash
+touchscratch() {
+    dir=$1
+    if [ `echo $dir | grep -c scratch` == 0 ]; then
+      echo "Usage: touchscratch \$BATCH_CACHE_DIR";
+      echo "(or another directory on scratch disk)"
+      return 0;
+    fi;
+    echo "touching contents of directory "$dir
+    echo "running per each subfolder:"
+    for subdir in `ls $dir`; do
+     if [ -d $dir/$subdir ]; then
+       echo $subdir
+     fi
+     for x in `find $dir/$subdir`; do
+       touch $x 2>/dev/null;
+     done
+    done
+    echo "done"
+}
+touchscratch $@

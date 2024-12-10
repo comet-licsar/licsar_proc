@@ -1,0 +1,31 @@
+#!/bin/bash
+create_notide_noiono_012A() {
+hgtfile=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/metadata/012A_05443_131313.geo.hgt.tif
+epath=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/epochs
+ifgspath=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/interferograms
+frame=012A_05443_131313
+ext=diff_pha
+for ifg in `ls interferograms`; do 
+ date1=`echo $ifg | cut -d '_' -f1`
+ date2=`echo $ifg | cut -d '_' -f2`
+ #infile=$ifgpath/$ifg/$ifg.geo.diff_pha.tif
+ infilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.tif
+ outfilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.noiono.tif
+ if [ ! -f $outfilee ]; then
+ if [ -f $epath/$date1/$date1.geo.iono.code.tif ] && [ -f $epath/$date2/$date2.geo.iono.code.tif ]; then
+   #doit=1
+   ionod1=$epath/$date1/$date1.geo.iono.code.tif
+   ionod2=$epath/$date2/$date2.geo.iono.code.tif   # should be A-B....
+   correct_ifg_tides_public $frame $ifg $ext
+   gdalwarp2match.py $infilee $hgtfile $infilee'.tmp.tif'
+   mv $infilee'.tmp.tif' $infilee
+   gmt grdmath $infilee'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB WRAP = $outfilee'=gd:Gtiff'
+   #gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB WRAP = $outfile'=gd:Gtiff'
+   #create_preview_wrapped $outfilee
+ else
+   echo "skipping "$ifg
+ fi
+ fi
+done
+}
+create_notide_noiono_012A $@

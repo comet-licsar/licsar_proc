@@ -1,0 +1,7 @@
+#!/bin/bash
+get_burstsno_frame() {
+ if [ -z $1 ]; then echo "just add frame"; return 0; fi
+ frame=$1
+ bursts=`echo $frame | cut -d '_' -f3`
+}
+get_burstsno_frame $@

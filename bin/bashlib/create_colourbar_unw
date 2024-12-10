@@ -1,0 +1,42 @@
+#!/bin/bash
+create_colourbar_unw() {
+    infile=$1
+    scalebarfile=`dirname $infile`/scalebar_unwrapped.png
+  minmaxcolour=`gmt grdinfo -T+a1+s $infile`
+  #create legend
+  #need to prepare a colorbar based on these values!!!!
+  #you know... the rounding here is not really important... just a colourbar.. or not?
+  mincol=`echo $minmaxcolour | cut -d '/' -f1 | cut -d 'T' -f2`
+  maxcol=`echo $minmaxcolour | cut -d '/' -f2 `
+  #expecting sentinel
+  minval=`python -c 'print(round('$mincol'*5.546/(4*3.14159265)))'`
+  maxval=`python -c 'print(round('$maxcol'*5.546/(4*3.14159265)))'`
+  #add also real min and max values
+  minmaxreal=`gmt grdinfo -T $infile`
+  minreal=`echo $minmaxreal | cut -d 'T' -f2 | cut -d '/' -f1 | cut -d '.' -f1`
+  maxreal=`echo $minmaxreal | cut -d '/' -f2 | cut -d '.' -f1`
+  minrealval=`python -c 'print(round('$minreal'*5.546/(4*3.14159265)))'`
+  maxrealval=`python -c 'print(round('$maxreal'*5.546/(4*3.14159265)))'`
+  #burn them to the scalebar
+  minvalsize=`echo $minval | wc -m `
+  if [ $minvalsize -gt 4 ]; then
+   xsize=20
+  elif [ $minvalsize -eq 4 ]; then
+   xsize=40
+  elif [ $minvalsize -eq 3 ]; then
+   xsize=60
+  else
+   xsize=80
+  fi
+  convert -font helvetica -fill black -pointsize 40 -draw "text "$xsize",115 '"$minval"'" $LiCSARpath/misc/scalebar_unwrapped_empty.png $infile.temp_scale_unw.png
+  convert -font helvetica -fill black -pointsize 40 -draw "text 1100,115 '"$maxval" cm'" $infile.temp_scale_unw.png $infile.scalebar_unwrapped.png
+  mv $infile.scalebar_unwrapped.png $infile.temp_scale_unw.png
+  #add real values
+  convert -font helvetica -fill black -pointsize 35 -draw "text "$xsize",165 '[min "$minrealval" cm]'" $infile.temp_scale_unw.png $infile.scalebar_unwrapped.png
+  mv $infile.scalebar_unwrapped.png $infile.temp_scale_unw.png
+  convert -font helvetica -fill black -pointsize 35 -draw "text 1020,165 '[max "$maxrealval" cm]'" $infile.temp_scale_unw.png $scalebarfile
+  rm $infile.temp_scale_unw.png
+
+  echo $scalebarfile
+}
+create_colourbar_unw $@

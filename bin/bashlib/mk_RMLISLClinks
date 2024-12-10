@@ -1,0 +1,4 @@
+#!/bin/bash
+mk_RMLISLClinks() {
+}
+mk_RMLISLClinks $@

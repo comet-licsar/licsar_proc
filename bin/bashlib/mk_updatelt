@@ -1,0 +1,10 @@
+#!/bin/bash
+mk_updatelt() {
+  # Update the lookup table!
+  # This section is computed to update: lookup table refinement
+  # determine range and azimuth corrections for lookup table (in mli pixels)
+  
+  local inlt=$1
+  local outlt=$2
+}
+mk_updatelt $@

@@ -1,0 +1,13 @@
+#!/bin/bash
+mk_coreg_TOPS_specdiv_crop() {
+  local master=$1
+  local slave=$2
+  local width=$3
+  local rlks=$4
+  local azlks=$5
+  if [ -z "$6" ]; then local logfile=dummy.log; else local logfile=$6; fi 
+  if [ -z "$7" ]; then local IW1=1; else local IW1=$7; fi 
+  if [ -z "$8" ]; then local IW3=3; else local IW3=$8; fi
+    
+}
+mk_coreg_TOPS_specdiv_crop $@

@@ -1,0 +1,22 @@
+#!/bin/bash
+create_preview_wrapped() {
+  if [ ! -z $1 ]; then
+    local ifgfile=$1
+    extracmd_convert=''
+    if [ ! -z $2 ]; then
+     if [ $2 == 0 ]; then
+      extracmd_convert='-resize 30%'
+     fi
+    fi
+    outfile=`echo $ifgfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
+    gmt grdimage $ifgfile -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
+    #to flatten it (and fix transparency...sometimes needed..):
+    convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
+    rm $outfile.temp.png
+  else
+    echo "Usage: create_preview_wrapped ifgfile [hires?]"
+    echo "(can be either geotiff or nc/grd; if hires=1, it will keep hires)"
+    return 0
+  fi
+}
+create_preview_wrapped $@

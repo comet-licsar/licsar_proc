@@ -1,0 +1,9 @@
+#!/bin/bash
+deramp_ifg() {
+ path=$1
+ if [ -z $1 ]; then echo "parameter is full path to the ifg geotiff in LiCSAR_public"; 
+  else
+    python3 -c "import LiCSAR_lib.unwrp_multiscale as unw; unw.deramp_ifg_tif('"$path"')"
+  fi
+}
+deramp_ifg $@

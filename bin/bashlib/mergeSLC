@@ -1,0 +1,7 @@
+#!/bin/bash
+mergeSLC() {
+  local slcdate=$1
+  local rlks=$2 
+  local azlks=$3
+}
+mergeSLC $@

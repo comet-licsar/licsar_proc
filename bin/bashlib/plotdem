@@ -1,0 +1,6 @@
+#!/bin/bash
+plotdem() {
+  local master=$1
+  local slave=$2
+}
+plotdem $@

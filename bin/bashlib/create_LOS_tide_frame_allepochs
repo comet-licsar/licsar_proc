@@ -1,0 +1,13 @@
+#!/bin/bash
+create_LOS_tide_frame_allepochs() {
+  local frame=$1
+  if [ -z $1 ]; then echo "error, not provided frame ID"; return 1; fi
+  track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+  epochspath=$LiCSAR_public/$track/$frame/epochs
+  for epoch in `ls $epochspath`; do
+    if [ ! -f $epochspath/$epoch/$epoch'.tide.geo.tif' ]; then
+      create_LOS_tide $frame $epoch
+    fi
+  done
+}
+create_LOS_tide_frame_allepochs $@

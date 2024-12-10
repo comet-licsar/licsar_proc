@@ -1,0 +1,4 @@
+#!/bin/bash
+slurm_get_running_jobs() {
+}
+slurm_get_running_jobs $@

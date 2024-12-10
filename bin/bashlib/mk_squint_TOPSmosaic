@@ -1,0 +1,13 @@
+#!/bin/bash
+mk_squint_TOPSmosaic() {
+  local master=$1 # Mosaic 
+  local outfile=$2
+  local rlks=$3
+  local azlks=$4
+  local wid=$5  
+  if [ -z "$6" ]; then local IW1=1; else local IW1=$6; fi 
+  if [ -z "$7" ]; then local IW2=3; else local IW2=$7; fi  
+  
+  # Loop over all subswaths of the master
+}
+mk_squint_TOPSmosaic $@

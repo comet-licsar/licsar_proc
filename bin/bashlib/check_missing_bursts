@@ -1,0 +1,11 @@
+#!/bin/bash
+check_missing_bursts() {
+  local polygon_file=$1 
+  local burstid_file=$2 
+  local locdir=$3 
+  local yyyymmdd=$4
+  if [ -z "$5" ]; then local IW1=1; else local IW1=$5; fi 
+  if [ -z "$6" ]; then local IW3=3; else local IW3=$6; fi 
+  # Identify which bursts in master are inside the polygon, before starting to merge
+}
+check_missing_bursts $@

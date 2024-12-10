@@ -1,0 +1,7 @@
+#!/bin/bash
+nla_check_frame_status() {
+  if [ -z $1 ]; then echo "Usage: just add frame ID as param";
+  else
+    local frame=$1
+}
+nla_check_frame_status $@

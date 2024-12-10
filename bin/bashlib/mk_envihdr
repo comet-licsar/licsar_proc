@@ -1,0 +1,11 @@
+#!/bin/bash
+mk_envihdr() {
+  local width_dem=$1 
+  local length_dem=$2
+  local lon=$3
+  local lat=$4
+  local lonstep=$5
+  local latstep=$6
+  
+}
+mk_envihdr $@

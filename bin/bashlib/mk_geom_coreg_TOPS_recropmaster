@@ -1,0 +1,11 @@
+#!/bin/bash
+mk_geom_coreg_TOPS_recropmaster() {
+  local master=$1
+  local slave=$2
+  local demdir=$3
+  if [ -z "$4" ]; then local IW1=1; else local IW1=$4; fi 
+  if [ -z "$5" ]; then local IW2=3; else local IW2=$5; fi 
+  if [ -z "$6" ]; then local logfile=dummy.log; else local logfile=$6; fi 
+  
+}
+mk_geom_coreg_TOPS_recropmaster $@

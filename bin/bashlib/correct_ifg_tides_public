@@ -1,0 +1,47 @@
+#!/bin/bash
+correct_ifg_tides_public() {
+  if [ "$#" == "3" ]; then
+    local frame=$1
+    local ifg=$2
+    local ext=$3
+    track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+    ifgpath=$LiCSAR_public/$track/$frame/interferograms/$ifg
+    infile=$ifgpath/$ifg.geo.$ext.tif
+    if [ ! -f $infile ]; then
+      echo "interferogram does not exist"
+      return 0
+    fi
+    outfile=$ifgpath/$ifg.geo.$ext.notides.tif
+    if [ -f $outfile ]; then
+      echo "tide corrected ifg "$ifg" already exists"
+      return 0
+    fi
+    date1=`echo $ifg | cut -d '_' -f1`
+    date2=`echo $ifg | cut -d '_' -f2`
+    create_LOS_tide $frame $date1
+    create_LOS_tide $frame $date2
+    tided1=$LiCSAR_public/$track/$frame/epochs/$date1/$date1'.tide.geo.tif'
+    tided2=$LiCSAR_public/$track/$frame/epochs/$date2/$date2'.tide.geo.tif'
+    #wavelength of Sentinel-1
+    #wavelength=0.055465763
+    #mcoef=-4*PI/$wavelength
+    #mcoef=-226.56
+    echo "correcting the interferogram to "$outfile
+    gmt grdmath $tided2 $tided1 SUB -226.56 MUL = $outfile.onlytide.nc
+    if [ $ext == "unw" ]; then
+     gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB = $outfile.nc #'=gd:Gtiff'
+     gmt grdmath $outfile.nc $outfile.nc MEDIAN SUB = $outfile=gd:Gtiff
+     #demedian_unw.py $outfile'=gd:Gtiff'
+     #create_preview_unwrapped $outfile
+    else
+     gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB WRAP = $outfile'=gd:Gtiff'
+     create_preview_wrapped $outfile
+    fi
+  else
+    echo "Usage: correct_ifg_tides_public frame_id ifg ext"
+    echo "(ifg must be yyyymmdd_yyyymmdd)"
+    echo "(ext should be either diff_pha or diff_unfiltered_pha)"
+    return 0
+  fi
+}
+correct_ifg_tides_public $@

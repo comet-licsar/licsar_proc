@@ -1,0 +1,6 @@
+#!/bin/bash
+plotifg() {
+  local master=$1
+  local slave=$2
+}
+plotifg $@
