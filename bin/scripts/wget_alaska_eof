@@ -21,6 +21,4 @@ else
     eoftype='poeorb'
 fi
 
-# wget -c $URL$eoftype/$line
-# 12/2024 - wget gets stuck when file exists! curl works ok..
-curl $URL$eoftype/$line -o $line
+wget -c $URL$eoftype/$line

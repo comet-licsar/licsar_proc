@@ -19,6 +19,4 @@ elif [ $satellite == "S1B" ]; then
     satstr='SB'
 fi
 
-# wget -c $URL/$satstr/$line
-# 12/2024 - wget gets stuck when file exists! curl works ok..
-curl $URL/$satstr/$line -o $line
+wget -c $URL/$satstr/$line
