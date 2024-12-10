@@ -474,7 +474,13 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         filelist = filelist2
     #raise Usage("DEBUG")
     if autodownload:
-        outdir=os.environ['LiCSAR_SLC']
+        if os.environ['USER']=='earmla':
+            outdir = '/work/xfc/vol5/user_cache/earmla/SLC'
+            if not os.path.exists(outdir):
+                outdir = os.environ['LiCSAR_SLC']
+        else:
+            outdir=os.environ['LiCSAR_SLC']
+        #
         i = -1
         #somebody likes tuples.. i dont. at least convert to list of lists
         flist = []
@@ -486,8 +492,8 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             if not os.path.exists(f[2]):
                 print('downloading '+f[1])
                 filename=f[1]+'.zip'
-                rc = s1.download_asf(filename, slcdir = os.environ['LiCSAR_SLC'], ingest = True)
-                newpath = os.path.join(os.environ['LiCSAR_SLC'], filename)
+                rc = s1.download_asf(filename, slcdir = outdir, ingest = True)
+                newpath = os.path.join(outdir, filename)
                 if not os.path.exists(newpath):
                     print('ERROR downloading file needed for initialisation, cancelling')
                     return 2

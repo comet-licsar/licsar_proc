@@ -561,7 +561,7 @@ def get_neodc_path_images(images, file_or_meta = False):
     return neodc_paths
 
 
-def import_to_licsinfo(images, meta = True):
+def import_to_licsinfo(images, meta = True, extradirs = [os.environ['LiCSAR_SLC'],'/work/xfc/vol5/user_cache/earmla/SLC']):
     #output is list of files to be downloaded
     todown=[]
     print('printing from s1data.py for debug')
@@ -584,7 +584,10 @@ def import_to_licsinfo(images, meta = True):
                 #arch2DB.main('-f'+metaonly)
                 os.system('arch2DB.py -f {}'.format(metaonly))
             else:
-                localfile = os.path.join(os.environ['LiCSAR_SLC'], os.path.basename(imagepath))
+                for otherdir in extradirs:
+                    localfile = os.path.join(otherdir, os.path.basename(imagepath))
+                    if os.path.exists(localfile):
+                        break
                 if os.path.exists(localfile):
                     os.system('arch2DB.py -f {}'.format(localfile))
                 else:
