@@ -61,6 +61,7 @@ setenv LiCSAR_volc "/gws/pw/j07/comet_lics/LiCSAR_volc"
 
 #setup executable paths
 prepend-path PATH "$LiCSARpath/bin"
+prepend-path PATH "$LiCSARpath/bin/bashlib"
 prepend-path PATH "$LiCSARpath/bin/orig"
 prepend-path PATH "$LiCSARpath/bin/scripts"
 prepend-path PATH "$LiCSARpath/python"
