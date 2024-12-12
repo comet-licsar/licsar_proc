@@ -49,6 +49,7 @@ mkdir $geodir
 #resol_m=`echo $geodir | cut -d '.' -f 2 | cut -d 'm' -f 1`
 resol=$outres #`cat sourcecmd.txt | rev | gawk {'print $1'} | rev`
 
+mkdir -p $geodir
 python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
 	 geocode_dem('"$masterslcdir"', '"$geodir"', 'DEM' , '.', '"$master"', "$resol")" > log/geo_update.log 2> log/geo_update.err
 
