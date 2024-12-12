@@ -107,8 +107,9 @@ lat1=$4
 lat2=$5
 hei=$6
 resol=$7   # in degrees, so e.g. 0.00027 for 30 m
-rgl=`echo $resol"*111000/2.3" | bc`
-azl=`echo $resol"*111000/14" | bc`
+#rgl=`echo $resol"*111000/2.3" | bc`
+rgl=`echo $resol"*111111/4.2" | bc` # this can be improved --- just get avg inc angle in that region and the ground resol = range_resol/sin(incangle)
+azl=`echo $resol"*111111/14" | bc`
 if [ $azl == 0 ]; then azl=1; fi
 if [ $rgl == 0 ]; then rgl=1; fi
 resol_m=`python -c "print(round("$resol"*111111))"`
