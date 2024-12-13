@@ -889,6 +889,7 @@ if [ $run_jasmin -eq 1 ]; then
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
+ if [ ! $cohmask4 == 0 ]; then clstr=$clstr'mask'; fi
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
  tsdir=TS_$geocd
  if [ $reunw -eq 0 ]; then
