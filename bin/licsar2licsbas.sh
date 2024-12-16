@@ -56,6 +56,7 @@ dolocal=0
 dogacos=0
 multi=1
 run_jasmin=1
+doublecheck=0 #this is to revise the batch_LiCSBAS before submission
 #dogacos=0
 hgts=0
 clip=0
@@ -81,7 +82,7 @@ que='short-serial'
 #LB_version=LiCSBAS  # orig Yu Morishita's version
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
-bovls=0
+sbovl=0
 setides=0
 iono=0
 deramp=0
@@ -96,16 +97,18 @@ outifs=0
 cohmask4=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkC:G:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
   M) multi=${OPTARG};
      #shift
      ;;
-  b) bovls=1;
-     echo "setting to process bovl data. Not ready yet (although LiCSBAS is.. with a workaround)"
+  b) sbovl=1;
+     echo "setting to process bovl data"
      ;;
+  X) doublecheck=1;
+     ;; 
   i) iono=1;
      prelb_backup=1;
     ;;
@@ -211,6 +214,16 @@ if [ $nproc -gt 1 ]; then
  fi 
 fi
 
+##if sbovl is open these should be closed automatically!
+if [ $sbovl -gt 0 ]; then
+ reunw=0
+ dogacos=0
+ deramp=0 #not sure yet?
+ hgtcorrlicsbas=0
+ gacos=0
+ icams=0
+fi
+
 # what extension is used as input?
 if [ $reunw -gt 0 ]; then
   if [ $filtifg -gt 0 ]; then
@@ -218,14 +231,19 @@ if [ $reunw -gt 0 ]; then
   else
     extofproc='diff_unfiltered_pha'
   fi
-elif [ $bovls -gt 0 ]; then
+elif [ $sbovl -gt 0 ]; then
+  echo "You are running this script for sbovl, so you don't need to think about gacos, reunwrapping, deramp, hgt correction, only iono and SET correction will be applied (In preb)!"
+  # echo "Example: licsar2licsbas.sh -M 10 -n 4 -W -b -i -e  021D_05266_252525 20240101 20240301"
   if [ $prelb_backup -gt 0 ]; then
-    echo "Error - you tried running longwave signal removal from burst overlap interferograms - not implemented in this tool"
-    exit
+    echo "Error - you tried running longwave signal removal from burst overlap interferograms - not implemented in this tool, yet?"
+    # exit
+    prelb_backup=0
+    extofproc='sbovldiff.adf.mm'
   fi
 else
   extofproc='unw'
 fi
+
 
 if [ -d GEOC ]; then
  echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
@@ -789,9 +807,20 @@ fi
 
 
 #preparing batch file
-module load $LB_version
+module load $LB_version   #TODO open here after pull requests?
 rm -f batch_LiCSBAS.sh 2>/dev/null
 copy_batch_LiCSBAS.sh >/dev/null
+
+
+if [ $sbovl -gt 0 ]; then 
+ sed -i 's/p01_sbovl=\"n\"/p01_sbovl=\"y\"/' batch_LiCSBAS.sh
+ sed -i 's/p02_sbovl=\"n\"/p02_sbovl=\"y\"/' batch_LiCSBAS.sh
+ sed -i 's/p11_sbovl=\"n\"/p11_sbovl=\"y\"/' batch_LiCSBAS.sh
+ sed -i 's/p120_sbovl=\"n\"/p120_sbovl=\"y\"/' batch_LiCSBAS.sh
+ sed -i 's/p13_sbovl=\"n\"/p13_sbovl=\"y\"/' batch_LiCSBAS.sh
+ sed -i 's/p15_sbovl=\"n\"/p15_sbovl=\"y\"/' batch_LiCSBAS.sh
+fi
+
 
 if [ $reunw -gt 0 ]; then # && [ $clip == 1 ]; then
  # in this case, the whole dataset should be ready for time series processing
@@ -822,8 +851,14 @@ if [ $reunw -gt 0 ]; then
 else
  sed -i 's/p11_coh_thre=\"\"/p11_coh_thre=\"0.025\"/' batch_LiCSBAS.sh
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
- sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
+ if [ $sbovl -gt 0 ]; then 
+   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"50\"/' batch_LiCSBAS.sh
+   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"30/' batch_LiCSBAS.sh
+ else
+   sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
+
+ fi
 # sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
  #sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"20/' batch_LiCSBAS.sh
 fi
@@ -885,7 +920,7 @@ if [ $run_jasmin -eq 1 ]; then
   #just a little export fix
   #multi=1
  #fi
- echo "module load "$LB_version >> jasmin_run.sh
+ echo "module load "$LB_version >> jasmin_run.sh ##TODO open here after accepting pull requests?
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
@@ -956,7 +991,12 @@ if [ $run_jasmin -eq 1 ]; then
  chmod 777 jasmin_run.sh
  chmod 777 jasmin_run_cmd.sh
  #echo $cmd
- ./jasmin_run_cmd.sh
+ if [ $doublecheck -eq 1 ]; then
+  echo "now can check batch_LiCSBAS and then run ./jasmin_run_cmd.sh"
+ else
+  ./jasmin_run_cmd.sh
+ fi
+
 else
  nano batch_LiCSBAS.sh
  echo "now run ./batch_LiCSBAS.sh";
