@@ -215,6 +215,18 @@ if not os.path.exists(bperp_file):
 
 try:
     bperp, ismissing = read_bperp_file(bperp_file, imdates, return_missflag = True)
+    try:
+        # just in case...
+        bperp[np.isnan(bperp)] = 0
+        absbp = np.abs(bperp)
+        over = np.where(absbp>800)
+        if len(over)>0:
+            print('WARNING, removing bperps that are over threshold of 800 m. These will be reestimated.')
+            bperp[over]=0
+            ismissing = True
+    except:
+        print('an error trying to remove bperps over 800 m')
+
     # double check missing - count zeroes
     if not ismissing:
         if len(bperp)>1:
