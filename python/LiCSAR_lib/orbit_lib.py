@@ -646,10 +646,12 @@ def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
     #    print('orbits not found using sentineleof. using custom (raw) approach')
     try:
         (startdate, enddate) = strpStrtEndTimes(zipFile)
-        startdate = startdate - pd.Timedelta('1 day')
-        enddate = enddate + pd.Timedelta('1 day')
-        downloadOrbits_CopCloud(startdate, enddate, 'POEORB')
-        downloadOrbits_CopCloud(startdate, enddate, 'RESORB')
+        startdatepoe = startdate - pd.Timedelta('2 days')  # need to extend as sometimes these just do not get found...
+        enddatepoe = enddate + pd.Timedelta('2 days')
+        startdateres = startdate - pd.Timedelta('1 day')
+        enddateres = enddate + pd.Timedelta('1 day')
+        downloadOrbits_CopCloud(startdatepoe, enddatepoe, 'POEORB')
+        downloadOrbits_CopCloud(startdateres, enddateres, 'RESORB')
         return True
     except:
         print('not succeeded')
