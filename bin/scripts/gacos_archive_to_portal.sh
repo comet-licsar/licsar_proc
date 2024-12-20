@@ -43,6 +43,8 @@ for geotif in $work_dir/$frame/*.sltd.geo.tif; do
    date=`basename $geotif | cut -d '.' -f1`
    mkdir -p  $prod_dir/$track/$frame/epochs/$date
    cp -f $geotif $prod_dir/$track/$frame/epochs/$date/.
+   touch $geotif.copdem
+   cp -f $geotif.copdem $prod_dir/$track/$frame/epochs/$date/.
    chmod -R 775 $prod_dir/$track/$frame/epochs/$date 2>/dev/null
 done
 

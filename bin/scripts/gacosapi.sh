@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# 2024-12-20: updated wrt new JASMIN servers that DO NOT HAVE ftp installed (gosh...)
+
 if [ $# -lt 1 ]; then
   echo "----------------------------------------------------------------------"
   echo "GAOCS API Script, to run gacos on your local machine"
@@ -83,7 +85,8 @@ echo "GACOSAPI - INFO - $timestr - Request submitted"
 echo finished >> ${systemfile}.finish
 
 
-ftp -inv 8.208.86.83 << ! > /dev/null 2>&1
+# ftp -inv 8.208.86.83 << ! > /dev/null 2>&1
+lftp 8.208.86.83 << ! > /dev/null 2>&1
 user $username $pass
 cd inward
 put $systemfile
@@ -103,10 +106,17 @@ while true
 do
 if [ -e ${resultfile}.finish ]; then
 
-ftp -inv 8.208.86.83 <<EOF
+# ftp -inv 8.208.86.83 <<EOF
+# user $username $pass
+# cd outward
+# binary
+# get $resultfile
+# bye
+# EOF
+
+lftp 8.208.86.83 <<EOF
 user $username $pass
 cd outward
-binary
 get $resultfile
 bye
 EOF
@@ -114,8 +124,9 @@ EOF
 break
 fi
 
-sleep 10s
-ftp -inv 8.208.86.83 <<! > /dev/null 2>&1
+sleep 30s
+# ftp -inv 8.208.86.83 <<! > /dev/null 2>&1
+lftp 8.208.86.83 <<! > /dev/null 2>&1
 user $username $pass
 cd outward
 get ${resultfile}.finish
