@@ -19,4 +19,4 @@ elif [ $satellite == "S1B" ]; then
     satstr='SB'
 fi
 
-wget -c $URL/$satstr/$line
+wget -c --no-check-certificate $URL/$satstr/$line
