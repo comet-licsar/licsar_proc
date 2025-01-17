@@ -648,10 +648,15 @@ def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
         (startdate, enddate) = strpStrtEndTimes(zipFile)
         startdatepoe = startdate - pd.Timedelta('2 days')  # need to extend as sometimes these just do not get found...
         enddatepoe = enddate + pd.Timedelta('2 days')
-        startdateres = startdate - pd.Timedelta('1 day')
-        enddateres = enddate + pd.Timedelta('1 day')
-        downloadOrbits_CopCloud(startdatepoe, enddatepoe, 'POEORB')
-        downloadOrbits_CopCloud(startdateres, enddateres, 'RESORB')
+        startdateres = startdate - pd.Timedelta('6 hours') #1 day')
+        enddateres = enddate + pd.Timedelta('6 hours') #1 day')
+        orbs = downloadOrbits_CopCloud(startdatepoe, enddatepoe, 'POEORB')
+        # check if the orb really contains the date...
+        if orbs:
+            orbs = get_orbit_filenames_for_datetime(enddate, producttype='POEORB', s1ab = zipFile[:3])
+        if not orbs:
+            print('trying to get RESORBs')
+            downloadOrbits_CopCloud(startdateres, enddateres, 'RESORB')
         return True
     except:
         print('not succeeded')
