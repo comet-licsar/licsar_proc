@@ -4,5 +4,10 @@ mvSLCcrop2SLC() {
   local oput=$2
   if [ -z "$3" ]; then local IW1=1; else local IW1=$3; fi 
   if [ -z "$4" ]; then local IW2=3; else local IW2=$4; fi   
+  for i in `seq ${IW1} ${IW2}`; do
+    mv ${iput}.IW${i}.slc           ${oput}.IW${i}.slc 
+    mv ${iput}.IW${i}.slc.par       ${oput}.IW${i}.slc.par 
+    mv ${iput}.IW${i}.slc.TOPS_par  ${oput}.IW${i}.slc.TOPS_par
+  done
 }
 mvSLCcrop2SLC $@

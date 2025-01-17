@@ -4,5 +4,12 @@ mk_masterRSLClinks() {
   local oput=$2
   if [ -z "$3" ]; then local IW1=1; else local IW1=$3; fi 
   if [ -z "$4" ]; then local IW2=3; else local IW2=$4; fi   
+  ln -s ${iput}.slc     ${oput}.rslc 
+  ln -s ${iput}.slc.par ${oput}.rslc.par 
+  for i in `seq ${IW1} ${IW2}`; do
+    ln -s ${iput}.IW${i}.slc           ${oput}.IW${i}.rslc 
+    ln -s ${iput}.IW${i}.slc.par       ${oput}.IW${i}.rslc.par 
+    ln -s ${iput}.IW${i}.slc.TOPS_par  ${oput}.IW${i}.rslc.TOPS_par
+  done
 }
 mk_masterRSLClinks $@

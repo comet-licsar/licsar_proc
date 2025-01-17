@@ -7,5 +7,13 @@ multilookSLC() {
   local slcdir=$5
   if [ -z $slcdir ]; then slcdir=SLC/$slcdate; fi
   # Generate a quicklook to inspect everything went correctly
+  echo "    Multilooking image ${slcdate} multilook factor $rlks [range] $azlks [azimuth] "
+  multi_look $slcdir/${slcdate}.slc $slcdir/${slcdate}.slc.par $slcdir/${slcdate}.slc.mli $slcdir/${slcdate}.slc.mli.par $rlks $azlks > /dev/null 2>&1 #>> $logfile 
+  # Create a thumbnail image to inspect the mosaic      
+  if [ "$plotme" == "1" ]; then 
+    wid=`grep range_samples: $slcdir/${slcdate}.slc.mli.par | awk '{print $2}'` 
+    reducfac=`echo $wid | awk '{if(int($1/1000) > 1) print int($1/1000); else print 1}'` 
+    raspwr $slcdir/${slcdate}.slc.mli $wid - - $reducfac $reducfac - - - $slcdir/${slcdate}.slc.mli.bmp 0 > /dev/null 2>&1 # >> $logfile 
+  fi
 }
 multilookSLC $@

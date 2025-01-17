@@ -19,5 +19,24 @@ boundlims2polygon() {
     local pathmaster=$1
     local master=$2
     local outfile=$3
+    for i in `ls ${pathmaster}/*${master}*.zip`; do
+      #echo "zipSAFE_2_bounding_box.py $i >> coordinates.$$" 
+      zipSAFE_2_SLCbb.py $i >> coordinates.$$
+    done
+    SLCbb_minmax.py coordinates.$$ > coordinates
+    local west=`awk '{print $1}' coordinates`; 
+    local east=`awk '{print $2}' coordinates`;
+    local south=`awk '{print $3}' coordinates`;
+    local north=`awk '{print $4}' coordinates`;
+    echo "$west $north" > $outfile # upper left
+    echo "$east $north" >> $outfile # upper right
+    echo "$east $south" >> $outfile # lower right
+    echo "$west $south" >> $outfile # lower left
+    echo "$west $north" >> $outfile # upper left    
+    rm coordinates*
+  else
+    echo "We cannot find the information needed to generate a polygon file"
+    exit 0
+  fi
 }
 boundlims2polygon $@

@@ -1,5 +1,16 @@
 #!/bin/bash
 LiCSAR_plotdem() {
   local master=$1
+  local inputgrd=geocode/${master}.geo.dem.grd
+  gmt gmtset HEADER_FONT_SIZE 10 HEADER_OFFSET 0.15 ANNOT_FONT_SIZE_SECONDARY 10 PLOT_DEGREE_FORMAT DF BASEMAP_TYPE plain CHAR_ENCODING Standard+ \
+       COLOR_MODEL RGB DOTS_PR_INCH 1200 INPUT_DATE_FORMAT yyyy/mm/dd PLOT_DATE_FORMAT o \
+       TIME_FORMAT_PRIMARY abbreviated ANNOT_FONT_SIZE_PRIMARY 7p LABEL_FONT_SIZE 7p \
+       TICK_LENGTH 0.1c ANNOT_FONT_SIZE_PRIMARY 7p ANNOT_OFFSET_PRIMARY 0.1c \
+       LABEL_FONT_SIZE 7p LABEL_OFFSET -0.05c  
+  grdimage ${inputgrd} -JM16 -R${inputgrd} -C${LiCSARpath}/misc/nicetopo.cpt -Q -P -K > geocode/${master}.geo.dem.ps
+  psscale -D8/1.0/6/0.3h -C/nfs/see-fs-01_users/earpjg/pablo/CommonData/CPTs/nicetopo.cpt -B1000:"Topography [m]": -O >> geocode/${master}.geo.dem.ps
+  ps2raster geocode/${master}.geo.dem.ps -E600 -Tg -W+k+t"S1 ${master}"+l256/-1
+  convert geocode/${master}.geo.dem.png -transparent white geocode/${master}.geo.dem.png
+  rm -f color.cpt geocode/${master}.geo.dem.ps
 }
 LiCSAR_plotdem $@

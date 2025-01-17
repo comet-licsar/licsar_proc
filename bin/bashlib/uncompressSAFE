@@ -1,5 +1,13 @@
 #!/bin/bash
 uncompressSAFE() {
   local slcdate=$1
+  local slcdir=SLC/${slcdate}
+  cd ${slcdir}
+  for i in `ls *.zip`; do 
+    echo "  Uncompressing for date: $slcdate file: $i"
+    #jar -xf $i ; # It is necessary to move where the zip softlinks are to uncompress them
+    7za x $i ; # It is necessary to move where the zip softlinks are to uncompress them
+  done
+  cd ../..
 }
 uncompressSAFE $@

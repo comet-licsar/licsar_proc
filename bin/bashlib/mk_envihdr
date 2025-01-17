@@ -7,5 +7,17 @@ mk_envihdr() {
   local lonstep=$5
   local latstep=$6
   
+  echo "ENVI description = { Registration Result. Method1st degree Polynomial w/ nearest neighbor [Wed Dec 20 23:59:19 1995] }"
+  echo "samples = $width_dem"
+  echo "lines   = $length_dem"
+  echo "bands   = 1"
+  echo "header offset = 0"
+  echo "file type = ENVI Standard"
+  echo "data type = 4"
+  echo "interleave = bsq"
+  echo "byte order = 1"
+  echo "map info = {Geographic Lat/Lon, 1, 1, ${lon}, ${lat}, ${lonstep}, ${latstep},  WGS-84}"
+  echo "coordinate system string = {GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]]}"
+  echo "band names = {Band 1}"
 }
 mk_envihdr $@

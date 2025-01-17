@@ -7,5 +7,11 @@ check_master() {
   local master_date=$2
   if [ -z "$master_date" ] ; then
     # We choose the first image as master, because master_date is not available
+    slclist=( `cat ${zipfile}` ) ; sortarray_slc_yyyymmdd slclist[@] SLC/ ; 
+    master_date=`basename $(echo ${slclist[0]} ) | awk '{print substr($1,18,8)}'`
+    echo "$master_date" > master_date.txt
+  else
+    echo " Master date introduced by user: $master_date "
+  fi
 }
 check_master $@

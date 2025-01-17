@@ -4,5 +4,21 @@ mk_recrop() {
   local outimage1=$2
   if [ -z "$3" ]; then local IW1=1; else local IW1=$3; fi 
   if [ -z "$4" ]; then local IW2=3; else local IW2=$4; fi   
+  for i in `seq ${IW1} ${IW2}`; do
+    MinBurstIW=`awk '{print $1}' ${outimage1}_IW${i}.commonburst | sort -n | head -1`;
+    MaxBurstIW=`awk '{print $2}' ${outimage1}_IW${i}.commonburst | sort -n | tail -1`;  
+    createSLCtab ${image1} slc ${i} ${i} > SLCin_tab
+    createSLCtab ${outimage1}.crop slc ${i} ${i} > SLCincrop_tab
+    echo "  Cropping image $image1 IW${i}: SLC_copy_S1_TOPS SLCin_tab SLCincrop_tab 1 $MinBurstIW 1 $MaxBurstIW"
+    SLC_copy_S1_TOPS SLCin_tab SLCincrop_tab 1 $MinBurstIW 1 $MaxBurstIW 
+  done
+  # Mosaic/Merge cropped subswaths
+  createSLCtab ${outimage1}.crop slc ${IW1} ${IW2} > SLCincropped_tab
+  echo "  SLC_mosaic_S1_TOPS SLCincropped_tab ${outimage1}.slc ${outimage1}.slc.par $rlks $azlks " 
+  SLC_mosaic_S1_TOPS SLCincropped_tab ${outimage1}.slc ${outimage1}.slc.par $rlks $azlks  
+  mvSLCcrop2SLC ${outimage1}.crop ${outimage1} ${IW1} ${IW2} 
+
+  # Cleaning
+  rm -f SLCin_tab SLCincrop_tab SLCincropped_tab 
 }
 mk_recrop $@
