@@ -39,7 +39,7 @@ export LiCSAR_public="/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products"
 export LiCSAR_SLC="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC"
 
 #setup executable paths
-export PATH=$PATH:$LiCSARpath/bin:$LiCSARpath/bin/orig:$LiCSARpath/bin/scripts:$LiCSARpath/python
+export PATH=$PATH:$LiCSARpath/bin:$LiCSARpath/bin/orig:$LiCSARpath/bin/scripts:$LiCSARpath/bin/bashlib:$LiCSARpath/python
 
 #Setup python path
 export PYTHONPATH=$PYTHONPATH:$LiCSARpath/python:$LiCSARpath/python/LiCSAR_lib:$LiCSARpath/python/LiCSAR_db:$nlapath
