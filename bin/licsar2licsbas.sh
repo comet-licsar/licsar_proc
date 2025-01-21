@@ -43,7 +43,9 @@ if [ -z $1 ]; then
  echo "-a ....... use amplitude stability to subset pixels. Testing. Might be useful in challenging areas such as jungles"
  echo "-w ....... will avoid using landmask"
  #echo "-A ....... use ampcoh"
- echo "-F ....... will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
+ echo "-F .......  will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
+ echo "-E 6 ...... will also estimate eqs with given minimum magnitude"
+ echo "-b ........ would start sbovls-licsbas (use dev version here..)"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -95,9 +97,10 @@ maskbias=1
 hgtcorrlicsbas=0
 outifs=0
 cohmask4=0
+eqminmag=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:E:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -106,6 +109,8 @@ while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
      ;;
   b) sbovl=1;
      echo "setting to process bovl data"
+     ;;
+  E) eqminmag=${OPTARG};
      ;;
   X) doublecheck=1;
      ;; 
@@ -830,6 +835,10 @@ else
  sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
 fi
 
+if [ $eqminmag -gt 0 ]; then # && [ $clip == 1 ]; then
+ sed -i 's/eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
+ sed -i 's/eqoffs_minmag=\"6\"/eqoffs_minmag=\"'$eqminmag'\"/' batch_LiCSBAS.sh
+fi
 
 sed -i 's/n_para=\"\"/n_para=\"'$nproc'\"/' batch_LiCSBAS.sh
 sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
