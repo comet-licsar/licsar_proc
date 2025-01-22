@@ -336,4 +336,5 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
             xrda = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha)
             xrda = xrda.where(mask)
             export_xr2tif(xrda, tif) #, refto=hgtfile)
+            os.system('chmod 777 '+tif)
             # but it still does not really fit - ok, because the xarray outputs here are gridline-registered while our ifgs are pixel registered...hmmm..

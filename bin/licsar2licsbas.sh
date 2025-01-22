@@ -28,10 +28,13 @@ if [ -z $1 ]; then
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-C 0.15 .. mask based on coherence threshold on individual ifgs"
- echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular and coh mask of step 4)"
+ echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular_gauss and coh mask of step 4)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "-r ....... perform deramping (degree 1)"
  echo "-L ....... use linear hgt correlation slope correction"
+ echo "-N ....... perform nullification"
+ # echo "-B ...... add phase bias estimation/removal - Yasser code"
+ # echo "-p ...... plate motion correction (wrt Eurasia)"
  echo "-- Processing tweaks --"
  echo "-h 14 .... set your own number of processing hours (14 by default)"
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
@@ -98,9 +101,13 @@ hgtcorrlicsbas=0
 outifs=0
 cohmask4=0
 eqminmag=0
+eqofftxt=''
+nullify=0
+phbias=0
+platemotion=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:E:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -110,7 +117,22 @@ while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:E:t:n:" option; do
   b) sbovl=1;
      echo "setting to process bovl data"
      ;;
-  E) eqminmag=${OPTARG};
+  E) chch=${OPTARG};  # TODO
+     if [ `echo $chch | grep "[a-zA-Z]" -c` -gt 0 ]; then
+       eqofftxt=$chch
+     else
+       eqminmag=$chch
+     fi;
+       echo 'not ready yet'; exit;
+     ;;
+  N) nullify=1;  # TODO
+      echo 'not ready yet'; exit;
+     ;;
+  B) phbias=1;  # TODO
+       echo 'not ready yet'; exit;
+     ;;
+  p) platemotion=1; # TODO
+       echo 'not ready yet'; exit;
      ;;
   X) doublecheck=1;
      ;; 
