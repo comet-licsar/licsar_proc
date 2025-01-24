@@ -343,6 +343,8 @@ source $metadir/metadata.txt #this will bring 'master=' info
 mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
   mkdir -p GACOS # 2>/dev/null
+  echo "update 20250124 - running gacos request for this frame, just in case we missed some epochs"
+  framebatch_update_gacos.sh $frame
   #echo "debug gacos 1"
 fi
 cd GEOC
@@ -862,8 +864,9 @@ elif [ ! -z $eqofftxt ]; then
   if [ `cat $eqofftxt | wc -l` -lt 1 ]; then
     echo "WARNING, the "$eqofftxt" is empty. Will skip earthquake offsets estimation"
   else
+    cat $eqofftxt > eqoffsets.txt
     sed -i 's/^eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
-    sed -i "s/^eqoffs_txtfile=.*/eqoffs_txtfile=\'"$eqofftxt"\'/" batch_LiCSBAS.sh
+    sed -i "s/^eqoffs_txtfile=.*/eqoffs_txtfile=\'eqoffsets.txt\'/" batch_LiCSBAS.sh
   fi
 fi
 
