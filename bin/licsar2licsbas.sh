@@ -48,6 +48,8 @@ if [ -z $1 ]; then
  #echo "-A ....... use ampcoh"
  echo "-F .......  will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
  echo "-E 6 ...... will also estimate eqs with given minimum magnitude"
+ echo "(-E offsets.txt ... instead of auto-find eqs, use existing eqoffsets.txt file)"
+ echo "-p ........ finalise by correcting plate motion velocity w.r.t. Eurasia (plus correct ref effect in vstd)"
  echo "-b ........ would start sbovls-licsbas (use dev version here..)"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
@@ -119,7 +121,7 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
      ;;
   E) chch=${OPTARG};
      if [ `echo $chch | grep "[a-zA-Z]" -c` -gt 0 ]; then
-       eqofftxt=$chch
+       eqofftxt=`realpath $chch`
      else
        eqminmag=$chch
      fi;

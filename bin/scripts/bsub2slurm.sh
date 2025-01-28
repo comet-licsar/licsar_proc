@@ -37,21 +37,38 @@ cmd='sbatch '
 addedextrapost=''
 addedextrapre=''
 v=0
+lotusversion=1
+if [ `hostname` == 'host839.jc.rl.ac.uk' ]; then
+  echo "using LOTUS2"
+  lotusversion=2
+  qos='standard'
+  hours=0
+fi
+
 while true; do
     case "$1" in
         -q)
-            cmd=$cmd' -p '"$2"
-            if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ]; then
-#             cmd=$cmd' --account=cpom-comet'
-             cmd=$cmd' --account=comet --partition=comet'
-            fi
-            if [ $2 == 'comet_responder' ]; then
-             cmd=$cmd' --account=comet --partition=comet_responder'
+            if [ $lotusversion -gt 1 ]; then
+              if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ] || [ $2 == 'comet_responder' ]; then
+                cmd=$cmd' --account=comet_lics'
+              else
+                cmd=$cmd' --account=nceo_geohazards'
+              fi
+            else
+              cmd=$cmd' -p '"$2"
+              if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ]; then
+  #             cmd=$cmd' --account=cpom-comet'
+                cmd=$cmd' --account=comet --partition=comet'
+              fi
+              if [ $2 == 'comet_responder' ]; then
+               cmd=$cmd' --account=comet --partition=comet_responder'
+              fi
             fi
             shift 2
             ;;
         -W)
             cmd=$cmd' --time='"$2"':00'
+            hours=$2
             shift 2
             ;;
         -J)
@@ -67,7 +84,11 @@ while true; do
             shift 2
             ;;
         -n)
-            cmd=$cmd' -n '"$2"
+            #cmd=$cmd' -n '"$2"
+            cmd=$cmd' --cpus='"$2"
+            if [ $2 -gt 1 ]; then
+              qos='highres'
+            fi
             shift 2
             ;;
         -E)
@@ -102,8 +123,8 @@ while true; do
              jobid=$(squeue -h --name=${myJOBNAME} --format='%i' | tail -n1)
              while [ -z "${jobid}" ] && [ ${count} -le ${max_count} ]
              do
-                echo "job not found, trying again - attempt "$count"/"$max_count
-                echo "ID of job is: "$myJOBNAME
+                #echo "job not found, trying again - attempt "$count"/"$max_count
+                #echo "ID of job is: "$myJOBNAME
                 echo "trying by: squeue -h --format='%i' --name="$myJOBNAME
                 # great solution by Rich Rigby! as sometimes jobs were not found...
                 jobid=$(squeue -h --name=${myJOBNAME} --format='%i' | tail -n1)
@@ -153,6 +174,19 @@ while true; do
             ;;
     esac
 done
+
+if [ $lotusversion -gt 1 ]; then
+  if [ $qos == 'standard' ]; then
+    if [ $hours -gt 47 ]; then
+      qos='long';
+    elif [ $hours -gt 23 ]; then
+      qos='highres'
+    elif [ $hours -lt 5 ]; then
+      qos='short'
+    fi
+  fi
+  cmd=$cmd' --qos='$qos
+fi
 
 if [ $v == 1 ]; then
  echo $cmd
