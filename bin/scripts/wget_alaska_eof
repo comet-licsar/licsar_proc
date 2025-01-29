@@ -21,4 +21,4 @@ else
     eoftype='poeorb'
 fi
 
-wget -c --no-check-certificate $URL$eoftype/$line
+wget -c --no-check-certificate --no-hsts $URL$eoftype/$line

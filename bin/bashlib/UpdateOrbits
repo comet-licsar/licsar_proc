@@ -5,5 +5,30 @@ UpdateOrbits() {
   
   # Download precise orbits information (available from https://qc.sentinel1.eo.esa.int/aux_poeorb/) and update .slc.par files
   # For each product, let's download the orbit files (sometimes it does more than one, if multiple slices from same date are in SLC/ folder)
+  for i in `ls SLC/${yyyymmdd}/S1?*.zip`; do
+    zipfilename=`basename ${i}`
+    cp_OrbitFile ${zipfilename} $ORBs_DIR SLC/${yyyymmdd}
+  done
+  
+  # For each merged product applies the orbit file
+  # Find the Precise or Restituted orbit file
+  yyyymmddmin=`date "--date=${yyyymmdd} -1 day" +%Y%m%d`
+  if [ -f "`ls SLC/${yyyymmdd}/S1?_*V${yyyymmdd}*.EOF`" ]; then
+    orbit_file=`ls SLC/${yyyymmdd}/S1?_*V${yyyymmdd}*.EOF`
+    echo "    SLC: $yyyymmdd.slc has a RESTITUTED orbit file: $orbit_file"
+    for img in `ls SLC/${yyyymmdd}/${yyyymmdd}*.sl*.par` ; do
+      echo "      S1_OPOD_vec ${img} $orbit_file "
+      S1_OPOD_vec ${img} $orbit_file 
+    done
+  elif [ -f "`ls SLC/${yyyymmdd}/S1?_*V${yyyymmddmin}*.EOF`" ]; then
+    orbit_file=`ls SLC/${yyyymmdd}/S1?_*V${yyyymmddmin}*.EOF`
+    echo "    SLC: $yyyymmdd.slc has a PRECISE orbit file: $orbit_file"
+    for img in `ls SLC/${yyyymmdd}/${yyyymmdd}*.sl*.par` ; do
+      echo "      S1_OPOD_vec ${img} $orbit_file "      
+      S1_OPOD_vec ${img} $orbit_file 
+    done
+  else
+    echo "SLC: $yyyymmdd.slc has NO ORBIT FILE"
+  fi
 }
 UpdateOrbits $@

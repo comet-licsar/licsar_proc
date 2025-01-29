@@ -8,5 +8,45 @@ init_LiCSAR() {
     esac
   done
   shift $((OPTIND-1))
+  if [[ "$master" == "-m" || "$master" == "-p" || -z "${master}" ]]; then master=0; fi
+  if [[ "$master" == "-p" || -z "${polygon_file}" ]]; then polygon_file=0; fi
+  
+  # If master and polygon exists proceed with the cleaning of zipfile list
+  if [[ "${master}" != "0" && "${polygon_file}" != "0" ]]; then
+    echo "Master date and Polygon file available... Computing which zipfiles are in bounds of polygon"
+    # generate the list of zip files to be linked [Future versions should grab this info from the database]
+    createzipfileslist ${RAW_DIR} $polygon_file 
+    if [ -z "$burstid_file" ]; then
+        burstid_file=$(basename $polygon_file .xy)_burst_ids.txt  
+        master2burstlist ${RAW_DIR} ${master} ${polygon_file} ${burstid_file} # Generate the burst centers list based on the polygon_file       
+      fi
+  else
+    if [[ "${master}" == "0" && "${polygon_file}" != "0" ]]; then # If master info is ok but polygon is missing
+      echo "Polygon seems to be ok, compute master based on polygon: $polygon_file master: $master "
+      echo "Computing which zipfiles are in bounds of polygon..."
+      # generate the list of zip files to be linked [Future versions should grab this info from the database]
+      echo "createzipfileslist ${RAW_DIR} $polygon_file "
+      createzipfileslist ${RAW_DIR} $polygon_file 
+      echo "createzipfileslist ${RAW_DIR} $polygon_file "
+      # Check if master date exists, if not assign one. That makes way easier case handling internally in LiCSAR
+      check_master zipfile_inbounds.list $master ; master=`cat master_date.txt`  
+      if [ -z "$burstid_file" ]; then
+        burstid_file=$(basename $polygon_file .xy)_burst_ids.txt  
+        master2burstlist ${RAW_DIR} ${master} ${polygon_file} ${burstid_file} # Generate the burst centers list based on the polygon_file       
+      fi
+    elif [[  "${master}" != "0" && "${polygon_file}" == "0" ]]; then # If polygon is ok but master info is missing
+      echo "Master seems to be ok, compute polygon based on master: $master polygon: $polygon_file"
+      polygon_file=auto_polygon.xy
+      burstid_file=$(basename $polygon_file .xy)_burst_ids.txt      
+      echo "Creating polygon (${polygon_file}) and burstid files (${burstid_file})"
+      boundlims2polygon ${RAW_DIR} ${master} ${polygon_file} # Generate the list of coordinates of the limits we want to include
+      master2burstlist ${RAW_DIR} ${master} ${polygon_file} ${burstid_file} # Generate the burst centers list based on the polygon_file
+      createzipfileslist ${RAW_DIR} $polygon_file 
+    else  # Else there is no info on the master and polygon, then abort
+      echo "Either master or polygon_file do not exist. We have to select / generate these information"
+      exit 0;
+    fi
+  fi
+  echo "Master date: $master ; and Polygon file: $polygon_file "
 }
 init_LiCSAR $@

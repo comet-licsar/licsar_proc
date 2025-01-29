@@ -6,5 +6,9 @@ merge_S1cat() {
   local date=$4
   if [ -z "$5" ]; then local IW1=1; else local IW1=$5; fi 
   if [ -z "$6" ]; then local IW2=3; else local IW2=$6; fi  
+  createSLCtab $slcdir/$date1 slc ${IW1} ${IW2} > SLC_tab1 
+  createSLCtab $slcdir/$date2 slc ${IW1} ${IW2} > SLC_tab2
+  createSLCtab $slcdir/$date  slc ${IW1} ${IW2} > SLC_tab3
+  SLC_cat_S1_TOPS SLC_tab1 SLC_tab2 SLC_tab3
 }
 merge_S1cat $@

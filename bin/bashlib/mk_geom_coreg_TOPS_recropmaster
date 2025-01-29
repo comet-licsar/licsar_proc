@@ -7,5 +7,13 @@ mk_geom_coreg_TOPS_recropmaster() {
   if [ -z "$5" ]; then local IW2=3; else local IW2=$5; fi 
   if [ -z "$6" ]; then local logfile=dummy.log; else local logfile=$6; fi 
   
+  createSLCtab RSLC/${slave}/${master} slc  ${IW1} ${IW3} > SLC1_tab
+  createSLCtab SLC/${slave}/${slave}   slc  ${IW1} ${IW3} > SLC2_tab
+  createSLCtab RSLC/${slave}/${slave}  rslc ${IW1} ${IW3} > RSLC2_tab
+  
+  # Coregister images using geometric corregistration
+  rdc_trans RSLC/${slave}/${master}.slc.mli.par ${demdir}/${master}.hgt SLC/${slave}/${slave}.slc.mli.par RSLC/${slave}/${master}_${slave}.slc.mli.lt >> $logfile
+  SLC_interp_lt_S1_TOPS SLC2_tab SLC/${slave}/${slave}.slc.par SLC1_tab RSLC/${slave}/${master}.slc.par RSLC/${slave}/${master}_${slave}.slc.mli.lt RSLC/${slave}/${master}.slc.mli.par SLC/${slave}/${slave}.slc.mli.par - RSLC2_tab RSLC/${slave}/${slave}.rslc RSLC/${slave}/${slave}.rslc.par >> $logfile
+
 }
 mk_geom_coreg_TOPS_recropmaster $@

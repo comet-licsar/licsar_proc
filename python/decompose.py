@@ -189,10 +189,14 @@ def get_frame_inc_heading(frame):
     e=os.path.join(geoframedir,'metadata',frame+'.geo.E.tif')
     #n=os.path.join(geoframedir,'metadata',frame+'.geo.N.tif') #no need for N
     u=os.path.join(geoframedir,'metadata',frame+'.geo.U.tif')
-    e = load_tif2xr(e)
+    return extract_inc_heading(e, u)
+
+
+def extract_inc_heading(efile, ufile):
+    e = load_tif2xr(efile)
     e = e.where(e != 0)
     #n = load_tif2xr(n, cliparea_geo=cliparea)
-    u = load_tif2xr(u)
+    u = load_tif2xr(ufile)
     u = u.where(u != 0)
     #
     theta=np.arcsin(u)
@@ -201,7 +205,6 @@ def get_frame_inc_heading(frame):
     inc = 90-np.rad2deg(theta)   #correct
     #inc.values.tofile(outinc)
     return inc, heading
-
 
 
 def decompose_dask(cube, blocklen=5, num_workers=5):

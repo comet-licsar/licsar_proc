@@ -2,5 +2,18 @@
 sortarray() {
 # Function helps to sort a list of SLC zip files according to increasing dates
 # This is motivated that dates for dual and single polarization are differently sorted
+  declare -a inarray=("${!1}")
+  slcdir=$2
+  rm -f unsortedarray.list
+  nslcs=${#inarray[@]}
+  maxi=`echo $nslcs | awk '{print $1-1}'`
+  for i in `seq 0 ${maxi}`; do
+    basename ${inarray[${i}]} >> unsortedarray.list ; 
+  done ; 
+  # Sort list based on positions from 18 to 25
+  sort -k1.18,1.25 unsortedarray.list > sortedarray.list
+  awk '{print "'${slcdir}'"$1}' sortedarray.list > sortedarray2.list
+  slclist=( `cat sortedarray2.list` )
+  rm -f sortedarray.list sortedarray2.list unsortedarray.list
 }
 sortarray $@

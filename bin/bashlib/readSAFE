@@ -1,5 +1,31 @@
 #!/bin/bash
 readSAFE() {
   local slcdate=$1
+  local slcdir=SLC/${slcdate}
+  for productID in `ls -d ${slcdir}/S1?*.SAFE/ ` ; do
+    echo "  Reformating $productID file"
+    yyyymmddhhmmss=`echo ${productID} | awk '{print substr($1,31,15)}'`
+    yyyymmdd=${yyyymmddhhmmss:0:8}
+    geotiff_vv_iw1=${productID}/*/s1?-iw1-slc-vv-${yyyymmdd}*.tiff
+    geotiff_vv_iw2=${productID}/*/s1?-iw2-slc-vv-${yyyymmdd}*.tiff
+    geotiff_vv_iw3=${productID}/*/s1?-iw3-slc-vv-${yyyymmdd}*.tiff
+    ann_vv_iw1=${productID}/*/s1?-iw1-slc-vv-${yyyymmdd}*.xml
+    ann_vv_iw2=${productID}/*/s1?-iw2-slc-vv-${yyyymmdd}*.xml
+    ann_vv_iw3=${productID}/*/s1?-iw3-slc-vv-${yyyymmdd}*.xml
+    cal_vv_iw1=${productID}/*/*/calibration-s1?-iw1-slc-vv-${yyyymmdd}*.xml
+    cal_vv_iw2=${productID}/*/*/calibration-s1?-iw2-slc-vv-${yyyymmdd}*.xml
+    cal_vv_iw3=${productID}/*/*/calibration-s1?-iw3-slc-vv-${yyyymmdd}*.xml
+    noise_vv_iw1=${productID}/*/*/noise-s1?-iw1-slc-vv-${yyyymmdd}*.xml
+    noise_vv_iw2=${productID}/*/*/noise-s1?-iw2-slc-vv-${yyyymmdd}*.xml
+    noise_vv_iw3=${productID}/*/*/noise-s1?-iw3-slc-vv-${yyyymmdd}*.xml
+   
+    # Check again for short integer rather than float32 complex for the .slc files
+    par_S1_SLC ${geotiff_vv_iw1} ${ann_vv_iw1} ${cal_vv_iw1} ${noise_vv_iw1} ${slcdir}/${yyyymmddhhmmss}.IW1.slc.par ${slcdir}/${yyyymmddhhmmss}.IW1.slc ${slcdir}/${yyyymmddhhmmss}.IW1.slc.TOPS_par 1 60 
+    par_S1_SLC ${geotiff_vv_iw2} ${ann_vv_iw2} ${cal_vv_iw2} ${noise_vv_iw2} ${slcdir}/${yyyymmddhhmmss}.IW2.slc.par ${slcdir}/${yyyymmddhhmmss}.IW2.slc ${slcdir}/${yyyymmddhhmmss}.IW2.slc.TOPS_par 1 60 
+    par_S1_SLC ${geotiff_vv_iw3} ${ann_vv_iw3} ${cal_vv_iw3} ${noise_vv_iw3} ${slcdir}/${yyyymmddhhmmss}.IW3.slc.par ${slcdir}/${yyyymmddhhmmss}.IW3.slc ${slcdir}/${yyyymmddhhmmss}.IW3.slc.TOPS_par 1 60 
+    
+    # Delete folder .SAFE to save disk storage
+    rm -rf $productID
+  done
 }
 readSAFE $@

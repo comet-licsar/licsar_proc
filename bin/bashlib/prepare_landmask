@@ -13,5 +13,75 @@ prepare_landmask() {
     else 
         wget --no-check-certificate -O $filedir/$frame.geo.landmask.tif https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/$tr/$frame/metadata/$frame.geo.landmask.tif 2>/dev/null
         if [ -f $filedir/$frame.geo.landmask.tif ]; then
+            if [ `ls -l $filedir/$frame.geo.landmask.tif | gawk {'print $5'}` -eq 0 ]; then
+                rm $filedir/$frame.geo.landmask.tif; maskfile='';
+            else
+                maskfile=$filedir/$frame.geo.landmask.tif;
+            fi;
+        else maskfile=''; fi
+    fi
+    landmask=0
+    if [ ! -z $maskfile ]; then
+        maskmin=`gdalinfo -stats $maskfile 2>/dev/null | grep ICS_MINIMUM | cut -d '=' -f2`
+        if [ $maskmin -eq 0 ]; then
+            #resample to the AOI (fix for the missing bursts etc.)
+            tmpfile1=$infile.temp.nc
+            gmt grdedit -T $infile -G$tmpfile1
+            gmt grdedit -T -R$tmpfile1 $maskfile -G$filedir/tempmask.nc
+            #gmt grdsample $maskfile -Gtempmask.nc -R$unw_tif -nn+t0.1 2>/dev/null
+            #not working well! skipping
+            #gmt grdconvert $maskfile $filedir/tempmask.nc
+            #gmt grdcut -N -R$unw_tif -Gtempmask.nc $maskfile 2>/dev/null
+            if [ -f $filedir/tempmask.nc ]; then
+                #echo "will apply landmask"
+                masknc=$filedir/tempmask.nc 
+                landmask=1
+            fi
+            
+        fi
+    #fi
+    if [ $landmask -eq 1 ]; then
+      if [ ! `gmt grdinfo $tmpfile1 | grep "node registration used" | gawk {'print $2'}` == 'Pixel' ]; then
+         #just convert to pixel registration.. doing in pixel reg as sometimes the geo coords are a bit off
+         gmt grdedit $tmpfile1 -G$tmpfile1.nc -T #-R$masknc
+         mv $tmpfile1.nc $tmpfile1
+      fi
+      if [ ! `gmt grdinfo $masknc | grep "node registration used" | gawk {'print $2'}` == 'Pixel' ]; then
+         #just convert to pixel registration.. doing in pixel reg as sometimes the geo coords are a bit off
+         gmt grdedit $masknc -G$masknc.nc -T #-R$tmpfile1
+         mv $masknc.nc $masknc
+      fi
+      gmt grdmath $tmpfile1 $masknc MUL 0 NAN = $filedir/tempmasked.nc
+      # now we need to convert to geo coords:
+      gmt grdedit $filedir/tempmasked.nc -G$filedir/tempmasked.nc.nc -T #-R$filedir/tempmasked.nc.nc
+      mv $filedir/tempmasked.nc.nc $filedir/tempmasked.nc
+      ls $filedir/tempmasked.nc 2>/dev/null
+      rm $masknc 2>/dev/null
+    fi
+    if [ $landmask -eq 2 ]; then
+        #should apply landmask  -  file $maskfile
+        rm $filedir/tempmasked.nc 2>/dev/null
+        gmt grdclip $infile -G$filedir/tempinfile1.nc -SrNaN/0
+        #gmt grdsample tempinfile1.nc -Gtempinfile2.nc -R$masknc -nn+t0.1 2>/dev/null
+        #gmt grdcut -N1 tempinfile1.nc -Gtempinfile2.nc -R$infile
+        #just convert mask to pixel registration..
+        gmt grdedit $masknc -G$masknc.nc -T -R$filedir/tempinfile1.nc
+        mv $masknc.nc $masknc
+        gmt grdcut -N1 $masknc -G$filedir/tempmask2.nc -R$filedir/tempinfile1.nc #$infile
+        if [ ! `gmt grdinfo $filedir/tempmask2.nc | grep "node registration used" | gawk {'print $2'}` == 'Pixel' ]; then
+         #just convert to pixel registration..
+         gmt grdedit $filedir/tempinfile1.nc -G$filedir/tempinfile1.nc.nc -T -R$filedir/tempinfile1.nc
+         mv $filedir/tempinfile1.nc.nc $filedir/tempmask2.nc
+        fi
+        gmt grdmath -N $filedir/tempinfile1.nc $filedir/tempmask2.nc MUL = $filedir/temp2.nc
+        #gmt grdmath -N tempinfile2.nc $masknc MUL = temp2.nc
+        gmt grdclip $filedir/temp2.nc -G$filedir/tempmasked.nc -Sr0/NaN
+        ls $filedir/tempmasked.nc
+        rm $filedir/temp2.nc $filedir/tempinfile1.nc $filedir/tempmask2.nc $filedir/tempmask.nc 2>/dev/null
+    fi
+    if [ ! -z $tmpfile1 ]; then
+       rm $tmpfile1 2>/dev/null
+    fi
+  fi
 }
 prepare_landmask $@

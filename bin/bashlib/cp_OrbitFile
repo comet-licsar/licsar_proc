@@ -7,5 +7,45 @@ cp_OrbitFile() {
   local imageID=$1
   local srcOrbdir=$2
   local mvdir=$3
+  yyyymmdd=`basename ${imageID} | awk '{print substr($1,18,8)}'`
+  ABCD=`basename ${imageID} | awk '{print substr($1,3,1)}'`
+  # For Precise orbits we need '$yyyymmdd'-1
+  yyyymmddmin1d=`date "--date=${yyyymmdd} -1 day" +%Y%m%d` 
+  hh=`basename ${imageID} | awk '{print substr($1,27,2)}'`
+  mm=`basename ${imageID} | awk '{print substr($1,29,2)}'`
+  ss=`basename ${imageID} | awk '{print substr($1,31,2)}'`
+
+  # For Restituted orbits we need to be within a certain time window (~3 hours)
+  #echo "--date=${yyyymmdd} ${hh}:${mm}:${ss}"
+  yyyymmdd2sec=`date "--date=${yyyymmdd} ${hh}:${mm}:${ss}" +%s` # Convert to seconds since 1970-01-01 00:00:00 UTC
+  
+  # Find the Precise or Restituted orbit file
+  if [ -f "`ls $srcOrbdir/POEORB/S1${ABCD}_*V${yyyymmddmin1d}*.EOF`" ]; then
+    orbit_file=`ls $srcOrbdir/POEORB/S1${ABCD}_*V${yyyymmddmin1d}*.EOF`
+    cp $orbit_file $mvdir
+    echo "    SLC: $yyyymmdd.slc has a PRECISE orbit file: $orbit_file"
+  else 
+    # Loop through them and find the matching one
+    for fileID in `ls $srcOrbdir/RESORB/S1${ABCD}_*V${yyyymmdd}*.EOF`; do
+      hhdate1=`basename $fileID | awk '{print substr($1,52,2)}'`
+      mmdate1=`basename $fileID | awk '{print substr($1,54,2)}'`
+      ssdate1=`basename $fileID | awk '{print substr($1,56,2)}'`
+      hhdate2=`basename $fileID | awk '{print substr($1,68,2)}'`
+      mmdate2=`basename $fileID | awk '{print substr($1,70,2)}'`
+      ssdate2=`basename $fileID | awk '{print substr($1,72,2)}'`
+      resorbbegin=`date "--date=${yyyymmdd} ${hhdate1}:${mmdate1}:${ssdate1}" +%s`      
+      resorbend=`date "--date=${yyyymmdd} ${hhdate2}:${mmdate2}:${ssdate2}" +%s`      
+      if [[ ( "$resorbbegin" -lt "$yyyymmdd2sec" ) && ( "$resorbend" -gt "$yyyymmdd2sec" ) ]]; then
+        orbit_file=$fileID
+        cp $orbit_file $mvdir
+        echo "    SLC: $yyyymmdd.slc has a RESTITUTED orbit file: $orbit_file"
+        break # Once we find one orbit file we skip it
+      fi
+    done
+  fi
+  if [ -z $orbit_file ]; then
+    echo "SLC: $yyyymmdd.slc has NO ORBIT FILE. Now, we try to download it"
+    fetchOrbit_python27.py -i ${imageID} -o SLC/$yyyymmdd/ 
+  fi
 }
 cp_OrbitFile $@

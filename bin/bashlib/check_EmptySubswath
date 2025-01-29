@@ -4,5 +4,11 @@ check_EmptySubswath() {
   if [ -z "$2" ]; then local IW1=1; else local IW1=$2; fi 
   if [ -z "$3" ]; then local IW2=3; else local IW2=$3; fi 
   rm -f temp
+  for i in `seq ${IW1} ${IW2}`; do
+    MinBurstIW=`awk '{print $1}' ${image1}_IW${i}.commonburst | sort -n | head -1`;
+    MaxBurstIW=`awk '{print $2}' ${image1}_IW${i}.commonburst | sort -n | tail -1`; 
+    echo $MinBurstIW $MaxBurstIW | awk '{if($1!=0 || $2!=0) print "'${i}'"}' >> temp
+  done
+  echo `sort -n temp | head -1` `sort -n temp | tail -1`
 }
 check_EmptySubswath $@

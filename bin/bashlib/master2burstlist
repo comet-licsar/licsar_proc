@@ -8,5 +8,22 @@ master2burstlist() {
     local master=$2
     local polygon_file=$3
     local outfile=$4
+    for i in `ls ${pathmaster}/*${master}*.zip`; do
+      #echo "zipSAFE_2_BurstList.py $i" 
+      zipSAFE_2_BurstsList.py $i #>> coordinates.$$
+    done
+    for i in `seq 1 3`; do
+      cat *T*_IW${i}.burstlist > ${master}_IW${i}.burstlist
+      BurstListCoordInPolyFile.py ${master}_IW${i}.burstlist $polygon_file > IW${i}.burstlist
+    done
+    echo "IW1 `wc -lc IW1.burstlist | awk '{print $1}'` IW2 `wc -lc IW2.burstlist | awk '{print $1}'` IW3 `wc -lc IW3.burstlist | awk '{print $1}'`" > $outfile
+    awk '{print "burstID", $1, $2}' IW1.burstlist >> $outfile
+    awk '{print "burstID", $1, $2}' IW2.burstlist >> $outfile
+    awk '{print "burstID", $1, $2}' IW3.burstlist >> $outfile
+    #rm -f *IW*.burstlist 
+  else
+    echo "We cannot find the information needed to generate burst list for the master date image"
+    exit 0
+  fi
 }
 master2burstlist $@

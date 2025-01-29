@@ -28,10 +28,13 @@ if [ -z $1 ]; then
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-C 0.15 .. mask based on coherence threshold on individual ifgs"
- echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular and coh mask of step 4)"
+ echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular_gauss and coh mask of step 4)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "-r ....... perform deramping (degree 1)"
  echo "-L ....... use linear hgt correlation slope correction"
+ echo "-N ....... perform nullification"
+ # echo "-B ...... add phase bias estimation/removal - Yasser code"
+ # echo "-p ...... plate motion correction (wrt Eurasia)"
  echo "-- Processing tweaks --"
  echo "-h 14 .... set your own number of processing hours (14 by default)"
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
@@ -43,7 +46,11 @@ if [ -z $1 ]; then
  echo "-a ....... use amplitude stability to subset pixels. Testing. Might be useful in challenging areas such as jungles"
  echo "-w ....... will avoid using landmask"
  #echo "-A ....... use ampcoh"
- echo "-F ....... will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
+ echo "-F .......  will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
+ echo "-E 6 ...... will also estimate eqs with given minimum magnitude"
+ echo "(-E offsets.txt ... instead of auto-find eqs, use existing eqoffsets.txt file)"
+ echo "-p ........ finalise by correcting plate motion velocity w.r.t. Eurasia (plus correct ref effect in vstd)"
+ echo "-b ........ would start sbovls-licsbas (use dev version here..)"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -95,9 +102,14 @@ maskbias=1
 hgtcorrlicsbas=0
 outifs=0
 cohmask4=0
+eqminmag=0
+eqofftxt=''
+nullify=0
+phbias=0
+platemotion=0
 
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -106,6 +118,21 @@ while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
      ;;
   b) sbovl=1;
      echo "setting to process bovl data"
+     ;;
+  E) chch=${OPTARG};
+     if [ `echo $chch | grep "[a-zA-Z]" -c` -gt 0 ]; then
+       eqofftxt=`realpath $chch`
+     else
+       eqminmag=$chch
+     fi;
+     echo "use of eqoffsets is in testing now but should work. note you can just run batch_LiCSBAS.sh since step 13 if done already"
+     ;;
+  N) nullify=1;
+     ;;
+  B) phbias=1;  # TODO
+       echo 'not ready yet'; exit;
+     ;;
+  p) platemotion=1;
      ;;
   X) doublecheck=1;
      ;; 
@@ -318,6 +345,8 @@ source $metadir/metadata.txt #this will bring 'master=' info
 mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
   mkdir -p GACOS # 2>/dev/null
+  echo "update 20250124 - running gacos request for this frame, just in case we missed some epochs"
+  framebatch_update_gacos.sh $frame
   #echo "debug gacos 1"
 fi
 cd GEOC
@@ -830,6 +859,18 @@ else
  sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
 fi
 
+if [ $eqminmag -gt 0 ]; then # && [ $clip == 1 ]; then
+ sed -i 's/eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
+ sed -i 's/eqoffs_minmag=\"6\"/eqoffs_minmag=\"'$eqminmag'\"/' batch_LiCSBAS.sh
+elif [ ! -z $eqofftxt ]; then
+  if [ `cat $eqofftxt | wc -l` -lt 1 ]; then
+    echo "WARNING, the "$eqofftxt" is empty. Will skip earthquake offsets estimation"
+  else
+    cat $eqofftxt > eqoffsets.txt
+    sed -i 's/^eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
+    sed -i "s/^eqoffs_txtfile=.*/eqoffs_txtfile=\'eqoffsets.txt\'/" batch_LiCSBAS.sh
+  fi
+fi
 
 sed -i 's/n_para=\"\"/n_para=\"'$nproc'\"/' batch_LiCSBAS.sh
 sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
@@ -883,6 +924,9 @@ fi
 # set comet dev functions...
 sed -i "s/^cometdev=.*/cometdev=\'"$cometdev"\'/" batch_LiCSBAS.sh
 
+if [ $nullify == 1 ]; then
+  sed -i "s/^p12_nullify=.*/p12_nullify=\'y\'/" batch_LiCSBAS.sh
+fi
 
 # setting those values 'everywhere' (originally it was in the modified approach):
 #sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"'$half'/' batch_LiCSBAS.sh
@@ -972,6 +1016,9 @@ if [ $run_jasmin -eq 1 ]; then
   fi
  fi
 
+if [ $platemotion -gt 0 ]; then
+ echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --vstd_fix" >> jasmin_run.sh
+fi
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
