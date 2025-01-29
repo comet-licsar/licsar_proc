@@ -185,7 +185,7 @@ if [ $lotusversion -gt 1 ]; then
       qos='short'
     fi
   fi
-  cmd=$cmd' --qos='$qos
+  cmd=$cmd' --partition='$qos' --qos='$qos
 fi
 
 if [ $v == 1 ]; then
