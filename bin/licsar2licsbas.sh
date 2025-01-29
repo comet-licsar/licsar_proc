@@ -1018,6 +1018,12 @@ if [ $run_jasmin -eq 1 ]; then
 
 if [ $platemotion -gt 0 ]; then
  echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --vstd_fix" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N -p "$geocd"/EQA.dem_par -o "$frame".N.geo.tif" >> jasmin_run.sh
+ echo "Note - the plate motion post-processing would run following extra commands: "
+ tail -n 4 jasmin_run.sh
+ echo ""
 fi
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
@@ -1039,7 +1045,7 @@ fi
  chmod 777 jasmin_run_cmd.sh
  #echo $cmd
  if [ $doublecheck -eq 1 ]; then
-  echo "now can check batch_LiCSBAS and then run ./jasmin_run_cmd.sh"
+  echo "now can edit batch_LiCSBAS.sh (or jasmin_run.sh) and then run ./jasmin_run_cmd.sh to send the job to LOTUS"
  else
   ./jasmin_run_cmd.sh
  fi
