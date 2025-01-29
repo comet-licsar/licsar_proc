@@ -68,7 +68,7 @@ while true; do
             ;;
         -W)
             cmd=$cmd' --time='"$2"':00'
-            hours=$2
+            hours=`echo $2 | cut -d ':' -f1 | sed 's/^0//'`
             shift 2
             ;;
         -J)
