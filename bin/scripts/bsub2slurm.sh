@@ -85,7 +85,7 @@ while true; do
             ;;
         -n)
             #cmd=$cmd' -n '"$2"
-            cmd=$cmd' --cpus='"$2"
+            cmd=$cmd' --cpus-per-task='"$2"
             if [ $2 -gt 1 ]; then
               qos='highres'
             fi
