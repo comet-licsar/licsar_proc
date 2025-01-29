@@ -42,12 +42,13 @@ set softwarepath "/gws/smf/j04/nceo_geohazards/software"
 #keep the below
 set configpath "$grouppath/config/licsar_proc"
 set USER $::env(USER)
+set BATCH_CACHE_DIR $::env(BATCH_CACHE_DIR)
 
 #Setup LiCSAR enviroment variables
 setenv LiCSAR_configpath "$configpath"
 setenv LiCSARpath "$LiCSARpath"
-setenv LiCSAR_temp "/work/scratch-pw3/licsar/$USER/LiCSAR_temp/"
-setenv BATCH_CACHE_DIR "/work/scratch-pw3/licsar/$USER/batchdir"
+# setenv BATCH_CACHE_DIR "$BATCH_CACHE_DIR" #"/work/scratch-pw3/licsar/$USER/batchdir"
+setenv LiCSAR_temp "$BATCH_CACHE_DIR/LiCSAR_temp"
 
 setenv ORB_DIR "$grouppath/orbits/"
 setenv dems_dir "$grouppath/DEMs/"
@@ -72,5 +73,5 @@ prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_lib"
 prepend-path PYTHONPATH "$LiCSARpath/python/LiCSAR_db"
 
 #load bash routines - this includes bsub2slurm
-puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
+# puts stdout "source $LiCSARpath/lib/LiCSAR_bash_lib.sh;"
 
