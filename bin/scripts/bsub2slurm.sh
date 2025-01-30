@@ -181,8 +181,8 @@ if [ $lotusversion -gt 1 ]; then
       qos='long';
     elif [ $hours -gt 23 ]; then
       qos='highres'
-    elif [ $hours -lt 5 ]; then
-      qos='short'
+    #elif [ $hours -lt 5 ]; then
+    #  qos='short'   # seems short does not exist??
     fi
   fi
   cmd=$cmd' --partition='$qos' --qos='$qos
