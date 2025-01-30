@@ -836,7 +836,7 @@ fi
 
 
 #preparing batch file
-module load $LB_version   #TODO open here after pull requests?
+#module load $LB_version   #TODO open here after pull requests?
 rm -f batch_LiCSBAS.sh 2>/dev/null
 copy_batch_LiCSBAS.sh >/dev/null
 
@@ -861,7 +861,7 @@ fi
 
 if [ $eqminmag -gt 0 ]; then # && [ $clip == 1 ]; then
  sed -i 's/eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
- sed -i 's/eqoffs_minmag=\"6\"/eqoffs_minmag=\"'$eqminmag'\"/' batch_LiCSBAS.sh
+ sed -i 's/^eqoffs_minmag=\"[0-9.]*\"/eqoffs_minmag=\"'$eqminmag'\"/' batch_LiCSBAS.sh
 elif [ ! -z $eqofftxt ]; then
   if [ `cat $eqofftxt | wc -l` -lt 1 ]; then
     echo "WARNING, the "$eqofftxt" is empty. Will skip earthquake offsets estimation"
@@ -894,8 +894,8 @@ else
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
  if [ $sbovl -gt 0 ]; then 
-   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"50\"/' batch_LiCSBAS.sh
-   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"30/' batch_LiCSBAS.sh
+   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"30\"/' batch_LiCSBAS.sh
+   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"20/' batch_LiCSBAS.sh
  else
    sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
 
@@ -964,7 +964,7 @@ if [ $run_jasmin -eq 1 ]; then
   #just a little export fix
   #multi=1
  #fi
- echo "module load "$LB_version >> jasmin_run.sh ##TODO open here after accepting pull requests?
+ #echo "module load "$LB_version >> jasmin_run.sh ##TODO open here after accepting pull requests?
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
