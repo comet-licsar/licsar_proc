@@ -28,8 +28,11 @@ export GAMMA_RASTER="BMP"
 #keep the below
 export configpath=$grouppath"/config/licsar_proc"
 export LiCSAR_configpath=$configpath
-export LiCSAR_temp="/work/scratch-pw3/licsar/"$USER"/LiCSAR_temp/"
-export BATCH_CACHE_DIR="/work/scratch-pw3/licsar/"$USER"/batchdir"
+
+if [ -z $BATCH_CACHE_DIR ]; then
+  export BATCH_CACHE_DIR="/work/scratch-pw3/licsar/"$USER"/batchdir"
+fi
+export LiCSAR_temp=$BATCH_CACHE_DIR/LiCSAR_temp #"/work/scratch-pw3/licsar/"$USER"/LiCSAR_temp/"
 
 export ORB_DIR=$grouppath"/orbits/"
 export dems_dir=$grouppath"/DEMs/"

@@ -5,6 +5,7 @@
 
 makemlinc=1  # this will create MLI NetCDF file.. that should be actually converted to amplitude (and put dB in)
 
+ls /gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/kladno/kz4
 cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/kladno/095D
 centerlon=14.00393208465662
 centerlat=50.12668894637102
@@ -12,14 +13,17 @@ halflenrg=14
 halflenazi=3
 outdir=subset.kz4
 
+
 mkdir -p $outdir/RSLC
 m=`ls SLC | head -n 1`
 h=`ls GEOC.meta*/*geo.hgt.tif | head -n 1`
-hei=`python3 -c "import rioxarray;a=rioxarray.open_rasterio('"$h"'); aa=a.sel(x="$centerlon",y="$centerlat", method='nearest'); print(aa.values[0])"`
 
 slc=SLC/$m/$m.slc
 slcpar=SLC/$m/$m.slc.par
-coord_to_sarpix $slcpar - - $centerlat $centerlon $hei | grep "SLC/MLI range, azimuth pixel (int)" > tmp.subset.centre
+if [ ! -f tmp.subset.centre ]; then
+ hei=`python3 -c "import rioxarray;a=rioxarray.open_rasterio('"$h"'); aa=a.sel(x="$centerlon",y="$centerlat", method='nearest'); print(aa.values[0])"`
+ coord_to_sarpix $slcpar - - $centerlat $centerlon $hei | grep "SLC/MLI range, azimuth pixel (int)" > tmp.subset.centre
+fi
 azipx=`cat tmp.subset.centre | rev | gawk {'print $1'} | rev`
 rgpx=`cat tmp.subset.centre | rev | gawk {'print $2'} | rev`
 
@@ -42,6 +46,7 @@ for r in `ls RSLC`; do
   SLC_copy RSLC/$r/$r.rslc RSLC/$r/$r.rslc.par $outdir/RSLC/$r/$r.rslc $outdir/RSLC/$r/$r.rslc.par - - $rg1 $rgdiff $azi1 $azidiff - - >/dev/null 2>/dev/null
  fi
  if [ ! -f $outdir/RSLC/$r/$r.rslc.mli ]; then
+   sleep 2
   multi_look $outdir/RSLC/$r/$r.rslc $outdir/RSLC/$r/$r.rslc.par $outdir/RSLC/$r/$r.rslc.mli $outdir/RSLC/$r/$r.rslc.mli.par 1 1 >/dev/null 2>/dev/null
  fi
 done
@@ -54,13 +59,30 @@ import numpy as np
 import xarray as xr
 import datetime as dt
 
-width=$rgdiff # 29
-length=$azidiff # 7
+width=29 #$rgdiff # 29
+length=7 #$azidiff # 7
 # for track 95:
+# nano subset.kz4/RSLC/$m/$m.rslc.mli.par
+
 time95 = '05 18 2.04720'
+time146= '16:51:59'
+time22='05 09 48.65'
+time44='17 00 13.78'
+
 h = 5
 m = 18
 s = int(2.042720)
+h=16
+m=51
+s=59
+#22
+h=5
+m=9
+s=49
+#44
+h=17
+m=0
+s=14
 
 epochs = []
 data = []
@@ -70,13 +92,17 @@ for epoch in os.listdir('RSLC'):
     if os.path.exists(mli):
         a=np.fromfile(mli, dtype=np.float32)
         ampdb=10*np.log10(np.sqrt(a.byteswap())).reshape((length, width))
+        #if not np.isinf(ampdb):
         epochdt = dt.datetime(int(epoch[:4]), int(epoch[4:6]), int(epoch[6:]), h, m, s)
         epochs.append(epochdt)
         data.append(ampdb)
 
+
 bb=xr.DataArray(data=data, dims=['epoch','azi','rg'], coords=dict(azi=np.arange(length), rg=np.arange(width), epoch=epochs))
 bb=xr.Dataset(data_vars=dict(amplitude_dB=bb))
-outnc = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/kladno/kz4/095.nc'
+outnc = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/kladno/kz4/095c.nc'
+outnc = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/kladno/kz4/146.nc'
+outnc = '/gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/kladno/kz4/44.nc'
 bb.to_netcdf(outnc)
 
 
