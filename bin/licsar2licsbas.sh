@@ -866,7 +866,7 @@ elif [ ! -z $eqofftxt ]; then
   if [ `cat $eqofftxt | wc -l` -lt 1 ]; then
     echo "WARNING, the "$eqofftxt" is empty. Will skip earthquake offsets estimation"
   else
-    cat $eqofftxt > eqoffsets.txt
+    cat $eqofftxt > eqoffsets.temp.deleteme; mv eqoffsets.temp.deleteme eqoffsets.txt
     sed -i 's/^eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
     sed -i "s/^eqoffs_txtfile=.*/eqoffs_txtfile=\'eqoffsets.txt\'/" batch_LiCSBAS.sh
   fi
