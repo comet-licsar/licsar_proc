@@ -166,6 +166,10 @@ def custom_annual_resample(cube, buffermonths=6):
         # Select the data within this range
         selected_data = cube.sel(time=slice(start_period, end_period))
         #
+        # Create a new time coordinate for the selected data period
+        new_time = pd.date_range(start=start_period, end=end_period, freq='M')
+        selected_data = selected_data.reindex({'time': new_time}, method='nearest')
+        #
         # Append the selected data to the list
         #resampled_cubes.append(selected_data)
         resampled_data['yeardt'].append(date)
