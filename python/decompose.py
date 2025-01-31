@@ -147,14 +147,16 @@ def custom_annual_resample(cube, buffermonths=6):
     end_date = pd.to_datetime(cube.time.values[-1])
     #
     # Generate a new time range that extends 6 months before and after
-    new_time_range = pd.date_range(
-        start=start_date - pd.DateOffset(months=buffermonths),
-        end=end_date + pd.DateOffset(months=buffermonths),
-        freq='M'
-    )
+    #new_time_range = pd.date_range(
+    #   start=start_date - pd.DateOffset(months=buffermonths),
+    #    end=end_date + pd.DateOffset(months=buffermonths),
+    #    freq='M'
+    #)
     #
     # Create an empty list to hold the new resampled cubes
-    resampled_cubes = []
+    # resampled_cubes = []
+    # Create an empty dictionary to hold time labels and corresponding values
+    resampled_data = {'yeardt': [], 'yearvalues': []}
     #
     for date in pd.date_range(start=start_date, end=end_date, freq='AS'):
         # Define the range for the current resample
@@ -165,12 +167,19 @@ def custom_annual_resample(cube, buffermonths=6):
         selected_data = cube.sel(time=slice(start_period, end_period))
         #
         # Append the selected data to the list
-        resampled_cubes.append(selected_data)
+        #resampled_cubes.append(selected_data)
+        resampled_data['yeardt'].append(date)
+        resampled_data['yearvalues'].append(selected_data)
     #
     # Combine all resampled data into one DataArray or Dataset
-    resampled_cube = xr.concat(resampled_cubes, dim='time')
+    #resampled_cube = xr.concat(resampled_cubes, dim='time')
+    #return resampled_cube
     #
-    return resampled_cube
+    # Convert lists to pandas DataFrame or xarray Dataset for easier use
+    yeardt = pd.to_datetime(resampled_data['yeardt'])
+    yearvalues = xr.concat(resampled_data['yearvalues'], dim=pd.Index(yeardt, name='time'))
+    #
+    return yeardt, yearvalues
 
 
 def calculate_annual_vels(cube, commonyears = None, buffermonths = 0):
