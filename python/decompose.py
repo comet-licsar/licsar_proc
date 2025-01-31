@@ -138,18 +138,58 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
 
 
 import LiCSBAS_inv_lib as inv_lib
-def calculate_annual_vels(cube, commonyears = None):
+
+# Copilot-generated function for custom resample:
+import pandas as pd
+# cube is either xr.Dataset or xr.Dataarray
+def custom_annual_resample(cube, buffermonths=6):
+    start_date = pd.to_datetime(cube.time.values[0])
+    end_date = pd.to_datetime(cube.time.values[-1])
+    #
+    # Generate a new time range that extends 6 months before and after
+    new_time_range = pd.date_range(
+        start=start_date - pd.DateOffset(months=buffermonths),
+        end=end_date + pd.DateOffset(months=buffermonths),
+        freq='M'
+    )
+    #
+    # Create an empty list to hold the new resampled cubes
+    resampled_cubes = []
+    #
+    for date in pd.date_range(start=start_date, end=end_date, freq='AS'):
+        # Define the range for the current resample
+        start_period = date - pd.DateOffset(months=buffermonths)
+        end_period = date + pd.DateOffset(months=12+buffermonths) - pd.DateOffset(days=1)
+        #
+        # Select the data within this range
+        selected_data = cube.sel(time=slice(start_period, end_period))
+        #
+        # Append the selected data to the list
+        resampled_cubes.append(selected_data)
+    #
+    # Combine all resampled data into one DataArray or Dataset
+    resampled_cube = xr.concat(resampled_cubes, dim='time')
+    #
+    return resampled_cube
+
+
+def calculate_annual_vels(cube, commonyears = None, buffermonths = 0):
     """Will calculate annual velocities from LiCSBAS results
     
     Args:
         cube (xr.Dataset): loaded netcdf file, extracted using e.g. LiCSBAS_out2nc.py
         commonyears (list): list of years to decompose
+        buffermonths (int): extend selection of annual data by a number of +-buffermonths months (experimental)
     Returns:
         xr.Dataset with new dataarray: vel_annual
     """
     if commonyears:
         cube = cube.sel(time=np.isin(cube.time.dt.year.values, commonyears))
-    annualset = cube.cum.resample(time='AS')
+    if buffermonths > 0:
+        print('Warning, using Copilot-generated trick to add more months around year of interest...')
+        annualset = custom_annual_resample(cube, buffermonths)
+    else:
+        annualset = cube.cum.resample(time='AS')
     firstrun = True
     for yeardt, yearcum in annualset:
         year = str(yeardt).split('-')[0]
