@@ -38,7 +38,7 @@ cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
 '''
 
-def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False):
+def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False, annual_buffer_months = 0):
     """ will decompose frame licsbas results
     the basenames in framencs should contain frame id, followed by '.', e.g.:
     framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
@@ -46,8 +46,8 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     Args:
         framencs (list):  licsbas nc result files, named by their frame id
         extract_cum (bool): if True, will use the first frame and convert to pseudo vertical
-        annual (bool):   if True, will decompose annual increments
-    
+        annual (bool):   if True, will estimate and decompose annual velocities
+        annual_buffer_months (int): adds extra months for annual velocities
     Returns:
         xr.Dataset with U, E, [cum_vert] arrays
     """
@@ -95,7 +95,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         framesetvel.append((framevel.values, heading.values, inc.values))
         if annual:
             # doing the annuals!
-            nc1 = calculate_annual_vels(framenc, yearsall)
+            nc1 = calculate_annual_vels(framenc, yearsall, annual_buffer_months)
             frameset.append((nc1['vel_annual'], heading.values, inc.values))
     dec = xr.Dataset()
     U = template.copy()
