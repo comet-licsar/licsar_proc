@@ -187,7 +187,7 @@ def calculate_annual_vels(cube, commonyears = None, buffermonths = 0):
         cube = cube.sel(time=np.isin(cube.time.dt.year.values, commonyears))
     if buffermonths > 0:
         print('Warning, using Copilot-generated trick to add more months around year of interest...')
-        annualset = custom_annual_resample(cube, buffermonths)
+        annualset = custom_annual_resample(cube['cum'], buffermonths)
     else:
         annualset = cube.cum.resample(time='AS')
     firstrun = True
