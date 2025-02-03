@@ -38,7 +38,7 @@ cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
 '''
 
-def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False):
+def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False, annual_buffer_months = 0):
     """ will decompose frame licsbas results
     the basenames in framencs should contain frame id, followed by '.', e.g.:
     framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
@@ -46,8 +46,8 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     Args:
         framencs (list):  licsbas nc result files, named by their frame id
         extract_cum (bool): if True, will use the first frame and convert to pseudo vertical
-        annual (bool):   if True, will decompose annual increments
-    
+        annual (bool):   if True, will estimate and decompose annual velocities
+        annual_buffer_months (int): adds extra months for annual velocities
     Returns:
         xr.Dataset with U, E, [cum_vert] arrays
     """
@@ -95,7 +95,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         framesetvel.append((framevel.values, heading.values, inc.values))
         if annual:
             # doing the annuals!
-            nc1 = calculate_annual_vels(framenc, yearsall)
+            nc1 = calculate_annual_vels(framenc, yearsall, annual_buffer_months)
             frameset.append((nc1['vel_annual'], heading.values, inc.values))
     dec = xr.Dataset()
     U = template.copy()
@@ -138,18 +138,71 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
 
 
 import LiCSBAS_inv_lib as inv_lib
-def calculate_annual_vels(cube, commonyears = None):
+
+# Copilot-generated function for custom resample:
+import pandas as pd
+# cube is either xr.Dataset or xr.Dataarray
+def custom_annual_resample(cube, buffermonths=6):
+    start_date = pd.to_datetime(cube.time.values[0])
+    end_date = pd.to_datetime(cube.time.values[-1])
+    #
+    # Generate a new time range that extends 6 months before and after
+    #new_time_range = pd.date_range(
+    #   start=start_date - pd.DateOffset(months=buffermonths),
+    #    end=end_date + pd.DateOffset(months=buffermonths),
+    #    freq='M'
+    #)
+    #
+    # Create an empty list to hold the new resampled cubes
+    # resampled_cubes = []
+    # Create an empty dictionary to hold time labels and corresponding values
+    resampled_data = {'yeardt': [], 'yearvalues': []}
+    #
+    for date in pd.date_range(start=start_date, end=end_date, freq='AS'):
+        # Define the range for the current resample
+        start_period = date - pd.DateOffset(months=buffermonths)
+        end_period = date + pd.DateOffset(months=12+buffermonths) - pd.DateOffset(days=1)
+        #
+        # Select the data within this range
+        selected_data = cube.sel(time=slice(start_period, end_period))
+        #
+        # Create a new time coordinate for the selected data period
+        new_time = pd.date_range(start=start_period, end=end_period, freq='M')
+        selected_data = selected_data.reindex({'time': new_time}, method='nearest')
+        #
+        # Append the selected data to the list
+        #resampled_cubes.append(selected_data)
+        resampled_data['yeardt'].append(date)
+        resampled_data['yearvalues'].append(selected_data)
+    #
+    # Combine all resampled data into one DataArray or Dataset
+    #resampled_cube = xr.concat(resampled_cubes, dim='time')
+    #return resampled_cube
+    #
+    # Convert lists to pandas DataFrame or xarray Dataset for easier use
+    yeardt = pd.to_datetime(resampled_data['yeardt'])
+    yearvalues = xr.concat(resampled_data['yearvalues'], dim=pd.Index(yeardt, name='time'))
+    #
+    return yeardt, yearvalues
+
+
+def calculate_annual_vels(cube, commonyears = None, buffermonths = 0):
     """Will calculate annual velocities from LiCSBAS results
     
     Args:
         cube (xr.Dataset): loaded netcdf file, extracted using e.g. LiCSBAS_out2nc.py
         commonyears (list): list of years to decompose
+        buffermonths (int): extend selection of annual data by a number of +-buffermonths months (experimental)
     Returns:
         xr.Dataset with new dataarray: vel_annual
     """
     if commonyears:
         cube = cube.sel(time=np.isin(cube.time.dt.year.values, commonyears))
-    annualset = cube.cum.resample(time='AS')
+    if buffermonths > 0:
+        print('Warning, using Copilot-generated trick to add more months around year of interest...')
+        annualset = custom_annual_resample(cube['cum'], buffermonths)
+    else:
+        annualset = cube.cum.resample(time='AS')
     firstrun = True
     for yeardt, yearcum in annualset:
         year = str(yeardt).split('-')[0]
