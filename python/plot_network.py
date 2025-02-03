@@ -217,6 +217,7 @@ try:
     bperp, ismissing = read_bperp_file(bperp_file, imdates, return_missflag = True)
     try:
         # just in case...
+        bperp = np.array(bperp)
         bperp[np.isnan(bperp)] = 0
         absbp = np.abs(bperp)
         over = np.where(absbp>800)
