@@ -460,7 +460,6 @@ def decompose_np_multi(input_data, beta = 0):
 
 
 '''
-
 aschead=-9.918319
 deschead=-169.61931
 ascinc=39.4824
