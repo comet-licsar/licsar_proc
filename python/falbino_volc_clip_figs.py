@@ -648,8 +648,12 @@ def process_frame_volcano(options):
                 dem_array[array < -1000] = np.nan
             else:
                 dem_array[array < 0] = np.nan
-            dataset = gdal.Open(output_file)
-            data = dataset.ReadAsArray()
+            try:
+                dataset = gdal.Open(output_file)
+                data = dataset.ReadAsArray()
+            except:
+                print('ERROR getting '+output_file)
+                continue
             proj_wkt = dataset.GetProjection()
             proj = osr.SpatialReference()
             proj.ImportFromWkt(proj_wkt)
@@ -676,21 +680,33 @@ def process_frame_volcano(options):
             #
             if not os.path.isfile(path_file):
                 continue
-            test = gdal.Open(path_file)
-            coh_data = test.ReadAsArray()
-            coh_data = np.array(coh_data, dtype=np.float64)
+            try:
+                test = gdal.Open(path_file)
+                coh_data = test.ReadAsArray()
+                coh_data = np.array(coh_data, dtype=np.float64)
+            except:
+                print('ERRONEOUS file: '+path_file)
+                continue
             path_file = os.path.join(dirtif, pha_file)
             if not os.path.isfile(path_file):
                 continue
-            test = gdal.Open(path_file)
-            pha_data = test.ReadAsArray()
-            pha_data = np.array(pha_data, dtype=np.float64)
+            try:
+                test = gdal.Open(path_file)
+                pha_data = test.ReadAsArray()
+                pha_data = np.array(pha_data, dtype=np.float64)
+            except:
+                print('ERRONEOUS file: '+path_file)
+                continue
             path_file = os.path.join(dirtif, unw_file)
             if not os.path.isfile(path_file):
                 continue
-            test = gdal.Open(path_file)
-            unw_data = test.ReadAsArray()
-            unw_data = np.array(unw_data, dtype=np.float64)
+            try:
+                test = gdal.Open(path_file)
+                unw_data = test.ReadAsArray()
+                unw_data = np.array(unw_data, dtype=np.float64)
+            except:
+                print('ERRONEOUS file: '+path_file)
+                continue
             #
             parallels = np.arange(-180, 180, 0.25)
             meridians = np.arange(0, 360, 0.25)
@@ -843,23 +859,35 @@ def process_frame_volcano(options):
             path_file = os.path.join(dirtif, unwcor_file)
             if not os.path.isfile(path_file):
                 continue
-            test = gdal.Open(path_file)
-            unwcor_data = test.ReadAsArray()
-            unwcor_data = np.array(unwcor_data, dtype=np.float64)
+            try:
+                test = gdal.Open(path_file)
+                unwcor_data = test.ReadAsArray()
+                unwcor_data = np.array(unwcor_data, dtype=np.float64)
+            except:
+                print('ERRONEOUS file: '+path_file)
+                continue
             #
             path_file = os.path.join(dirtif, unw_file)
             if not os.path.isfile(path_file):
                 continue
-            test = gdal.Open(path_file)
-            unw_data = test.ReadAsArray()
-            unw_data = np.array(unw_data, dtype=np.float64)
+            try:
+                test = gdal.Open(path_file)
+                unw_data = test.ReadAsArray()
+                unw_data = np.array(unw_data, dtype=np.float64)
+            except:
+                print('ERRONEOUS file: '+path_file)
+                continue
             #
             path_file = os.path.join(dirtif, GACOS_file)
             if not os.path.isfile(path_file):
                 continue
-            test = gdal.Open(path_file)
-            GACOS_data = test.ReadAsArray()
-            GACOS_data = np.array(GACOS_data, dtype=np.float64)
+            try:
+                test = gdal.Open(path_file)
+                GACOS_data = test.ReadAsArray()
+                GACOS_data = np.array(GACOS_data, dtype=np.float64)
+            except:
+                print('ERRONEOUS file: '+path_file)
+                continue
             parallels = np.arange(-180, 180, 0.25)
             meridians = np.arange(0, 360, 0.25)
             suppress_ticks = False
