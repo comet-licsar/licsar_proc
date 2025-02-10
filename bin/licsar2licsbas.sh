@@ -848,6 +848,7 @@ if [ $sbovl -gt 0 ]; then
  sed -i 's/p120_sbovl=\"n\"/p120_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p13_sbovl=\"n\"/p13_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p15_sbovl=\"n\"/p15_sbovl=\"y\"/' batch_LiCSBAS.sh
+ sed -i 's/p16_sbovl=\"n\"/p16_sbovl=\"y\"/' batch_LiCSBAS.sh
 fi
 
 
