@@ -1022,9 +1022,10 @@ if [ $platemotion -gt 0 ]; then
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N -p "$geocd"/EQA.dem_par -o "$frame".N.geo.tif" >> jasmin_run.sh
+ echo "cp TS_"$geocd"/results/vstd_scaled.tif "$frame".vstd_scaled.geo.tif" >> jasmin_run.sh
  echo "Note - the plate motion post-processing would run following extra commands: "
- tail -n 4 jasmin_run.sh
- echo ""
+ tail -n 5 jasmin_run.sh
+ echo " "
 fi
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
