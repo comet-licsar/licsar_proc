@@ -1147,7 +1147,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                 return 7
             if not os.path.exists(offfile):
                 return 7
-        logfile = os.path.join(procdir,'log','rdc_trans_'+
+        logfile = os.path.join(procdir,'log','SLC_interp_lt_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
 
