@@ -201,7 +201,7 @@ class SLCzip(object):
         lpb_list = []
         for item in self.annotation:
             root = et.fromstring(item)
-            lpb_list.append(np.int(root.find('swathTiming').find('linesPerBurst').text))
+            lpb_list.append(np.int32(root.find('swathTiming').find('linesPerBurst').text))
         return lpb_list    
 
     def get_pixelsPerBurst(self):
@@ -209,7 +209,7 @@ class SLCzip(object):
         ppb_list = []
         for item in self.annotation:
             root = et.fromstring(item)
-            ppb_list.append(np.int(root.find('swathTiming').find('samplesPerBurst').text))
+            ppb_list.append(np.int32(root.find('swathTiming').find('samplesPerBurst').text))
         return ppb_list
 
     def get_burstlist(self):
