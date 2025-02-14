@@ -1,34 +1,67 @@
 #!/bin/bash
 create_LOS_tide() {
-  if [ "$#" == "2" ]; then
-    local frame=$1
-    local date1=$2
-    #fix for input with yyyymmdd
-    datem1=`date -d $date1 +%Y-%m-%d`
-    track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
-    #get center time
-    epochpath=$LiCSAR_public/$track/$frame/epochs/$date1
-    if [ -f $epochpath/$date1'.tide.geo.tif' ]; then
-      echo "tide file for "$date1" already exists"
-      return 0
-    fi
-    if [ ! -d $epochpath ]; then mkdir $epochpath; fi
-    echo "generating solid Earth tide in LOS for date "$date1
-    source $LiCSAR_public/$track/$frame/metadata/metadata.txt
-    U=$LiCSAR_public/$track/$frame/metadata/$frame.geo.U.tif
-    E=$LiCSAR_public/$track/$frame/metadata/$frame.geo.E.tif
-    N=$LiCSAR_public/$track/$frame/metadata/$frame.geo.N.tif
-    mkdir -p $epochpath
-    gmt earthtide -T$datem1'T'$center_time -G$epochpath/tmp_tides.%s.nc -R$U -Cv,e,n 2>/dev/null
-    gmt grdmath $U $epochpath/tmp_tides.v.nc MUL $E $epochpath/tmp_tides.e.nc MUL ADD $N $epochpath/tmp_tides.n.nc MUL ADD 0 NAN = $epochpath/$date1'.tide.geo.T.tif'=gd:GTiff
-    gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 $epochpath/$date1'.tide.geo.T.tif' $epochpath/$date1'.tide.geo.tif'
-    chmod 777 $epochpath/$date1'.tide.geo.tif'
-    rm $epochpath/$date1'.tide.geo.T.tif'
-    rm $epochpath/tmp_tides.*.nc
-  else
-    echo "Usage: create_LOS_tide frame_id date"
+  if [ "$#" -lt 2 ]; then
+    echo "Usage: create_LOS_tide frame_id date [--sbovl]"
     echo "(date must be yyyymmdd)"
     return 0
   fi
+
+  local frame=$1
+  local date1=$2
+  local sbovl_flag=""
+  local type="LOS"
+
+  # Check for --sbovl flag
+  if [[ "$3" == "--sbovl" ]]; then
+    sbovl_flag="--sbovl"
+    type="Azimuth"
+  fi
+
+  # Fix for input with yyyymmdd
+  datem1=$(date -d "$date1" +%Y-%m-%d)
+  track=$(echo "$frame" | cut -c -3 | sed 's/^0//')
+
+  # Get center time
+  epochpath=$LiCSAR_public/$track/$frame/epochs/$date1
+
+  # Determine the correct tide file to check
+  if [[ -n "$sbovl_flag" ]]; then
+    tide_file="$epochpath/$date1.tide.geo.azi.tif"
+  else
+    tide_file="$epochpath/$date1.tide.geo.tif"
+  fi
+
+  if [ -f "$tide_file" ]; then
+    echo "Tide file for $date1 already exists"
+    return 0
+  fi
+
+  if [ ! -d "$epochpath" ]; then
+    mkdir -p "$epochpath"
+  fi
+
+  echo "Generating solid Earth tide in $type for date $date1"
+
+  # Load metadata
+  source "$LiCSAR_public/$track/$frame/metadata/metadata.txt"
+
+  # Set U, E, N files based on sbovl flag
+  if [[ -n "$sbovl_flag" ]]; then
+    U="$LiCSAR_public/$track/$frame/metadata/$frame.geo.U.azi.tif"
+    E="$LiCSAR_public/$track/$frame/metadata/$frame.geo.E.azi.tif"
+    N="$LiCSAR_public/$track/$frame/metadata/$frame.geo.N.azi.tif"
+  else
+    U="$LiCSAR_public/$track/$frame/metadata/$frame.geo.U.tif"
+    E="$LiCSAR_public/$track/$frame/metadata/$frame.geo.E.tif"
+    N="$LiCSAR_public/$track/$frame/metadata/$frame.geo.N.tif"
+  fi
+
+  gmt earthtide -T"$datem1"'T'"$center_time" -G"$epochpath/tmp_tides.%s.nc" -R"$U" -Cv,e,n 2>/dev/null
+  gmt grdmath "$U" "$epochpath/tmp_tides.v.nc" MUL "$E" "$epochpath/tmp_tides.e.nc" MUL ADD "$N" "$epochpath/tmp_tides.n.nc" MUL ADD 0 NAN = "$epochpath/$date1.tide.geo.T.tif"=gd:GTiff
+  gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 "$epochpath/$date1.tide.geo.T.tif" "$tide_file"
+  chmod 777 "$tide_file"
+  rm "$epochpath/$date1.tide.geo.T.tif"
+  rm "$epochpath/tmp_tides."*.nc
 }
-create_LOS_tide $@
+
+create_LOS_tide "$@"
