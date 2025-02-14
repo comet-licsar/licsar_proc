@@ -1,13 +1,37 @@
 #!/bin/bash
 create_LOS_tide_frame_allepochs() {
   local frame=$1
-  if [ -z $1 ]; then echo "error, not provided frame ID"; return 1; fi
-  track=`echo $frame | cut -c -3 | sed 's/^0//' | sed 's/^0//'`
+  local start_date=$2
+  local end_date=$3
+  local sbovl_flag=""
+  local tide_file_ext="tide.geo.tif"  # Default tide correction in range
+
+  # Check if --sbovl flag is provided
+  if [[ "$4" == "--sbovl" ]]; then
+    sbovl_flag="--sbovl"
+    tide_file_ext="tide.geo.azi.tif"  # Use azimuth tide correction if sbovl is enabled
+  fi
+
+  if [ -z "$frame" ]; then
+    echo "Error: Frame ID not provided"
+    return 1
+  fi
+
+  track=$(echo "$frame" | cut -c -3 | sed 's/^0//')
   epochspath=$LiCSAR_public/$track/$frame/epochs
-  for epoch in `ls $epochspath`; do
-    if [ ! -f $epochspath/$epoch/$epoch'.tide.geo.tif' ]; then
-      create_LOS_tide $frame $epoch
+
+  for epoch in $(ls "$epochspath"); do
+    # Ensure epoch is within the provided start and end date range
+    if [[ -n "$start_date" && -n "$end_date" ]]; then
+      if [[ "$epoch" < "$start_date" || "$epoch" > "$end_date" ]]; then
+        continue  # Skip epochs outside the range
+      fi
+    fi
+
+    # Run tide correction only if the expected tide file is missing
+    if [ ! -f "$epochspath/$epoch/$epoch.$tide_file_ext" ]; then
+      create_LOS_tide "$frame" "$epoch" $sbovl_flag
     fi
   done
 }
-create_LOS_tide_frame_allepochs $@
+create_LOS_tide_frame_allepochs "$@"
