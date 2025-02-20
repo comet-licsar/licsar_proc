@@ -20,7 +20,7 @@ if [ -z $1 ]; then
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-l ....... if the reunwrapping is to be performed, would do Gaussian lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
  #echo "-m ....... OBSOLETE: keeping alway on (would be off only with -s) with reunwrapping with Goldstein filter on (by default), use coh based on spectral magnitude - recommended param, please use this by default"
- echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter)"
+ echo "-s ....... use Gaussian smooth window for gapfilling (default is nearest neighbour interpolation) "
  echo "-m ....... use GAMMA ADF for filtering if Goldstein filter is selected (does not work together with -s)"
  echo "-t 0.2 .. change consistence threshold to 0.2 (should be default, quite good for ML10.. but now default is set to 0 !) during reunwrapping"
  echo "-H ....... this will use hgt to support the (re-)unwrapping"
@@ -751,12 +751,13 @@ if [ $reunw -gt 0 ]; then
   extraparam=", hgtcorr = False"
  fi
  if [ $smooth == 1 ]; then
-   echo "smooth run selected - disabling goldstein filter." # better you disable smooth, it is considered obsolete now"
-  extraparam=$extraparam", smooth = True, goldstein = False"
+   echo "2025/02 - WARNING, the smooth option now only fills gaps using lowpass gaussian window. The filtering is still by Goldstein"
+   #echo "smooth run selected - disabling goldstein filter." # better you disable smooth, it is considered obsolete now"
+   # extraparam=$extraparam", smooth = True, goldstein = False"
  fi
  if [ $gammadf == 1 ]; then
    echo "using GAMMA ADF for the spatial filtering (and consistence)"
-   if [ $smooth == 1 ]; then echo "WARNING: smooth option is ON - ADF will not be used. Remove -s to turn it ON."; fi
+   #if [ $smooth == 1 ]; then echo "WARNING: smooth option is ON together with ADF - disabling  will not be used. Remove -s to turn it ON."; fi
    extraparam=$extraparam", use_gamma = True"
  fi
  if [ $lowpass == 1 ]; then
@@ -779,11 +780,11 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $ampstab == 1 ]; then
   extraparam=$extraparam", use_amp_stab = True";
-  if [ $smooth == 1 ]; then
-    extraparam=$extraparam", fillby = 'gauss'";  # for test, might really help
-  fi
  else
   extraparam=$extraparam", use_amp_stab = False"
+ fi
+ if [ $smooth == 1 ]; then
+    extraparam=$extraparam", fillby = 'gauss'";
  fi
  if [ $cascade == 1 ]; then
   extraparam=$extraparam", cascade = True"

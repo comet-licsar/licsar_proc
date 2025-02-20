@@ -5,7 +5,7 @@
 
 if [ -z "$1" ]; then 
  echo "USAGE: provide pair in format YYYYMMDD_YYYYMMDD and run in the frame folder"
- echo "e.g. licsar_offset_tracking_pair.sh 20230115_20230127 (--noderamp) [--rwin <value>] [--awin <value>] [--rstep <value>] [--astep <value>] ... to do px offset tracking between those dates"
+ echo "e.g. licsar_offset_tracking_pair.sh 20230115_20230127 (--noderamp) [--novr 2] [--rwin <value>] [--awin <value>] [--rstep <value>] [--astep <value>] ... to do px offset tracking between those dates"
  exit
 fi
 
@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --noderamp)
       noderamp=true
-      echo "Deramping is disabled with --noderamp flag."
+      echo "Deramping is disabled with --noderamp flag. Please set novr=1."
       shift
       ;;
     --rwin)
@@ -84,7 +84,7 @@ fi
 rslcdir=`pwd`/RSLC
 mmli=$rslcdir/$master/$master.rslc.mli
 if [ ! -f $mmli ]; then
- echo "additional multilooking..."
+ echo "additional multilooking assuming 20/4 looks..."
  multi_look $rslcdir/$master/$master.rslc $rslcdir/$master/$master.rslc.par $mmli $mmli.par 20 4 >/dev/null 2>/dev/null
 fi
 mpar=$rslcdir/$m/$m.rslc.par
@@ -142,6 +142,7 @@ for x in $m $s; do
 done
 
 echo $extd $rwin $awin $rstep $astep $novr
+echo offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr $rwin $awin - $novr 0.1 $rstep $astep - - - - - - 0 1 - - $outdir/tracking.corrstd
 
 #offset_pwr_tracking <SLC1> <SLC2> <SLC1_par> <SLC2_par> <OFF_par> <offs> <ccp> ##[rwin] [azwin] [offsets] [n_ovr] [thres] [rstep] [azstep] [rstart] [rstop] [azstart] [azstop] [lanczos] [bw_frac] [deramp] [int_filt] [pflag] [pltflg] [ccs]
 time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr $rwin $awin - $novr 0.1 $rstep $astep - - - - - - 0 1 - - $outdir/tracking.corrstd >/dev/null

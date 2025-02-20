@@ -264,19 +264,23 @@ def classify_volc(volcid, toclass = ''):
     print('done')
 
 
-def create_volclip_for_volcano(volcid, cliparea_geo = None):
+def create_volclip_for_volcano(volcid, cliparea_geo = None, allow_multiples = False):
     """Will create a volclip definition for given volcano (volcid).
     If cliparea is not set, it will auto-generate area using diameter 25 km centered on the volc lon/lat.
     
     Args:
         volcid (int): the volcano ID
         cliparea_geo (str): OPTIONAL: clip boundaries, e.g. 'lon1/lon2/lat1/lat2', but will accept also shapely.geometry.Polygon (!!)
+        allow_multiples (bool): if True, we would allow multiple clips per volcano, otherwise it will cancel
     """
     if is_in_volclips(volcid):
-        print('ERROR, this volcano has already its volclip, cancelling for now')
-        print('you can delete the volclip for the volcano using: delete_volclip(vid)')
-        print('where you can get vid using: get_volclip_vids(volcid)')
-        return False
+        if allow_multiples:
+            print('WARNING, this volcano has already another volclip. Continuing anyway')
+        else:
+            print('ERROR, this volcano has already its volclip, cancelling for now')
+            print('you can delete the volclip for the volcano using: delete_volclip(vid)')
+            print('where you can get vid using: get_volclip_vids(volcid)')
+            return False
     #
     vpd = get_volc_info(volcid)
     if vpd.empty:
