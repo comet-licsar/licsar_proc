@@ -474,11 +474,14 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         filelist = filelist2
     #raise Usage("DEBUG")
     if autodownload:
-        if os.environ['USER']=='earmla':
-            outdir = '/work/xfc/vol5/user_cache/earmla/SLC'
+        try:
+            xfcpath = os.environ['XFCPATH']
+            outdir = os.path.join(xfcpath,'SLC')
+            #if os.environ['USER']=='earmla':
+            #    outdir = '/work/xfc/vol5/user_cache/earmla/SLC'
             if not os.path.exists(outdir):
                 outdir = os.environ['LiCSAR_SLC']
-        else:
+        except:
             outdir=os.environ['LiCSAR_SLC']
         #
         i = -1

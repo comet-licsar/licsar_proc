@@ -561,7 +561,22 @@ def get_neodc_path_images(images, file_or_meta = False):
     return neodc_paths
 
 
-def import_to_licsinfo(images, meta = True, extradirs = [os.environ['LiCSAR_SLC'],'/work/xfc/vol5/user_cache/earmla/SLC']):
+def import_to_licsinfo(images, meta = True, extradirs = [os.environ['LiCSAR_SLC']]): #,'/work/xfc/vol5/user_cache/earmla/SLC']):
+    # updating extradirs
+    try:
+        extradir=os.path.join(os.environ['XFCPATH'], 'SLC')
+        if os.path.exists(extradir):
+            extradirs.append(extradir)
+        #extradirs2 = []
+        #efile = os.path.join(os.environ['LiCSAR_configpath'],'autodownloaddirs')
+        #with open(efile) as f:
+        #    line = f.readline().split()
+        #    extradirs2.append(line[0])
+        #extradirs = extradirs+extradirs2
+    except:
+        print('')
+        #print('error reading extra dirs from '+efile)
+    extradirs = list(set(extradirs))
     #output is list of files to be downloaded
     todown=[]
     print('printing from s1data.py for debug')
