@@ -418,7 +418,7 @@ class invalidSatType(Exception):
         self.satType = satType
 
     def __str__(self):
-        return "Unregonised satalite type {0}, use either S1A or S1B".format(self.satType)
+        return "Unregonised satalite type {0}, use either S1A, S1B or S1C".format(self.satType)
 
 class invalidFileUrl(Exception):
     """This means your url is probably wrong... where did you get it?"""
