@@ -165,7 +165,10 @@ def get_orb_dir_old( sat ):
             except:
                 orbdir = []
         else:
-            orbdir = []
+            try:
+                orbdir = parser.get('paths', 'S1Corbitpath')
+            except:
+                orbdir = []
     except:
         orbdir = os.environ[ 'ORBs_DIR' ] + '/' + sat
     return orbdir

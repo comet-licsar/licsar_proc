@@ -694,7 +694,8 @@ def getOrbUrl(sat,prodType,startTime,endTime):
     baseUrl = 'https://qc.sentinel1.copernicus.eu/api/v1/?'
 
     satDict = {'S1A':'S1A',
-            'S1B':'S1B'}
+            'S1B':'S1B',
+            'S1C':'S1C'}
 
     prodDict = {'POEORB':'AUX_POEORB',
             'RESORB':'AUX_RESORB'}
@@ -779,7 +780,8 @@ def findValidOrbFile(baseDir,sat,startTime,endTime):
     timeStrpPat = '%Y%m%dT%H%M%S'
 
     satDict = {'S1A':'S1A',
-            'S1B':'S1B'}
+            'S1B':'S1B',
+            'S1C':'S1C'}
 
     try:
         satQry = satDict[sat]
