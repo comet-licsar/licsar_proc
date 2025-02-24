@@ -584,10 +584,10 @@ fi
 if [ "$setides" -gt 0 ]; then
   if [ "$sbovl" -gt 0 ]; then
     echo "checking/generating solid earth tides data in azimuth"
-    create_LOS_tide_frame_allepochs_mn "$frame" "$startdate" "$enddate" --sbovl
+    create_LOS_tide_frame_allepochs "$frame" "$startdate" "$enddate" --sbovl
   else
     echo "checking/generating solid earth tides data in range"
-    create_LOS_tide_frame_allepochs_mn "$frame" "$startdate" "$enddate"
+    create_LOS_tide_frame_allepochs "$frame" "$startdate" "$enddate"
   fi
 
   disprocdir=$(pwd)
@@ -659,7 +659,7 @@ if [ "$setides" -gt 0 ]; then
             # half pixel issue in older frames! but ok for tides, so:
             # echo "print('"$pair"')" >> $tmpy
             echo "Warning, the pair $pair is in pixel registration. Slower workaround"
-            ifg_remove_tides_mn.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
+            ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
             #echo "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
             
             # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
@@ -711,10 +711,10 @@ fi
 if [ "$iono" -gt 0 ]; then    
   if [ "$sbovl" -gt 0 ]; then
     echo "checking/generating ionospheric correction data in azimuth"
-    python3 -c "from iono_correct_mn import *; make_all_frame_epochs('$frame', startdate='$startdate', enddate='$enddate', sbovl=True)"
+    python3 -c "from iono_correct import *; make_all_frame_epochs('$frame', startdate='$startdate', enddate='$enddate', sbovl=True)"
   else
     echo "checking/generating ionospheric correction data in range"
-    python3 -c "from iono_correct_mn import *; make_all_frame_epochs('$frame')" #TODO:We can put the startdate and enddate here as well.
+    python3 -c "from iono_correct import *; make_all_frame_epochs('$frame')" #TODO:We can put the startdate and enddate here as well.
   fi
  disprocdir=`pwd`
  if [ $reunw -gt 0 ]; then
@@ -724,7 +724,7 @@ if [ "$iono" -gt 0 ]; then
 	 disdir=`pwd`
 	 #hgtfile=`ls *.geo.hgt.tif | head -n 1`
 	 tmpy=`pwd`/../tmp.py
-	 echo "from iono_correct_mn import correct_iono_pair;" > $tmpy
+	 echo "from iono_correct import correct_iono_pair;" > $tmpy
 	 if [ $setides -gt 0 ]; then
 		 outext=$extofproc.notides.noiono
 	 else
@@ -749,7 +749,7 @@ if [ "$iono" -gt 0 ]; then
 		 ionod2=$epochdir/$date2/$date2.geo.iono.code.tif   # should be A-B....
 		 if [ -f $ionod1 ] && [ -f $ionod2 ]; then
 			#echo $pair
-			#python3 -c "from iono_correct_mn import *;
+			#python3 -c "from iono_correct import *;
 			echo "print('"$pair"')" >> $tmpy
 			echo "try:" >> $tmpy
 			echo "    correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
@@ -810,7 +810,7 @@ if [ "$iono" -gt 0 ]; then
 	 disdir=`pwd`
 	 #hgtfile=`ls *.geo.hgt.tif | head -n 1`
 	 tmpy=`pwd`/../tmp.py
-	 echo "from iono_correct_mn import correct_iono_pair;" > $tmpy
+	 echo "from iono_correct import correct_iono_pair;" > $tmpy
 	 if [ $setides -gt 0 ]; then
 		 outext=$extofproc.notides.noiono
 	 else
