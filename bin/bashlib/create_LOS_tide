@@ -9,12 +9,12 @@ create_LOS_tide() {
   local frame=$1
   local date1=$2
   local sbovl_flag=""
-  local type="LOS"
+  local type="range"
 
   # Check for --sbovl flag
   if [[ "$3" == "--sbovl" ]]; then
     sbovl_flag="--sbovl"
-    type="Azimuth"
+    type="azimuth"
   fi
 
   # Fix for input with yyyymmdd
