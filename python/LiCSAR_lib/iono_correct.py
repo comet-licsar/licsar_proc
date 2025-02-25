@@ -32,19 +32,14 @@ def get_inc_frame(frame, heading=False):
     inc = U.copy()
     inc.values = np.degrees(np.arccos(U.values))
     if heading:
-        orientation=frame[3]
         Efile = os.path.join(metadir, frame + '.geo.E.tif')
         Nfile = os.path.join(metadir, frame + '.geo.N.tif')
         E = load_tif2xr(Efile)
         N = load_tif2xr(Nfile)
         E = E.where(E != 0)
         N = N.where(N != 0)
-        if orientation == "A":
-            head_rad = np.arcsin(N / np.sin(np.radians(inc)))
-            heading = np.degrees(head_rad)
-        elif orientation == "D":
-            head_rad = np.arcsin(- N / np.sin(np.radians(inc))) - np.pi
-            heading = np.degrees(head_rad)   
+        heading = N.copy(deep=True)
+        heading.values = np.degrees(np.arctan2(E, N)) + 90
         return inc, heading
     else:
         return inc
