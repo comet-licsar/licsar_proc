@@ -354,7 +354,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
                     
                     ##it directly starts from IPP scene
-                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j]*1000, ilat_ground, ilon_ground, 0)
+                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0)
                                     #  float(hgtml.values[i, j])) # to consider hgt ... better without
                     ilat, ilon, ialt = ecef2latlonhei(x, y, z)
                     
@@ -414,7 +414,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     PsatgB, _azimuth = Psatg.displace(distance=burst_len/2, azimuth= heading, method='ellipsoid', degrees=True)
                     
                     ##IPP scene, 
-                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j]*1000, ilat_ground, ilon_ground, 0) #range should be in meter
+                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0) #range should be in meter
                     ippg_lat, ippg_lon, ipp_alt = ecef2latlonhei(x, y, z)
                     Pippg = wgs84.GeoPoint(latitude=ippg_lat, longitude=ippg_lon, degrees=True)
                     #then get A', B'
