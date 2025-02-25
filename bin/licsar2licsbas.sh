@@ -890,8 +890,6 @@ if [ "$iono" -gt 0 ]; then
 	 done
 	 rm $tmpy
 
-
-
 ######
   fi ## echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
   

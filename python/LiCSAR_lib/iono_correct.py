@@ -7,6 +7,7 @@ import numpy as np
 from scipy.interpolate import griddata
 from LiCSAR_misc import *
 import framecare as fc
+from scipy.interpolate import interp1d
 
 def get_tecs_func(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 11:26:38'), pd.Timestamp('2014-11-29 11:26:38')]):
     return get_tecs(lat, lon, 800, acq_times[0:2], False)
@@ -31,19 +32,14 @@ def get_inc_frame(frame, heading=False):
     inc = U.copy()
     inc.values = np.degrees(np.arccos(U.values))
     if heading:
-        orientation=frame[3]
         Efile = os.path.join(metadir, frame + '.geo.E.tif')
         Nfile = os.path.join(metadir, frame + '.geo.N.tif')
         E = load_tif2xr(Efile)
         N = load_tif2xr(Nfile)
         E = E.where(E != 0)
         N = N.where(N != 0)
-        if orientation == "A":
-            head_rad = np.arcsin(N / np.sin(np.radians(inc)))
-            heading = np.degrees(head_rad)
-        elif orientation == "D":
-            head_rad = np.arcsin(- N / np.sin(np.radians(inc))) - np.pi
-            heading = np.degrees(head_rad)   
+        heading = N.copy(deep=True)
+        heading.values = np.degrees(np.arctan2(E, N)) + 90
         return inc, heading
     else:
         return inc
@@ -60,6 +56,88 @@ def get_resolution(hgt, in_m=True):
             return float(resdeg)
 
 
+def slant_ranges(frame, master, range2iono):
+    """Computes slant range values and interpolates missing values.
+    
+    Args:
+        frame (str): Frame ID of the LiCS frame (e.g., '116A_05207_252525').
+        master (str): Master epoch of the frame (e.g., '20220901').
+        range2iono (xarray.Dataset): Xarray dataset containing lon-lat coordinate info.
+    
+    Returns:
+        xarray.Dataset: Interpolated slant range values.
+    """
+    
+    # Define the path to the SLC parameter file
+    SLCdir = os.path.join(os.environ['LiCSAR_procdir'], str(int(frame[:3])), frame, 'SLC', master)
+    filepath = os.path.join(SLCdir, master + '.slc.par')
+
+    # Read near, center, and far slant ranges
+    near_range, center_range, far_range = None, None, None
+    with open(filepath, 'r') as f:
+        for line in f:
+            if line.startswith('near_range_slc'):
+                near_range = float(line.split()[1])
+            elif line.startswith('center_range_slc'):
+                center_range = float(line.split()[1])
+            elif line.startswith('far_range_slc'):
+                far_range = float(line.split()[1])
+
+    # Ensure all values were found
+    if None in [near_range, center_range, far_range]:
+        raise ValueError(f"Missing range values in {filepath}")
+
+    range_values = [near_range, center_range, far_range]
+    
+    # Create a NaN-filled DataArray
+    ds = range2iono.copy(deep=True)  # Preserve original shape and coordinates
+    ds[:] = np.nan  # Fill with NaN
+    
+    # Compute scene center latitude
+    scene_center_lat = range2iono.lat.mean().item()
+    
+    # Find the closest latitude index
+    lat_idx = np.abs(range2iono.lat - scene_center_lat).argmin().item()
+    
+    # Extract longitude values along the center latitude
+    lon_values = range2iono.lon.values
+    data_values = range2iono.isel(lat=lat_idx).values  # Extract center latitude data
+    
+    # Mask NaN values and extract valid longitudes
+    valid_lons = lon_values[~np.isnan(data_values)]
+    
+    if valid_lons.size > 0:
+        leftmost_lon = np.min(valid_lons)
+        rightmost_lon = np.max(valid_lons)
+        center_lon = range2iono.lon.mean().item()
+    else:
+        raise ValueError("No valid non-NaN pixels found at the center latitude.")
+    
+    # Find longitude indices
+    left_idx = np.abs(range2iono.lon - leftmost_lon).argmin().item()
+    center_idx = np.abs(range2iono.lon - center_lon).argmin().item()
+    right_idx = np.abs(range2iono.lon - rightmost_lon).argmin().item()
+    
+    # Assign slant ranges to specific pixels
+    ds[..., lat_idx, left_idx] = near_range
+    ds[..., lat_idx, center_idx] = center_range
+    ds[..., lat_idx, right_idx] = far_range
+    
+    # Get indices where values exist
+    valid_lon_indices = np.array([left_idx, center_idx, right_idx])
+    valid_ranges = np.array([near_range, center_range, far_range])
+    
+    # Create interpolation function
+    interp_func = interp1d(valid_lon_indices, valid_ranges, kind='linear', fill_value="extrapolate")
+    
+    # Interpolate NaNs along the longitude axis
+    nan_mask = np.isnan(ds.isel(lat=lat_idx))  # Get NaN mask
+    ds[lat_idx, nan_mask] = interp_func(np.where(nan_mask)[0])  # Interpolate missing values
+    
+    # Perform bivariate interpolation for full dataset
+    ds = interpolate_nans_bivariate(ds)
+    
+    return ds
 
 def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 450, outif=None):
     """ This will generate ionospheric correction for given frame-pair.
@@ -334,6 +412,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     if sbovl:
         ionoxrA = incml.copy(deep=True)
         ionoxrB = incml.copy(deep=True)
+        slantRanges=slant_ranges(frame, master, range2iono)
     else:
         ionoxr = incml.copy(deep=True)
     
@@ -354,7 +433,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
                     
                     ##it directly starts from IPP scene
-                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j]*1000, ilat_ground, ilon_ground, 0)
+                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0)
                                     #  float(hgtml.values[i, j])) # to consider hgt ... better without
                     ilat, ilon, ialt = ecef2latlonhei(x, y, z)
                     
@@ -405,7 +484,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     #ground_scene
                     ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
                     ##satellite scene, we need to consider satellite scene again for BOI
-                    x, y, z = aer2ecef(azimuthDeg, eledeg, slantRange, ilat_ground, ilon_ground, 0) #scene_alt) ### this is wrt ellipsoid! ##TODO rather than the center slant range near center and far range can be added! IDK it's effect.
+                    x, y, z = aer2ecef(azimuthDeg, eledeg, slantRanges.values[i, j], ilat_ground, ilon_ground, 0) #scene_alt) ### this is wrt ellipsoid! ##TODO rather than the center slant range near center and far range can be added! IDK it's effect.
                     satg_lat, satg_lon, sat_alt = ecef2latlonhei(x, y, z) ##satellite scene is changed becasue of the elevation degree change along the range direction
                     sat_alt_km = round(sat_alt / 1000)
                     Psatg = wgs84.GeoPoint(latitude=satg_lat, longitude=satg_lon, degrees=True)
@@ -414,7 +493,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     PsatgB, _azimuth = Psatg.displace(distance=burst_len/2, azimuth= heading, method='ellipsoid', degrees=True)
                     
                     ##IPP scene, 
-                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j]*1000, ilat_ground, ilon_ground, 0) #range should be in meter
+                    x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0) #range should be in meter
                     ippg_lat, ippg_lon, ipp_alt = ecef2latlonhei(x, y, z)
                     Pippg = wgs84.GeoPoint(latitude=ippg_lat, longitude=ippg_lon, degrees=True)
                     #then get A', B'
