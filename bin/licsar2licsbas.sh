@@ -790,6 +790,7 @@ if [ "$iono" -gt 0 ]; then
 	   if [ -e ${outfile} ]; then
 		 # link this one instead of this link
 		 ifglink=$pair.geo.$extofproc.tif
+     ifglink2=$pair.geo.$extofproc2.tif
 		 if [ -L $ifglink ]; then
 			rm $ifglink
 			ln -s $outfile $ifglink
@@ -878,6 +879,14 @@ if [ "$iono" -gt 0 ]; then
 	   if [ -e ${outfile} ]; then
 		 # link this one instead of this link
 		 ifglink=$pair.geo.$extofproc.tif
+     ifglink2=$pair.geo.$extofproc2.tif #it is only active for sbovl situatuon
+     
+     # Check if sbovl does not exist, but bovl exists → link bovl to sbovl ##it is not preferred senario.
+     if [ ! -e "$ifglink" ] && [ -e "$ifglink2" ] && [ "$sbovl" -gt 0 ]; then
+        #  echo "linking $ifglink2 to $ifglink"
+         ln -s "$ifglink2" "$ifglink"
+     fi
+
 		 if [ -L $ifglink ]; then
 			rm $ifglink
 			ln -s $outfile $ifglink
@@ -1057,7 +1066,7 @@ fi
 
 
 #preparing batch file
-module load $LB_version   #TODO open here after pull requests?
+#module load $LB_version   #TODO open here after pull requests?
 rm -f batch_LiCSBAS.sh 2>/dev/null
 copy_batch_LiCSBAS.sh >/dev/null
 
@@ -1187,7 +1196,7 @@ if [ $run_jasmin -eq 1 ]; then
   #just a little export fix
   #multi=1
  #fi
- echo "module load "$LB_version >> jasmin_run.sh ##TODO open here after accepting pull requests?
+ #echo "module load "$LB_version >> jasmin_run.sh ##TODO open here after accepting pull requests?
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
