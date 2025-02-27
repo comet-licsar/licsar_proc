@@ -7,19 +7,30 @@ try:
 except:
     print('contextily is not installed')
 
-def plot3(A,B,C):
-    '''inputs are three xr.dataarrays to plot'''
+def plot3(A,B,C, unit='rad', cmap='RdBu', minmax=None):
+    '''inputs are three xr.dataarrays to plot
+
+    minmax can be e.g. [-4,4]'''
     origfigsize = plt.rcParams['figure.figsize']
     plt.rcParams["figure.figsize"] = [18,4]
     plt.subplot(1,3,1)
     #AA.origpha
-    A.rename('rad').plot()
+    if minmax:
+        A.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        A.rename(unit).plot()
     plt.subplot(1,3,2)
     #AA.unwlow
-    B.rename('rad').plot()
+    if minmax:
+        B.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        B.rename(unit).plot()
     plt.subplot(1,3,3)
     #AA.toremove
-    C.rename('rad').plot()
+    if minmax:
+        C.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        C.rename(unit).plot()
     plt.show()
     plt.rcParams['figure.figsize']=origfigsize
 
