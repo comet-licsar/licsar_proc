@@ -57,7 +57,7 @@ setenv LiCSARconfig "$configpath/liveConfig.cnf"
 setenv LiCSAR_procdir "$LiCSAR_procdir"
 setenv LiCSAR_public "/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products"
 setenv LiCSAR_SLC "/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC"
-setenv LiCSAR_GACOS "/work/scratch-pw3/licsar/GACOS"
+setenv LiCSAR_GACOS "$LiCSAR_temp/GACOS"
 setenv LiCSAR_volc "/gws/pw/j07/comet_lics/LiCSAR_volc"
 
 #setup executable paths
