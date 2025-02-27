@@ -56,6 +56,11 @@ def get_resolution(hgt, in_m=True):
             return float(resdeg)
 
 
+import os
+import xarray as xr
+import numpy as np
+from scipy.interpolate import interp1d
+
 def slant_ranges(frame, master, range2iono):
     """Computes slant range values and interpolates missing values.
     
@@ -71,6 +76,7 @@ def slant_ranges(frame, master, range2iono):
     # Define the path to the SLC parameter file
     SLCdir = os.path.join(os.environ['LiCSAR_procdir'], str(int(frame[:3])), frame, 'SLC', master)
     filepath = os.path.join(SLCdir, master + '.slc.par')
+    orientation = frame[3]  # Ascending or Descending
 
     # Read near, center, and far slant ranges
     near_range, center_range, far_range = None, None, None
@@ -87,8 +93,6 @@ def slant_ranges(frame, master, range2iono):
     if None in [near_range, center_range, far_range]:
         raise ValueError(f"Missing range values in {filepath}")
 
-    range_values = [near_range, center_range, far_range]
-    
     # Create a NaN-filled DataArray
     ds = range2iono.copy(deep=True)  # Preserve original shape and coordinates
     ds[:] = np.nan  # Fill with NaN
@@ -117,26 +121,30 @@ def slant_ranges(frame, master, range2iono):
     left_idx = np.abs(range2iono.lon - leftmost_lon).argmin().item()
     center_idx = np.abs(range2iono.lon - center_lon).argmin().item()
     right_idx = np.abs(range2iono.lon - rightmost_lon).argmin().item()
+
+    ##consider about Ascending and desceding as the near and far range will be oriented.
+    if orientation == 'A':
+        valid_lon_indices = np.array([left_idx, center_idx, right_idx])
+        valid_ranges = np.array([near_range, center_range, far_range])  # Left to right
+    elif orientation == 'D':
+        valid_lon_indices = np.array([right_idx, center_idx, left_idx])
+        valid_ranges = np.array([near_range, center_range, far_range])  # Right to left
     
-    # Assign slant ranges to specific pixels
-    ds[..., lat_idx, left_idx] = near_range
-    ds[..., lat_idx, center_idx] = center_range
-    ds[..., lat_idx, right_idx] = far_range
     
-    # Get indices where values exist
-    valid_lon_indices = np.array([left_idx, center_idx, right_idx])
-    valid_ranges = np.array([near_range, center_range, far_range])
-    
-    # Create interpolation function
+    ds[lat_idx, valid_lon_indices[0]] = valid_ranges[0]
+    ds[lat_idx, valid_lon_indices[1]] = valid_ranges[1]
+    ds[lat_idx, valid_lon_indices[2]] = valid_ranges[2]
+
+    # Create interpolation function (linear)
     interp_func = interp1d(valid_lon_indices, valid_ranges, kind='linear', fill_value="extrapolate")
-    
+
     # Interpolate NaNs along the longitude axis
     nan_mask = np.isnan(ds.isel(lat=lat_idx))  # Get NaN mask
     ds[lat_idx, nan_mask] = interp_func(np.where(nan_mask)[0])  # Interpolate missing values
     
-    # Perform bivariate interpolation for full dataset
+    # Perform bivariate interpolation for full dataset (optional)
     ds = interpolate_nans_bivariate(ds)
-    
+
     return ds
 
 def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 450, outif=None):
