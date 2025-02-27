@@ -10,7 +10,7 @@ except:
 def plot3(A,B,C, unit='rad', cmap='RdBu', minmax=None):
     '''inputs are three xr.dataarrays to plot
 
-    minmax can be e.g. [-4,4]'''
+    minmax can be e.g. [-4,4] '''
     origfigsize = plt.rcParams['figure.figsize']
     plt.rcParams["figure.figsize"] = [18,4]
     plt.subplot(1,3,1)
