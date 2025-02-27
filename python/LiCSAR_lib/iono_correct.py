@@ -56,11 +56,6 @@ def get_resolution(hgt, in_m=True):
             return float(resdeg)
 
 
-import os
-import xarray as xr
-import numpy as np
-from scipy.interpolate import interp1d
-
 def slant_ranges(frame, master, range2iono):
     """Computes slant range values and interpolates missing values.
     
