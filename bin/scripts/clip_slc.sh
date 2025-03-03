@@ -196,48 +196,51 @@ if [ ! -d $geodir ]; then
 	masterslcdir='RSLC/'$master
 	rm log/geo.err 2>/dev/null
 
-	# in python:
-	echo "preparing geocoding tables"
-	python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
-	 geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol")" > log/geo.log 2> log/geo.err
+  # 2025/03 - switching to Copernicus DEM by default:
+  clip_slc_update_dem.sh
 
-	if [ `grep -c 'Something' log/geo.err` -gt 0 ]; then 
-		echo "some error in DEM fitting, skipping it now (might keep some slight DEM/geocoding shift)"
-		rm -r $geodir; mkdir $geodir
+	## in python:
+	#echo "preparing geocoding tables"
+	#python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
+	# geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol")" > log/geo.log 2> log/geo.err
 
-		python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
-		 geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol", skip_fit = True)"
-		cd $geodir
-		ln -s $master.lt $master.lt_fine
-		cd -
-	fi
+#	if [ `grep -c 'Something' log/geo.err` -gt 0 ]; then
+#		echo "some error in DEM fitting, skipping it now (might keep some slight DEM/geocoding shift)"#
+		#rm -r $geodir; mkdir $geodir
+
+		#python3 -c "from LiCSAR_lib.coreg_lib import geocode_dem; \
+		# geocode_dem('"$masterslcdir"', '"$geodir"', '"$demdir"' , '.', '"$master"', "$resol", skip_fit = True)"
+		#cd $geodir
+		#ln -s $master.lt $master.lt_fine
+		#cd -
+	#fi
 
 	# create mli file and geo geotiffs if needed
-	rmdir geo GEOC GEOC.MLI 2>/dev/null
-	rm geo GEOC GEOC.MLI 2>/dev/null
-	ln -s $geodir geo
-	echo "geocoding master mli and hgt"
-	create_geoctiffs_to_pub.sh -M `pwd` $master
+#	rmdir geo GEOC GEOC.MLI 2>/dev/null
+#	rm geo GEOC GEOC.MLI 2>/dev/null
+#	ln -s $geodir geo
+#	echo "geocoding master mli and hgt"
+#	create_geoctiffs_to_pub.sh -M `pwd` $master
 	#; ln -s 
 	
-	echo "testing now - do ENUs"
-	LiCSAR_05_mk_angles_master
-	submit_lookangles.py -f $frame -t `track_from_frame $frame` -l
-	create_geoctiff_lookangles.sh `pwd` $master #>/dev/null
-	mv GEOC.MLI GEOC.MLI.$resol_m'm'
+#	echo "testing now - do ENUs"
+#	LiCSAR_05_mk_angles_master
+#	submit_lookangles.py -f $frame -t `track_from_frame $frame` -l
+#	create_geoctiff_lookangles.sh `pwd` $master #>/dev/null
+#	mv GEOC.MLI GEOC.MLI.$resol_m'm'
 	
-	for tif in `ls GEOC/lookangles/*tif`; do
-	 mv $tif `echo $tif | sed 's/'$master'/'$frame'/'`
-	done
-	echo "Generating land mask"
-	landmask=GEOC/lookangles/$frame.geo.landmask.tif
-	hgtgeo=`ls GEOC/lookangles/*.geo.hgt.tif | head -n 1`
-	gmt grdlandmask -G$landmask=gd:GTiff -R$hgtgeo -Df -N0/1/0/1/0
+#	for tif in `ls GEOC/lookangles/*tif`; do
+#	 mv $tif `echo $tif | sed 's/'$master'/'$frame'/'`
+#	done
+#	echo "Generating land mask"
+#	landmask=GEOC/lookangles/$frame.geo.landmask.tif
+#	hgtgeo=`ls GEOC/lookangles/*.geo.hgt.tif | head -n 1`
+#	gmt grdlandmask -G$landmask=gd:GTiff -R$hgtgeo -Df -N0/1/0/1/0
 
-	echo "testing now - store to GEOC.meta and deleting from GEOC - hope will not miss this"
-	mkdir GEOC.meta.$resol_m'm'
-	mv GEOC/lookangles/*.tif GEOC.meta.$resol_m'm'/.
-	rm -r GEOC/lookangles GEOC/geo 2>/dev/null
+#	echo "testing now - store to GEOC.meta and deleting from GEOC - hope will not miss this"
+#	mkdir GEOC.meta.$resol_m'm'
+#	mv GEOC/lookangles/*.tif GEOC.meta.$resol_m'm'/.
+#	rm -r GEOC/lookangles GEOC/geo 2>/dev/null
 
 	#echo $frame >> sourceframe.txt
 	echo "clip_slc.sh "$outdir $lon1 $lon2 $lat1 $lat2 $hei $resol > sourcecmd.txt
@@ -245,10 +248,10 @@ if [ ! -d $geodir ]; then
 	
 	rm geo; rmdir GEOC #; mv GEOC GEOC.$resol_m'm'
 
-	# not the best way, but easy
-	track=`track_from_frame $frame`
-	issrtm=`grep applied_DEM $LiCSAR_public/$track/$frame/metadata/metadata.txt | grep -c SRTM`
-	if [ $issrtm == 1 ]; then echo "Replacing SRTM - keeping on backup folders"; clip_slc_update_dem.sh; fi
+#	# not the best way, but easy
+#	track=`track_from_frame $frame`
+#	issrtm=`grep applied_DEM $LiCSAR_public/$track/$frame/metadata/metadata.txt | grep -c SRTM`
+#	if [ $issrtm == 1 ]; then echo "Replacing SRTM - keeping on backup folders"; clip_slc_update_dem.sh; fi
 	cd $origdir
 	
 	
