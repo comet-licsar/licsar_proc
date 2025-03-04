@@ -97,7 +97,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres
         deminpar = dempar
         dem = os.path.join(demdir,'dem_crop.ovr.dem')
         dempar = os.path.join(demdir, 'dem_crop.ovr.dem_par')
-        cmd = "dem_trans {0} {1} {2} {3} {4} {5} - - - - - >/dev/null 2>/dev/null".format(deminpar, demin, dempar, dem, ovrfactN, ovrfactE)
+        cmd = "dem_trans {0} {1} {2} {3} {4} {5} - - - - - >/dev/null 2>/dev/null".format(deminpar, demin, dempar, dem, str(demresN/outres), ovrfactE)
         rc = os.system(cmd)
         if not os.path.exists(dem):
             print('Some error, try the command yourself:')
