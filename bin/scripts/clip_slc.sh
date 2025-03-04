@@ -196,6 +196,8 @@ if [ ! -d $geodir ]; then
 	masterslcdir='RSLC/'$master
 	rm log/geo.err 2>/dev/null
 
+  echo "clip_slc.sh "$outdir $lon1 $lon2 $lat1 $lat2 $hei $resol > sourcecmd.txt
+
   # 2025/03 - switching to Copernicus DEM by default:
   clip_slc_update_dem.sh
 
@@ -243,7 +245,7 @@ if [ ! -d $geodir ]; then
 #	rm -r GEOC/lookangles GEOC/geo 2>/dev/null
 
 	#echo $frame >> sourceframe.txt
-	echo "clip_slc.sh "$outdir $lon1 $lon2 $lat1 $lat2 $hei $resol > sourcecmd.txt
+
 	chmod -R 775 $outdir 2>/dev/null
 	
 	rm geo; rmdir GEOC #; mv GEOC GEOC.$resol_m'm'
