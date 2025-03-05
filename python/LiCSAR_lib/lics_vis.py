@@ -231,6 +231,36 @@ def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims
     return ax1
 
 
+def plotdaz(dazes, frame, toshow = 'daz', lim = 4000, ylim = [-200,200]):
+    toplotA = dazes[dazes['AB']=='A'].set_index('epoch')[toshow]*14000
+    toplotB = dazes[dazes['AB']=='B'].set_index('epoch')[toshow]*14000
+    todelA = toplotA[np.abs(toplotA)>=lim]
+    todelB = toplotB[np.abs(toplotB)>=lim]
+    print('outlying epochs:')
+    if not todelA.empty:
+        print(todelA.index.values)
+    if not todelB.empty:
+        print(todelB.index.values)
+    toplotA=toplotA[np.abs(toplotA)<lim]
+    toplotB=toplotB[np.abs(toplotB)<lim]
+    if not toplotA.empty:
+        toplotA.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='blue', linestyle='')#-.')
+    if not toplotB.empty:
+        toplotB.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='orange', linestyle='')#-.')
+    plt.show()
+
+
+def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
+    import daz_lib_licsar as dl
+    ylim = [-1*ylim1, ylim1]
+    dazes = dl.get_daz_frame(frame)
+    msab = dl.fc.get_frame_master_s1ab(frame)
+    mdatetime=dl.fc.get_master(frame, asdatetime=True)
+    epochdates=dazes['epoch'].tolist()
+    ABs = dl.flag_s1b(epochdates,mdatetime,msab,True)
+    dazes['AB'] = ABs
+    plotdaz(dazes, frame, toshow = toshow, lim = lim, ylim=ylim)
+
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None, interactive = False,

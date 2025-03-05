@@ -17,7 +17,7 @@ create_LOS_tide_frame_allepochs() {
     return 1
   fi
 
-  track=$(echo "$frame" | cut -c -3 | sed 's/^0//')
+  track=$(echo "$frame" | cut -c -3 | sed 's/^0//' | sed 's/^0//')
   epochspath=$LiCSAR_public/$track/$frame/epochs
 
   for epoch in $(ls "$epochspath"); do
