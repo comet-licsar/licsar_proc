@@ -19,7 +19,7 @@ create_LOS_tide() {
 
   # Fix for input with yyyymmdd
   datem1=$(date -d "$date1" +%Y-%m-%d)
-  track=$(echo "$frame" | cut -c -3 | sed 's/^0//')
+  track=$(echo "$frame" | cut -c -3 | sed 's/^0//' | sed 's/^0//')
 
   # Get center time
   epochpath=$LiCSAR_public/$track/$frame/epochs/$date1
