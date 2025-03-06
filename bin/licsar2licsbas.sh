@@ -415,10 +415,14 @@ if [ $dolocal == 1 ]; then
  if [ ! -f $frame.geo.hgt.tif ]; then
   #echo "warning, doing local proc only - avoiding possible problems (mismatch frame vs local data) by just removing the linked ENU files"
   # 2024 - what problems? TODO (becoming forgetful..)
-  rm $frame.geo.?.tif
+  rm $frame.geo.?.tif 2>/dev/null
+ fi
+ if [ ! -f $workdir/GEOC.MLI/$master/$master.geo.mli.tif ]; then
+   disadir=`pwd`; cd $workdir; create_geoctiffs_to_pub.sh -M . $master; cd $disadir
  fi
 fi
 ln -s $metadir/baselines
+
 
 if [ -f $workdir/GEOC.MLI/$master/$master.geo.mli.tif ]; then
  ln -s $workdir/GEOC.MLI/$master/$master.geo.mli.tif
