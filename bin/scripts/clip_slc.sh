@@ -205,6 +205,9 @@ if [ ! -d $geodir ]; then
   fi
 
   # 2025/03 - switching to Copernicus DEM by default:
+  if [ ! -d geo ]; then
+    ln -s $geodir geo
+  fi
   clip_slc_update_dem.sh
 
 	## in python:
