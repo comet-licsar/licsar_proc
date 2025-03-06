@@ -13,3 +13,4 @@ requirements.test.txt
 
 bashrc_licsar_proc.sh
 *checkpoint*
+bin/licsar2licsbas.sh

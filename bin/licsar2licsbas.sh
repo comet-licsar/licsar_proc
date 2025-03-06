@@ -885,6 +885,10 @@ if [ "$iono" -gt 0 ]; then
      if [ ! -e "$ifglink" ] && [ -e "$ifglink2" ] && [ "$sbovl" -gt 0 ]; then
         #  echo "linking $ifglink2 to $ifglink"
          ln -s "$ifglink2" "$ifglink"
+         ##cc's as well
+         cclink=${ifglink/mm/cc}
+         cclink2=${ifglink2/mm/cc}
+         ln -s "$cclink2" "$cclink"
      fi
 
 		 if [ -L $ifglink ]; then
@@ -1125,7 +1129,7 @@ else
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
  if [ $sbovl -gt 0 ]; then
-   sed -i 's/p11_coh_thre=\"\"/p11_coh_thre=\"0.8\"/' batch_LiCSBAS.sh  #the sbovl is adf filtered and the coh calculated from adf filter, so keep it higher  
+   sed -i 's/p11_coh_thre=\"\"/p11_coh_thre=\"0.7\"/' batch_LiCSBAS.sh  #the sbovl is adf filtered and the coh calculated from adf filter, so keep it higher  
    sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"100\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
    sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"100/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
  else
@@ -1203,7 +1207,7 @@ if [ $run_jasmin -eq 1 ]; then
  if [ ! $cohmask4 == 0 ]; then clstr=$clstr'mask'; fi
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
  tsdir=TS_$geocd
- if [ $reunw -eq 0 ]; then
+ if [ "$sbovl" -eq 0 ] && [ "$reunw" -eq 0 ]; then
    lbreproc=0
    lbreprocname=''
   # so here we have already unwrapped data and we will just post-correct the ramps
@@ -1227,7 +1231,7 @@ if [ $run_jasmin -eq 1 ]; then
     echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt"$lbreprocname".mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt"$lbreprocname".mskd.geo.tif" >> jasmin_run.sh
   fi
  fi
- 
+
  if [ $storeext2cube -gt 0 ]; then
   #include generation of outputs
   if [ $setides -gt 0 ]; then
