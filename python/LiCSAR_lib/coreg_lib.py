@@ -85,9 +85,35 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres
                 demresN = float(line.split()[1])
             if 'post_lon' in line:
                 demresE = float(line.split()[1])
+    # 2025/03: Stijn Vleugels found solution for multilooking factors causing data in (much) higher than DEM resolution (affecting topo estimation)
+    # 1. get ml factors ? or just use outres?
     #calculate oversampling factors for lon/lat
     ovrfactN = str(-1.0*(demresN/outres))
-    ovrfactE = str((demresE/outres))
+    ovrfactE = str(demresE/outres)
+    ovrthres = 1.99 # let's oversample input DEM only if this is at least double lower resolution
+    if (float(ovrfactE)>ovrthres) or (np.abs(float(ovrfactN))>ovrthres):
+        print('Oversampling input DEM')
+        demin = dem
+        deminpar = dempar
+        dem = os.path.join(demdir,'dem_crop.ovr.dem')
+        dempar = os.path.join(demdir, 'dem_crop.ovr.dem_par')
+        cmd = "dem_trans {0} {1} {2} {3} {4} {5} - - - - - >/dev/null 2>/dev/null".format(deminpar, demin, dempar, dem, str(demresN/outres), ovrfactE)
+        rc = os.system(cmd)
+        if not os.path.exists(dem):
+            print('Some error, try the command yourself:')
+            print(cmd)
+            print('\n Reverting to the original DEM')
+            dem = demin
+            dempar = deminpar
+        else:
+            with open(dempar, 'r') as f:
+                for line in f:
+                    if 'post_lat' in line:
+                        demresN = float(line.split()[1])
+                    if 'post_lon' in line:
+                        demresE = float(line.split()[1])
+            ovrfactN = str(-1.0 * (demresN / outres))
+            ovrfactE = str(demresE / outres)
     #create a dem segment file path? map segment?
     demseg = os.path.join(geodir,'EQA.dem')
     #look up table path?

@@ -7,19 +7,30 @@ try:
 except:
     print('contextily is not installed')
 
-def plot3(A,B,C):
-    '''inputs are three xr.dataarrays to plot'''
+def plot3(A,B,C, unit='rad', cmap='RdBu', minmax=None):
+    '''inputs are three xr.dataarrays to plot
+
+    minmax can be e.g. [-4,4] '''
     origfigsize = plt.rcParams['figure.figsize']
     plt.rcParams["figure.figsize"] = [18,4]
     plt.subplot(1,3,1)
     #AA.origpha
-    A.rename('rad').plot()
+    if minmax:
+        A.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        A.rename(unit).plot()
     plt.subplot(1,3,2)
     #AA.unwlow
-    B.rename('rad').plot()
+    if minmax:
+        B.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        B.rename(unit).plot()
     plt.subplot(1,3,3)
     #AA.toremove
-    C.rename('rad').plot()
+    if minmax:
+        C.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        C.rename(unit).plot()
     plt.show()
     plt.rcParams['figure.figsize']=origfigsize
 
@@ -219,6 +230,36 @@ def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
     return ax1
 
+
+def plotdaz(dazes, frame, toshow = 'daz', lim = 4000, ylim = [-200,200]):
+    toplotA = dazes[dazes['AB']=='A'].set_index('epoch')[toshow]*14000
+    toplotB = dazes[dazes['AB']=='B'].set_index('epoch')[toshow]*14000
+    todelA = toplotA[np.abs(toplotA)>=lim]
+    todelB = toplotB[np.abs(toplotB)>=lim]
+    print('outlying epochs:')
+    if not todelA.empty:
+        print(todelA.index.values)
+    if not todelB.empty:
+        print(todelB.index.values)
+    toplotA=toplotA[np.abs(toplotA)<lim]
+    toplotB=toplotB[np.abs(toplotB)<lim]
+    if not toplotA.empty:
+        toplotA.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='blue', linestyle='')#-.')
+    if not toplotB.empty:
+        toplotB.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='orange', linestyle='')#-.')
+    plt.show()
+
+
+def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
+    import daz_lib_licsar as dl
+    ylim = [-1*ylim1, ylim1]
+    dazes = dl.get_daz_frame(frame)
+    msab = dl.fc.get_frame_master_s1ab(frame)
+    mdatetime=dl.fc.get_master(frame, asdatetime=True)
+    epochdates=dazes['epoch'].tolist()
+    ABs = dl.flag_s1b(epochdates,mdatetime,msab,True)
+    dazes['AB'] = ABs
+    plotdaz(dazes, frame, toshow = toshow, lim = lim, ylim=ylim)
 
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
