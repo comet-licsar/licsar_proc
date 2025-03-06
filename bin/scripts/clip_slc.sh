@@ -208,6 +208,7 @@ if [ ! -d $geodir ]; then
   if [ ! -d geo ]; then
     ln -s $geodir geo
   fi
+  # touch geo/$master.hgt
   clip_slc_update_dem.sh
 
 	## in python:

@@ -91,7 +91,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres
     ovrfactN = str(-1.0*(demresN/outres))
     ovrfactE = str(demresE/outres)
     ovrthres = 1.99 # let's oversample input DEM only if this is at least double lower resolution
-    if (float(ovrfactE)>ovrthres) or (float(np.abs(ovrfactN))>ovrthres):
+    if (float(ovrfactE)>ovrthres) or (np.abs(float(ovrfactN))>ovrthres):
         print('Oversampling input DEM')
         demin = dem
         deminpar = dempar
