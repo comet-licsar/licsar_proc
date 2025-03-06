@@ -38,7 +38,8 @@ addedextrapost=''
 addedextrapre=''
 v=0
 lotusversion=1
-if [ `hostname` == 'host839.jc.rl.ac.uk' ]; then
+#if [ `hostname` == 'host839.jc.rl.ac.uk' ]; then
+if [[ "host839.jc.rl.ac.uk cron-01.jasmin.ac.uk" =~ `hostname` ]]; then
   echo "using LOTUS2"
   lotusversion=2
   qos='standard'
