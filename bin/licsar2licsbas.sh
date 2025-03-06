@@ -353,6 +353,7 @@ need_to_generate_azi=0
 
 for meta in E N U hgt; do
   echo "Getting metafiles from metadir everytime!"
+  echo "ML: whatever this means (Muhammet..) - note clips stopped working with this change, trying to find how to fix it"
   ln -sf "$metadir/$frame.geo.$meta.tif" "$frame.geo.$meta.tif"
 
   if [ "$sbovl" -gt 0 ] && [ "$meta" != "hgt" ]; then
