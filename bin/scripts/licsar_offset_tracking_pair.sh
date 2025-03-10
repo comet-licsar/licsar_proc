@@ -3,9 +3,17 @@
 # adding flags to control deramping and step sizes of range and azi - Muhammet Nergizci, 2025
 # Milan Lazecky, 2023 
 
+# Default values for rwin, awin, rstep, and astep (and tthres for tracking threshold)
+rwin=128
+awin=128
+rstep=40
+astep=40
+novr=2
+tthres=0.1
+
 if [ -z "$1" ]; then 
  echo "USAGE: provide pair in format YYYYMMDD_YYYYMMDD and run in the frame folder"
- echo "e.g. licsar_offset_tracking_pair.sh 20230115_20230127 (--noderamp) [--novr 2] [--rwin <value>] [--awin <value>] [--rstep <value>] [--astep <value>] ... to do px offset tracking between those dates"
+ echo "e.g. licsar_offset_tracking_pair.sh 20230115_20230127 (--noderamp) [--novr "$novr"] [--rwin "$rwin"] [--awin "$awin"] [--rstep "$rstep"] [--astep "$astep"] [--thres "$tthres"... to do px offset tracking between those dates"
  exit
 fi
 
@@ -19,13 +27,6 @@ pair=$1
 m=$(echo "$pair" | cut -d '_' -f1)
 s=$(echo "$pair" | cut -d '_' -f2)
 
-
-# Default values for rwin, awin, rstep, and astep
-rwin=128
-awin=128
-rstep=40
-astep=40
-novr=2
 
 # Check for the -noderamp flag and other optional arguments
 noderamp=false
@@ -56,6 +57,10 @@ while [[ $# -gt 0 ]]; do
       novr="$2"
       shift 2
       ;;
+    --thres)
+      tthres="$2"
+      shift 2
+      ;;
     *)
       shift
       ;;
@@ -64,9 +69,10 @@ done
 
 # Get master frame
 master=`get_master`
-frame=`pwd`
-frame=`basename $frame`
-if [ `echo $frame | wc -m` != 18 ]; then echo "not in frame folder"; exit; fi
+#frame=`pwd`
+#frame=`basename $frame`
+
+if [ -z $master ]; then echo "not in frame folder"; exit; fi
 
 outdir="IFG/$pair"
 mkdir -p "$outdir"
@@ -83,9 +89,15 @@ fi
 # and geocode to geotiff
 rslcdir=`pwd`/RSLC
 mmli=$rslcdir/$master/$master.rslc.mli
+azlks=4
+rglks=20
+if [ -f local_config.py ]; then
+ source local_config.py
+fi
+
 if [ ! -f $mmli ]; then
- echo "additional multilooking assuming 20/4 looks..."
- multi_look $rslcdir/$master/$master.rslc $rslcdir/$master/$master.rslc.par $mmli $mmli.par 20 4 >/dev/null 2>/dev/null
+ echo "additional multilooking" # assuming 20/4 looks..."
+ multi_look $rslcdir/$master/$master.rslc $rslcdir/$master/$master.rslc.par $mmli $mmli.par $rglks $azlks >/dev/null 2>/dev/null
 fi
 mpar=$rslcdir/$m/$m.rslc.par
 mslc=$rslcdir/$m/$m.rslc
@@ -105,27 +117,28 @@ date
 #offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 16 - 2 - >/dev/null
 #time offset_pwr_tracking $mslc $sslc $mpar $spar $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 32 - 2 - #>/dev/null
 # deramp first??
-if [ ! -d tab ]; then mkdir tab; fi
-if [ ! -f tab/$master'_tab' ]; then
+if [ ! "$noderamp" = true ]; then
+ if [ ! -d tab ]; then mkdir tab; fi
+ if [ ! -f tab/$master'_tab' ]; then
   createSLCtab_frame SLC/$master/$master slc $frame > tab/$master'_tab'
+ fi
 fi
 
 for x in $m $s; do
   echo "Processing $x..."
-  
-  # Check and create tab file if it doesn't exist
-  if [ ! -f tab/$x'R_tab' ]; then
-    createSLCtab_frame RSLC/$x/$x rslc $frame > tab/$x'R_tab'
-  fi
-
+ 
   # Default extension
-  extd='.deramp'
+  # extd='.deramp'
 
   # Handle noderamp flag
   if [ "$noderamp" = true ]; then
     extd=''
     echo "Skipping deramping for $x."
   else
+    # Check and create tab file if it doesn't exist
+    if [ ! -f tab/$x'R_tab' ]; then
+      createSLCtab_frame RSLC/$x/$x rslc $frame > tab/$x'R_tab'
+    fi
     # Perform deramping if not already done
     if [ ! -f RSLC/$x/$x.rslc.deramp ]; then
       if [ -z "$(which ScanSAR_deramp_2nd.py 2>/dev/null)" ]; then 
@@ -133,7 +146,7 @@ for x in $m $s; do
         extd=''
       else
         echo "Deramping $x. ETA: 1 minute"
-        ScanSAR_deramp_2nd.py tab/$x'R_tab' $x tab/$master'_tab' 20 4 1 >/dev/null
+        ScanSAR_deramp_2nd.py tab/$x'R_tab' $x tab/$master'_tab' $rglks $azlks 1 >/dev/null
         mv $x.rslc.deramp $x.rslc.deramp.par RSLC/$x/.
         extd='.deramp'
       fi
@@ -142,10 +155,10 @@ for x in $m $s; do
 done
 
 echo $extd $rwin $awin $rstep $astep $novr
-echo offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr $rwin $awin - $novr 0.1 $rstep $astep - - - - - - 0 1 - - $outdir/tracking.corrstd
+echo offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr $rwin $awin - $novr $tthres $rstep $astep - - - - - - 0 1 - - $outdir/tracking.corrstd
 
 #offset_pwr_tracking <SLC1> <SLC2> <SLC1_par> <SLC2_par> <OFF_par> <offs> <ccp> ##[rwin] [azwin] [offsets] [n_ovr] [thres] [rstep] [azstep] [rstart] [rstop] [azstart] [azstop] [lanczos] [bw_frac] [deramp] [int_filt] [pflag] [pltflg] [ccs]
-time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr $rwin $awin - $novr 0.1 $rstep $astep - - - - - - 0 1 - - $outdir/tracking.corrstd >/dev/null
+time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr $rwin $awin - $novr $tthres $rstep $astep - - - - - - 0 1 - - $outdir/tracking.corrstd >/dev/null
 #time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 128 128 - 2 0.1 40 40 - - - - - - 0 1 - - $outdir/tracking.corrstd >/dev/null
 #time offset_pwr_tracking RSLC/$m/$m.rslc$extd RSLC/$s/$s.rslc$extd RSLC/$m/$m.rslc$extd.par RSLC/$s/$s.rslc$extd.par $outdir/tracking.off $outdir/tracking.offsets $outdir/tracking.corr 64 32 - 1 0.1 20 10 - - - - - - 0 1 - - $outdir/tracking.corrstd >/dev/null
 
