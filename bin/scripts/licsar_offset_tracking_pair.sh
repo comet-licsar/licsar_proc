@@ -69,8 +69,12 @@ done
 
 # Get master frame
 master=`get_master`
-#frame=`pwd`
-#frame=`basename $frame`
+if [ -f sourceframe ]; then
+ frame=`cat sourceframe`
+else
+ frame=`pwd`
+ frame=`basename $frame`
+fi
 
 if [ -z $master ]; then echo "not in frame folder"; exit; fi
 
