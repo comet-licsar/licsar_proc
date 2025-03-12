@@ -604,9 +604,10 @@ if [ "$setides" -gt 0 ]; then
 
   disprocdir=$(pwd)
 
-  if [ "$reunw" -gt 0 ] || [ "$sbovl" -gt 0 ]; then  # in such case we correct before unwrapping
+  if [ "$reunw" -gt 0 ]; then  # in such case we correct before unwrapping || [ "$sbovl" -gt 0 ]
     if [ "$sbovl" -gt 0 ]; then
       echo "applying the SET correction in azimuth"
+      mkdir -p GEOC.corr ##this is to store the corrections
     else
       echo "applying the SET correction in range"
     fi
@@ -653,7 +654,8 @@ if [ "$setides" -gt 0 ]; then
       if [ ! -f "$outfile" ]; then
         if [ "$sbovl" -gt 0 ]; then
           tided1="$epochdir/$date1/$date1.tide.geo.azi.tif"
-          tided2="$epochdir/$date2/$date2.tide.geo.azi.tif" 
+          tided2="$epochdir/$date2/$date2.tide.geo.azi.tif"
+          outcorfile="$disprocdir/GEOC.corr/$pair.geo.$extofproc.tides_correction.tif"  
         else
           tided1="$epochdir/$date1/$date1.tide.geo.tif"
           tided2="$epochdir/$date2/$date2.tide.geo.tif" # should be A-B....
@@ -666,12 +668,17 @@ if [ "$setides" -gt 0 ]; then
               gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 226.56 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff ##226=(4*np.pi)/(0.055465) for m2rad
             else
               gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 1000 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff  ##1000 for m2mm
+              gmt grdmath -N "$tided1" "$tided2" SUB 1000 MUL = "$outcorfile"=gd:Gtiff  ## 1000 for m2mm just correction
             fi
           else
             # half pixel issue in older frames! but ok for tides, so:
             # echo "print('"$pair"')" >> $tmpy
             echo "Warning, the pair $pair is in pixel registration. Slower workaround"
-            ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
+            if [ "$sbovl" -le 0 ]; then
+              ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
+            else
+              ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile" "$outcorfile"
+            fi 
             #echo "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
             
             # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
@@ -701,8 +708,10 @@ if [ "$setides" -gt 0 ]; then
   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
   if [ $sbovl -gt 0 ]; then
     extfull=tide.geo.azi.tif
+    tide_ext=tide.geo.azi.tif
     else
     extfull=tide.geo.tif
+    tide_ext=tide.geo.azi.tif
   fi
   for epochpath in `ls $epochdir/20?????? -d`; do
     epoch=`basename $epochpath`
@@ -815,7 +824,7 @@ if [ "$iono" -gt 0 ]; then
 	 done
 	 rm $tmpy
 
-  elif [ $sbovl -gt 0 ]; then ##Iono looks more complex so let's do it in another elif block
+  elif [ "$sbovl" -gt 0 ] && [ "$reunw" -gt 0 ]; then ##Iono looks more complex so let's do it in another elif block ##TODO sbovl correction will be applied in in the cum, so I have put reunw condition to skip here.
    echo "applying the ionospheric correction for SBOI"    
    ######
 	 cd GEOC
@@ -824,11 +833,12 @@ if [ "$iono" -gt 0 ]; then
 	 #hgtfile=`ls *.geo.hgt.tif | head -n 1`
 	 tmpy=`pwd`/../tmp.py
 	 echo "from iono_correct import correct_iono_pair;" > $tmpy
-	 if [ $setides -gt 0 ]; then
-		 outext=$extofproc.notides.noiono
-	 else
-		 outext=$extofproc.noiono
-	 fi
+   outext=$extofproc.noiono    ##TODO set correction is applied in cum file so skip that.
+	#  if [ $setides -gt 0 ]; then
+	# 	 outext=$extofproc.notides.noiono
+	#  else
+	# 	 outext=$extofproc.noiono
+	#  fi
    
    ## Check if scaling factor file exists
    if ls "$metadir"/*geo.sbovl_scaling.tif 1> /dev/null 2>&1; then
@@ -1094,7 +1104,7 @@ if [ $sbovl -gt 0 ]; then
  sed -i 's/p120_sbovl=\"n\"/p120_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p13_sbovl=\"n\"/p13_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p15_sbovl=\"n\"/p15_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p16_sbovl=\"n\"/p16_sbovl=\"n\"/' batch_LiCSBAS.sh  #TODO: check the step16 filtering options for SBOI discuss with Milan.
+ sed -i 's/p16_sbovl=\"n\"/p16_sbovl=\"y\"/' batch_LiCSBAS.sh  #TODO: check the step16 filtering options for SBOI discuss with Milan.
 fi
 
 
@@ -1141,7 +1151,8 @@ else
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
  if [ $sbovl -gt 0 ]; then
-   sed -i 's/p11_coh_thre=\"\"/p11_coh_thre=\"0.7\"/' batch_LiCSBAS.sh  #the sbovl is adf filtered and the coh calculated from adf filter, so keep it higher  
+   sed -i 's/p11_coh_thre=\"[^\"]*\"/p11_coh_thre=\"0.5\"/' batch_LiCSBAS.sh #the sbovl is adf filtered and the coh calculated from adf filter, so keep it higher  
+   sed -i 's/p15_coh_thre=\"\"/p15_coh_thre=\"0.5\"/' batch_LiCSBAS.sh 
    sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"100\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
    sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"100/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
  else
@@ -1219,22 +1230,31 @@ if [ $run_jasmin -eq 1 ]; then
  if [ ! $cohmask4 == 0 ]; then clstr=$clstr'mask'; fi
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
  tsdir=TS_$geocd
- if [ "$sbovl" -eq 0 ] && [ "$reunw" -eq 0 ]; then
+ if [ "$reunw" -eq 0 ]; then
    lbreproc=0
    lbreprocname=''
   # so here we have already unwrapped data and we will just post-correct the ramps
   if [ $setides -gt 0 ]; then
     #echo "insert code to post-correct SET here"
     echo "Note: SET corrections will be applied to cum_filt only"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1000)\"" >> jasmin_run.sh
+    if [ "$sbovl" -eq 0 ]; then
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=False)\"" >> jasmin_run.sh
+    elif [ "$sbovl" -eq 1 ]; then
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=True)\"" >> jasmin_run.sh
+    fi
     lbreproc=1
     lbreprocname=$lbreprocname'.noSET'
     #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.code.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
   fi
-  if [ $iono -gt 0 ]; then
+  if [ "$iono" -gt 0 ]; then
     #echo "insert code to post-correct iono here"
-    echo "Note: iono corrections will be applied to cum_filt only"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi))\"" >> jasmin_run.sh
+    if [ "$sbovl" -eq 0 ]; then
+      echo "Note: iono corrections will be applied to cum_filt only"
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
+    elif [ "$sbovl" -eq 1 ]; then
+      echo "Note: iono corrections will be applied to cum_filt only"
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
+    fi
     lbreproc=1
     lbreprocname=$lbreprocname'.noiono'
   fi
@@ -1244,25 +1264,38 @@ if [ $run_jasmin -eq 1 ]; then
   fi
  fi
 
- if [ $storeext2cube -gt 0 ]; then
-  #include generation of outputs
+ ## Storing the corrections in cum.h5
+if [ $storeext2cube -gt 0 ]; then
+  # Include generation of outputs
   if [ $setides -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer tide"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'tide.geo.tif', 1000, directcorrect = False)\"" >> jasmin_run.sh
+    if [ "$sbovl" -eq 0 ]; then
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+    elif [ "$sbovl" -eq 1 ]; then
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+    fi
   fi
+
   if [ $iono -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
+    if [ "$sbovl" -eq 0 ]; then
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+    elif [ "$sbovl" -eq 1 ]; then
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+    fi
   fi
+
   if [ $gacos -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer gacos"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GACOS', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
+
   if [ $icams -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer icams"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'icams.sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
- fi
+fi
+
 
 if [ $platemotion -gt 0 ]; then
  echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --vstd_fix" >> jasmin_run.sh

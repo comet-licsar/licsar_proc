@@ -10,6 +10,7 @@ ifile = sys.argv[2]    # Input interferogram
 t1f = sys.argv[3]      # Time 1 file
 t2f = sys.argv[4]      # Time 2 file
 ofile = sys.argv[5]    # Output file
+ocfile = sys.argv[6] if len(sys.argv) > 6 else None # Output corection file, if exists
 
 # Load raster files
 h = r.open_rasterio(hgtfile).squeeze()  # Remove unnecessary dimensions
@@ -24,6 +25,8 @@ h.values = i.values
 # Compute dt based on file naming
 if "bovl" in ifile:  # Check if 'bovl' is in filename
     dt = (t1 - t2) * 1000 # Convert m2mm
+    if ocfile:  # Only save if ocfile is provided
+        dt.rio.to_raster(ocfile)
 else:
     dt = (t1 - t2) * 226.56 #Convert m2rad
 
