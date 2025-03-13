@@ -95,15 +95,12 @@ class SuppressStream(object):
     Method copied from:
       https://stackoverflow.com/a/57677370
     """
-
     def __init__(self, stream=sys.stderr):
         self.orig_stream_fileno = stream.fileno()
         self.orig_stream_dup = os.dup(self.orig_stream_fileno)
         self.devnull = open(os.devnull, 'w')
-
     def __enter__(self):
         os.dup2(self.devnull.fileno(), self.orig_stream_fileno)
-
     def __exit__(self, my_type, my_value, my_traceback):
         os.close(self.orig_stream_fileno)
         os.dup2(self.orig_stream_dup, self.orig_stream_fileno)
@@ -270,7 +267,6 @@ def get_frame_volcanoes(options):
     epochpath = options['epochpath']
     paths = options['paths']
     log_lock = options['mp_log_lock']
-
     # choose which DX/DY
     if 'SM' in frame:
         ddx = DXSM
@@ -278,14 +274,11 @@ def get_frame_volcanoes(options):
     else:
         ddx = DX
         ddy = DY
-
     # define a log message wrapper which includes lock file:
     def _log_message(message):
         log_message(message, mp_lock=log_lock)
-
     # init list for storing volcanoes to process:
     frame_out = []
-
     # count number of diff_pha tif files:
     geotif_files = [
         y for x in os.walk(framepath)
@@ -293,12 +286,10 @@ def get_frame_volcanoes(options):
     ]
     nb_lics = (len(geotif_files))
     _log_message('{0} :: Found {1} ifgs'.format(frame, nb_lics))
-
     # if no tif files, exit:
     if not geotif_files:
         _log_message('{0} :: Frame exists but empty'.format(frame))
         return frame_out
-
     # get coordinate and projection information for this frame:
     filename = geotif_files[0]
     src = gdal.Open(filename)
@@ -309,12 +300,10 @@ def get_frame_volcanoes(options):
     geotransform = src.GetGeoTransform()
     src = None
     del src
-
     # init per volcano processing options:
     volc_options = options.copy()
     volc_options['projection'] = projection
     volc_options['geotransform'] = geotransform
-
     # open volcanoes list for reading:
     volcanoes = open(LIST_VOLCANO, "r")
     # loop through list of volcanoes:
@@ -349,7 +338,6 @@ def process_frame_volcano(options):
     warnings.filterwarnings('ignore', category=matplotlib.cbook.mplDeprecation)
     # register gdal drivers:
     gdal.AllRegister()
-
     # get options for this process:
     frame = options['frame']
     number = options['number']
@@ -363,7 +351,6 @@ def process_frame_volcano(options):
     volcano = options['volcano']
     xv = options['xv']
     yv = options['yv']
-
     ''' in case the clip from 'smaller extent' is a problem, will need to do:
     # choose which DX/DY
     if 'SM' in frame:
@@ -375,18 +362,15 @@ def process_frame_volcano(options):
     '''
     # label for this volcano / frame:
     volc_label = '{0}_{1}'.format(volcano, frame)
-
     # define a log message wrapper which includes lock file:
     def _log_message(message):
         log_message(message, mp_lock=log_lock)
-
     # init results dict:
     volc_out = {
         'tif': 0,
         'png': 0,
         'jpg': 0
     }
-
     # set variables for this volcano / frame:
     dirname = volc_label
     volc_dir = os.path.join(WORKPATH, dirname)
@@ -409,13 +393,11 @@ def process_frame_volcano(options):
         os.mkdir(dirmask)
     if not os.path.exists(direpoch):
         os.mkdir(direpoch)
-
     # min and max x and y coordinates for this volcano / frame:
     xmin = (xv - DX / 2)
     xmax = (xv + DX / 2)
     ymin = (yv - DY / 2)
     ymax = (yv + DY / 2)
-
     # 2a- CREATE THE DEM FILE AND HILL SHADE OF THE CROPPING
     demfile1 = dirname + '_SRTM1_dem.tif'
     demfile2 = dirname + '_SRTM1_resize_dem.tif'
@@ -443,7 +425,6 @@ def process_frame_volcano(options):
         ])
         _log_message('{0} :: DEM RESIZE {1} CREATED'.format(volc_label, demfile2))
         volc_out['tif'] += 1
-
     # 2b- CREATE MASK BASED ON SENTINEL-2
     dirmask_S2 = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/GIS/'
     maskfile_S2 = 'water_mask.tif'
@@ -458,7 +439,6 @@ def process_frame_volcano(options):
         ])
         _log_message('{0} :: MASK {1} CREATED'.format(volc_label, maskfile2))
         volc_out['tif'] += 1
-
     # 2b- CREATE MASK BASED ON DEM FILE
     maskfile = dirname + '_mask_sea.tif'
     output_mask = os.path.join(dirmask, maskfile)
@@ -487,7 +467,6 @@ def process_frame_volcano(options):
         del ds
         _log_message('{0} :: MASK {1} CREATED'.format(volc_label, maskfile))
         volc_out['tif'] += 1
-
     # 3- CROPPING THE TIFF FILE
     for root, dirs, files in chain.from_iterable(
             os.walk(path) for path in paths
@@ -587,7 +566,6 @@ def process_frame_volcano(options):
                     # close the input file:
                     test = None
                     del test
-
     # 3bis- CREATING GACOS TIFF FOR EACH INTERFEROGRAM
     pha_files = [f for f in os.listdir(dirtif) if f.endswith('unw.tif')]
     for file in pha_files:
@@ -624,7 +602,6 @@ def process_frame_volcano(options):
                     '{0} :: CREATING {1} DONE'.format(volc_label, unwcor_file)
                 )
                 volc_out['tif'] += 1
-
     # 4- CREATE THE PNG FILE
     pha_files = [f for f in os.listdir(dirtif) if f.endswith('unw.tif')]
     for file in pha_files:
