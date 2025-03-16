@@ -13,6 +13,13 @@ End_of_Usage
   exit
 fi
 
+# to make smaller:
+# fr1=143A_04800_131313
+# cdpub $fr1;cd metadata
+# gdalwarp -tr 0.001 0.001 $fr1.geo.hgt.tif $fr1.geo.hgt.tif.2.tif
+# rm $fr1.geo.hgt.tif
+# gdal_translate -of GTiff -co COMPRESS=DEFLATE $fr1.geo.hgt.tif.2.tif $fr1.geo.hgt.tif
+# rm $fr1.geo.hgt.tif.2.tif
 frame=$1
 track=`track_from_frame $frame`
 
