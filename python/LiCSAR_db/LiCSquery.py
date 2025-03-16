@@ -625,8 +625,8 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
             "where polygs.polyid_name='{0}' " \
             "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and (files.pol='VV' or files.pol='HH') "\
-            "order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
+            "and (files.pol='VV' or files.pol='HH');".format(frame,t1,t2)  # "\
+            #"order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
     else:
         sql_q = "select distinct files.name from files " \
             "inner join files2bursts on files.fid=files2bursts.fid " \
@@ -634,8 +634,8 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
             "where polygs.polyid_name='{0}' " \
             "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and (files.pol='VV' or files.pol='HH') "\
-            "order by files.name asc;".format(frame,t1,t2)
+            "and (files.pol='VV' or files.pol='HH');".format(frame,t1,t2)  # "\
+            #"order by files.name asc;".format(frame,t1,t2)   # not working in mysql 8
     return do_query(sql_q)
 
 
@@ -658,8 +658,8 @@ def get_frame_files_date(frame,date):
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
         "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
-        "and (pol='VV' or pol='HH')"\
-        "order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
+        "and (pol='VV' or pol='HH');".format(frame,date,date2)  #
+        #"order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
     return do_query(sql_q)
 
 
@@ -692,8 +692,8 @@ def get_burst_no(frame,date):
         "inner join bursts on polygs2bursts.bid=bursts.bid "\
         "where polygs.polyid_name='{0}' " \
         "and date(files.acq_date)='{1}' "\
-        "and (pol='VV' or pol='HH')"\
-        "order by files.acq_date;".format(frame,date)
+        "and (pol='VV' or pol='HH');".format(frame,date) #"\
+        #"order by files.acq_date;".format(frame,date)
     return do_query(sql_q)
 
 
