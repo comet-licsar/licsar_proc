@@ -1240,7 +1240,8 @@ if [ $run_jasmin -eq 1 ]; then
     if [ "$sbovl" -eq 0 ]; then
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ]; then
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=True)\"" >> jasmin_run.sh
+      echo "Note: SET corrections won't be applied to cum_filt"
+      #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=True)\"" >> jasmin_run.sh
     fi
     lbreproc=1
     lbreprocname=$lbreprocname'.noSET'
@@ -1252,8 +1253,8 @@ if [ $run_jasmin -eq 1 ]; then
       echo "Note: iono corrections will be applied to cum_filt only"
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ]; then
-      echo "Note: iono corrections will be applied to cum_filt only"
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
+      echo "Note: iono corrections won't be applied to cum_filt"
+      #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
     fi
     lbreproc=1
     lbreprocname=$lbreprocname'.noiono'
