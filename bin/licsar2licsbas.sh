@@ -711,7 +711,7 @@ if [ "$setides" -gt 0 ]; then
     tide_ext=tide.geo.azi.tif
     else
     extfull=tide.geo.tif
-    tide_ext=tide.geo.azi.tif
+    tide_ext=tide.geo.tif
   fi
   for epochpath in `ls $epochdir/20?????? -d`; do
     epoch=`basename $epochpath`
