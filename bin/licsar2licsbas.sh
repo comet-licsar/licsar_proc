@@ -1236,8 +1236,8 @@ if [ $run_jasmin -eq 1 ]; then
   # so here we have already unwrapped data and we will just post-correct the ramps
   if [ $setides -gt 0 ]; then
     #echo "insert code to post-correct SET here"
-    echo "Note: SET corrections will be applied to cum_filt only"
     if [ "$sbovl" -eq 0 ]; then
+      echo "Note: SET corrections will be applied to cum_filt"
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ]; then
       echo "Note: SET corrections won't be applied to cum_filt"
@@ -1250,7 +1250,7 @@ if [ $run_jasmin -eq 1 ]; then
   if [ "$iono" -gt 0 ]; then
     #echo "insert code to post-correct iono here"
     if [ "$sbovl" -eq 0 ]; then
-      echo "Note: iono corrections will be applied to cum_filt only"
+      echo "Note: iono corrections will be applied to cum_filt"
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ]; then
       echo "Note: iono corrections won't be applied to cum_filt"
