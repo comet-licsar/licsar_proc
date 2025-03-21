@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # this is set of functions developed to get nice AHB paper figures
-import pygmt
+#import pygmt
 import os
 import pandas as pd
 import numpy as np
