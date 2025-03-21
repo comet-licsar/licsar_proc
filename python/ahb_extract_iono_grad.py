@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # this is set of functions developed to get nice AHB paper figures
 import pygmt
 import os
