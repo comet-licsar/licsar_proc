@@ -441,7 +441,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     ilat, ilon, ialt = ecef2latlonhei(x, y, z)
                     
                     if source=='code':
-                        ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon)
+                        ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon, method='linear')
                     elif source=='iri':
                         ionoij = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]  ##why sat_alt_km rather than ialt? MN
                         
@@ -514,8 +514,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
         
                     if source=='code':
                         # print('code selected')
-                        ionoijA = get_vtec_from_tecxr(tecxr, acqtime, PippA.latitude_deg, PippA.longitude_deg)
-                        ionoijB = get_vtec_from_tecxr(tecxr, acqtime, PippB.latitude_deg, PippB.longitude_deg)
+                        ionoijA = get_vtec_from_tecxr(tecxr, acqtime, PippA.latitude_deg, PippA.longitude_deg, method='cubic')  ##cubic in space, linear in time
+                        ionoijB = get_vtec_from_tecxr(tecxr, acqtime, PippB.latitude_deg, PippB.longitude_deg, method='cubic')
                     else:
                         # print('iri selected')
                         ionoijA = get_tecs(PippA.latitude_deg, PippA.longitude_deg, sat_alt_km, [acqtime], False, source=source)[0]  ##TODO ask Milan why we set the sat_alt_km rather than ipp_alt when we apply IRI model? it select IPP itself?
