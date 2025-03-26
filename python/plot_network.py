@@ -207,6 +207,9 @@ if not os.path.exists(bperp_file):
     import framecare as fc
     frame = os.path.basename(framedir)
     bpd = fc.make_bperp_file(frame, bperp_file, donotstore=False)
+else:
+    # horrible fix but seems necessary...
+    rc = os.system("sed -i 's/\.0//g' "+bperp_file)
 #    print('Make dummy bperp')
 #    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
 #    io_lib.make_dummy_bperp(bperp_file, imdates)
