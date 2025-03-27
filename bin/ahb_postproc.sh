@@ -60,7 +60,7 @@ else
   fi
 fi
 # regenerate every time (assuming changes only in mask?)
-for prd in vel.mskd vel_filt vel_filt.mskd; do
+for prd in vel.mskd vel.filt vel.filt.mskd; do
    if [ $ovr -gt 0 ]; then
  echo "... geotiffing "$prd
  LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $ahbdir/$frame.$prd.geo.tif >/dev/null 2>/dev/null
