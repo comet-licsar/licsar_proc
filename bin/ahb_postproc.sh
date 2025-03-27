@@ -92,7 +92,7 @@ if [ ! -f $outprd ]; then
  cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
 fi
 #
-echo "... copying cum.h5 file, EQA par etc"
+echo "... checking and copying cum.h5 file, EQA par etc as needed"
 if [ $ovr -gt 0 ]; then
 cp TS_$geocd/mask_ts.png $ahbdir/$frame'_mask_ts.png'
 cp TS_$geocd/network/network13.png $ahbdir/$frame'_network.png'
