@@ -129,6 +129,75 @@ exit
 
 below are comments to the other things:
 
+##### how to properly merge:
+for fr in ????_?????_??????; do
+  echo $fr
+  cd $fr
+  if [ ! -f $fr.vel.geo.tif ]; then echo $fr >> ../noveltif; else
+  for x in iono tide gacos; do
+    if [ -f $fr.$x.vel.tif ]; then
+      if [ ! -f $fr.$x.vel.ok.tif ]; then
+    gmt grdmath $fr.$x.vel.tif 0 DENAN $fr.vel.geo.tif 0 DENAN 0 NAN ISFINITE MUL 0 NAN = $fr.$x.vel.ok.tif=gd:GTiff
+    fi; fi;
+  done
+  fi
+  cd /gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/AHB
+done
+# this would nanify values from ionovel where vel is 0 or nan
+
+
+## how to do in jobs (run for iono where needed)
+for x in ????_?????_??????; do
+  if [ ! -f $x/$x.iono.vel.tif ]; then echo $x; cd $x;
+  bsub2slurm.sh  -q short-serial -M 16384 -o ionolotus.o -e ionolotus.e /gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/AHB/Milan/doinslurm.sh $x.cum.h5 $x;
+  cd /gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/AHB;
+  fi;
+done
+
+# fixing cumfilt from yma:
+for fr in 153D_04699_131413 167D_05077_131313 175A_04990_131313; do cd $fr;
+mv $fr.cum.h5 backup.h5; mv cum_filt.h5 $fr.cum.h5;
+ionoveltif=$fr.iono.vel.tif
+if [ ! -f $ionoveltif ]; then
+ eqa=`ls *EQA.dem_par | head -n 1`
+ eqaok=$fr.EQA.dem_par
+ if [ $eqa != $eqaok ]; then mv $eqa $eqaok; fi
+if [ -f $eqaok ]; then
+ epochsdir=$LiCSAR_public/`track_from_frame $fr`/$fr/epochs
+ cumh=`ls *cum.h5 | head -n 1`
+ cumhok=$fr.cum.h5
+ if [ $cumh != $cumhok ]; then mv $cumh $cumhok; fi
+ if [ ! -f $cumhok ]; then echo $fr >> ../missingionoset.rights; else
+  # permissions
+  chmod 775 $cumhok 2>/dev/null
+  if [ `ls -alh $cumhok | cut -c 6` != 'w' ]; then
+   echo "changing ownership"
+   gwschown -n --no-warn earmla $cumhok >/dev/null 2>/dev/null
+   gwschown --no-warn earmla $cumhok
+   chmod 775 $cumhok
+  fi
+  python3 -c "from lics_tstools import *; correct_cum_from_tifs('"$cumhok"', '"$epochsdir"', 'tide.geo.tif', 1000, directcorrect = False)"
+  python3 -c "from lics_tstools import *; correct_cum_from_tifs('"$cumhok"', '"$epochsdir"', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False)"
+  if [ ! -f $fr.gacos.vel.tif ]; then
+    python3 -c "from lics_tstools import *; correct_cum_from_tifs('"$cumhok"', '"$epochsdir"', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, newcumname = 'gacos')"
+    LiCSBAS_cum2vel.py --datavar gacos -i $cumhok -o gacos;
+    LiCSBAS_flt2geotiff.py -i gacos.vel -p $eqaok -o $fr.gacos.vel.tif
+  fi
+  LiCSBAS_cum2vel.py --datavar iono -i $cumhok -o iono
+  LiCSBAS_flt2geotiff.py -i iono.vel -p $eqaok -o $ionoveltif
+  LiCSBAS_cum2vel.py --datavar tide -i $cumhok -o tide
+  LiCSBAS_flt2geotiff.py -i tide.vel -p $eqaok -o $fr.tide.vel.tif
+
+ fi
+else
+ echo $fr >> ../missingionoset.noeqa
+fi
+fi
+
+mv $fr.cum.h5 cum_filt.h5; mv backup.h5 $fr.cum.h5;
+cd ..
+done
+
 fr=''  # set the frame ID – this frame must be already inside the $LiCSAR_public/AHB directory
 import lics_unwrap as lu
 import glob, os
@@ -147,3 +216,51 @@ elif not os.path.exists(checkerf):
             outfile=os.path.join(outdir, fr, fr+'.'+tc+'.geo.tif')
             xrda = lu.get_ml_hgt(infile, ml)
             lu.export_xr2tif(xrda, outfile, lonlat = True, dogdal = True, refto = outveltif)
+
+
+
+#!/usr/bin/env python
+
+import os
+from pwd import getpwuid
+import lics_unwrap as lu
+import pandas as pd
+
+def find_owner(filename):
+    return getpwuid(os.stat(filename).st_uid).pw_name
+
+
+def fix_enus(fr, ml=10, onlyrights=False):
+    tr=str(int(fr[:3]))
+    outdir='/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/AHB'
+    outveltif=os.path.join(outdir, fr, fr+'.vel_filt.mskd.eurasia.geo.tif')
+    if not os.path.exists(outveltif):
+        print(fr+' not ready')
+        rc = os.system('echo '+fr+' >> enusredo3.txt')
+    else:
+        for tc in ['E','N','U','hgt']:
+            infile = os.path.join(os.environ['LiCSAR_public'], tr, fr[:17], 'metadata', fr[:17]+'.geo.'+tc+'.tif')
+            outfile=os.path.join(outdir, fr, fr+'.'+tc+'.geo.tif')
+            if onlyrights:
+                if find_owner(outfile) != 'earmla':
+                    #rc = os.system('gwschown --no-warn earmla '+outfile)
+                    cmd='gwschown --no-warn earmla '+outfile
+                    print(cmd)
+            else:
+                rc = os.system('chmod 777 '+outfile)
+            if not onlyrights:
+                xrda = lu.get_ml_hgt(infile, ml)
+                lu.export_xr2tif(xrda, outfile, lonlat = True, dogdal = True, refto = outveltif)
+                rc = os.system('chmod 444 '+outfile)
+
+
+#testf='/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/AHB/173A_04952_131313/173A_04952_131313.E.geo.tif'
+#os.system('gwschown -n --no-warn earmla '+testf)
+f='enusredo.txt'
+a=pd.read_csv(f,header=None)
+frames = list(a[0].values)
+for fr in frames:
+    #print(fr)
+    fix_enus(fr, onlyrights=True)
+
+    173A_04952_131313
