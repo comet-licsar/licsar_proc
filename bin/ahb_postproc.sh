@@ -25,7 +25,7 @@ fi
 geocd=$1
 frame=$2
 outframe=`pwd | rev | cut -d '/' -f 1 | rev` # will solve the '_2' etc naming
-#if [ -z $frame ]; then frame=$outf`pwd | rev | cut -d '/' -f 1 | rev`; echo "assuming frame "$frame; fi
+# if [ -z $frame ]; then frame=$outf`pwd | rev | cut -d '/' -f 1 | rev`; echo "assuming frame "$frame; fi
 ahbdir=$LiCSAR_public/AHB/$outframe
 
 if [ ! -d $ahbdir ]; then echo "ERROR, this directory does not exist: "$ahbdir; exit; fi
