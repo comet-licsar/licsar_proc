@@ -1,12 +1,13 @@
 #!/bin/bash
 
 if [ -z $1 ]; then
- echo "Usage: ahb_postproc.sh FINALGEOCDIR frameID"
- echo "e.g.:  ahb_postproc.sh GEOCml10GACOSmask 155D_02611_050400"
+ echo "Usage: ahb_postproc.sh FINALGEOCDIR frameID [ovrflag]"
+ echo "e.g.:  ahb_postproc.sh GEOCml10GACOSmask 155D_02611_050400 1"
  echo "This script will perform extra processing and copying of outputs after finished LiCSBAS processing" # licsar2licsbas.sh"
  echo "PLEASE run it inside your frame directory (where you have GEOCmlX and TS_GEOCmlX directories)"
  echo "frameID MUST BE PROVIDED - please use the WHOLE FRAME ID as in LiCSAR. If you have the $frame'_2' etc and you are in such named folder, it will auto-identify it"
  echo "the FINALGEOCDIR must be the last one, for which you have TS_... folder existing"
+ echo "please add '1' (as ovrflag) if you HAVE UPDATED MASK (and processed with step 16) to OVERWRITE EXISTING in AHB folder"
  #echo "parameters: GEOCDIR frameID"
  #echo "e.g. GEOCml10GACOSmask 155D_02611_050400"
  echo "--------"
@@ -24,6 +25,7 @@ fi
 
 geocd=$1
 frame=$2
+ovr=0
 outframe=`pwd | rev | cut -d '/' -f 1 | rev` # will solve the '_2' etc naming
 if [ -z $frame ]; then echo "please provide the frame ID"; exit; fi
 #frame=$outf`pwd | rev | cut -d '/' -f 1 | rev`; echo "assuming frame "$frame; fi
@@ -46,14 +48,31 @@ echo $ahbdir
 echo "----------"
 echo "Regenerating all required geotiffs (and copying/renaming pngs) directly to the AHB folder"
 #if [ ! -f $frame.vstd_scaled.geo.tif ]; then
+if [ $ovr -gt 0 ]; then
  echo "... eurasia-fixing and vstd fixing"
  LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$frame.vel_filt.mskd.eurasia.geo.tif --vstd_fix >/dev/null 2>/dev/null
  cp TS_$geocd/results/vstd_scaled.tif $ahbdir/$frame.vstd_scaled.geo.tif
+else
+  if [ ! -f $ahbdir/$frame.vstd_scaled.geo.tif ]; then
+    echo "... eurasia-fixing and vstd fixing"
+    LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$frame.vel_filt.mskd.eurasia.geo.tif --vstd_fix >/dev/null 2>/dev/null
+    cp TS_$geocd/results/vstd_scaled.tif $ahbdir/$frame.vstd_scaled.geo.tif
+  fi
+fi
 # regenerate every time (assuming changes only in mask?)
 for prd in vel.mskd vel_filt vel_filt.mskd; do
+   if [ $ovr -gt 0 ]; then
  echo "... geotiffing "$prd
  LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $ahbdir/$frame.$prd.geo.tif >/dev/null 2>/dev/null
  cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
+   else
+     outprd=$ahbdir/$frame.$prd.geo.tif
+    if [ ! -f $outprd ]; then
+     echo "... geotiffing "$prd
+     LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd >/dev/null 2>/dev/null
+     cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
+    fi
+   fi
 done
 # regenerate only if not existing:
 for prd in coh_avg vstd loop_ph_avg_abs n_unw; do
@@ -74,10 +93,17 @@ if [ ! -f $outprd ]; then
 fi
 #
 echo "... copying cum.h5 file, EQA par etc"
+if [ $ovr -gt 0 ]; then
 cp TS_$geocd/mask_ts.png $ahbdir/$frame'_mask_ts.png'
 cp TS_$geocd/network/network13.png $ahbdir/$frame'_network.png'
 cp TS_$geocd/cum.h5  $ahbdir/$frame.cum.h5
-cp $eqapar $ahbdir/$frame.EQA.dem_par
+fi
+if [ ! -f $ahbdir/$frame.EQA.dem_par ]; then
+ cp $eqapar $ahbdir/$frame.EQA.dem_par
+fi
+if [ ! -f $ahbdir/$frame.cum.h5 ]; then
+ cp TS_$geocd/cum.h5 $ahbdir/$frame.cum.h5
+fi
 echo ""
 # nah, we will instead downsample the original ENUs and hgt + apply gdalwarp2match.py - I will do it (Milan)
 #for x in U E N hgt; do
