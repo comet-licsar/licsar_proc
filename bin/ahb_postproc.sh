@@ -30,13 +30,13 @@ ahbdir=$LiCSAR_public/AHB/$outframe
 
 if [ ! -d $ahbdir ]; then echo "ERROR, this directory does not exist: "$ahbdir; exit; fi
 
-if [ ! -d TS_$geocd/cum_filt.h5 ]; then
+if [ ! -f TS_$geocd/cum_filt.h5 ]; then
   echo "Seems results do not exist here: TS_"$geocd
   echo "Cancelling"
   exit
 fi
 
-eqapar=$geocd/EQA.dem_par
+eqapar='TS_'$geocd/info/EQA.dem_par
 if [ ! -f $eqapar ]; then echo "ERROR, this file does not exist - please fix:"; echo $eqapar; exit; fi
 
 echo "Processing frame "$frame
