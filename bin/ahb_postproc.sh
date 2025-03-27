@@ -47,12 +47,12 @@ echo "----------"
 echo "Regenerating all required geotiffs (and copying/renaming pngs) directly to the AHB folder"
 #if [ ! -f $frame.vstd_scaled.geo.tif ]; then
  echo "... eurasia-fixing and vstd fixing"
- LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$frame.vel_filt.mskd.eurasia.geo.tif --vstd_fix
+ LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$frame.vel_filt.mskd.eurasia.geo.tif --vstd_fix >/dev/null 2>/dev/null
  cp TS_$geocd/results/vstd_scaled.tif $ahbdir/$frame.vstd_scaled.geo.tif
 # regenerate every time (assuming changes only in mask?)
 for prd in vel.mskd vel_filt vel_filt.mskd; do
  echo "... geotiffing "$prd
- LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $ahbdir/$frame.$prd.geo.tif
+ LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $ahbdir/$frame.$prd.geo.tif >/dev/null 2>/dev/null
  cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
 done
 # regenerate only if not existing:
@@ -60,7 +60,7 @@ for prd in coh_avg vstd loop_ph_avg_abs n_unw; do
 outprd=$ahbdir/$frame.$prd.geo.tif
 if [ ! -f $outprd ]; then
  echo "... geotiffing "$prd
- LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd
+ LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd >/dev/null 2>/dev/null
  cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
 fi
 done
@@ -69,7 +69,7 @@ prd=`ls TS_$geocd/results/coh_avg_* | head -n 1 | rev | cut -d '/' -f 1 | rev | 
 outprd=$ahbdir/$frame.$prd.geo.tif
 if [ ! -f $outprd ]; then
  echo "... geotiffing "$prd
- LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd
+ LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd >/dev/null 2>/dev/null
  cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
 fi
 #
