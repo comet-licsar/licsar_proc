@@ -50,59 +50,59 @@ echo "Regenerating all required geotiffs (and copying/renaming pngs) directly to
 #if [ ! -f $frame.vstd_scaled.geo.tif ]; then
 if [ $ovr -gt 0 ]; then
  echo "... eurasia-fixing and vstd fixing"
- LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$frame.vel_filt.mskd.eurasia.geo.tif --vstd_fix >/dev/null 2>/dev/null
- cp TS_$geocd/results/vstd_scaled.tif $ahbdir/$frame.vstd_scaled.geo.tif
+ LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$outframe.vel_filt.mskd.eurasia.geo.tif --vstd_fix >/dev/null 2>/dev/null
+ cp TS_$geocd/results/vstd_scaled.tif $ahbdir/$outframe.vstd_scaled.geo.tif
 else
-  if [ ! -f $ahbdir/$frame.vstd_scaled.geo.tif ]; then
+  if [ ! -f $ahbdir/$outframe.vstd_scaled.geo.tif ]; then
     echo "... eurasia-fixing and vstd fixing"
-    LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$frame.vel_filt.mskd.eurasia.geo.tif --vstd_fix >/dev/null 2>/dev/null
-    cp TS_$geocd/results/vstd_scaled.tif $ahbdir/$frame.vstd_scaled.geo.tif
+    LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $ahbdir/$outframe.vel_filt.mskd.eurasia.geo.tif --vstd_fix >/dev/null 2>/dev/null
+    cp TS_$geocd/results/vstd_scaled.tif $ahbdir/$outframe.vstd_scaled.geo.tif
   fi
 fi
 # regenerate every time (assuming changes only in mask?)
 for prd in vel.mskd vel.filt vel.filt.mskd; do
    if [ $ovr -gt 0 ]; then
  echo "... geotiffing "$prd
- LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $ahbdir/$frame.$prd.geo.tif >/dev/null 2>/dev/null
- cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
+ LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $ahbdir/$outframe.$prd.geo.tif >/dev/null 2>/dev/null
+ cp TS_$geocd/results/$prd.png $ahbdir/$outframe.$prd.png
    else
-     outprd=$ahbdir/$frame.$prd.geo.tif
+     outprd=$ahbdir/$outframe.$prd.geo.tif
     if [ ! -f $outprd ]; then
      echo "... geotiffing "$prd
      LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd >/dev/null 2>/dev/null
-     cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
+     cp TS_$geocd/results/$prd.png $ahbdir/$outframe.$prd.png
     fi
    fi
 done
 # regenerate only if not existing:
 for prd in coh_avg vstd loop_ph_avg_abs n_unw; do
-outprd=$ahbdir/$frame.$prd.geo.tif
+outprd=$ahbdir/$outframe.$prd.geo.tif
 if [ ! -f $outprd ]; then
  echo "... geotiffing "$prd
  LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd >/dev/null 2>/dev/null
- cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
+ cp TS_$geocd/results/$prd.png $ahbdir/$outframe.$prd.png
 fi
 done
 # coh_avg_XX - some are already generated... maybe only 24 days??
 prd=`ls TS_$geocd/results/coh_avg_* | head -n 1 | rev | cut -d '/' -f 1 | rev | cut -d '.' -f 1`
-outprd=$ahbdir/$frame.$prd.geo.tif
+outprd=$ahbdir/$outframe.$prd.geo.tif
 if [ ! -f $outprd ]; then
  echo "... geotiffing "$prd
  LiCSBAS_flt2geotiff.py -i TS_$geocd/results/$prd -p $eqapar -o $outprd >/dev/null 2>/dev/null
- cp TS_$geocd/results/$prd.png $ahbdir/$frame.$prd.png
+ cp TS_$geocd/results/$prd.png $ahbdir/$outframe.$prd.png
 fi
 #
 echo "... checking and copying cum.h5 file, EQA par etc as needed"
 if [ $ovr -gt 0 ]; then
-cp TS_$geocd/mask_ts.png $ahbdir/$frame'_mask_ts.png'
-cp TS_$geocd/network/network13.png $ahbdir/$frame'_network.png'
-cp TS_$geocd/cum.h5  $ahbdir/$frame.cum.h5
+cp TS_$geocd/mask_ts.png $ahbdir/$outframe'_mask_ts.png'
+cp TS_$geocd/network/network13.png $ahbdir/$outframe'_network.png'
+cp TS_$geocd/cum.h5  $ahbdir/$outframe.cum.h5
 fi
-if [ ! -f $ahbdir/$frame.EQA.dem_par ]; then
- cp $eqapar $ahbdir/$frame.EQA.dem_par
+if [ ! -f $ahbdir/$outframe.EQA.dem_par ]; then
+ cp $eqapar $ahbdir/$outframe.EQA.dem_par
 fi
-if [ ! -f $ahbdir/$frame.cum.h5 ]; then
- cp TS_$geocd/cum.h5 $ahbdir/$frame.cum.h5
+if [ ! -f $ahbdir/$outframe.cum.h5 ]; then
+ cp TS_$geocd/cum.h5 $ahbdir/$outframe.cum.h5
 fi
 echo ""
 # nah, we will instead downsample the original ENUs and hgt + apply gdalwarp2match.py - I will do it (Milan)
