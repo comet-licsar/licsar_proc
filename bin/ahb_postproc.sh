@@ -137,7 +137,16 @@ for fr in ????_?????_??????; do
   for x in iono tide gacos; do
     if [ -f $fr.$x.vel.tif ]; then
       if [ ! -f $fr.$x.vel.ok.tif ]; then
-    gmt grdmath $fr.$x.vel.tif 0 DENAN $fr.vel.geo.tif 0 DENAN 0 NAN ISFINITE MUL 0 NAN = $fr.$x.vel.ok.tif=gd:GTiff
+        toref=$fr.vel.geo.tif
+        if [ ! -f $toref ]; then
+          toref=$fr.coh_avg.geo.tif
+        fi
+        if [ ! -f $toref ]; then
+          toref=$fr.vstd_scaled.geo.tif
+        fi
+      if [ -f $toref ]; then
+       gmt grdmath $fr.$x.vel.tif 0 DENAN $toref 0 DENAN 0 NAN ISFINITE MUL 0 NAN = $fr.$x.vel.ok.tif=gd:GTiff
+      fi
     fi; fi;
   done
   fi
