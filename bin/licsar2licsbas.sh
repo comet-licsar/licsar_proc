@@ -733,6 +733,15 @@ if [ "$iono" -gt 0 ]; then
   if [ "$sbovl" -gt 0 ]; then
     echo "checking/generating ionospheric correction data in azimuth"
     python3 -c "from iono_correct import *; make_all_frame_epochs('$frame', startdate='$startdate', enddate='$enddate', sbovl=True)"
+    ## Check if scaling factor file exists
+    if ls "$metadir"/*geo.sbovl_scaling.tif 1> /dev/null 2>&1; then
+      echo "Scaling factor exists."
+    else
+      echo "Scaling factor missing. Running Python script..."
+      cd GEOC ##we need to be in GEOC to run the script
+      scaling_factor_sbovl.py ## This script will create the scaling factor file
+      cd $workdir ##then come back to the working directory
+    fi
   else
     echo "checking/generating ionospheric correction data in range"
     python3 -c "from iono_correct import *; make_all_frame_epochs('$frame')" #TODO:We can put the startdate and enddate here as well.
@@ -840,7 +849,7 @@ if [ "$iono" -gt 0 ]; then
 	# 	 outext=$extofproc.noiono
 	#  fi
    
-   ## Check if scaling factor file exists
+   ## Check if scaling factor file exists ##TODO as we pass the iono and SET correction before inversion here is skipped, so I need to put that earlier step.
    if ls "$metadir"/*geo.sbovl_scaling.tif 1> /dev/null 2>&1; then
      echo "Scaling factor exists."
    else
@@ -1274,7 +1283,8 @@ if [ $storeext2cube -gt 0 ]; then
     if [ "$sbovl" -eq 0 ]; then
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ]; then
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+      #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+      echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
     fi
   fi
 
@@ -1283,7 +1293,8 @@ if [ $storeext2cube -gt 0 ]; then
     if [ "$sbovl" -eq 0 ]; then
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ]; then
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+      #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+      echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
     fi
   fi
 
@@ -1342,3 +1353,4 @@ else
 fi
 
 cd $thisdir
+
