@@ -29,16 +29,16 @@ while read day; do
     #echo "Extract rslc.par for $day"
     ## Extract only rslc.par file
     #par=`7za l RSLC/${day}.7z | grep rslc.par | head -n1 | rev | gawk {'print $1'} | rev`
-    #7za x '-i!????????/????????.rslc.par' -o$tmpdir RSLC/${day}.7z >/dev/null 2>/dev/null
-    7za x -o$tmpdir RSLC/${day}.7z $par >/dev/null 2>/dev/null
+    #7za -mmt=1 x '-i!????????/????????.rslc.par' -o$tmpdir RSLC/${day}.7z >/dev/null 2>/dev/null
+    7za -mmt=1 x -o$tmpdir RSLC/${day}.7z $par >/dev/null 2>/dev/null
     if [ `wc -l $tmpdir/$par | gawk {'print $1'}` -eq 0 ]; then
      echo "error with "$par
      par2="$day/${day}.rslc.par"
-     7za x -o$tmpdir RSLC/${day}.7z $par2 >/dev/null 2>/dev/null
+     7za -mmt=1 x -o$tmpdir RSLC/${day}.7z $par2 >/dev/null 2>/dev/null
      if [ `wc -l $tmpdir/$par2 | gawk {'print $1'}` -eq 0 ]; then
       echo "error with "$par2
       par2="$day/${day}.IW3.rslc.par"
-      7za x -o$tmpdir RSLC/${day}.7z $par2 >/dev/null 2>/dev/null
+      7za -mmt=1 x -o$tmpdir RSLC/${day}.7z $par2 >/dev/null 2>/dev/null
      fi
      mv $par2 $par
     fi
