@@ -37,34 +37,35 @@ cmd='sbatch '
 addedextrapost=''
 addedextrapre=''
 v=0
-lotusversion=1
+# 2025-03-31 - all machines now use LOTUS2
+lotusversion=2
 #if [ `hostname` == 'host839.jc.rl.ac.uk' ]; then
-if [[ "host839.jc.rl.ac.uk host838.jc.rl.ac.uk cron-01.jasmin.ac.uk" =~ `hostname` ]]; then
-  echo "using LOTUS2"
-  lotusversion=2
-  qos='standard'
-  hours=0
-fi
+#if [[ "host839.jc.rl.ac.uk host838.jc.rl.ac.uk cron-01.jasmin.ac.uk" =~ `hostname` ]]; then
+#  echo "using LOTUS2"
+#  lotusversion=2
+qos='standard'
+hours=0
+#fi
 
 while true; do
     case "$1" in
         -q)
-            if [ $lotusversion -gt 1 ]; then
+            #if [ $lotusversion -gt 1 ]; then
               if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ] || [ $2 == 'comet_responder' ]; then
                 cmd=$cmd' --account=comet_lics'
               else
                 cmd=$cmd' --account=nceo_geohazards'
               fi
-            else
-              cmd=$cmd' -p '"$2"
-              if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ]; then
-  #             cmd=$cmd' --account=cpom-comet'
-                cmd=$cmd' --account=comet --partition=comet'
-              fi
-              if [ $2 == 'comet_responder' ]; then
-               cmd=$cmd' --account=comet --partition=comet_responder'
-              fi
-            fi
+            #else
+            #  cmd=$cmd' -p '"$2"
+            #  if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ]; then
+  #         #    cmd=$cmd' --account=cpom-comet'
+            #    cmd=$cmd' --account=comet --partition=comet'
+            #  fi
+            #  if [ $2 == 'comet_responder' ]; then
+            #   cmd=$cmd' --account=comet --partition=comet_responder'
+            #  fi
+            #fi
             shift 2
             ;;
         -W)
@@ -176,7 +177,7 @@ while true; do
     esac
 done
 
-if [ $lotusversion -gt 1 ]; then
+#if [ $lotusversion -gt 1 ]; then
   if [ $qos == 'standard' ]; then
     if [ $hours -gt 47 ]; then
       qos='long';
@@ -187,7 +188,7 @@ if [ $lotusversion -gt 1 ]; then
     fi
   fi
   cmd=$cmd' --partition='$qos' --qos='$qos
-fi
+#fi
 
 if [ $v == 1 ]; then
  echo $cmd
