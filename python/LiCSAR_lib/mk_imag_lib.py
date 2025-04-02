@@ -222,9 +222,9 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='i
             # unzipcall = [ 'jar', '-xf', f[1] + '.zip' ]
             # unzipcall = [ 'unzip', f[1] + '.zip' ]
             if test_crosspol:
-                unzipcall = [ '7za', 'x', '-xr!*vv*', '-xr!*hh*', f[1] + '.zip' ]
+                unzipcall = [ '7za', '-mmt=4', 'x', '-xr!*vv*', '-xr!*hh*', f[1] + '.zip' ]
             else:
-                unzipcall = [ '7za', 'x', '-xr!*vh*', '-xr!*hv*', f[1] + '.zip' ]
+                unzipcall = [ '7za', '-mmt=4', 'x', '-xr!*vh*', '-xr!*hv*', f[1] + '.zip' ]
             try:
                 rc = subp.check_call( unzipcall )
             except subp.CalledProcessError:
