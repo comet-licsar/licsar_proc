@@ -301,7 +301,7 @@ cat << EOF >> $kmlfile
 </kml>
 EOF
 
-7za a $outfilee.zip logos $tododirs $kmlfile >/dev/null 2>/dev/null
+7za -mmt=4 a $outfilee.zip logos $tododirs $kmlfile >/dev/null 2>/dev/null
 mv $outfilee.zip $outfilee.kmz
 
 
