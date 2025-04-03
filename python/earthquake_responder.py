@@ -512,8 +512,8 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
                 os.system('create_kmz.sh {0} {1} 1'.format(os.path.join(products_path,pifg), frame))
             if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
                 print('some error happened during KMZ generation of '+pifg)
-            else:
-                selected_ifgs.append(pifg)
+                print('(but adding to the list anyway..')
+            selected_ifgs.append(pifg)
         # adding preseismic ifg
         if is_preseismic:
             # do only short ifg, or two
