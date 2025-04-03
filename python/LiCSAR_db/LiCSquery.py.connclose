@@ -171,7 +171,7 @@ def check_frame(frame):
 
 def geom_from_polygs2geom(frame):
     polyid = get_frame_polyid(frame)[0][0]
-    sql_q = "select AsText(geom) from polygs2gis where polyid={0}".format(polyid)
+    sql_q = "select ST_AsText(geom) from polygs2gis where polyid={0}".format(polyid)
     return do_query(sql_q)[0][0]  #.decode('UTF-8')  --- this is needed in case of bit older version of MySQL
 
 def get_polygon_from_bidtanx(bidtanx):

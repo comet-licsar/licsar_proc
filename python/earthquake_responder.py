@@ -173,7 +173,7 @@ def update_eq_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/
 
 
 def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv'):
-    query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
+    query = "select p.polyid_name as frame, ST_aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
         from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg  \
         on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid"
     e2f = lq.do_pd_query(query)
@@ -272,7 +272,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     #query = "select pg.geom from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg on pg.polyid=e2f.fid where eq.USGS_ID='{0}' and e2f.fid={1};".format(eventid, str(fid))
     #query = "select pg.geom,e2f.fid from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg on pg.polyid=e2f.fid where eq.USGS_ID='{0}'".format(eventid)
     #query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
-    query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
+    query = "select p.polyid_name as frame, ST_aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
         from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg  \
         on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid where eq.USGS_ID='{0}'".format(eventid)
         #this is the original query... it would not ingest frames that fail in the beginning (copy from CEDA or initialisation). now keeping all identified frames..
