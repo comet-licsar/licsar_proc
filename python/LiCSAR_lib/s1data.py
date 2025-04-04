@@ -2,7 +2,7 @@
 
 import os
 import datetime as dt
-from sentinelsat.sentinel import SentinelAPI
+# from sentinelsat.sentinel import SentinelAPI # this was beautiful toolbox, sadly changed to CDSE..
 import re
 import pandas as pd
 import requests
