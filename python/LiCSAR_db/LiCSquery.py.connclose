@@ -611,9 +611,9 @@ def store_frame_geometry(frameid, wkt):
         return None
     is_in_geom = is_in_polygs2geom(frameid)
     if is_in_geom > 0:
-        sql_q = "UPDATE polygs2gis set geom=GeomFromText('{0}') where polyid={1}".format(wkt,str(polyid))
+        sql_q = "UPDATE polygs2gis set geom=ST_GeomFromText('{0}') where polyid={1}".format(wkt,str(polyid))
     else:
-        sql_q = "INSERT INTO polygs2gis VALUES ({0}, GeomFromText('{1}'));".format(str(polyid), wkt)
+        sql_q = "INSERT INTO polygs2gis VALUES ({0}, ST_GeomFromText('{1}'));".format(str(polyid), wkt)
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
     return res
