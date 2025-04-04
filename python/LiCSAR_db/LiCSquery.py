@@ -1305,7 +1305,7 @@ def get_daz(polyid, epoch, getall = False):
 
 
 def delete_esds_for_frame(frame, epoch = None, test=True):
-    """In case of removing a frame, ensure the esd values are also purged.
+    """ In case of removing a frame, ensure the esd values are also purged.
     (by default, if epoch already exists in esd database, it would not be overwritten)
     
     Args:
@@ -1326,7 +1326,7 @@ def delete_esds_for_frame(frame, epoch = None, test=True):
 
 
 def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = False):
-    """Function to import ESD (etc.) values to the database
+    """ Function to import ESD (etc.) values to the database
     
     Args:
         frame (str): 	frame ID
