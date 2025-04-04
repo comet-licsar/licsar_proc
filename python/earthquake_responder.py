@@ -42,7 +42,7 @@ eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
                    21,24,28,32,36,42,48,55,63,73, \
                    83,96,110,127,146,168,193,222,250,250, \
                    250, 250, 250, 250, 250]}
-eq_limits = pd.DataFrame(eq_data, columns = {'magnitude', 'distance', 'depth'})
+eq_limits = pd.DataFrame(eq_data, columns = ['magnitude', 'distance', 'depth'])
 
 
 
