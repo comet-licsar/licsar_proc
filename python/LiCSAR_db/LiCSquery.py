@@ -362,7 +362,7 @@ def check_frame(frame):
 
 def geom_from_polygs2geom(frame):
     polyid = get_frame_polyid(frame)[0][0]
-    sql_q = "select AsText(geom) from polygs2gis where polyid={0}".format(polyid)
+    sql_q = "select ST_AsText(geom) from polygs2gis where polyid={0}".format(polyid)
     return do_query(sql_q)[0][0]  #.decode('UTF-8')  --- this is needed in case of bit older version of MySQL
 
 def get_polygon_from_bidtanx(bidtanx):
@@ -989,9 +989,9 @@ def store_frame_geometry(frameid, wkt):
         return None
     is_in_geom = is_in_polygs2geom(frameid)
     if is_in_geom > 0:
-        sql_q = "UPDATE polygs2gis set geom=GeomFromText('{0}') where polyid={1}".format(wkt,str(polyid))
+        sql_q = "UPDATE polygs2gis set geom=ST_GeomFromText('{0}') where polyid={1}".format(wkt,str(polyid))
     else:
-        sql_q = "INSERT INTO polygs2gis VALUES ({0}, GeomFromText('{1}'));".format(str(polyid), wkt)
+        sql_q = "INSERT INTO polygs2gis VALUES ({0}, ST_GeomFromText('{1}'));".format(str(polyid), wkt)
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
     return res
@@ -1044,10 +1044,10 @@ def store_volcano_to_db(volcid, name, lat, lon, alt, priority = None):
     name = name.replace("'"," ")
     name = name.replace('"'," ")
     if priority:
-        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, priority, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, '{5}', GeomFromText('POINT {3} {2}'));".format(
+        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, priority, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, '{5}', ST_GeomFromText('POINT {3} {2}'));".format(
                                 str(volcid), str(name), str(lat), str(lon), str(alt), str(priority))
     else:
-        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, GeomFromText('POINT {3} {2}'));".format(
+        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, ST_GeomFromText('POINT {3} {2}'));".format(
                                 str(volcid), str(name), str(lat), str(lon), str(alt))
     res = do_query(sql_q, True)
     time.sleep(0.25)
@@ -1059,7 +1059,7 @@ def store_burst_geom(s1bid, iw, relorb, tanx, opass, wkt, checkisin = False):
         is_in_geom = is_in_bursts2geom(s1bid, iw)
         if is_in_geom != 0:
             return False
-    sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', GeomFromText('{5}'));".format(str(s1bid), 
+    sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', ST_GeomFromText('{5}'));".format(str(s1bid),
                                 str(iw), str(relorb), str(tanx), opass, wkt)
     res = do_query(sql_q, True)
     time.sleep(0.25)
@@ -1305,7 +1305,7 @@ def get_daz(polyid, epoch, getall = False):
 
 
 def delete_esds_for_frame(frame, epoch = None, test=True):
-    """In case of removing a frame, ensure the esd values are also purged.
+    """ In case of removing a frame, ensure the esd values are also purged.
     (by default, if epoch already exists in esd database, it would not be overwritten)
     
     Args:
@@ -1326,7 +1326,7 @@ def delete_esds_for_frame(frame, epoch = None, test=True):
 
 
 def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = False):
-    """Function to import ESD (etc.) values to the database
+    """ Function to import ESD (etc.) values to the database
     
     Args:
         frame (str): 	frame ID

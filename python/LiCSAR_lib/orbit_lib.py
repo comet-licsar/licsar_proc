@@ -540,15 +540,20 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
     #result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))    
     result = scihub.to_dataframe(result)
     '''
-    try:
-        startdate = startdate.date()
-        enddate = enddate.date()
-    except:
-        pass
+    #try:
+    #    startdate = startdate.date()
+    #    enddate = enddate.date()
+    #except:
+    #    pass
     # that was... really tricky to find... CDSE documentation is really bad
     # https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=((Online%20eq%20true)%20and%20(((((((Attributes/OData.CSC.StringAttribute/any(i0:i0/Name%20eq%20%27productType%27%20and%20i0/Value%20eq%20%27AUX_POEORB%27))))%20and%20(Collection/Name%20eq%20%27SENTINEL-1%27))))))
     # https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_POEORB&completionDate=2023-10-03T00:00:00Z
-    json = requests.get("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}T00:00:00Z&completionDate={2}T00:00:00Z".format(producttype, str(startdate), str(enddate))).json()
+    if type(startdate)==type(dt.datetime(2025, 3, 31, 17, 23, 39)):
+        json = requests.get(
+            "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}Z&completionDate={2}Z".format(
+                producttype, str(startdate).replace(' ','T'), str(enddate).replace(' ','T'))).json()
+    else:
+        json = requests.get("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}T00:00:00Z&completionDate={2}T00:00:00Z".format(producttype, str(startdate), str(enddate))).json()
     tmplist = str(json).split("'")
     filenames = []
     for tmpstr in tmplist:

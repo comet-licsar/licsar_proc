@@ -46,7 +46,7 @@ lotusversion=2
 qos='standard'
 hours=0
 #fi
-
+memm=8192
 while true; do
     case "$1" in
         -q)
@@ -109,7 +109,9 @@ while true; do
             shift 2
             ;;
         -M)
-            cmd=$cmd' --mem='$2
+            # 2025/04 weird disk IO issues, JASMIN recommends setting higher memory..
+            let memm=$memm'+'$2
+            #cmd=$cmd' --mem='$memm
             shift 2
             ;;
         -w)
@@ -176,7 +178,7 @@ while true; do
             ;;
     esac
 done
-
+cmd=$cmd' --mem='$memm
 #if [ $lotusversion -gt 1 ]; then
   if [ $qos == 'standard' ]; then
     if [ $hours -gt 47 ]; then

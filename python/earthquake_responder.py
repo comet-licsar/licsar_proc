@@ -42,7 +42,7 @@ eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
                    21,24,28,32,36,42,48,55,63,73, \
                    83,96,110,127,146,168,193,222,250,250, \
                    250, 250, 250, 250, 250]}
-eq_limits = pd.DataFrame(eq_data, columns = {'magnitude', 'distance', 'depth'})
+eq_limits = pd.DataFrame(eq_data, columns = ['magnitude', 'distance', 'depth'])
 
 
 
@@ -173,7 +173,7 @@ def update_eq_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/
 
 
 def regenerate_eq2frames_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqframes.csv'):
-    query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
+    query = "select p.polyid_name as frame, ST_aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
         from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg  \
         on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid"
     e2f = lq.do_pd_query(query)
@@ -272,7 +272,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/
     #query = "select pg.geom from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg on pg.polyid=e2f.fid where eq.USGS_ID='{0}' and e2f.fid={1};".format(eventid, str(fid))
     #query = "select pg.geom,e2f.fid from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg on pg.polyid=e2f.fid where eq.USGS_ID='{0}'".format(eventid)
     #query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
-    query = "select p.polyid_name as frame, aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
+    query = "select p.polyid_name as frame, ST_aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
         from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg  \
         on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid where eq.USGS_ID='{0}'".format(eventid)
         #this is the original query... it would not ingest frames that fail in the beginning (copy from CEDA or initialisation). now keeping all identified frames..
@@ -512,8 +512,8 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
                 os.system('create_kmz.sh {0} {1} 1'.format(os.path.join(products_path,pifg), frame))
             if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
                 print('some error happened during KMZ generation of '+pifg)
-            else:
-                selected_ifgs.append(pifg)
+                print('(but adding to the list anyway..')
+            selected_ifgs.append(pifg)
         # adding preseismic ifg
         if is_preseismic:
             # do only short ifg, or two
