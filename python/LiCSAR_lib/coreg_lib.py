@@ -678,11 +678,11 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     #resampled slave slc tab file
     slaverslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'R_tab')
     slaverfilename = os.path.join(slaverslcdir,slavedate.strftime('%Y%m%d')+'.rslc')
-    if not os.path.exists(slaverslctab):
-        rc, msg = make_SLC_tab(slaverslctab,slaverfilename,swathlist)
-        if rc > 0:
-            print('Something went wrong creating the slave resampled tab file...')
-            return 1
+    #if not os.path.exists(slaverslctab):
+    rc, msg = make_SLC_tab(slaverslctab,slaverfilename,swathlist)
+    if rc > 0:
+        print('Something went wrong creating the slave resampled tab file...')
+        return 1
     #auxillary slave tab file -> used for refinement passes
     if slave3date:
         slave3tab = os.path.join(procdir,'tab',slave3date.strftime('%Y%m%d_tab'))
