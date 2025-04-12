@@ -69,12 +69,15 @@ for t in tifs:
             ref2 = ref2.where(ref2 != 0)
         b = lu.load_tif2xr(fr2f)
         if mask_by_ref:
-            b = b.where(~np.isnan(ref2))
+            # sometimes coords do not fill well.. need to either:
+            # (ref2*0+1).fillna(0).values
+            # or maybe just NN interp?
+            b = b.where(~np.isnan(ref2.interp_like(b, method='nearest')))
         b = b.where(b != 0)
         if fix_offset:
             a = lu.load_tif2xr(fr1f)
             if mask_by_ref:
-                a = a.where(~np.isnan(ref1))
+                a = a.where(~np.isnan(ref1.interp_like(a, method='nearest')))
             a = a.where(a != 0)
             ba=b.interp_like(a,method='nearest')
             ba=ba.where(ba!=0)
@@ -94,7 +97,7 @@ for t in tifs:
             if i==0:
                 a = lu.load_tif2xr(fr1f)
                 if mask_by_ref:
-                    a = a.where(~np.isnan(ref1))
+                    a = a.where(~np.isnan(ref1.interp_like(a, method='nearest')))
                 a = a.where(a != 0)
                 outt = outcore + pair + '.' + str(i) + ext
                 lu.export_xr2tif(a, outt)

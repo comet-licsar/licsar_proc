@@ -180,16 +180,22 @@ while true; do
 done
 cmd=$cmd' --mem='$memm
 #if [ $lotusversion -gt 1 ]; then
-  if [ $qos == 'standard' ]; then
-    if [ $hours -gt 47 ]; then
+if [ $qos == 'standard' ]; then
+    #if [ $hours -gt 47 ]; then
+    #  qos='long';
+    if [ $hours -gt 23 ]; then
       qos='long';
-    elif [ $hours -gt 23 ]; then
-      qos='highres'
+    #elif [ $hours -gt 23 ]; then
+    #  qos='highres'
     #elif [ $hours -lt 5 ]; then
     #  qos='short'   # seems short does not exist??
     fi
-  fi
+    # see https://help.jasmin.ac.uk/docs/batch-computing/how-to-submit-a-job/
+    cmd=$cmd' --partition=standard --qos='$qos
+else
   cmd=$cmd' --partition='$qos' --qos='$qos
+fi
+  #cmd=$cmd' --partition='$qos' --qos='$qos
 #fi
 
 if [ $v == 1 ]; then
