@@ -89,7 +89,8 @@ while true; do
             #cmd=$cmd' -n '"$2"
             cmd=$cmd' --cpus-per-task='"$2"
             if [ $2 -gt 1 ]; then
-              qos='highres'
+              # qos='highres'  # 2025/04: they renamed it...
+              qos='high'
             fi
             shift 2
             ;;
