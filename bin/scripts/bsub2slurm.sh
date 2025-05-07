@@ -47,6 +47,7 @@ qos='standard'
 hours=0
 #fi
 memm=8192
+memm=16384
 while true; do
     case "$1" in
         -q)
@@ -110,7 +111,8 @@ while true; do
             ;;
         -M)
             # 2025/04 weird disk IO issues, JASMIN recommends setting higher memory..
-            let memm=$memm'+'$2
+            let memm=$memm'+'$2;
+            echo "increasing RAM request to "$memm
             #cmd=$cmd' --mem='$memm
             shift 2
             ;;
