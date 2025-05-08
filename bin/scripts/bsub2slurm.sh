@@ -90,7 +90,7 @@ while true; do
             #cmd=$cmd' -n '"$2"
             cmd=$cmd' --cpus-per-task='"$2"
             if [ $2 -gt 1 ]; then
-              qos='highres'
+              qos='high'
             fi
             shift 2
             ;;
@@ -195,7 +195,7 @@ if [ $qos == 'standard' ]; then
     # see https://help.jasmin.ac.uk/docs/batch-computing/how-to-submit-a-job/
     cmd=$cmd' --partition=standard --qos='$qos
 else
-  cmd=$cmd' --partition='$qos' --qos='$qos
+  cmd=$cmd' --partition=standard --qos='$qos
 fi
   #cmd=$cmd' --partition='$qos' --qos='$qos
 #fi
