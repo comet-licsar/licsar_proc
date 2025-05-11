@@ -259,10 +259,16 @@ if [ $reunw -gt 0 ]; then
     extofproc='diff_unfiltered_pha'
   fi
 elif [ $sbovl -gt 0 ]; then
-  echo "You are sbovl, only iono(-i) and SET(-e) correction can be applied"
+  echo "You are running LiCSBAS time-series for SBOI dataset."
   # echo "Example: licsar2licsbas.sh -M 10 -n 4 -W -b -i -e  021D_05266_252525 20240101 20240301"
   extofproc='sbovldiff.adf.mm'
   extofproc2='bovldiff.adf.mm'
+  if [ $setides -gt 0 ]; then
+    echo "set correction will be applied to sbovl data."
+  fi
+  if [ $iono -gt 0 ]; then
+    echo "Ionospheric correction will be applied to sbovl data."
+  fi
 else
   extofproc='unw'
 fi
@@ -1114,7 +1120,8 @@ if [ $sbovl -gt 0 ]; then
  sed -i 's/p13_sbovl=\"n\"/p13_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p14_sbovl=\"n\"/p14_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p15_sbovl=\"n\"/p15_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p16_sbovl=\"n\"/p16_sbovl=\"y\"/' batch_LiCSBAS.sh  #TODO: check the step16 filtering options for SBOI discuss with Milan.
+ sed -i 's/p16_sbovl=\"n\"/p16_sbovl=\"y\"/' batch_LiCSBAS.sh  #TODO: Spatial filtering is necessary for smooth BOI
+#  sed -i 's/end_step=\"16\"/end_step=\"14\"/' batch_LiCSBAS.sh ##No need step 16 rigth now? Or find a way for filtering10
 fi
 
 
@@ -1163,8 +1170,8 @@ else
  if [ $sbovl -gt 0 ]; then
    sed -i 's/p11_coh_thre=\"[^\"]*\"/p11_coh_thre=\"0.5\"/' batch_LiCSBAS.sh #the sbovl is adf filtered and the coh calculated from adf filter, so keep it higher  
    sed -i 's/p15_coh_thre=\"\"/p15_coh_thre=\"0.5\"/' batch_LiCSBAS.sh 
-   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"100\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
-   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"100/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
+   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"30\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
+   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"20/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
  else
    sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
 
@@ -1269,7 +1276,7 @@ if [ $run_jasmin -eq 1 ]; then
     lbreproc=1
     lbreprocname=$lbreprocname'.noiono'
   fi
-  if [ $lbreproc -gt 0 ]; then
+  if [ "$lbreproc" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
     echo "LiCSBAS_cum2vel.py -i "$tsdir"/cum_filt.h5 -o "$tsdir"/results/vel.filt"$lbreprocname".mskd --vstd --png --mask "$tsdir"/results/mask" >> jasmin_run.sh
     echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt"$lbreprocname".mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt"$lbreprocname".mskd.geo.tif" >> jasmin_run.sh
   fi
@@ -1322,6 +1329,7 @@ if [ $platemotion -gt 0 ]; then
  tail -n 5 jasmin_run.sh
  echo " "
 fi
+if [ "$sbovl" -eq 0 ]; then
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
@@ -1333,7 +1341,24 @@ fi
  echo "LiCSBAS_out2nc.py -i TS_"$geocd"/cum.h5 -o "$frame".nc" >> jasmin_run.sh
  echo "LiCSBAS_disp_img.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -c SCM.roma_r --cmin -20 --cmax 20 --kmz "$frame".vel.mskd.kmz" >> jasmin_run.sh
  echo "LiCSBAS_disp_img.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -c SCM.roma_r --cmin -20 --cmax 20 --title "$frame"_vel_filt_mskd --png "$frame".vel.mskd.png" >> jasmin_run.sh
-
+elif [ "$sbovl" -eq 1 ]; then
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U.geo -p "$geocd"/EQA.dem_par -o "$frame".U.azi.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E.geo -p "$geocd"/EQA.dem_par -o "$frame".E.azi.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N.geo -p "$geocd"/EQA.dem_par -o "$frame".N.azi.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide_noiono.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_ransac.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_boot.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_ransac.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_noiono_boot.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_noiono_ransac.geo.tif" >> jasmin_run.sh
+fi
+# if [ "$sbovl" -eq 1 ]; then
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_abs -p "$geocd"/EQA.dem_par -o "$frame".vel.abs_ransac.tif" >> jasmin_run.sh
+# fi
 
  # jasmin proc
  cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":59 -M "$memmfull" -q "$que" ./jasmin_run.sh"
