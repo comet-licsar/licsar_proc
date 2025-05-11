@@ -47,6 +47,7 @@ qos='standard'
 hours=0
 #fi
 memm=8192
+memm=16384
 while true; do
     case "$1" in
         -q)
@@ -89,7 +90,7 @@ while true; do
             #cmd=$cmd' -n '"$2"
             cmd=$cmd' --cpus-per-task='"$2"
             if [ $2 -gt 1 ]; then
-              qos='highres'
+              qos='high'
             fi
             shift 2
             ;;
@@ -110,7 +111,8 @@ while true; do
             ;;
         -M)
             # 2025/04 weird disk IO issues, JASMIN recommends setting higher memory..
-            let memm=$memm'+'$2
+            let memm=$memm'+'$2;
+            echo "increasing RAM request to "$memm
             #cmd=$cmd' --mem='$memm
             shift 2
             ;;
@@ -193,7 +195,7 @@ if [ $qos == 'standard' ]; then
     # see https://help.jasmin.ac.uk/docs/batch-computing/how-to-submit-a-job/
     cmd=$cmd' --partition=standard --qos='$qos
 else
-  cmd=$cmd' --partition='$qos' --qos='$qos
+  cmd=$cmd' --partition=standard --qos='$qos
 fi
   #cmd=$cmd' --partition='$qos' --qos='$qos
 #fi

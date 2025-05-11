@@ -25,6 +25,7 @@ if [ -z $1 ]; then
  echo "-t 0.2 .. change consistence threshold to 0.2 (should be default, quite good for ML10.. but now default is set to 0 !) during reunwrapping"
  echo "-H ....... this will use hgt to support the (re-)unwrapping"
  echo "-f ....... during reunwrapping, store also as GeoTIFFs"
+ echo "-R ....... perform offset tracking and use range offsets (if they already exist) to support unwrapping"
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-C 0.15 .. mask based on coherence threshold on individual ifgs"
@@ -40,7 +41,7 @@ if [ -z $1 ]; then
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
  echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping)"
  echo "(other params, for admins etc.)"
- echo "(-R ....... prioritise through comet responder)"
+ # echo "(-R ....... prioritise through comet responder)"  # not anymore in LOTUS2
  #echo "-----------------"
  echo "-I ....... use ICAMS - NOTE THIS WILL NOT OUTPUT AS ICAMS-CORRECTED DATASET - it will only generate and load ICAMS to the cum.h5 as icams layer (plus gacos layer to allow diff correction manually)"
  echo "-a ....... use amplitude stability to subset pixels. Testing. Might be useful in challenging areas such as jungles"
@@ -107,7 +108,7 @@ eqofftxt=''
 nullify=0
 phbias=0
 platemotion=0
-
+rgoffs=0
 discmd="$0 $@"
 while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
  case "${option}" in
@@ -188,7 +189,8 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
     ;;
   P) que='comet';
      ;;
-  R) que='comet_responder';
+  R) rgoffs=1; # echo "not implemented yet";
+     outifs=1;
      ;;
   W) wls=1;
      ;;
@@ -1063,6 +1065,9 @@ if [ $reunw -gt 0 ]; then
   # extraparam=$extraparam", "
   #fi
  fi
+ if [ $rgoffs == 1 ]; then
+   extraparam=$extraparam", use_rg_offs = True"
+ fi
  if [ $use_coh_stab == 1 ]; then
   extraparam=$extraparam", use_coh_stab = True"
  fi
@@ -1179,6 +1184,7 @@ else
 # sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
  #sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"20/' batch_LiCSBAS.sh
 fi
+
 
 # in general
 sed -i 's/p15_n_unw_r_thre=\"\"/p15_n_unw_r_thre=\"0.5\"/' batch_LiCSBAS.sh
