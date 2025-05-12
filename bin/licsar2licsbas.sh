@@ -1352,14 +1352,17 @@ elif [ "$sbovl" -eq 1 ]; then
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E.geo -p "$geocd"/EQA.dem_par -o "$frame".E.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N.geo -p "$geocd"/EQA.dem_par -o "$frame".N.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide_noiono.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_ransac.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_boot.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_ransac.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_noiono_boot.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_noiono_ransac.geo.tif" >> jasmin_run.sh
+ 
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide_noiono.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_ransac.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_boot.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_ransac.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_noiono_boot.geo.tif" >> jasmin_run.sh
+#  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_ransac_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_notide_noiono_ransac.geo.tif" >> jasmin_run.sh
 fi
 # if [ "$sbovl" -eq 1 ]; then
 #  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.tif" >> jasmin_run.sh
