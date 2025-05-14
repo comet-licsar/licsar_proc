@@ -1323,7 +1323,7 @@ if [ $storeext2cube -gt 0 ]; then
 fi
 
 
-if [ $platemotion -gt 0 ]; then
+if [ "$platemotion" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
  echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --vstd_fix" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
@@ -1353,7 +1353,11 @@ elif [ "$sbovl" -eq 1 ]; then
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N.geo -p "$geocd"/EQA.dem_par -o "$frame".N.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.geo.tif" >> jasmin_run.sh
- 
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.mskd.geo.tif" >> jasmin_run.sh
+ if [ "$platemotion" -gt 0 ]; then
+  echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f $frame -o  $frame.vel_abs_boot.filt.mskd_pmm_fixed_azi.geo.tif --sboi --input vel_abs.filt.mskd" >> jasmin_run.sh
+  echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f $frame -o  $frame.vel_abs_boot.mskd_pmm_fixed_azi.geo.tif --sboi --input bootvel_abs.mskd" >> jasmin_run.sh
+ fi
 #  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs.geo.tif" >> jasmin_run.sh
 #  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide.geo.tif" >> jasmin_run.sh
 #  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs_notide_noiono.geo.tif" >> jasmin_run.sh
