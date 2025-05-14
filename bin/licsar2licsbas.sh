@@ -91,6 +91,7 @@ que='short-serial'
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
 sbovl=0
+sbovl_model=0 ##daz values is guided via RANSAC
 setides=0
 iono=0
 deramp=0
@@ -110,7 +111,7 @@ phbias=0
 platemotion=0
 rgoffs=0
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -118,7 +119,10 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
      #shift
      ;;
   b) sbovl=1;
-     echo "setting to process bovl data"
+     echo "setting to process sbovl data"
+     ;;
+  x) sbovl_model=1;
+     echo "daz values in sbovl will be guided via RANSAC"
      ;;
   E) chch=${OPTARG};
      if [ `echo $chch | grep "[a-zA-Z]" -c` -gt 0 ]; then
@@ -1116,17 +1120,30 @@ fi
 rm -f batch_LiCSBAS.sh 2>/dev/null
 copy_batch_LiCSBAS.sh >/dev/null
 
+#echo $sbovl $sbovl_model $tide
+if [ "$sbovl" -gt 0 ]; then 
+  sed -i 's/p01_sbovl="n"/p01_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p02_sbovl="n"/p02_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p11_sbovl="n"/p11_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p120_sbovl="n"/p120_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p13_sbovl="n"/p13_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p14_sbovl="n"/p14_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p15_sbovl="n"/p15_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p16_sbovl="n"/p16_sbovl="y"/' batch_LiCSBAS.sh
+  if [ "$sbovl_model" -gt 0 ]; then
+    sed -i 's/p131_sbovl_model="n"/p131_sbovl_model="y"/' batch_LiCSBAS.sh
+  fi 
 
-if [ $sbovl -gt 0 ]; then 
- sed -i 's/p01_sbovl=\"n\"/p01_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p02_sbovl=\"n\"/p02_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p11_sbovl=\"n\"/p11_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p120_sbovl=\"n\"/p120_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p13_sbovl=\"n\"/p13_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p14_sbovl=\"n\"/p14_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p15_sbovl=\"n\"/p15_sbovl=\"y\"/' batch_LiCSBAS.sh
- sed -i 's/p16_sbovl=\"n\"/p16_sbovl=\"y\"/' batch_LiCSBAS.sh  #TODO: Spatial filtering is necessary for smooth BOI
-#  sed -i 's/end_step=\"16\"/end_step=\"14\"/' batch_LiCSBAS.sh ##No need step 16 rigth now? Or find a way for filtering10
+  if [ "$setides" -gt 0 ]; then
+    sed -i 's/p131_sbovl_tide="n"/p131_sbovl_tide="y"/' batch_LiCSBAS.sh
+  fi 
+
+  if [ "$iono" -gt 0 ]; then
+    sed -i 's/p131_sbovl_iono="n"/p131_sbovl_iono="y"/' batch_LiCSBAS.sh
+  fi
+
+  # Optional: if skipping step 16 for now
+  # sed -i 's/end_step="16"/end_step="14"/' batch_LiCSBAS.sh
 fi
 
 
