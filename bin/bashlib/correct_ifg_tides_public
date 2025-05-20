@@ -20,7 +20,7 @@ correct_ifg_tides_public() {
     date2=`echo $ifg | cut -d '_' -f2`
     create_LOS_tide $frame $date1
     create_LOS_tide $frame $date2
-    tided1=$LiCSAR_public/$track/$frame/epochs/$date1/$date1'.tide.geo.tif'
+    tided1=$LiCSAR_public/$track/$frame/epochs/$date1/$date1'.tide.geo.tif' # these are in [m]
     tided2=$LiCSAR_public/$track/$frame/epochs/$date2/$date2'.tide.geo.tif'
     #wavelength of Sentinel-1
     #wavelength=0.055465763
