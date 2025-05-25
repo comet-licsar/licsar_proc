@@ -1314,8 +1314,8 @@ if [ $storeext2cube -gt 0 ]; then
     if [ "$sbovl" -eq 0 ]; then
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
-      # echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+      echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
+      # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
     fi
   fi
 
@@ -1324,8 +1324,8 @@ if [ $storeext2cube -gt 0 ]; then
     if [ "$sbovl" -eq 0 ]; then
       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
-      # echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+      echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
+      # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
     fi
   fi
 
