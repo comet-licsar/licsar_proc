@@ -48,15 +48,17 @@ hours=0
 #fi
 memm=8192
 memm=16384
+# 2025 - setting the account firmly
+cmd=$cmd' --account=nceo_geohazards'
 while true; do
     case "$1" in
-        -q)
+        -q) echo "skipping change of query account, keeping nceo_geohazards"
             #if [ $lotusversion -gt 1 ]; then
-              if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ] || [ $2 == 'comet_responder' ]; then
-                cmd=$cmd' --account=comet_lics'
-              else
-                cmd=$cmd' --account=nceo_geohazards'
-              fi
+            #  if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ] || [ $2 == 'comet_responder' ]; then
+            #    cmd=$cmd' --account=comet_lics'
+            #  else
+            #    cmd=$cmd' --account=nceo_geohazards'
+            #  fi
             #else
             #  cmd=$cmd' -p '"$2"
             #  if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ]; then
