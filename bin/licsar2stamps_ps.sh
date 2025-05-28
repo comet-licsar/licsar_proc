@@ -142,7 +142,7 @@ swap_bytes $hgt INSAR_$master/geo/${master}_dem.rdc 4 >/dev/null
 
 echo "selecting dataset"
 msize=`ls -al RSLC/$master/$master.rslc | gawk {'print $5'}`
-if [ ! -z $maxdate ]; then maxdate=999999999; fi
+if [ -z $maxdate ]; then maxdate=999999999; fi
 for x in `ls RSLC`; do 
  if [ $x != $master ] && [ $x -lt $maxdate ] && [ -f RSLC/$x/$x.rslc ]; then
   ssize=`ls -al RSLC/$x/$x.rslc | gawk {'print $5'}`
@@ -167,6 +167,7 @@ done
 ###
 
 echo "generating/copying ifgs and their baselines, byteswapping rslcs"
+mkdir -p stampsifgtemp
 for x in `cat slist.txt`; do
  pair=$master'_'$x
  echo 'generating '$pair
