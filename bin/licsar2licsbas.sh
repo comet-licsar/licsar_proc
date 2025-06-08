@@ -1191,10 +1191,10 @@ else
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
  if [ $sbovl -gt 0 ]; then
-   sed -i 's/p11_coh_thre=\"[^\"]*\"/p11_coh_thre=\"0.5\"/' batch_LiCSBAS.sh #the sbovl is adf filtered and the coh calculated from adf filter, so keep it higher  
-   sed -i 's/p15_coh_thre=\"\"/p15_coh_thre=\"0.5\"/' batch_LiCSBAS.sh 
-   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"30\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
-   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"20/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
+   sed -i 's/p11_unw_thre=\"/p11_unw_thre=\"0.01/' batch_LiCSBAS.sh ##We need as much as BOI as possible #MN
+   #  sed -i 's/p15_coh_thre=\"\"/p15_coh_thre=\"0.5\"/' batch_LiCSBAS.sh 
+   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"15\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
+   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"10/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
  else
    sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
 
@@ -1300,7 +1300,7 @@ if [ $run_jasmin -eq 1 ]; then
     lbreproc=1
     lbreprocname=$lbreprocname'.noiono'
   fi
-  if [ "$lbreproc" -gt 0 ] && [ "$sbovl_model" -eq 0 ]; then
+  if [ "$lbreproc" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
     echo "LiCSBAS_cum2vel.py -i "$tsdir"/cum_filt.h5 -o "$tsdir"/results/vel.filt"$lbreprocname".mskd --vstd --png --mask "$tsdir"/results/mask" >> jasmin_run.sh
     echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt"$lbreprocname".mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt"$lbreprocname".mskd.geo.tif" >> jasmin_run.sh
   fi
@@ -1370,36 +1370,13 @@ elif [ "$sbovl" -eq 1 ]; then
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E.geo -p "$geocd"/EQA.dem_par -o "$frame".E.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N.geo -p "$geocd"/EQA.dem_par -o "$frame".N.azi.geo.tif" >> jasmin_run.sh
  if [ "$sbovl_model" -gt 0 ]; then
-    echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd_abs -p "$geocd"/EQA.dem_par -o "$frame".vstd_abs.geo.tif" >> jasmin_run.sh
-    if [ "$setides" -gt 0 ] && [ "$iono" -gt 0 ]; then
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot_notide_noiono.geo.tif" >> jasmin_run.sh
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide_noiono.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot_notide_noiono.mskd.geo.tif" >> jasmin_run.sh
-    elif [ "$setides" -gt 0 ]; then
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot_notide.geo.tif" >> jasmin_run.sh
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_notide.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot_notide.mskd.geo.tif" >> jasmin_run.sh
-    elif [ "$iono" -gt 0 ]; then
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_noiono -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot_noiono.geo.tif" >> jasmin_run.sh
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs_noiono.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot_noiono.mskd.geo.tif" >> jasmin_run.sh
-    else
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.geo.tif" >> jasmin_run.sh
-      echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/bootvel_abs.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_abs_boot.mskd.geo.tif" >> jasmin_run.sh
-    fi
-
     if [ "$platemotion" -gt 0 ]; then
-      if [ "$setides" -gt 0 ] && [ "$iono" -gt 0 ]; then
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_boot_notide_noiono_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input bootvel_abs_notide_noiono.mskd" >> jasmin_run.sh
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt_notide_noiono_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input vel_abs_notide_noiono.filt.mskd" >> jasmin_run.sh
-      elif [ "$setides" -gt 0 ]; then
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_boot_notide_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input bootvel_abs_notide.mskd" >> jasmin_run.sh
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt_notide_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input vel_abs_notide.filt.mskd" >> jasmin_run.sh
-      elif [ "$iono" -gt 0 ]; then
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt_noiono_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input vel_abs_noiono.filt.mskd" >> jasmin_run.sh
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_boot_noiono_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input bootvel_abs_noiono.mskd" >> jasmin_run.sh
-      else
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input vel_abs.filt.mskd" >> jasmin_run.sh
-        echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_boot_eu_fixed_azi.mskd.geo.tif --sbovl_abs --input bootvel_abs.mskd" >> jasmin_run.sh
-      fi
+      echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt.mskd.eurasia.geo.tif --sbovl_abs --input vel_abs.filt.mskd --vstd_fix" >> jasmin_run.sh
+      echo "cp TS_"$geocd"/results/vstd_scaled.tif "$frame".vstd_scaled.geo.tif" >> jasmin_run.sh
     fi
+    echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_abs.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_abs.filt.mskd.geo.tif" >> jasmin_run.sh
+    echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vstd -p "$geocd"/EQA.dem_par -o "$frame".vstd.geo.tif" >> jasmin_run.sh
+    
  else
     if [ "$platemotion" -gt 0 ]; then
       echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --sbovl --vstd_fix" >> jasmin_run.sh
