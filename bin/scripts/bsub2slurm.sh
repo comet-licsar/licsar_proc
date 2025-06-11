@@ -119,9 +119,11 @@ while true; do
             shift 2
             ;;
         -w)
-            #e.g. -w "ended(framebatch_02_coreg_559619) && ended(framebatch_02_coreg_559621)"
-            vars=$2
-            jobids=''
+           #e.g. -w "ended(framebatch_02_coreg_559619) && ended(framebatch_02_coreg_559621)"
+           # 2025/06: but -w 183888 would also work (or -w 184888:183888 for more JOBIDs to wait for)
+           vars=$2
+           jobids=''
+           if [ `echo $vars | grep -c ended` -gt 0 ]; then
             for myJOBNAME in `echo $vars | sed 's/ended(//g' | sed 's/)//g' | sed 's/\&\&//g' | tr "'" " "`; do
              #this way the jobid can be really 'historic'
              #jobid=$(sacct -n --format="JobID" --name $myJOBNAME | head -n1 | cut -d '.' -f1)
@@ -161,7 +163,11 @@ while true; do
                fi
                #exit
              fi
-            done
+           done
+          else
+            echo "adding JOBID(s) "$vars" as dependencies"
+            jobids=':'$vars
+          fi
             if [ ! -z $jobids ]; then
              cmd=$cmd' --kill-on-invalid-dep=no --dependency=afterany'$jobids
             else
