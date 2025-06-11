@@ -20,10 +20,11 @@ create_preview_unwrapped() {
    if [ ! -z $maskedfile ]; then
     unwfile=$maskedfile
    fi
-   hillshade=`prepare_hillshade $unwfile $frame`
-   if [ ! -z $hillshade ]; then
-    extracmd='-I'$hillshade
-   fi
+   echo "DEBUG - issue with creating preview, now cancelling hillshading - perhaps this is the issue"
+   #hillshade=`prepare_hillshade $unwfile $frame`
+   #if [ ! -z $hillshade ]; then
+   # extracmd='-I'$hillshade
+   #fi
   fi
   barpng=`create_colourbar_unw $unwfile`
   minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
