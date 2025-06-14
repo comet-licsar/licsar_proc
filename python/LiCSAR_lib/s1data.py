@@ -95,7 +95,8 @@ def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     track = int(frame[0:3])
     trackpre=abs(track-1)
     trackpost=track+1
-    strtrack = str(trackpre)+'-'+str(trackpost)
+    tracks = [trackpre, track, trackpost]
+    #strtrack = str(trackpre)+'-'+str(trackpost)
     ascdesc = frame[3]
     if ascdesc == 'D': ascdesc = 'DESCENDING'
     if ascdesc == 'A': ascdesc = 'ASCENDING'
@@ -107,7 +108,7 @@ def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     #url = url + '&intersectsWith='+footprint
     #r = requests.get(url)
     # or using asf search:
-    r = asf.geo_search(relativeOrbit=strtrack, beamMode=sensType,
+    r = asf.geo_search(relativeOrbit=tracks, beamMode=sensType,
                    start = startdate, end = enddate,
                    flightDirection=ascdesc, intersectsWith=footprint,
                    platform='S1', processingLevel='SLC')
