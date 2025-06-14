@@ -105,7 +105,7 @@ def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     #url = url+'&start={0}&end={1}'.format(startdate.strftime('%Y-%m-%d'),enddate.strftime('%Y-%m-%d'))
     #url = url + '&flightDirection='+ascdesc
     #url = url + '&intersectsWith='+footprint
-    r = requests.get(url)
+    #r = requests.get(url)
     # or using asf search:
     r = asf.geo_search(relativeOrbit=strtrack, beamMode=sensType,
                    start = startdate, end = enddate,
