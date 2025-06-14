@@ -9,6 +9,7 @@ import requests
 #import arch2DB
 #here is the nostdout function:
 from LiCSAR_misc import *
+import asf_search as asf
 
 # need to update this one
 def get_info_pd(fileid = 'S1A_IW_SLC__1SDV_20210908T235238_20210908T235305_039597_04AE3C_4CA7', returncol = None):
@@ -50,7 +51,6 @@ def download(filename, slcdir = '/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SL
 
 def get_bperps_asf(product_id):
     try:
-        import asf_search as asf
         mdate=product_id.split('T')[0].split('_')[-1]
         print('searching for stack through ASF')
         reference = asf.product_search(product_id+'-SLC')[0]
@@ -99,15 +99,24 @@ def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     ascdesc = frame[3]
     if ascdesc == 'D': ascdesc = 'DESCENDING'
     if ascdesc == 'A': ascdesc = 'ASCENDING'
-    url = 'https://api.daac.asf.alaska.edu/services/search/param?platform=S1&processingLevel=SLC&output=JSON'
-    url = url+'&relativeOrbit='+strtrack
-    url = url+'&beamMode='+sensType
-    url = url+'&start={0}&end={1}'.format(startdate.strftime('%Y-%m-%d'),enddate.strftime('%Y-%m-%d'))
-    url = url + '&flightDirection='+ascdesc
-    url = url + '&intersectsWith='+footprint
+    #url = 'https://api.daac.asf.alaska.edu/services/search/param?platform=S1&processingLevel=SLC&output=JSON'
+    #url = url+'&relativeOrbit='+strtrack
+    #url = url+'&beamMode='+sensType
+    #url = url+'&start={0}&end={1}'.format(startdate.strftime('%Y-%m-%d'),enddate.strftime('%Y-%m-%d'))
+    #url = url + '&flightDirection='+ascdesc
+    #url = url + '&intersectsWith='+footprint
     r = requests.get(url)
-    df = pd.DataFrame.from_dict(r.json()[0])
-    return df
+    # or using asf search:
+    r = asf.geo_search(relativeOrbit=strtrack, beamMode=sensType,
+                   start = startdate, end = enddate,
+                   flightDirection=ascdesc, intersectsWith=footprint,
+                   platform='S1', processingLevel='SLC')
+    images = []
+    for gg in r:
+        images.append(gg.properties['fileName'])
+    #df = pd.DataFrame.from_dict(r.json()[0])
+    #return df
+    return images
 
 
 def get_epochs_for_frame(frame, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), returnAsDate = False):
@@ -196,8 +205,8 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
             images = dframefull['title'].values.tolist()
             # DEBUG: ASF uses a bit different filename. So adding this here, as ASF is used as backup (and I don't know how to search with filename from ASF to do it through wget_alaska.sh
             try:
-                df = search_alaska(frameName, footprint, startdate, enddate, sensType)
-                images += df['granuleName'].values.tolist()
+                images = search_alaska(frameName, footprint, startdate, enddate, sensType)
+                #images += df['granuleName'].values.tolist()
             except:
                 print('error in connection to ASF')
             return list(set(images))
@@ -222,8 +231,8 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         '''
     else:
         try:
-            df = search_alaska(frameName, footprint, startdate, enddate, sensType)
-            images = df['granuleName'].values.tolist()
+            images = search_alaska(frameName, footprint, startdate, enddate, sensType)
+            #images = df['granuleName'].values.tolist()
         except:
             print('error searching through ASF, cancelling') #', trying scihub')
             '''
