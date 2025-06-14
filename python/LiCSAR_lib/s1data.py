@@ -114,7 +114,7 @@ def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
                    platform='S1', processingLevel='SLC')
     images = []
     for gg in r:
-        images.append(gg.properties['fileName'])
+        images.append(gg.properties['sceneName'])
     #df = pd.DataFrame.from_dict(r.json()[0])
     #return df
     return images
