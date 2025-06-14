@@ -1,6 +1,7 @@
 #!/bin/bash
 create_colourbar_unw() {
     infile=$1
+    echo "debug ccu ln 0"
     scalebarfile=`dirname $infile`/scalebar_unwrapped.png
   deb=0
   echo "debug ccu ln "$deb; let deb=$deb+1;
