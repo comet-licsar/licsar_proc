@@ -1,6 +1,6 @@
 #!/bin/bash
 create_preview_unwrapped() {
-  if [ ! -z $1 ]; then
+ if [ ! -z $1 ]; then
     local unwfile=$1
     echo "generating preview for "$unwfile
     origfile=$unwfile
@@ -18,9 +18,11 @@ create_preview_unwrapped() {
    #echo "trying mask and include hillshade"
    maskedfile=`prepare_landmask $unwfile $frame`
    if [ ! -z $maskedfile ]; then
+     if [ -f $maskedfile ]; then
     unwfile=$maskedfile
+     fi
    fi
-   echo "DEBUG - issue with creating preview, now cancelling hillshading - perhaps this is the issue"
+   echo "DEBUG - issue with creating preview, now cancelling hillshading" # - perhaps this is the issue"
    #hillshade=`prepare_hillshade $unwfile $frame`
    #if [ ! -z $hillshade ]; then
    # extracmd='-I'$hillshade
@@ -55,10 +57,10 @@ create_preview_unwrapped() {
   fi
   rm $maskedfile $hillshade $unwfile $outfile.unw.cpt tokml.nc 2>/dev/null
   rm gmt.history 2>/dev/null
-  else
+ else
     echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
     echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
     return 0
-  fi
+ fi
 }
 create_preview_unwrapped $@
