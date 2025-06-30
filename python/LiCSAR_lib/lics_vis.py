@@ -290,8 +290,11 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             return False
         else:
             print('trying to plot the map using provided vector data (assuming geopandas)')
-            x1, y1, x2, y2 = list(plotvec.bounds.values[0])
-            region = x1, x2, y1, y2
+            region = plotvec.bounds.minx.min(),\
+                     plotvec.bounds.maxx.max(),\
+                     plotvec.bounds.miny.min(),\
+                     plotvec.bounds.maxy.max()
+            # x1, x2, y1, y2
             lims = True
             isgrid = False
 
