@@ -1,4 +1,8 @@
 #!/bin/bash
+
+echo "2025/06/30: JASMIN punishes use of touch - cancelling attempt to touchscratch"
+exit
+
 touchscratch() {
     dir=$1
     if [ `echo $dir | grep -c scratch` == 0 ]; then
