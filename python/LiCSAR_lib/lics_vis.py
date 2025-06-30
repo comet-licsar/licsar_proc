@@ -264,7 +264,7 @@ def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None, interactive = False,
-               region = None):
+               region = None, projection = "M13c"):
     ''' Function to generate (nice) plot of given grid using pyGMT
     
     Args:
@@ -276,6 +276,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         photobg (bool): will plot orthophotomap as the background (if False, DEM relief is used)
         plotvec (geopandas etc): will plot vector data to the map, using pyGMT defaults
         region (tuple/None):  either None or set using tuple (minlon, maxlon, minlat, maxlat)
+        projection (str):  standard GMT projection string - try e.g."M13c" or 'R13c' for Robinson etc.
 
     Returns:
         pygmt.figure.Figure
@@ -318,7 +319,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
 
     fig = pygmt.Figure()
     pygmt.config(FORMAT_GEO_MAP="ddd.xx") #, MAP_FRAME_TYPE="plain")
-    projection = "M13c" # 'R13c' for Robinson etc.
+    # projection = "M13c" # 'R13c' for Robinson etc.
     region = [minlon, maxlon, minlat, maxlat]
 
     if interactive:
