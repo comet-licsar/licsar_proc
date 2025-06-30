@@ -282,9 +282,19 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     '''
     try:
         grid = grid.load()
+        grid = grid.where(grid != 0)
+        isgrid = True
     except:
         print('error loading the input dataarray to memory')
-        return False
+        if type(plotvec)==type(None):
+            return False
+        else:
+            print('trying to plot the map using provided vector data (assuming geopandas)')
+            x1, y1, x2, y2 = list(plotvec.bounds.values[0])
+            region = x1, x2, y1, y2
+            lims = True
+            isgrid = False
+
     # try cmap 'vik' for E-W
     #
     # grid = a['U'].where(a.mask < 5) - 10
@@ -297,7 +307,6 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     else:
         minlon, maxlon, minlat, maxlat = region
 
-    grid = grid.where(grid != 0)
     if not lims:
         tmean = float(grid.mean())
         tstd = float(grid.std())
@@ -331,8 +340,9 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             # Use tiles from OpenStreetMap tile server
             source=sourcetiles
         )
-        pygmt.makecpt(cmap=cmap, series=lims, background=True)
-        fig.grdview(grid=grid, cmap=True, projection=projection, surftype='c', transparency=40)
+        if isgrid:
+            pygmt.makecpt(cmap=cmap, series=lims, background=True)
+            fig.grdview(grid=grid, cmap=True, projection=projection, surftype='c', transparency=40)
     else:
         pygmt.makecpt(cmap="gray", series=[-8000, 8000, 1000], continuous=True)
         fig.grdimage(
@@ -343,8 +353,9 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             shading=True,
             frame=True
         )
-        pygmt.makecpt(cmap=cmap, series=lims, background=True)
-        fig.grdimage(grid=grid, cmap=True, projection=projection, frame=True, transparency=40)
+        if isgrid:
+            pygmt.makecpt(cmap=cmap, series=lims, background=True)
+            fig.grdimage(grid=grid, cmap=True, projection=projection, frame=True, transparency=40)
     #
     fig.coast(shorelines=True, projection=projection)
     if type(plotvec) != type(None):
