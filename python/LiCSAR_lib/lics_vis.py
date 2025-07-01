@@ -3,6 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 try:
+    import framecare as fc
+except:
+    print('error loading framecare library - some LiCSAR-connected functionality will not work')
+
+try:
     import contextily as ctx
 except:
     print('contextily is not installed')
