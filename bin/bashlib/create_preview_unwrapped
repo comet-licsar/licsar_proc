@@ -1,7 +1,7 @@
 #!/bin/bash
-create_preview_unwrapped() {
- if [ ! -z $1 ]; then
-    local unwfile=$1
+
+if [ ! -z $1 ]; then
+    unwfile=$1
     echo "generating preview for "$unwfile
     origfile=$unwfile
     #local RESIZE=30
@@ -57,10 +57,9 @@ create_preview_unwrapped() {
   fi
   rm $maskedfile $hillshade $unwfile $outfile.unw.cpt tokml.nc 2>/dev/null
   rm gmt.history 2>/dev/null
- else
+else
     echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
     echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
     return 0
- fi
-}
-create_preview_unwrapped $@
+fi
+

@@ -1,5 +1,5 @@
 #!/bin/bash
-create_colourbar_unw() {
+
     echo "debug ccu ln 000"
     infile=$1
     echo "debug ccu ln 00"
@@ -54,6 +54,4 @@ create_colourbar_unw() {
   rm $infile.temp_scale_unw.png
 
   echo $scalebarfile
-}
-echo "debug ccu ln 0000"
-create_colourbar_unw $@
+

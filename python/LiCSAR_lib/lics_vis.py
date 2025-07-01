@@ -476,3 +476,41 @@ def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, 
     fig.basemap(frame=True)
     return fig
 
+
+def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True, projection = "M8c", bevel = 0.05):
+    sourcetiles = ctx.providers.Esri.WorldImagery
+    bidsgpd = fc.bursts2geopandas(burstlist)
+    #framelist = ['037D_04691_021207']
+
+    region = bidsgpd.bounds.minx.min() - bevel, \
+             bidsgpd.bounds.maxx.max() + bevel, \
+             bidsgpd.bounds.miny.min() - bevel, \
+             bidsgpd.bounds.maxy.max() + bevel
+
+    fig = pygmt.Figure()
+    # pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain")
+    pygmt.config(FONT_TITLE="12p")
+    pygmt.config(FONT_LABEL="8p")
+    if title:
+        fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
+    else:
+        fig.basemap(region=region, projection=projection, frame=["af"])
+
+    if background:
+        fig.tilemap(
+            region=region,
+            zoom=8,
+            # Use tiles from OpenStreetMap tile server
+            source=sourcetiles
+        )
+
+    fig.coast(region=region, shorelines=True, frame=True)
+    if framelist:
+        framesgpd = fc.get_frames_gpd(framelist)
+        fig.plot(framesgpd.geometry, pen='1p,blue')
+
+    fig.plot(bidsgpd.geometry, pen='1p,red')
+    fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values, y=bidsgpd.geometry.centroid.y.values,
+             font="5p,Helvetica")  # , justify="RT", offset='J/30p')
+
+    return fig
