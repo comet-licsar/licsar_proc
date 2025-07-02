@@ -1,7 +1,7 @@
 #!/bin/bash
-create_preview_unwrapped() {
-  if [ ! -z $1 ]; then
-    local unwfile=$1
+
+if [ ! -z $1 ]; then
+    unwfile=$1
     echo "generating preview for "$unwfile
     origfile=$unwfile
     #local RESIZE=30
@@ -18,18 +18,27 @@ create_preview_unwrapped() {
    #echo "trying mask and include hillshade"
    maskedfile=`prepare_landmask $unwfile $frame`
    if [ ! -z $maskedfile ]; then
+     if [ -f $maskedfile ]; then
     unwfile=$maskedfile
+     fi
    fi
-   hillshade=`prepare_hillshade $unwfile $frame`
-   if [ ! -z $hillshade ]; then
-    extracmd='-I'$hillshade
-   fi
+   echo "DEBUG - issue with creating preview, now cancelling hillshading" # - perhaps this is the issue"
+   #hillshade=`prepare_hillshade $unwfile $frame`
+   #if [ ! -z $hillshade ]; then
+   # extracmd='-I'$hillshade
+   #fi
   fi
-  barpng=`create_colourbar_unw $unwfile`
+  echo "debug ln 1"
+  echo "following command should have been run here: create_colourbar_unw "$unwfile
+  # barpng=`create_colourbar_unw $unwfile`
+  echo "debug ln 2"
   minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
+  echo "debug ln 3"
   gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >$outfile.unw.cpt
   if [ -z $3 ]; then
+    echo "debug ln 4"
    gmt grdimage $unwfile -C$outfile.unw.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+   echo "debug ln 5"
    convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
    if [ ! -z $frame ]; then
     if [ `echo $frame | cut -c 4` == 'A' ]; then grav='southeast'; else grav='southwest'; fi
@@ -37,10 +46,15 @@ create_preview_unwrapped() {
     # no frame? firmly bottom left corner
     grav='southwest'
    fi
-   convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
+   echo "debug ln 6"
+   #convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
+   echo "debug: return barpng here"
+   convert $outfile -resize 680x -flatten -transparent black $outfile.sm.png
    #save only the small preview..
    mv $outfile.sm.png $outfile
-   rm $barpng $outfile.unw.cpt
+   rm $outfile.unw.cpt
+   echo "debug: return this below"
+   # rm $barpng
   else
    #echo "preparing for kml"
    gmt grdclip $unwfile -Gtokml.nc -Sr0/NaN
@@ -48,10 +62,9 @@ create_preview_unwrapped() {
   fi
   rm $maskedfile $hillshade $unwfile $outfile.unw.cpt tokml.nc 2>/dev/null
   rm gmt.history 2>/dev/null
-  else
+else
     echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
     echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
     return 0
-  fi
-}
-create_preview_unwrapped $@
+fi
+

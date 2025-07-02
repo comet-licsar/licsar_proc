@@ -482,7 +482,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
         resfile = os.path.join(procdir,'RSLC',slavedate.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.results')
         rc = shutil.copyfile(gamma_coreg_results, resfile)
     else:
-        print('error - the results wile does not exist: '+gamma_coreg_results)
+        print('error - the results file does not exist: '+gamma_coreg_results)
         #pom = 1
     #else:
     #    pom = 0
