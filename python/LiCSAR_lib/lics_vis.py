@@ -515,6 +515,9 @@ def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True
     if framelist:
         framesgpd = fc.get_frames_gpd(framelist)
         fig.plot(framesgpd.geometry, pen='1p,blue')
+        fig.text(text=framelist, x=framesgpd.geometry.centroid.x.values,
+                 y=framesgpd.geometry.centroid.y.values,
+                 font="8p,Helvetica,blue")
     #
     if label_nofiles:
         iwbs = fc.bursts_group_to_iws(burstlist)
