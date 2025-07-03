@@ -482,7 +482,8 @@ def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, 
     return fig
 
 
-def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True, projection = "M8c", bevel = 0.05):
+def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True,
+                      projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True):
     sourcetiles = ctx.providers.Esri.WorldImagery
     bidsgpd = fc.bursts2geopandas(burstlist)
     #framelist = ['037D_04691_021207']
@@ -510,12 +511,36 @@ def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True
         )
 
     fig.coast(region=region, shorelines=True, frame=True)
+    fig.plot(bidsgpd.geometry, pen='1p,red')
     if framelist:
         framesgpd = fc.get_frames_gpd(framelist)
         fig.plot(framesgpd.geometry, pen='1p,blue')
-
-    fig.plot(bidsgpd.geometry, pen='1p,red')
-    fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values, y=bidsgpd.geometry.centroid.y.values,
-             font="5p,Helvetica")  # , justify="RT", offset='J/30p')
+        fig.text(text=framelist, x=framesgpd.geometry.centroid.x.values,
+                 y=framesgpd.geometry.centroid.y.values,
+                 font="8p,Helvetica,blue")
+    #
+    if label_nofiles:
+        iwbs = fc.bursts_group_to_iws(burstlist)
+        iwl = 0
+        i = 0
+        for iw in iwbs:
+            iwlt = len(iw)
+            if iwlt > iwl:
+                iwl = iwlt
+                seliw = i
+            i += 1
+        iwbs = iwbs[seliw]
+        bidsgpd = fc.bursts2geopandas(iwbs)
+        blens = []
+        print('getting no of files per burst, as imported to LiCSInfo')
+        for b in iwbs:
+            blens.append(len(fc.get_files_from_burst(b)))
+        bidsgpd['nofiles'] = blens
+        fig.text(text=bidsgpd.nofiles.values, x=bidsgpd.geometry.centroid.x.values,
+                 y=bidsgpd.geometry.centroid.y.values,
+                 font="8p,Helvetica")
+    elif label_bids:
+        fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values, y=bidsgpd.geometry.centroid.y.values,
+                 font="5p,Helvetica")  # , justify="RT", offset='J/30p')
 
     return fig
