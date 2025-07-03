@@ -25,4 +25,5 @@ rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq, midnigh
 
 if rc != 0:
     print('ok')
-    return 1
+else:
+    print('missing bursts')
