@@ -23,7 +23,3 @@ for f in filelist:
 burstlist = lq.get_bursts_in_frame(framename)
 rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq, midnighterror)
 
-if rc != 0:
-    print('ok')
-else:
-    print('missing bursts')
