@@ -130,6 +130,16 @@ def get_epochs_for_frame(frame, startdate = dt.datetime.strptime('20141001','%Y%
         return epochs
 
 
+def get_images_for_footprint(frameName, footprint, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
+                         enddate = dt.date.today(), sensType = 'IW'):
+    '''frameName can be a fake one, e.g. '018D' is enough. footprint is a POLYGON WKT, e.g.
+    bidsgpd = fc.bursts2geopandas([burstid])
+    footprint = bidsgpd.geometry[0].wkt
+    '''
+    images = search_alaska(frameName, footprint, startdate, enddate, sensType)
+    return images
+
+
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
              enddate = dt.date.today(), sensType = 'IW', outAspd = False, asf = True):
     #startdate and enddate should be of type datetime.date (but datetime may also work)
