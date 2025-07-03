@@ -15,7 +15,7 @@ masterdate = dt.date(int(m[:4]),int(m[4:6]),int(m[6:8]))
 
 
 print('rechecking S1 data for this date')
-todown = s1data.check_and_import_to_licsinfo(framename,masterdate - dt.timedelta(days=1), masterdate + timedelta(days=1), reingest = False)
+todown = s1data.check_and_import_to_licsinfo(framename,masterdate - dt.timedelta(days=1), masterdate + dt.timedelta(days=1), reingest = False)
 filelist = lq.get_frame_files_period(framename,masterdate-dt.timedelta(days=1),masterdate+dt.timedelta(days=1))
 midnighterror = False
 for f in filelist:
@@ -25,4 +25,5 @@ rc = check_master_bursts(framename,burstlist,masterdate,[masterdate],lq, midnigh
 
 if rc != 0:
     print('ok')
-    return 1
+else:
+    print('missing bursts')
