@@ -145,7 +145,13 @@ def get_images_for_burst(bidtanx, orbdir = 'A'):
     import framecare as fc
     bidsgpd = fc.bursts2geopandas([bidtanx])
     footprint = bidsgpd.geometry[0].wkt
-    return get_images_for_footprint(bidtanx.split('_')[0]+orbdir, footprint)
+    relorb = bidtanx.split('_')[0]
+    if int(relorb)<100:
+        relorb = '0'+relorb
+    if int(relorb) < 10:
+        relorb = '0' + relorb
+    relorb = relorb+orbdir
+    return get_images_for_footprint(relorb, footprint)
 
 
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
