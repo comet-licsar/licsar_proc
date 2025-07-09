@@ -23,6 +23,7 @@ Usage:
 ################################################################################
 #Imports
 ################################################################################
+import os.path
 
 import LiCSquery as lq
 import re
@@ -217,6 +218,9 @@ def main(argv=None):
 
     if zipListFile:
         print("Writing zip file list to {0}".format(zipListFile))
+        zipdir = os.path.dirname(zipListFile)
+        if not os.path.exists(zipdir):
+            os.mkdir(zipdir)
         with open(zipListFile,'w') as f:
             # for zipFile in zipFiles:
             for date,zipFile in filesDF['files'].items():
