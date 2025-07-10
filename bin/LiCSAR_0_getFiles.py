@@ -218,7 +218,7 @@ def main(argv=None):
 
     if zipListFile:
         print("Writing zip file list to {0}".format(zipListFile))
-        zipdir = os.path.dirname(zipListFile)
+        zipdir = os.path.dirname(os.path.realpath(zipListFile))
         if not os.path.exists(zipdir):
             os.mkdir(zipdir)
         with open(zipListFile,'w') as f:
