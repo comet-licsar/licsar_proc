@@ -256,7 +256,8 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
         '''
     else:
         try:
-            images = search_alaska(frameName, footprint, startdate, enddate, sensType)
+            print('CDSE search complete, adding also from ASF (just in case)')
+            images += search_alaska(frameName, footprint, startdate, enddate, sensType)
             #images = df['granuleName'].values.tolist()
         except:
             print('error searching through ASF, cancelling') #', trying scihub')
