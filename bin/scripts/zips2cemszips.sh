@@ -30,6 +30,7 @@ fi
 # Root directory at cems:
 cemsroot1a=/neodc/sentinel1a/data/$mode/L1_SLC/IPF_v
 cemsroot1b=/neodc/sentinel1b/data/$mode/L1_SLC/IPF_v
+cemsroot1c=/neodc/sentinel1c/data/$mode/L1_SLC/IPF_v
 
 rm $ziplist 2>/dev/null; touch $ziplist;
 
@@ -43,7 +44,9 @@ while read listline; do
   sat=${stub:0:3}
   echo $stub $yyyy $mm $dd $sat
   if [ $yyyy$mm$dd -gt 20190624 ]; then vers=3; else vers=2; fi
-  if [ $sat == "S1A" ]; then cemsroot=$cemsroot1a$vers; else cemsroot=$cemsroot1b$vers; fi
+  if [ $sat == "S1A" ]; then cemsroot=$cemsroot1a$vers;
+  elif [ $sat == "S1B" ]; then cemsroot=$cemsroot1b$vers;
+      else cemsroot=$cemsroot1c$vers; fi
 
   echo "${cemsroot}/${yyyy}/${mm}/${dd}/${stub}.zip" >> $ziplist
 done < $full_list

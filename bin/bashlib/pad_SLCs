@@ -7,5 +7,38 @@ pad_SLCs() {
   if [ -z "$2" ]; then local IW1=1; else local IW1=$2; fi 
   if [ -z "$3" ]; then local IW2=3; else local IW2=$3; fi   
   ##rjw ## Before merging, pad bursts with extra lines if necessary ##
+  echo "  Checking num. burst lines tally for all ${yyyymmdd} slc files"
+  for n in `seq ${IW1} ${IW2}`; do
+    maxburst_smp=`grep lines_per_burst SLC/${yyyymmdd}/${yyyymmdd}T*IW$n.slc.TOPS_par | awk 'n < $2 {n=$2}END{print n}'`
+    for yyyymmddhhmmss in `ls -d SLC/${yyyymmdd}/${yyyymmdd}T*IW$n.slc | awk '{print substr($1,14,15)}'`; do
+      rng_smp=`grep range_samples SLC/${yyyymmdd}/$yyyymmddhhmmss*IW$n.slc.par | awk '{print $2}'`
+      azm_smp=`grep azimuth_lines SLC/${yyyymmdd}/$yyyymmddhhmmss*IW$n.slc.par | awk '{print $2}'`
+      nbursts=`grep number_of_bursts SLC/${yyyymmdd}/$yyyymmddhhmmss*IW$n.slc.TOPS_par | awk '{print $2}'`
+      burst_smp=`grep lines_per_burst SLC/${yyyymmdd}/$yyyymmddhhmmss*IW$n.slc.TOPS_par | awk '{print $2}'`
+      diff_smp=`echo $maxburst_smp $burst_smp | awk '{print $1 - $2}'`
+      if [ $diff_smp -ne "0" ]; then
+        echo "SLC" SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc "has" $diff_smp "less lines per burst than SLC with maximum number, making correction..."
+        burst_bytes=`echo $burst_smp $rng_smp | awk '{print $1*$2*4}'`
+        pad_bytes=`echo $diff_smp $rng_smp | awk '{print $1*$2*4}'` 
+        # assumes short (4bytes per pixel)
+
+        echo "Splitting file" SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc "into" $nbursts "bursts of" $burst_bytes "bytes each..."
+        split -b $burst_bytes -d SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc SLC/$yyyymmdd/burst
+        tail -c $pad_bytes SLC/$yyyymmdd/burst00 > SLC/$yyyymmdd/pad01
+
+        echo "Stitching new SLC with padding between bursts"
+        catlist=`ls SLC/$yyyymmdd/burst* | awk '{ORS=" "; print $1, "SLC/'"$yyyymmdd"'/pad01"}'`
+        cat $catlist > SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.pad.slc 
+        rm -f SLC/$yyyymmdd/burst* SLC/$yyyymmdd/pad01
+        mv SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.pad.slc SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc
+
+        echo "Editing" SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc.par "and" SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc.TOPS_par
+        newazm_smp=`echo $azm_smp $nbursts | awk '{print $1*$2}'`
+        sed -i 's/azimuth_lines: *'$azm_smp'/azimuth_lines:                 '$newazm_smp'/g' SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc.par 
+        sed -i 's/lines_per_burst: *'$burst_smp'/lines_per_burst:   '$maxburst_smp'/g'  SLC/$yyyymmdd/$yyyymmddhhmmss*IW$n.slc.TOPS_par 
+      fi
+    done
+  done
+  ############# rjw
 }
 pad_SLCs $@

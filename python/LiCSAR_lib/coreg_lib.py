@@ -85,9 +85,37 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres
                 demresN = float(line.split()[1])
             if 'post_lon' in line:
                 demresE = float(line.split()[1])
+    # 2025/03: Stijn Vleugels found solution for multilooking factors causing data in (much) higher than DEM resolution (affecting topo estimation)
+    # 1. get ml factors ? or just use outres?
     #calculate oversampling factors for lon/lat
-    ovrfactN = str(-1.0*(demresN/outres))
-    ovrfactE = str((demresE/outres))
+    #ovrfactN = str(-1.0*(demresN/outres))
+    # GAMMA requires the ovrfactN to be positive - is it new version? anyway updating:
+    ovrfactN = str(np.abs(demresN / outres))
+    ovrfactE = str(demresE/outres)
+    ovrthres = 1.99 # let's oversample input DEM only if this is at least double lower resolution
+    if (float(ovrfactE)>ovrthres) or (float(ovrfactN)>ovrthres):
+        print('Oversampling input DEM')
+        demin = dem
+        deminpar = dempar
+        dem = os.path.join(demdir,'dem_crop.ovr.dem')
+        dempar = os.path.join(demdir, 'dem_crop.ovr.dem_par')
+        cmd = "dem_trans {0} {1} {2} {3} {4} {5} - - - - - >/dev/null 2>/dev/null".format(deminpar, demin, dempar, dem, ovrfactN, ovrfactE)
+        rc = os.system(cmd)
+        if not os.path.exists(dem):
+            print('Some error, try the command yourself:')
+            print(cmd)
+            print('\n Reverting to the original DEM')
+            dem = demin
+            dempar = deminpar
+        else:
+            with open(dempar, 'r') as f:
+                for line in f:
+                    if 'post_lat' in line:
+                        demresN = float(line.split()[1])
+                    if 'post_lon' in line:
+                        demresE = float(line.split()[1])
+            ovrfactN = str(np.abs(demresN / outres))
+            ovrfactE = str(demresE / outres)
     #create a dem segment file path? map segment?
     demseg = os.path.join(geodir,'EQA.dem')
     #look up table path?
@@ -454,7 +482,7 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
         resfile = os.path.join(procdir,'RSLC',slavedate.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d')+'_'+slavedate.strftime('%Y%m%d')+'.results')
         rc = shutil.copyfile(gamma_coreg_results, resfile)
     else:
-        print('error - the results wile does not exist: '+gamma_coreg_results)
+        print('error - the results file does not exist: '+gamma_coreg_results)
         #pom = 1
     #else:
     #    pom = 0
@@ -650,11 +678,11 @@ def coreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir, lq, job_i
     #resampled slave slc tab file
     slaverslctab = os.path.join(procdir,'tab',slavedate.strftime('%Y%m%d')+'R_tab')
     slaverfilename = os.path.join(slaverslcdir,slavedate.strftime('%Y%m%d')+'.rslc')
-    if not os.path.exists(slaverslctab):
-        rc, msg = make_SLC_tab(slaverslctab,slaverfilename,swathlist)
-        if rc > 0:
-            print('Something went wrong creating the slave resampled tab file...')
-            return 1
+    #if not os.path.exists(slaverslctab):
+    rc, msg = make_SLC_tab(slaverslctab,slaverfilename,swathlist)
+    if rc > 0:
+        print('Something went wrong creating the slave resampled tab file...')
+        return 1
     #auxillary slave tab file -> used for refinement passes
     if slave3date:
         slave3tab = os.path.join(procdir,'tab',slave3date.strftime('%Y%m%d_tab'))
@@ -1147,7 +1175,7 @@ def recoreg_slave(slavedate,slcdir,rslcdir,masterdate,framename,procdir,lq):
                 return 7
             if not os.path.exists(offfile):
                 return 7
-        logfile = os.path.join(procdir,'log','rdc_trans_'+
+        logfile = os.path.join(procdir,'log','SLC_interp_lt_'+
                                masterdate.strftime('%Y%m%d')+'_'+
                                slavedate.strftime('%Y%m%d')+'.log')
 

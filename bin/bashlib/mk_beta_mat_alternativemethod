@@ -1,4 +1,34 @@
 #!/bin/bash
 mk_beta_mat_alternativemethod() {
+  # mk_beta_mat_alternativemethod $length_file $azimuth_pixel_spacing $center_range_slc $nlines_per_burst $width_burst $nbursts SLC/${master}.IW${i}.slc.beta 
+  local length=$1
+  local azimuth_pixel_spacing=$2
+  local center_range_distance=$3
+  local nlines_per_burst=$4
+  local width_burst=$5
+  local nbursts=$6
+  local outfile=$7
+  
+cat << __EOF__ >> matlab_func.m  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Script to compute squint angle matrix (output in radians)
+%
+% Author: Pablo J. Gonzalez
+% Date: 2015/12/22
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+SLCbeta = ones(${length},${width_burst}); 
+SLCbeta = complex(SLCbeta,0);
+%beta_range = rad2deg ( ( (${azimuth_pixel_spacing}*${nlines_per_burst}) ) / ${center_range_distance} );
+beta_range = (${azimuth_pixel_spacing}*${nlines_per_burst}) / ${center_range_distance} ;
+betavec = -(beta_range/2):beta_range/(${nlines_per_burst}-1):(beta_range/2);
+betamat = repmat(betavec,${width_burst},1)';
+betaMAT = repmat(betamat,${nbursts},1);
+SLCbeta=SLCbeta.*exp(1i*betaMAT);
+fwritebk(SLCbeta,'${outfile}','cpxfloat32','b');
+__EOF__
+
+matlab -nojvm -nosplash < matlab_func.m &> /dev/null 
+
+rm -f matlab_func.m 
 }
 mk_beta_mat_alternativemethod $@

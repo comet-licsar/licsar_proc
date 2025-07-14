@@ -3,5 +3,30 @@ mk_crop() {
   local image1=$1
   if [ -z "$2" ]; then local IW1=1; else local IW1=$2; fi 
   if [ -z "$3" ]; then local IW2=3; else local IW2=$3; fi   
+  for i in `seq ${IW1} ${IW2}`; do
+    MinBurstIW=`awk '{print $1}' ${image1}_IW${i}.commonburst | sort -n | head -1`;
+    MaxBurstIW=`awk '{print $2}' ${image1}_IW${i}.commonburst | sort -n | tail -1`;  
+    createSLCtab ${image1} slc ${i} ${i} > SLCin_tab
+    createSLCtab ${image1}.crop slc ${i} ${i} > SLCincrop_tab
+    echo "  Cropping image $image1 IW${i}: SLC_copy_S1_TOPS SLCin_tab SLCincrop_tab 1 $MinBurstIW 1 $MaxBurstIW"
+    SLC_copy_S1_TOPS SLCin_tab SLCincrop_tab 1 $MinBurstIW 1 $MaxBurstIW 
+  done
+  # Mosaic/Merge cropped subswaths
+  createSLCtab ${image1}.crop slc ${IW1} ${IW2} > SLCincropped_tab
+  echo "  SLC_mosaic_S1_TOPS SLCincropped_tab ${image1}.slc ${image1}.slc.par $rlks $azlks " 
+  SLC_mosaic_S1_TOPS SLCincropped_tab ${image1}.slc ${image1}.slc.par $rlks $azlks  
+  mvSLCcrop2SLC ${image1}.crop ${image1} ${IW1} ${IW2} 
+
+  # Update the ${master}_IW${i}.burstlist files
+  for i in `seq ${IW1} ${IW2}`; do
+    MinBurstIW=`awk '{print $1}' ${image1}_IW${i}.commonburst | sort -n | head -1`;
+    MaxBurstIW=`awk '{print $2}' ${image1}_IW${i}.commonburst | sort -n | tail -1`;  
+    #echo $i $MinBurstIW $MaxBurstIW ${image1}_IW${i}.burstlist
+    awk 'NR>='$MinBurstIW'&&NR<='$MaxBurstIW' {print $1,$2,NR-'$MinBurstIW'+1}' ${image1}_IW${i}.burstlist > temp
+    mv temp ${image1}_IW${i}.burstlist
+  done
+  
+  # Cleaning
+  rm -f SLCin_tab SLCincrop_tab SLCincropped_tab 
 }
 mk_crop $@

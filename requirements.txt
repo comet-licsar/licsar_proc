@@ -13,7 +13,7 @@ numpy
 pandas
 pathos
 pillow
-pyinterp
+# pyinterp
 pymysql
 pyproj
 requests
@@ -21,7 +21,6 @@ rioxarray
 scikit-learn
 scikit-image
 scipy
-sentinelsat
 shapely
 sqlalchemy
 sshtunnel

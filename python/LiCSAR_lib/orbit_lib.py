@@ -418,7 +418,7 @@ class invalidSatType(Exception):
         self.satType = satType
 
     def __str__(self):
-        return "Unregonised satalite type {0}, use either S1A or S1B".format(self.satType)
+        return "Unregonised satalite type {0}, use either S1A, S1B or S1C".format(self.satType)
 
 class invalidFileUrl(Exception):
     """This means your url is probably wrong... where did you get it?"""
@@ -540,15 +540,20 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
     #result = scihub.query(platformname = 'Sentinel-1', producttype='AUX_'+producttype, date = (startdate, enddate))    
     result = scihub.to_dataframe(result)
     '''
-    try:
-        startdate = startdate.date()
-        enddate = enddate.date()
-    except:
-        pass
+    #try:
+    #    startdate = startdate.date()
+    #    enddate = enddate.date()
+    #except:
+    #    pass
     # that was... really tricky to find... CDSE documentation is really bad
     # https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=((Online%20eq%20true)%20and%20(((((((Attributes/OData.CSC.StringAttribute/any(i0:i0/Name%20eq%20%27productType%27%20and%20i0/Value%20eq%20%27AUX_POEORB%27))))%20and%20(Collection/Name%20eq%20%27SENTINEL-1%27))))))
     # https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_POEORB&completionDate=2023-10-03T00:00:00Z
-    json = requests.get("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}T00:00:00Z&completionDate={2}T00:00:00Z".format(producttype, str(startdate), str(enddate))).json()
+    if type(startdate)==type(dt.datetime(2025, 3, 31, 17, 23, 39)):
+        json = requests.get(
+            "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}Z&completionDate={2}Z".format(
+                producttype, str(startdate).replace(' ','T'), str(enddate).replace(' ','T'))).json()
+    else:
+        json = requests.get("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}T00:00:00Z&completionDate={2}T00:00:00Z".format(producttype, str(startdate), str(enddate))).json()
     tmplist = str(json).split("'")
     filenames = []
     for tmpstr in tmplist:
@@ -648,10 +653,15 @@ def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):
         (startdate, enddate) = strpStrtEndTimes(zipFile)
         startdatepoe = startdate - pd.Timedelta('2 days')  # need to extend as sometimes these just do not get found...
         enddatepoe = enddate + pd.Timedelta('2 days')
-        startdateres = startdate - pd.Timedelta('1 day')
-        enddateres = enddate + pd.Timedelta('1 day')
-        downloadOrbits_CopCloud(startdatepoe, enddatepoe, 'POEORB')
-        downloadOrbits_CopCloud(startdateres, enddateres, 'RESORB')
+        startdateres = startdate - pd.Timedelta('6 hours') #1 day')
+        enddateres = enddate + pd.Timedelta('6 hours') #1 day')
+        orbs = downloadOrbits_CopCloud(startdatepoe, enddatepoe, 'POEORB')
+        # check if the orb really contains the date...
+        if orbs:
+            orbs = get_orbit_filenames_for_datetime(enddate, producttype='POEORB', s1ab = zipFile[:3])
+        if not orbs:
+            print('trying to get RESORBs')
+            downloadOrbits_CopCloud(startdateres, enddateres, 'RESORB')
         return True
     except:
         print('not succeeded')
@@ -689,7 +699,8 @@ def getOrbUrl(sat,prodType,startTime,endTime):
     baseUrl = 'https://qc.sentinel1.copernicus.eu/api/v1/?'
 
     satDict = {'S1A':'S1A',
-            'S1B':'S1B'}
+            'S1B':'S1B',
+            'S1C':'S1C'}
 
     prodDict = {'POEORB':'AUX_POEORB',
             'RESORB':'AUX_RESORB'}
@@ -774,7 +785,8 @@ def findValidOrbFile(baseDir,sat,startTime,endTime):
     timeStrpPat = '%Y%m%dT%H%M%S'
 
     satDict = {'S1A':'S1A',
-            'S1B':'S1B'}
+            'S1B':'S1B',
+            'S1C':'S1C'}
 
     try:
         satQry = satDict[sat]

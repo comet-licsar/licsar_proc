@@ -264,8 +264,8 @@ class dbquery:
             "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
             "where polygs.polyid_name='{0}' " \
             "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and files.pol='VV'"\
-            "order by files.acq_date;".format(frame,t1,t2)
+            "and files.pol='VV';".format(frame,t1,t2) # #\
+            #"order by files.acq_date;".format(frame,t1,t2)
         return do_query(sql_q)
 
     

@@ -24,7 +24,7 @@ fi
 
 
 export BATCH_CACHE_DIR=/work/scratch-pw3/licsar/$USER/batchdir
-export LiCSAR_temp=/work/scratch-pw3/licsar/$USER/LiCSAR_temp
+export LiCSAR_temp=$BATCH_CACHE_DIR/LiCSAR_temp   #/work/scratch-pw3/licsar/$USER/LiCSAR_temp
 
 echo "\$BATCH_CACHE_DIR="$BATCH_CACHE_DIR
 echo "\$LiCSAR_temp="$LiCSAR_temp
@@ -50,6 +50,7 @@ else
 fi
 fi
 
+echo "export BATCH_CACHE_DIR="$BATCH_CACHE_DIR >> ~/.bashrc
 echo "umask 002" >> ~/.bashrc
 echo "umask 002" >> ~/.profile
 

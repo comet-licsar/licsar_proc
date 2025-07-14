@@ -111,15 +111,17 @@ def delete_file_from_db(ff, col = 'abs_path'):
     Note: col name is the filename without the tailing .zip
     """
     sql='select fid from files where {0}="{1}";'.format(col, ff)
+    # select fid from files where name = "S1A_IW_SLC__1SDV_20250511T130357_20250511T130424_059147_0756BA_6BE7";
     out = do_pd_query(sql)
+    num = 0
     for fid in out.fid:
         sql='delete from files2jobs where fid={};'.format(fid)
-        num = do_query(sql, True)
+        num += do_query(sql, True)
         sql='delete from files2bursts where fid={};'.format(fid)
-        num = do_query(sql, True)
+        num += do_query(sql, True)
         sql='delete from files where fid={};'.format(fid)
-        num = do_query(sql, True)
-    return True
+        num += do_query(sql, True)
+    return num
 
 
 def delete_frame_only(frame):
@@ -362,7 +364,7 @@ def check_frame(frame):
 
 def geom_from_polygs2geom(frame):
     polyid = get_frame_polyid(frame)[0][0]
-    sql_q = "select AsText(geom) from polygs2gis where polyid={0}".format(polyid)
+    sql_q = "select ST_AsText(geom) from polygs2gis where polyid={0}".format(polyid)
     return do_query(sql_q)[0][0]  #.decode('UTF-8')  --- this is needed in case of bit older version of MySQL
 
 def get_polygon_from_bidtanx(bidtanx):
@@ -625,8 +627,8 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
             "where polygs.polyid_name='{0}' " \
             "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and (files.pol='VV' or files.pol='HH') "\
-            "order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
+            "and (files.pol='VV' or files.pol='HH');".format(frame,t1,t2)  # "\
+            #"order by files.acq_date asc, files.name asc, files.proc_date desc, files.date_added desc;".format(frame,t1,t2)
     else:
         sql_q = "select distinct files.name from files " \
             "inner join files2bursts on files.fid=files2bursts.fid " \
@@ -634,8 +636,8 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
             "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
             "where polygs.polyid_name='{0}' " \
             "and date(files.acq_date) between '{1}' and '{2}' "\
-            "and (files.pol='VV' or files.pol='HH') "\
-            "order by files.name asc;".format(frame,t1,t2)
+            "and (files.pol='VV' or files.pol='HH');".format(frame,t1,t2)  # "\
+            #"order by files.name asc;".format(frame,t1,t2)   # not working in mysql 8
     return do_query(sql_q)
 
 
@@ -658,8 +660,8 @@ def get_frame_files_date(frame,date):
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
         "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
-        "and (pol='VV' or pol='HH')"\
-        "order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
+        "and (pol='VV' or pol='HH');".format(frame,date,date2)  #
+        #"order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
     return do_query(sql_q)
 
 
@@ -692,8 +694,8 @@ def get_burst_no(frame,date):
         "inner join bursts on polygs2bursts.bid=bursts.bid "\
         "where polygs.polyid_name='{0}' " \
         "and date(files.acq_date)='{1}' "\
-        "and (pol='VV' or pol='HH')"\
-        "order by files.acq_date;".format(frame,date)
+        "and (pol='VV' or pol='HH');".format(frame,date) #"\
+        #"order by files.acq_date;".format(frame,date)
     return do_query(sql_q)
 
 
@@ -989,9 +991,9 @@ def store_frame_geometry(frameid, wkt):
         return None
     is_in_geom = is_in_polygs2geom(frameid)
     if is_in_geom > 0:
-        sql_q = "UPDATE polygs2gis set geom=GeomFromText('{0}') where polyid={1}".format(wkt,str(polyid))
+        sql_q = "UPDATE polygs2gis set geom=ST_GeomFromText('{0}') where polyid={1}".format(wkt,str(polyid))
     else:
-        sql_q = "INSERT INTO polygs2gis VALUES ({0}, GeomFromText('{1}'));".format(str(polyid), wkt)
+        sql_q = "INSERT INTO polygs2gis VALUES ({0}, ST_GeomFromText('{1}'));".format(str(polyid), wkt)
     # perform query, get result (should be blank), and then commit the transaction
     res = do_query(sql_q, True)
     return res
@@ -1044,10 +1046,10 @@ def store_volcano_to_db(volcid, name, lat, lon, alt, priority = None):
     name = name.replace("'"," ")
     name = name.replace('"'," ")
     if priority:
-        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, priority, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, '{5}', GeomFromText('POINT {3} {2}'));".format(
+        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, priority, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, '{5}', ST_GeomFromText('POINT {3} {2}'));".format(
                                 str(volcid), str(name), str(lat), str(lon), str(alt), str(priority))
     else:
-        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, GeomFromText('POINT {3} {2}'));".format(
+        sql_q = "INSERT INTO volcanoes (volc_id, name, lat, lon, alt, geometry) VALUES ({0}, '{1}', {2}, {3}, {4}, ST_GeomFromText('POINT {3} {2}'));".format(
                                 str(volcid), str(name), str(lat), str(lon), str(alt))
     res = do_query(sql_q, True)
     time.sleep(0.25)
@@ -1059,7 +1061,7 @@ def store_burst_geom(s1bid, iw, relorb, tanx, opass, wkt, checkisin = False):
         is_in_geom = is_in_bursts2geom(s1bid, iw)
         if is_in_geom != 0:
             return False
-    sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', GeomFromText('{5}'));".format(str(s1bid), 
+    sql_q = "INSERT INTO s1bursts (s1bid, iw, relorb, tanx, opass, geometry) VALUES ({0}, {1}, {2}, {3}, '{4}', ST_GeomFromText('{5}'));".format(str(s1bid),
                                 str(iw), str(relorb), str(tanx), opass, wkt)
     res = do_query(sql_q, True)
     time.sleep(0.25)
@@ -1305,7 +1307,7 @@ def get_daz(polyid, epoch, getall = False):
 
 
 def delete_esds_for_frame(frame, epoch = None, test=True):
-    """In case of removing a frame, ensure the esd values are also purged.
+    """ In case of removing a frame, ensure the esd values are also purged.
     (by default, if epoch already exists in esd database, it would not be overwritten)
     
     Args:
@@ -1326,7 +1328,7 @@ def delete_esds_for_frame(frame, epoch = None, test=True):
 
 
 def ingest_esd(frame, epoch, rslc3, daz, ccazi, ccrg, orb, overwrite = False):
-    """Function to import ESD (etc.) values to the database
+    """ Function to import ESD (etc.) values to the database
     
     Args:
         frame (str): 	frame ID

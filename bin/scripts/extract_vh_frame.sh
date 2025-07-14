@@ -42,7 +42,7 @@ for lut in `ls $LiCSAR_procdir/$tr/$frame/LUT`; do
  if [ $datee -gt $sdate ] && [ $datee -lt $edate ]; then
    if [ ! -d $datee ]; then
     echo "extracting LUT for "$datee
-    7za x $LiCSAR_procdir/$tr/$frame/LUT/$lut >/dev/null
+    7za -mmt=1 x $LiCSAR_procdir/$tr/$frame/LUT/$lut >/dev/null
    fi
  fi
 done

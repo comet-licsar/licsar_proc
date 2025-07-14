@@ -165,7 +165,10 @@ def get_orb_dir_old( sat ):
             except:
                 orbdir = []
         else:
-            orbdir = []
+            try:
+                orbdir = parser.get('paths', 'S1Corbitpath')
+            except:
+                orbdir = []
     except:
         orbdir = os.environ[ 'ORBs_DIR' ] + '/' + sat
     return orbdir
@@ -219,9 +222,9 @@ def read_files( filelist, slcdir, imdate, procdir, licsQuery, job_id, acqMode='i
             # unzipcall = [ 'jar', '-xf', f[1] + '.zip' ]
             # unzipcall = [ 'unzip', f[1] + '.zip' ]
             if test_crosspol:
-                unzipcall = [ '7za', 'x', '-xr!*vv*', '-xr!*hh*', f[1] + '.zip' ]
+                unzipcall = [ '7za', '-mmt=4', 'x', '-xr!*vv*', '-xr!*hh*', f[1] + '.zip' ]
             else:
-                unzipcall = [ '7za', 'x', '-xr!*vh*', '-xr!*hv*', f[1] + '.zip' ]
+                unzipcall = [ '7za', '-mmt=4', 'x', '-xr!*vh*', '-xr!*hv*', f[1] + '.zip' ]
             try:
                 rc = subp.check_call( unzipcall )
             except subp.CalledProcessError:
@@ -474,11 +477,14 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         filelist = filelist2
     #raise Usage("DEBUG")
     if autodownload:
-        if os.environ['USER']=='earmla':
-            outdir = '/work/xfc/vol5/user_cache/earmla/SLC'
+        try:
+            xfcpath = os.environ['XFCPATH']
+            outdir = os.path.join(xfcpath,'SLC')
+            #if os.environ['USER']=='earmla':
+            #    outdir = '/work/xfc/vol5/user_cache/earmla/SLC'
             if not os.path.exists(outdir):
                 outdir = os.environ['LiCSAR_SLC']
-        else:
+        except:
             outdir=os.environ['LiCSAR_SLC']
         #
         i = -1
@@ -758,7 +764,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 for zipFile in glob(imdir+'/*.zip'):
                     #Loop through zipfiles and get valis orbit file
                     print("Updating orbit for {0}".format(zipFile))
-                    mtch = re.search('.*(S1[AB]).*',zipFile)
+                    mtch = re.search('.*(S1[ABCD]).*',zipFile)
                     sat = mtch.groups()[0]
                     localOrbDir = get_orb_dir(sat)
                     try:

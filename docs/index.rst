@@ -1,5 +1,5 @@
-LiCSAR proc
-===========
+LiCSAR Processor
+================
 
 This section describes core functionality of LiCSAR system, that is used by LiCSAR FrameBatch system but can be used independently.
 Some parameters of particular use (often not fully integrated in FrameBatch) are discussed here, yet we assume that you work with

@@ -11,8 +11,8 @@ lonlats=`cat sourcecmd.txt | gawk {'print $3, $4, $5, $6'}`
 if [ -e $lonlats 2>/dev/null ]; then echo "something is wrong - are you in the subset dir?"; exit; fi
 
 if [ -d backup_oldDEM ]; then mv backup_oldDEM backup_oldDEM.old; fi
-mkdir backup_oldDEM
-if [ -d DEM ]; then mv DEM backup_oldDEM/.; fi
+
+if [ -d DEM ]; then mkdir backup_oldDEM; mv DEM backup_oldDEM/.; fi
 
 # get the Copernicus DEM
 mkdir DEM

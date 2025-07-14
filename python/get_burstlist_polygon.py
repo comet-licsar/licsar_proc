@@ -69,7 +69,7 @@ def main(argv=None):
     print('Available tracks:\n {0}'.format(''.join([str(t)+' ' for t in set(tracks)])))
 
 
-    trackchoice = np.int(input('Please chose a track...\n'))
+    trackchoice = np.int8(input('Please chose a track...\n'))
     if trackchoice in tracks:
         lonchoice = [b for b,t in zip(burstslon,tracks) if trackchoice == t]
         latchoice = [b for b,t in zip(burstslat,tracks) if trackchoice == t]

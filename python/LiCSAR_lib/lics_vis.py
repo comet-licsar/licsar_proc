@@ -3,23 +3,39 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 try:
+    import framecare as fc
+except:
+    print('error loading framecare library - some LiCSAR-connected functionality will not work')
+
+try:
     import contextily as ctx
 except:
     print('contextily is not installed')
 
-def plot3(A,B,C):
-    '''inputs are three xr.dataarrays to plot'''
+def plot3(A,B,C, unit='rad', cmap='RdBu', minmax=None):
+    '''inputs are three xr.dataarrays to plot
+
+    minmax can be e.g. [-4,4] '''
     origfigsize = plt.rcParams['figure.figsize']
     plt.rcParams["figure.figsize"] = [18,4]
     plt.subplot(1,3,1)
     #AA.origpha
-    A.rename('rad').plot()
+    if minmax:
+        A.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        A.rename(unit).plot()
     plt.subplot(1,3,2)
     #AA.unwlow
-    B.rename('rad').plot()
+    if minmax:
+        B.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        B.rename(unit).plot()
     plt.subplot(1,3,3)
     #AA.toremove
-    C.rename('rad').plot()
+    if minmax:
+        C.rename(unit).plot(cmap=cmap, vmin=minmax[0], vmax=minmax[1])
+    else:
+        C.rename(unit).plot()
     plt.show()
     plt.rcParams['figure.figsize']=origfigsize
 
@@ -220,10 +236,40 @@ def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims
     return ax1
 
 
+def plotdaz(dazes, frame, toshow = 'daz', lim = 4000, ylim = [-200,200]):
+    toplotA = dazes[dazes['AB']=='A'].set_index('epoch')[toshow]*14000
+    toplotB = dazes[dazes['AB']=='B'].set_index('epoch')[toshow]*14000
+    todelA = toplotA[np.abs(toplotA)>=lim]
+    todelB = toplotB[np.abs(toplotB)>=lim]
+    print('outlying epochs:')
+    if not todelA.empty:
+        print(todelA.index.values)
+    if not todelB.empty:
+        print(todelB.index.values)
+    toplotA=toplotA[np.abs(toplotA)<lim]
+    toplotB=toplotB[np.abs(toplotB)<lim]
+    if not toplotA.empty:
+        toplotA.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='blue', linestyle='')#-.')
+    if not toplotB.empty:
+        toplotB.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='orange', linestyle='')#-.')
+    plt.show()
+
+
+def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
+    import daz_lib_licsar as dl
+    ylim = [-1*ylim1, ylim1]
+    dazes = dl.get_daz_frame(frame)
+    msab = dl.fc.get_frame_master_s1ab(frame)
+    mdatetime=dl.fc.get_master(frame, asdatetime=True)
+    epochdates=dazes['epoch'].tolist()
+    ABs = dl.flag_s1b(epochdates,mdatetime,msab,True)
+    dazes['AB'] = ABs
+    plotdaz(dazes, frame, toshow = toshow, lim = lim, ylim=ylim)
+
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None, interactive = False,
-               region = None):
+               region = None, projection = "M13c"):
     ''' Function to generate (nice) plot of given grid using pyGMT
     
     Args:
@@ -235,15 +281,29 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         photobg (bool): will plot orthophotomap as the background (if False, DEM relief is used)
         plotvec (geopandas etc): will plot vector data to the map, using pyGMT defaults
         region (tuple/None):  either None or set using tuple (minlon, maxlon, minlat, maxlat)
+        projection (str):  standard GMT projection string - try e.g."M13c" or 'R13c' for Robinson etc.
 
     Returns:
         pygmt.figure.Figure
     '''
     try:
         grid = grid.load()
+        grid = grid.where(grid != 0)
+        isgrid = True
     except:
         print('error loading the input dataarray to memory')
-        return False
+        if type(plotvec)==type(None):
+            return False
+        else:
+            print('trying to plot the map using provided vector data (assuming geopandas)')
+            region = plotvec.bounds.minx.min(),\
+                     plotvec.bounds.maxx.max(),\
+                     plotvec.bounds.miny.min(),\
+                     plotvec.bounds.maxy.max()
+            # x1, x2, y1, y2
+            lims = True
+            isgrid = False
+
     # try cmap 'vik' for E-W
     #
     # grid = a['U'].where(a.mask < 5) - 10
@@ -256,7 +316,6 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     else:
         minlon, maxlon, minlat, maxlat = region
 
-    grid = grid.where(grid != 0)
     if not lims:
         tmean = float(grid.mean())
         tstd = float(grid.std())
@@ -265,7 +324,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
 
     fig = pygmt.Figure()
     pygmt.config(FORMAT_GEO_MAP="ddd.xx") #, MAP_FRAME_TYPE="plain")
-    projection = "M13c" # 'R13c' for Robinson etc.
+    # projection = "M13c" # 'R13c' for Robinson etc.
     region = [minlon, maxlon, minlat, maxlat]
 
     if interactive:
@@ -290,8 +349,9 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             # Use tiles from OpenStreetMap tile server
             source=sourcetiles
         )
-        pygmt.makecpt(cmap=cmap, series=lims, background=True)
-        fig.grdview(grid=grid, cmap=True, projection=projection, surftype='c', transparency=40)
+        if isgrid:
+            pygmt.makecpt(cmap=cmap, series=lims, background=True)
+            fig.grdview(grid=grid, cmap=True, projection=projection, surftype='c', transparency=40)
     else:
         pygmt.makecpt(cmap="gray", series=[-8000, 8000, 1000], continuous=True)
         fig.grdimage(
@@ -302,8 +362,9 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             shading=True,
             frame=True
         )
-        pygmt.makecpt(cmap=cmap, series=lims, background=True)
-        fig.grdimage(grid=grid, cmap=True, projection=projection, frame=True, transparency=40)
+        if isgrid:
+            pygmt.makecpt(cmap=cmap, series=lims, background=True)
+            fig.grdimage(grid=grid, cmap=True, projection=projection, frame=True, transparency=40)
     #
     fig.coast(shorelines=True, projection=projection)
     if type(plotvec) != type(None):
@@ -420,3 +481,66 @@ def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, 
     fig.basemap(frame=True)
     return fig
 
+
+def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True,
+                      projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True):
+    sourcetiles = ctx.providers.Esri.WorldImagery
+    bidsgpd = fc.bursts2geopandas(burstlist)
+    #framelist = ['037D_04691_021207']
+
+    region = bidsgpd.bounds.minx.min() - bevel, \
+             bidsgpd.bounds.maxx.max() + bevel, \
+             bidsgpd.bounds.miny.min() - bevel, \
+             bidsgpd.bounds.maxy.max() + bevel
+
+    fig = pygmt.Figure()
+    # pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain")
+    pygmt.config(FONT_TITLE="12p")
+    pygmt.config(FONT_LABEL="8p")
+    if title:
+        fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
+    else:
+        fig.basemap(region=region, projection=projection, frame=["af"])
+
+    if background:
+        fig.tilemap(
+            region=region,
+            zoom=8,
+            # Use tiles from OpenStreetMap tile server
+            source=sourcetiles
+        )
+
+    fig.coast(region=region, shorelines=True, frame=True)
+    fig.plot(bidsgpd.geometry, pen='1p,red')
+    if framelist:
+        framesgpd = fc.get_frames_gpd(framelist)
+        fig.plot(framesgpd.geometry, pen='1p,blue')
+        fig.text(text=framelist, x=framesgpd.geometry.centroid.x.values,
+                 y=framesgpd.geometry.centroid.y.values,
+                 font="8p,Helvetica,blue")
+    #
+    if label_nofiles:
+        iwbs = fc.bursts_group_to_iws(burstlist)
+        iwl = 0
+        i = 0
+        for iw in iwbs:
+            iwlt = len(iw)
+            if iwlt > iwl:
+                iwl = iwlt
+                seliw = i
+            i += 1
+        iwbs = iwbs[seliw]
+        bidsgpd = fc.bursts2geopandas(iwbs)
+        blens = []
+        print('getting no of files per burst, as imported to LiCSInfo')
+        for b in iwbs:
+            blens.append(len(fc.get_files_from_burst(b)))
+        bidsgpd['nofiles'] = blens
+        fig.text(text=bidsgpd.nofiles.values, x=bidsgpd.geometry.centroid.x.values,
+                 y=bidsgpd.geometry.centroid.y.values,
+                 font="8p,Helvetica")
+    elif label_bids:
+        fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values, y=bidsgpd.geometry.centroid.y.values,
+                 font="5p,Helvetica")  # , justify="RT", offset='J/30p')
+
+    return fig

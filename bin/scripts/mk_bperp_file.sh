@@ -30,7 +30,7 @@ if [ $day != $master ]; then
  if [ -f RSLC/${day}.7z ]; then
   if [ `ls -l  RSLC/${day}.7z | gawk {'print $5'}` -lt 1000 ]; then echo "file "$day'.7z is erroneous, removing'; rm RSLC/$day'.7z';
   else
-   7za x -o$tmpdir RSLC/${day}.7z $day/$day.*rslc.par >/dev/null 2>/dev/null;
+   7za -mmt=1 x -o$tmpdir RSLC/${day}.7z $day/$day.*rslc.par >/dev/null 2>/dev/null;
   fi
  elif [ -d RSLC/$day ]; then
   mkdir $tmpdir/$day

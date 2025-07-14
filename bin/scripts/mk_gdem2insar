@@ -53,7 +53,7 @@ for ((long=$west; long <= $east; long++)); do
           echo "File found"
           #unzip -o ${file}.zip
           #jar xf ${file}.zip
-          7za x ${file}.zip
+          7za -mmt=1 x ${file}.zip
           rm ${file}.zip
           mv ${file}/* .
       fi

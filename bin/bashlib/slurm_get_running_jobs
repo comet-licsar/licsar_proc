@@ -1,4 +1,7 @@
 #!/bin/bash
 slurm_get_running_jobs() {
+  for jobid in `bjobs | grep ' R ' | gawk {'print $1'}`; do
+   slurm_get_jobname $jobid
+  done
 }
 slurm_get_running_jobs $@

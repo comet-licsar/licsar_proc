@@ -1,4 +1,13 @@
 #!/bin/bash
 mk_RMLISLClinks() {
+  #mk_RMLISLClinks ../SLC/${master} slc.mli ${master} rmli ${IW1} ${IW3}
+  local iput=$1
+  local iend=$2
+  local oput=$3
+  local oend=$4
+  if [ -z "$5" ]; then local IW1=1; else local IW1=$5; fi 
+  if [ -z "$6" ]; then local IW2=3; else local IW2=$6; fi   
+  ln -s ${iput}.${iend}     ${oput}.${oend} 
+  ln -s ${iput}.${iend}.par ${oput}.${oend}.par 
 }
 mk_RMLISLClinks $@

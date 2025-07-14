@@ -4,6 +4,10 @@ if [ -z $1 ]; then echo "Parameter is filename, i.e. S1.....zip "; exit; fi
 
 # e.g. S1A_IW_SLC__1SDV_20170301T214607_20170301T214634_015504_019780_9990.zip
 FILENAME=$1
+python3 -c "import orbit_lib as orb; orb.updateOrbForZipfile('"$FILENAME"')"
+
+exit
+# the below cannot work anymore after migrating to CDSE:
 
 a=`echo $FILENAME | cut -c 18-25`
 DATUM_START=`echo ${a:0:4}-${a:4:2}-${a:6:2}`

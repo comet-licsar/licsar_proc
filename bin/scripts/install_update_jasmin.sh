@@ -25,10 +25,11 @@ fi
 
 
 export BATCH_CACHE_DIR=/work/scratch-pw3/licsar/$USER/batchdir
-export LiCSAR_temp=/work/scratch-pw3/licsar/$USER/LiCSAR_temp
+export LiCSAR_temp=$BATCH_CACHE_DIR/LiCSAR_temp #/work/scratch-pw3/licsar/$USER/LiCSAR_temp
+echo "export BATCH_CACHE_DIR="$BATCH_CACHE_DIR >> ~/.bashrc
 
 echo $BATCH_CACHE_DIR
-echo $LiCSAR_temp
+#echo $LiCSAR_temp
 
 mkdir -p $BATCH_CACHE_DIR
 mkdir -p $LiCSAR_temp

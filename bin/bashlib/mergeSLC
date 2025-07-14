@@ -3,5 +3,47 @@ mergeSLC() {
   local slcdate=$1
   local rlks=$2 
   local azlks=$3
+  local slcdir=SLC/${slcdate}
+  # Merge the burst list files
+  echo "  Merging files for date: $slcdate [if only one file skip merging, only rename it] "
+  rm -f ${slcdir}/${slcdate}_IW*.burstlist
+  cat ${slcdir}/${slcdate}T*_IW1.burstlist > ${slcdir}/${slcdate}_IW1.burstlist
+  cat ${slcdir}/${slcdate}T*_IW2.burstlist > ${slcdir}/${slcdate}_IW2.burstlist
+  cat ${slcdir}/${slcdate}T*_IW3.burstlist > ${slcdir}/${slcdate}_IW3.burstlist
+  # Check for number of SLCs per date
+  listslc=( `ls ${slcdir}/${slcdate}T??????.IW1.slc | awk '{print substr($1,14,15)}'` );
+  nSLCs=${#listslc[@]};
+  if [ "$nSLCs" == "1" ]; then
+    echo "    Only 1 SLC per date is available [rename] "
+    yyyymmddhhmmss=`ls ${slcdir}/${slcdate}T??????.IW1.slc | awk '{print substr($1,14,15)}'`  
+    mvSLC_yyyymmddhhmmss2yyyymmdd ${yyyymmddhhmmss} ${slcdate} 
+    createSLCtab ${slcdir}/${slcdate} slc ${IW1} ${IW3} > SLC_tab
+    # Create a mosaic SLC from the three subswath bursted SLCs
+    SLC_mosaic_S1_TOPS SLC_tab ${slcdir}/${slcdate}.slc ${slcdir}/${slcdate}.slc.par $rlks $azlks 
+    rm -f SLC_tab
+  else
+    echo "    ${nSLCs} SLCs in this date are available for merging"
+    # Loop from first element in array to last element minus 2 to merge in pairs
+    nslcmintwo=`echo $nSLCs | awk '{print $1-2}'`;
+    for i in `seq 0 $nslcmintwo`; do # Indexes in bash arrays starts with 0!!!
+      echo ${listslc[*]}
+      j=`echo $i | awk '{print $1+1}'`
+      SLC1=${listslc[${i}]}; # First image to concatenate
+      SLC2=${listslc[${j}]}; # Second image to concatenate       
+      if [ "$i" -lt "$nslcmintwo" ]; then 
+        echo "    Inputs are: $SLC1 $SLC2     Output: ${slcdate}.${i}.${j} "
+        listslc[${j}]=${slcdate}.${i}.${j} # Substitute the jth element in array for the new name
+        # It merges and rename products as yyyymmdd format
+        merge_S1cat $slcdir $SLC1 $SLC2 ${slcdate}.${i}.${j} # Concatenate pairs and generates SLC tables (SLC_tabs) 
+        rm -f SLC_tab1 SLC_tab2 SLC_tab3         
+      else
+        echo "    Inputs are: $SLC1 $SLC2     Output: ${slcdate} "
+        # It merges and rename products as yyyymmdd format
+        merge_S1cat $slcdir $SLC1 $SLC2 $slcdate # Concatenate pairs and generates SLC tables (SLC_tabs) 
+        SLC_mosaic_S1_TOPS SLC_tab3 ${slcdir}/${slcdate}.slc ${slcdir}/${slcdate}.slc.par $rlks $azlks 
+        rm -f SLC_tab1 SLC_tab2 SLC_tab3         
+      fi 
+    done # End of the sequential concatenatation merging
+  fi
 }
 mergeSLC $@

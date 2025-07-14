@@ -223,7 +223,7 @@ if [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw ]; then
     echo "testing - include landmask (should work if procdir ends by frame name)"
     #exit
     frame=`basename $procdir`
-    source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+    # source $LiCSARpath/lib/LiCSAR_bash_lib.sh
     create_preview_unwrapped ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.tif $frame
   else
        unw_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.unw.png

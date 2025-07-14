@@ -14,8 +14,8 @@ source $3
 
 echo "Extracting your stripmaps"
 mkdir SLC; cd SLC
-7za x $1
-7za x $2
+7za -mmt=1 x $1
+7za -mmt=1 x $2
 IF1DIR=`pwd`/`basename $1 .zip`.SAFE
 IF2DIR=`pwd`/`basename $2 .zip`.SAFE
 date1=`basename $1 .zip | cut -c 18-25`

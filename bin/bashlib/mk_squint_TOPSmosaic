@@ -9,5 +9,26 @@ mk_squint_TOPSmosaic() {
   if [ -z "$7" ]; then local IW2=3; else local IW2=$7; fi  
   
   # Loop over all subswaths of the master
+  # Loop over all subswaths of the master
+  for i in `seq ${IW1} ${IW2}`; do
+    # Simulate squint angles and write a complex file 
+    # Read PRF and steering rate
+    #PRF=`awk '$1 == "prf:" {print $2}' SLC/${master}.IW${i}.slc.par` # in Hz
+    #K=`awk '$1 == "az_steering_rate:" {print $2}' SLC/${master}.IW${i}.slc.TOPS_par` # in deg/sec
+    
+    length_file=`awk '$1 == "azimuth_lines:" {print $2}' SLC/${master}.IW${i}.slc.par` # in pixels
+    azimuth_pixel_spacing=`awk '$1 == "azimuth_pixel_spacing:" {print $2}' SLC/${master}.IW${i}.slc.par` # in meters
+    center_range_distance=`awk '$1 == "center_range_slc:" {print $2}' SLC/${master}.IW${i}.slc.par` # in meters
+    nlines_per_burst=`awk '$1 == "lines_per_burst:" {print $2}' SLC/${master}.IW${i}.slc.TOPS_par` # in pixels
+    width_burst=`awk '$1 == "range_samples:" {print $2}' SLC/${master}.IW${i}.slc.par` # in pixels
+    nbursts=`awk '$1 == "number_of_bursts:" {print $2}' SLC/${master}.IW${i}.slc.TOPS_par` # in deg/sec
+    
+    echo "Creating Squint angles for master geometry: SLC/${master}.IW${i}"
+    echo "  mk_beta_mat_alternativemethod length_file azimuth_pixel_spacing center_range_slc nlines_per_burst width_burst nbursts output "
+    echo "  mk_beta_mat_alternativemethod $length_file $azimuth_pixel_spacing $center_range_distance $nlines_per_burst $width_burst $nbursts SLC/${master}.IW${i}.slc.beta "
+    # Call function that calculates a large matrix in complex format with phase equals to the squint angle
+    #mk_beta_mat SLC/${master}.IW${i}.slc $length_file $PRF $K $nlines_per_burst $width_burst SLC/${master}.IW${i}.slc.beta 
+    mk_beta_mat_alternativemethod $length_file $azimuth_pixel_spacing $center_range_distance $nlines_per_burst $width_burst $nbursts SLC/${master}.IW${i}.slc.beta 
+
 }
 mk_squint_TOPSmosaic $@

@@ -54,6 +54,9 @@ def get_frames_from_kml(filename = 'WeeklyVolcanoGE-Reports.kml'):
     return list(frames_set)
 
 def update_framelist_fabien(volcdir = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/list_database'):
+    '''
+    this will update list of frames that will be used for given volcano in the volcano portal
+    '''
     volcfiles = glob.glob(os.path.join(volcdir,'*volcano*txt'))
     framefiles = []
     for volc in volcfiles:
@@ -69,8 +72,7 @@ def update_framelist_fabien(volcdir = '/gws/nopw/j04/nceo_geohazards_vol1/projec
             lon=v[2]
             frames = lq.get_frames_in_lonlat(lon,lat)
             frames = lq.sqlout2list(frames)
-            for frame in frames:
-                allframes.append(frame)
+            allframes = allframes + frames
         allframes=list(set(allframes))
         for frame in allframes:
             rc = os.system('echo {0} >> {1}'.format(frame,framef))
@@ -140,9 +142,9 @@ def main():
     #if nowis.day in [1,8,15,22,29]:
     #if nowis.day in [5,15,25]:
     #if nowis.day in [5,15,24, 26, 28]:
-    print('done. now updating the png files - Fabien script')
-    cmd = 'cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/python_script/FINAL_scripts; sbatch run_LiCSAR_volcano_makefigure_final_withGACOS.sh'
-    os.system(cmd)
+    #print('done. now updating the png files - Fabien script')
+    #cmd = 'cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/python_script/FINAL_scripts; sbatch run_LiCSAR_volcano_makefigure_final_withGACOS.LOTUS2.sh'
+    #os.system(cmd)
     print('ok, everything finished')
 
 

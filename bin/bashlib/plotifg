@@ -2,5 +2,17 @@
 plotifg() {
   local master=$1
   local slave=$2
+  local inputgrd=geocode/${master}_${slave}.geo.100m.cm.grd
+  gmt gmtset HEADER_FONT_SIZE 10 HEADER_OFFSET 0.15 ANNOT_FONT_SIZE_SECONDARY 10 PLOT_DEGREE_FORMAT DF BASEMAP_TYPE plain CHAR_ENCODING Standard+ \
+       COLOR_MODEL RGB DOTS_PR_INCH 1200 INPUT_DATE_FORMAT yyyy/mm/dd PLOT_DATE_FORMAT o \
+       TIME_FORMAT_PRIMARY abbreviated ANNOT_FONT_SIZE_PRIMARY 7p LABEL_FONT_SIZE 7p \
+       TICK_LENGTH 0.1c ANNOT_FONT_SIZE_PRIMARY 7p ANNOT_OFFSET_PRIMARY 0.1c \
+       LABEL_FONT_SIZE 7p LABEL_OFFSET -0.05c  
+  grd2cpt $inputgrd -D -I -E100 -C${LiCSARpath}/misc/mypolar.cpt > color.cpt
+  grdimage ${inputgrd} -JM16 -R${inputgrd} -Ccolor.cpt -Q -P -K > geocode/${master}_${slave}.geo.cm.ps
+  psscale -D8/1.0/6/0.3h -Ccolor.cpt -B4:"Relative motion towards/away satellite  [cm]": -O >> geocode/${master}_${slave}.geo.cm.ps
+  ps2raster geocode/${master}_${slave}.geo.cm.ps -E600 -Tg -W+k+t"S1 ${master}_${slave}"+l256/-1
+  convert geocode/${master}_${slave}.geo.cm.png -transparent white geocode/${master}_${slave}.geo.cm.png
+  rm -f color.cpt geocode/${master}_${slave}.geo.cm.ps 
 }
 plotifg $@

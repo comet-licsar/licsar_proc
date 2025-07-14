@@ -20,30 +20,38 @@ if [ -z $1 ]; then
  echo "-c ....... if the reunwrapping is to be performed, use cascade (might be better, especially when with shores)"
  echo "-l ....... if the reunwrapping is to be performed, would do Gaussian lowpass filter (should be safe unless in tricky areas as islands; good to use by default)"
  #echo "-m ....... OBSOLETE: keeping alway on (would be off only with -s) with reunwrapping with Goldstein filter on (by default), use coh based on spectral magnitude - recommended param, please use this by default"
- echo "-s ....... if the reunwrapping is to be performed, use Gaussian smooth filtering (this will turn off Goldstein filter)"
+ echo "-s ....... use Gaussian smooth window for gapfilling (default is nearest neighbour interpolation) "
  echo "-m ....... use GAMMA ADF for filtering if Goldstein filter is selected (does not work together with -s)"
  echo "-t 0.2 .. change consistence threshold to 0.2 (should be default, quite good for ML10.. but now default is set to 0 !) during reunwrapping"
  echo "-H ....... this will use hgt to support the (re-)unwrapping"
  echo "-f ....... during reunwrapping, store also as GeoTIFFs"
+ echo "-R ....... perform offset tracking and use range offsets (if they already exist) to support unwrapping"
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-C 0.15 .. mask based on coherence threshold on individual ifgs"
- echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular and coh mask of step 4)"
+ echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular_gauss and coh mask of step 4)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "-r ....... perform deramping (degree 1)"
  echo "-L ....... use linear hgt correlation slope correction"
+ echo "-N ....... perform nullification"
+ # echo "-B ...... add phase bias estimation/removal - Yasser code"
+ # echo "-p ...... plate motion correction (wrt Eurasia)"
  echo "-- Processing tweaks --"
  echo "-h 14 .... set your own number of processing hours (14 by default)"
  echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
  echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping)"
  echo "(other params, for admins etc.)"
- echo "(-R ....... prioritise through comet responder)"
+ # echo "(-R ....... prioritise through comet responder)"  # not anymore in LOTUS2
  #echo "-----------------"
  echo "-I ....... use ICAMS - NOTE THIS WILL NOT OUTPUT AS ICAMS-CORRECTED DATASET - it will only generate and load ICAMS to the cum.h5 as icams layer (plus gacos layer to allow diff correction manually)"
  echo "-a ....... use amplitude stability to subset pixels. Testing. Might be useful in challenging areas such as jungles"
  echo "-w ....... will avoid using landmask"
  #echo "-A ....... use ampcoh"
- echo "-F ....... will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
+ echo "-F .......  will force start from filtered ifgs (MAY NOT WORK IN LOCAL (HIRES) OR CASCADE? ANYWAY NOT RECOMMENDED - bit more loop errors as briefly tested)"
+ echo "-E 6 ...... will also estimate eqs with given minimum magnitude"
+ echo "(-E offsets.txt ... instead of auto-find eqs, use existing eqoffsets.txt file)"
+ echo "-p ........ finalise by correcting plate motion velocity w.r.t. Eurasia (plus correct ref effect in vstd)"
+ echo "-b ........ would start sbovls-licsbas (use dev version here..)"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -95,9 +103,14 @@ maskbias=1
 hgtcorrlicsbas=0
 outifs=0
 cohmask4=0
-
+eqminmag=0
+eqofftxt=''
+nullify=0
+phbias=0
+platemotion=0
+rgoffs=0
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -106,6 +119,21 @@ while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
      ;;
   b) sbovl=1;
      echo "setting to process bovl data"
+     ;;
+  E) chch=${OPTARG};
+     if [ `echo $chch | grep "[a-zA-Z]" -c` -gt 0 ]; then
+       eqofftxt=`realpath $chch`
+     else
+       eqminmag=$chch
+     fi;
+     echo "use of eqoffsets is in testing now but should work. note you can just run batch_LiCSBAS.sh since step 13 if done already"
+     ;;
+  N) nullify=1;
+     ;;
+  B) phbias=1;  # TODO
+       echo 'not ready yet'; exit;
+     ;;
+  p) platemotion=1;
      ;;
   X) doublecheck=1;
      ;; 
@@ -161,7 +189,8 @@ while getopts ":M:h:HucTsdbSlWgmaAiIeFfOPRrLwkXC:G:t:n:" option; do
     ;;
   P) que='comet';
      ;;
-  R) que='comet_responder';
+  R) rgoffs=1; # echo "not implemented yet";
+     outifs=1;
      ;;
   W) wls=1;
      ;;
@@ -232,14 +261,10 @@ if [ $reunw -gt 0 ]; then
     extofproc='diff_unfiltered_pha'
   fi
 elif [ $sbovl -gt 0 ]; then
-  echo "You are running this script for sbovl, so you don't need to think about gacos, reunwrapping, deramp, hgt correction, only iono and SET correction will be applied (In preb)!"
+  echo "You are sbovl, only iono(-i) and SET(-e) correction can be applied"
   # echo "Example: licsar2licsbas.sh -M 10 -n 4 -W -b -i -e  021D_05266_252525 20240101 20240301"
-  if [ $prelb_backup -gt 0 ]; then
-    echo "Error - you tried running longwave signal removal from burst overlap interferograms - not implemented in this tool, yet?"
-    # exit
-    prelb_backup=0
-    extofproc='sbovldiff.adf.mm'
-  fi
+  extofproc='sbovldiff.adf.mm'
+  extofproc2='bovldiff.adf.mm'
 else
   extofproc='unw'
 fi
@@ -318,25 +343,88 @@ source $metadir/metadata.txt #this will bring 'master=' info
 mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
   mkdir -p GACOS # 2>/dev/null
+  echo "update 20250124 - running gacos request for this frame, just in case we missed some epochs"
+  framebatch_update_gacos.sh $frame
   #echo "debug gacos 1"
 fi
+
 cd GEOC
+
+# Set a flag to track if we need to run rangeENU2aziENU.py
+need_to_generate_azi=0
+
 for meta in E N U hgt; do
+  # echo "Getting metafiles from metadir everytime!"  ## ML: Muhammet, please.. at least keep orig lines commented or ask.. no idea why you so much needed to remove this part
+  #
+  # echo "ML: whatever this means (Muhammet..) - note clips stopped working with this change, trying to find how to fix it"
  if [ -f lookangles/$master.geo.$meta.tif ]; then
-  echo "getting metafiles from GEOC/lookangles - might need updating in future"
+  # echo "getting metafiles from GEOC/lookangles" # - might need updating in future"
   ln -s `pwd`/lookangles/$master.geo.$meta.tif `pwd`/$master.geo.$meta.tif
  else
   ln -s $metadir/$frame.geo.$meta.tif
  fi
+ # ln -sf "$metadir/$frame.geo.$meta.tif" "$frame.geo.$meta.tif"
+
+  if [ "$sbovl" -gt 0 ] && [ "$meta" != "hgt" ]; then
+    if [ -s "$metadir/$frame.geo.$meta.azi.tif" ]; then  # Check the file and ensure it's not empty
+      ln -sf "$metadir/$frame.geo.$meta.azi.tif" "$frame.geo.$meta.azi.tif"
+    else
+      need_to_generate_azi=1  # Mark that we need to generate azi files
+    fi
+  fi
 done
+
+# Run rangeENU2aziENU.py only once if required
+if [ "$sbovl" -gt 0 ] && [ "$need_to_generate_azi" -eq 1 ]; then
+  echo "Running rangeENU2aziENU.py for frame: $frame"
+  
+  # Store the current working directory
+  curr_dir=$(pwd)
+  echo "Current directory before changing: $curr_dir"
+  
+  # Navigate two levels up safely
+  pushd ../../ > /dev/null || { echo "Error: Unable to change directory"; exit 1; } ##pushd remember the original directory rather than cd
+  
+  # echo "Checkpoint 1 - Now in: $(pwd)"
+  # echo "Processing frame: $frame"
+
+  if ! command -v rangeENU2aziENU.py &> /dev/null; then
+    echo "Error: rangeENU2aziENU.py not found. Ensure it is in PATH."
+    popd > /dev/null   ## later restores the orginal directory safely
+    exit 1
+  fi
+
+  # Run the script
+  rangeENU2aziENU.py "$frame"
+
+  # Return to the original directory
+  popd > /dev/null
+  echo "Returned to: $(pwd)"
+
+  # Ensure we are in GEOC directory before creating symbolic links
+  cd "$curr_dir" || { echo "Error: Failed to return to $curr_dir"; exit 1; }
+
+  # Create missing symbolic links for azi files
+  for meta in E N U; do # hgt is same 
+    if [ ! -s "$frame.geo.$meta.azi.tif" ]; then
+      ln -sf "$metadir/$frame.geo.$meta.azi.tif" "$frame.geo.$meta.azi.tif"
+    fi
+  done
+fi
+
+
 if [ $dolocal == 1 ]; then
  if [ ! -f $frame.geo.hgt.tif ]; then
   #echo "warning, doing local proc only - avoiding possible problems (mismatch frame vs local data) by just removing the linked ENU files"
   # 2024 - what problems? TODO (becoming forgetful..)
-  rm $frame.geo.?.tif
+  rm $frame.geo.?.tif 2>/dev/null
+ fi
+ if [ ! -f $workdir/GEOC.MLI/$master/$master.geo.mli.tif ]; then
+   disadir=`pwd`; cd $workdir; create_geoctiffs_to_pub.sh -M . $master; cd $disadir
  fi
 fi
 ln -s $metadir/baselines
+
 
 if [ -f $workdir/GEOC.MLI/$master/$master.geo.mli.tif ]; then
  ln -s $workdir/GEOC.MLI/$master/$master.geo.mli.tif
@@ -443,23 +531,38 @@ fi
 # backup the orig ext (and link them)
 if [ $prelb_backup -gt 0 ]; then
   echo "Creating temporary backup of the input ifgs"
-  #extofproc= ...
-  disdir=`pwd`
-  for pair in `ls -d 20??????_20??????`; do
-    cd $pair
-    toback=$pair.geo.$extofproc.tif
-    if [ ! -f $toback ]; then
-      echo "error, no original "$extofproc" tif exists for pair "$pair". removing"
-      cd $disdir; mkdir -p ../GEOC.removed; if [ -d ../GEOC.removed/$pair ]; then rm -rf ../GEOC.removed/$pair; fi; mv $pair ../GEOC.removed/.
+  disdir=$(pwd)
+
+  for pair in $(ls -d 20??????_20??????); do
+    cd "$pair" || continue
+
+    toback1="$pair.geo.$extofproc.tif"
+    toback2="$pair.geo.$extofproc2.tif" # This handles missing sbovl while bovl is available
+
+    # Determine which file to back up
+    if [ -f "$toback1" ]; then
+        toback="$toback1"
+    elif [ -f "$toback2" ]; then
+        toback="$toback2"
     else
-      if [ ! -f $toback.prelb.tif ]; then
-        mv $toback $toback.prelb.tif
-        ln -s $toback.prelb.tif $toback
-      else
-        echo "Inconsistency detected - inform Milan for debugging"; exit
-      fi
-      cd $disdir
+      echo "error, no original $extofproc or $extofproc2 tif exists for pair $pair. Removing..."
+      cd "$disdir"
+      mkdir -p ../GEOC.removed
+      if [ -d ../GEOC.removed/"$pair" ]; then rm -rf ../GEOC.removed/"$pair"; fi
+      mv "$pair" ../GEOC.removed/.
+      continue
     fi
+
+    # Proceed with backup only if a valid `toback` file was found
+    if [ ! -f "$toback.prelb.tif" ]; then
+      mv "$toback" "$toback.prelb.tif"
+      ln -s "$toback.prelb.tif" "$toback"
+    else
+      echo "Inconsistency detected - inform Milan for debugging"
+      exit
+    fi
+
+    cd "$disdir"
   done
 fi
 
@@ -492,84 +595,141 @@ if [ $icams -gt 0 ]; then
    done
 fi
 
-if [ $setides -gt 0 ]; then
-  echo "checking/generating solid earth tides data"
-  create_LOS_tide_frame_allepochs $frame
-  disprocdir=`pwd`
-  if [ $reunw -gt 0 ]; then  # in such case we correct before unwrapping
-     echo "applying the SET correction"
-	 # now using them to create either pha or unw tifs (to GEOC)
-	 cd GEOC; disdir=`pwd`
-	 hgtfile=$disdir/`ls *.geo.hgt.tif | head -n 1`
-	 regt=`gmt grdinfo $hgtfile | grep registration | gawk {'print $2'}`
-	 #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi   # now use only for wrapped data..
-	 grdmextra='WRAP'
-	 for pair in `ls -d 20??????_20??????`; do
-	   echo $pair
-	   cd $pair
-	   infile=`pwd`/$pair.geo.$extofproc.tif
-	   if [ ! -L $infile ]; then
-		 echo "ERROR - inconsistency detected - the file "$infile" should be already a link. Contact Milan for debugging"
-		 exit
-	   fi
-	   date1=`echo $pair | cut -d '_' -f1`
-	   date2=`echo $pair | cut -d '_' -f2`
-	   outfile=`pwd`/$pair.geo.$extofproc.notides.tif
-	   if [ ! -f $outfile ]; then
-		 tided1=$epochdir/$date1/$date1.tide.geo.tif
-		 tided2=$epochdir/$date2/$date2.tide.geo.tif   # should be A-B....
-		 if [ -f $tided1 ] && [ -f $tided2 ]; then
-			#echo $pair
-			#
-			if [ `gmt grdinfo $infile | grep registration | gawk {'print $2'}` == $regt ]; then  #Pixel ]; then
-			 gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided1 $tided2 SUB 226.56 MUL SUB $grdmextra = $outfile'=gd:Gtiff'
-			else
-			 # half pixel issue in older frames! but ok for tides, so:
-			 # echo "print('"$pair"')" >> $tmpy
-			 echo "Warning, the pair "$pair" is in pixel registration. Slower workaround"
-			 ifg_remove_tides.py $hgtfile $infile $tided1 $tided2 $outfile
-			 # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
-			 # may work anyway...
-			fi
-			if [ -f $outfile ]; then
-			  rm $infile  # only removing the link
-			  ln -s `basename $outfile` `basename $infile`
-			fi
-		 else
-		   echo "WARNING: SET estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
-		 fi
-	   fi
-	   cd $disdir
-	 done
+if [ "$setides" -gt 0 ]; then
+  if [ "$sbovl" -gt 0 ]; then
+    echo "checking/generating solid earth tides data in azimuth"
+    create_LOS_tide_frame_allepochs "$frame" "$startdate" "$enddate" --sbovl
+  else
+    echo "checking/generating solid earth tides data in range"
+    create_LOS_tide_frame_allepochs "$frame" "$startdate" "$enddate"
+  fi
+
+  disprocdir=$(pwd)
+
+  if [ "$reunw" -gt 0 ] || [ "$sbovl" -gt 0 ]; then  # in such case we correct before unwrapping
+    if [ "$sbovl" -gt 0 ]; then
+      echo "applying the SET correction in azimuth"
+    else
+      echo "applying the SET correction in range"
+    fi
+    # now using them to create either pha or unw tifs (to GEOC)
+    cd GEOC
+    disdir=$(pwd)
+    hgtfile=$(ls *.geo.hgt.tif 2>/dev/null | head -n 1)
+    if [ -z "$hgtfile" ]; then
+      echo "Error: No height file (*.geo.hgt.tif) found!"
+      exit 1
+    fi
+    hgtfile="$disdir/$hgtfile"
+    regt=$(gmt grdinfo "$hgtfile" | grep "registration" | awk '{print $2}')
+    #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi   # now use only for wrapped data..
+    # grdmextra='WRAP'
+    if [ "${extofproc}" == "sbovldiff.adf.mm" ]; then grdmextra=""; else grdmextra="WRAP"; fi 
+    
+    for pair in $(ls -d 20??????_20??????); do
+      echo "$pair"
+      cd "$pair"
+      infile="$(pwd)/$pair.geo.$extofproc.tif"
+      infile2="$(pwd)/$pair.geo.$extofproc2.tif" ##sbovl and bovl double check, if not sbovl exist, checking bovl
+
+      echo "Checking file: $infile"
+
+      # First, check if infile is a symlink
+      if [ ! -L "$infile" ]; then
+        if [ "$sbovl" -gt 0 ]; then
+          echo "Warning: $infile is not a symlink, checking alternative file (bovl)..."
+          infile="$infile2"
+        fi
+      fi
+
+      # Now check if the updated infile is still missing
+      if [ ! -L "$infile" ]; then
+        echo "ERROR - inconsistency detected: $infile should be a symlink. Contact Milan for debugging."
+        exit
+      fi
+
+      date1=$(echo "$pair" | cut -d '_' -f1)
+      date2=$(echo "$pair" | cut -d '_' -f2)
+      outfile="$(pwd)/$pair.geo.$extofproc.notides.tif" ##after that one sbovl and bovl is called as sbovl?
+
+      if [ ! -f "$outfile" ]; then
+        if [ "$sbovl" -gt 0 ]; then
+          tided1="$epochdir/$date1/$date1.tide.geo.azi.tif"
+          tided2="$epochdir/$date2/$date2.tide.geo.azi.tif" 
+        else
+          tided1="$epochdir/$date1/$date1.tide.geo.tif"
+          tided2="$epochdir/$date2/$date2.tide.geo.tif" # should be A-B....
+        fi
+
+        if [ -f "$tided1" ] && [ -f "$tided2" ]; then
+          #echo $pair
+          if [ "$(gmt grdinfo "$infile" | grep registration | awk '{print $2}')" == "$regt" ]; then #Pixel ]; then ## (either "Pixel" or "Gridline")
+            if [ "$sbovl" -le 0 ]; then
+              gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 226.56 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff ##226=(4*np.pi)/(0.055465) for m2rad
+            else
+              gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 1000 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff  ##1000 for m2mm
+            fi
+          else
+            # half pixel issue in older frames! but ok for tides, so:
+            # echo "print('"$pair"')" >> $tmpy
+            echo "Warning, the pair $pair is in pixel registration. Slower workaround"
+            ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
+            #echo "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
+            
+            # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
+			      # may work anyway...
+          fi
+
+          if [ -f "$outfile" ]; then
+            rm "$infile" # only removing the link
+            ln -s "$(basename "$outfile")" "$(basename "$infile")"
+          fi
+
+        else
+          echo "WARNING: SET estimates do not exist for pair $pair - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
+        fi
+      fi
+	    cd $disdir
+    done  
+  fi
   #else   # i mean, link it anyway, as we might want to check loading to cube etc.
   #else
   #  echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  #TODO: Discuss here with Milan, in SBOI we can apply SET and iono directly as we wait the deformation is smaller than the phase jumb threshold (0.7m) in SBOI?
+  ##reunwrapping finalized here.
+  # correct only on epoch level, i.e. now just link to 
+  echo "Linking solid earth tide corrections per epoch"
+  cd $disprocdir
+  mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
+  if [ $sbovl -gt 0 ]; then
+    extfull=tide.geo.azi.tif
+    else
+    extfull=tide.geo.tif
   fi
-   # correct only on epoch level, i.e. now just link to 
-   echo "Linking solid earth tide corrections per epoch"
-   cd $disprocdir
-   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
-   extfull=tide.geo.tif
-   for epochpath in `ls $epochdir/20?????? -d`; do
-      epoch=`basename $epochpath`
-      if [ -f $epochpath/$epoch.$extfull ]; then
-        if [ ! -e $epoch/$epoch.$extfull ]; then
-         mkdir -p $epoch
-         cd $epoch
-         ln -s $epochpath/$epoch.$extfull
-         cd $disdir
-        fi
+  for epochpath in `ls $epochdir/20?????? -d`; do
+    epoch=`basename $epochpath`
+    if [ -f $epochpath/$epoch.$extfull ]; then
+      if [ ! -e $epoch/$epoch.$extfull ]; then
+          mkdir -p $epoch
+          cd $epoch
+          ln -s $epochpath/$epoch.$extfull
+          cd $disdir
       fi
-   done
-   cd $disprocdir
-  #fi
+    fi
+  done
+  cd $disprocdir
   cd $workdir
 fi
 
-
-if [ $iono -gt 0 ]; then
- echo "checking/generating ionospheric correction data"
- python3 -c "from iono_correct import *; make_all_frame_epochs('"$frame"')"
+####ionocorrection
+if [ "$iono" -gt 0 ]; then    
+  if [ "$sbovl" -gt 0 ]; then
+    echo "checking/generating ionospheric correction data in azimuth"
+    python3 -c "from iono_correct import *; make_all_frame_epochs('$frame', startdate='$startdate', enddate='$enddate', sbovl=True)"
+  else
+    echo "checking/generating ionospheric correction data in range"
+    python3 -c "from iono_correct import *; make_all_frame_epochs('$frame')" #TODO:We can put the startdate and enddate here as well.
+  fi
  disprocdir=`pwd`
  if [ $reunw -gt 0 ]; then
 	 echo "applying the ionospheric correction"
@@ -655,31 +815,134 @@ if [ $iono -gt 0 ]; then
 	   cd $disdir
 	 done
 	 rm $tmpy
-  #else
-  # echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
-  fi
+
+  elif [ $sbovl -gt 0 ]; then ##Iono looks more complex so let's do it in another elif block
+   echo "applying the ionospheric correction for SBOI"    
+   ######
+	 cd GEOC
+	 # using them to either pha or unw tifs (to GEOC)
+	 disdir=`pwd`
+	 #hgtfile=`ls *.geo.hgt.tif | head -n 1`
+	 tmpy=`pwd`/../tmp.py
+	 echo "from iono_correct import correct_iono_pair;" > $tmpy
+	 if [ $setides -gt 0 ]; then
+		 outext=$extofproc.notides.noiono
+	 else
+		 outext=$extofproc.noiono
+	 fi
+   
+   ## Check if scaling factor file exists
+   if ls "$metadir"/*geo.sbovl_scaling.tif 1> /dev/null 2>&1; then
+     echo "Scaling factor exists."
+   else
+     echo "Scaling factor missing. Running Python script..."
+     scaling_factor_sbovl.py ## This script will create the scaling factor file
+   fi
+
+	 for pair in `ls -d 20??????_20??????`; do
+	   cd $pair
+	   # here use the linked
+	   infile="$(pwd)/$pair.geo.$extofproc.tif"
+     infile2="$(pwd)/$pair.geo.$extofproc2.tif" ##sbovl and bovl double check, if not sbovl exist, checking bovl
+
+	   if [ ! -L "$infile" ]; then
+      echo "Warning: $infile is not a symlink, checking alternative file (bovl)..."
+      infile="$infile2"
+		 fi
+
+     if [ ! -L "$infile" ]; then
+       echo "ERROR - inconsistency detected: $infile should be a symlink. Contact Milan for debugging."
+       exit
+     fi
+
+
+	   # as input, and then store as .iono.
+	   # and make the link back!
+	   date1=`echo $pair | cut -d '_' -f1`
+	   date2=`echo $pair | cut -d '_' -f2`
+	   #$epochdir
+	   outfile=`pwd`/$pair.geo.$outext.tif
+	   if [ ! -f $outfile ]; then
+		 ionod1A=$epochdir/$date1/$date1.geo.iono.code.sTECA.tif
+		 ionod1B=$epochdir/$date1/$date1.geo.iono.code.sTECB.tif   # should be A-B....
+     ionod2A=$epochdir/$date2/$date2.geo.iono.code.sTECA.tif
+		 ionod2B=$epochdir/$date2/$date2.geo.iono.code.sTECB.tif   # should be A-B....
+		 if [ -f $ionod1A ] && [ -f $ionod1B ] && [ -f $ionod2A ] && [ -f $ionod2B ]; then
+			echo "print('"$pair"')" >> $tmpy
+			echo "try:" >> $tmpy
+			echo "    correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
+			echo "except:" >> $tmpy
+			echo "    print('error correcting pair "$pair"')" >> $tmpy
+		 else
+		   echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
+		 fi
+	   fi
+	   cd $disdir
+	 done
+	 pairstoproc=`grep frame $tmpy | wc -l`
+	 if [ $pairstoproc -gt 0 ]; then
+	  echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
+    # echo `pwd`
+	  python3 $tmpy
+	 fi
+	 disdir=`pwd`
+	 for pair in `ls -d 20??????_20??????`; do
+	   cd $pair
+	   outfile=$pair.geo.$outext.tif
+	   if [ -e ${outfile} ]; then
+		 # link this one instead of this link
+		 ifglink=$pair.geo.$extofproc.tif
+		 if [ -L $ifglink ]; then
+			rm $ifglink
+			ln -s $outfile $ifglink
+		 else
+			echo "ERROR, the file "$ifglink" should be a link - not continuing"
+		#	exit
+		 fi
+	   fi
+	   cd $disdir
+	 done
+	 rm $tmpy
+
+######
+  fi ## echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
+  
   #else
    # correct only on epoch level, i.e. now just link to 
-   echo "Linking iono corrections per epoch"
-   cd $disprocdir
-   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
-   extfull=geo.iono.code.tif
-   for epochpath in `ls $epochdir/20?????? -d`; do
-      epoch=`basename $epochpath`
-      if [ -f $epochpath/$epoch.$extfull ]; then
-        if [ ! -e $epoch/$epoch.$extfull ]; then
-         mkdir -p $epoch
-         cd $epoch
-         ln -s $epochpath/$epoch.$extfull
-         cd $disdir
+  echo "Linking iono corrections per epoch"
+  cd $disprocdir
+  mkdir -p GEOC.EPOCHS
+  cd GEOC.EPOCHS
+  disdir=`pwd`
+
+  # Define file extensions based on sbovl flag
+  if [ "$sbovl" -gt 0 ]; then
+    extfull=("geo.iono.code.sTECA.tif" "geo.iono.code.sTECB.tif")  # sTECA & sTECB for sbovl
+  else
+    extfull=("geo.iono.code.tif")  # Standard iono correction
+  fi
+
+  # Loop through all epoch directories
+  for epochpath in `ls $epochdir/20?????? -d`; do
+    epoch=`basename $epochpath`
+    
+    # Iterate through all defined file extensions
+    for ext in "${extfull[@]}"; do
+      if [ -f "$epochpath/$epoch.$ext" ]; then
+        if [ ! -e "$epoch/$epoch.$ext" ]; then
+          mkdir -p "$epoch"
+          cd "$epoch"
+          ln -s "$epochpath/$epoch.$ext"
+          cd "$disdir"
         fi
       fi
-   done
+    done
+
+  done
    cd $disprocdir
   #fi
   cd $workdir
 fi
-
 
 #hgtfile=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/metadata/012A_05443_131313.geo.hgt.tif
  #epath=/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/12/012A_05443_131313/epochs
@@ -722,12 +985,13 @@ if [ $reunw -gt 0 ]; then
   extraparam=", hgtcorr = False"
  fi
  if [ $smooth == 1 ]; then
-   echo "smooth run selected - disabling goldstein filter." # better you disable smooth, it is considered obsolete now"
-  extraparam=$extraparam", smooth = True, goldstein = False"
+   echo "2025/02 - WARNING, the smooth option now only fills gaps using lowpass gaussian window. The filtering is still by Goldstein"
+   #echo "smooth run selected - disabling goldstein filter." # better you disable smooth, it is considered obsolete now"
+   # extraparam=$extraparam", smooth = True, goldstein = False"
  fi
  if [ $gammadf == 1 ]; then
    echo "using GAMMA ADF for the spatial filtering (and consistence)"
-   if [ $smooth == 1 ]; then echo "WARNING: smooth option is ON - ADF will not be used. Remove -s to turn it ON."; fi
+   #if [ $smooth == 1 ]; then echo "WARNING: smooth option is ON together with ADF - disabling  will not be used. Remove -s to turn it ON."; fi
    extraparam=$extraparam", use_gamma = True"
  fi
  if [ $lowpass == 1 ]; then
@@ -750,11 +1014,11 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $ampstab == 1 ]; then
   extraparam=$extraparam", use_amp_stab = True";
-  if [ $smooth == 1 ]; then
-    extraparam=$extraparam", fillby = 'gauss'";  # for test, might really help
-  fi
  else
   extraparam=$extraparam", use_amp_stab = False"
+ fi
+ if [ $smooth == 1 ]; then
+    extraparam=$extraparam", fillby = 'gauss'";
  fi
  if [ $cascade == 1 ]; then
   extraparam=$extraparam", cascade = True"
@@ -762,6 +1026,9 @@ if [ $reunw -gt 0 ]; then
   # echo "setting cascade start from ML20 (10 5 3 1)"
   # extraparam=$extraparam", "
   #fi
+ fi
+ if [ $rgoffs == 1 ]; then
+   extraparam=$extraparam", use_rg_offs = True"
  fi
  if [ $use_coh_stab == 1 ]; then
   extraparam=$extraparam", use_coh_stab = True"
@@ -819,6 +1086,7 @@ if [ $sbovl -gt 0 ]; then
  sed -i 's/p120_sbovl=\"n\"/p120_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p13_sbovl=\"n\"/p13_sbovl=\"y\"/' batch_LiCSBAS.sh
  sed -i 's/p15_sbovl=\"n\"/p15_sbovl=\"y\"/' batch_LiCSBAS.sh
+ sed -i 's/p16_sbovl=\"n\"/p16_sbovl=\"n\"/' batch_LiCSBAS.sh  #TODO: check the step16 filtering options for SBOI discuss with Milan.
 fi
 
 
@@ -830,6 +1098,18 @@ else
  sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
 fi
 
+if [ $eqminmag -gt 0 ]; then # && [ $clip == 1 ]; then
+ sed -i 's/eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
+ sed -i 's/^eqoffs_minmag=\"[0-9.]*\"/eqoffs_minmag=\"'$eqminmag'\"/' batch_LiCSBAS.sh
+elif [ ! -z $eqofftxt ]; then
+  if [ `cat $eqofftxt | wc -l` -lt 1 ]; then
+    echo "WARNING, the "$eqofftxt" is empty. Will skip earthquake offsets estimation"
+  else
+    cat $eqofftxt > eqoffsets.temp.deleteme; mv eqoffsets.temp.deleteme eqoffsets.txt
+    sed -i 's/^eqoffs=\"n/eqoffs=\"y/' batch_LiCSBAS.sh
+    sed -i "s/^eqoffs_txtfile=.*/eqoffs_txtfile=\'eqoffsets.txt\'/" batch_LiCSBAS.sh
+  fi
+fi
 
 sed -i 's/n_para=\"\"/n_para=\"'$nproc'\"/' batch_LiCSBAS.sh
 sed -i 's/nlook=\"1\"/nlook=\"'$multi'\"/' batch_LiCSBAS.sh
@@ -839,8 +1119,8 @@ sed -i 's/p14_mem_size=\"\"/p14_mem_size=\"'$memm'\"/' batch_LiCSBAS.sh
 
 if [ $reunw -gt 0 ]; then
  # avoiding coh and unw cov. checking
- sed -i 's/p11_coh_thre=\"/p11_coh_thre=\"0/' batch_LiCSBAS.sh
- sed -i 's/p11_unw_thre=\"/p11_unw_thre=\"0.05/' batch_LiCSBAS.sh
+ sed -i 's/p11_coh_thre=\"/p11_coh_thre=\"0.05/' batch_LiCSBAS.sh
+ sed -i 's/p11_unw_thre=\"/p11_unw_thre=\"0.2/' batch_LiCSBAS.sh
  sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"10/' batch_LiCSBAS.sh
  #sed -i 's/p12_loop_thre=\"/p12_loop_thre=\"30/' batch_LiCSBAS.sh   # because we would use --nullify here...
  #sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"'$half'/' batch_LiCSBAS.sh
@@ -852,9 +1132,10 @@ else
  sed -i 's/p11_coh_thre=\"\"/p11_coh_thre=\"0.025\"/' batch_LiCSBAS.sh
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
- if [ $sbovl -gt 0 ]; then 
-   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"50\"/' batch_LiCSBAS.sh
-   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"30/' batch_LiCSBAS.sh
+ if [ $sbovl -gt 0 ]; then
+   sed -i 's/p11_coh_thre=\"\"/p11_coh_thre=\"0.8\"/' batch_LiCSBAS.sh  #the sbovl is adf filtered and the coh calculated from adf filter, so keep it higher  
+   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"100\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
+   sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"100/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
  else
    sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
 
@@ -862,6 +1143,7 @@ else
 # sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"300/' batch_LiCSBAS.sh
  #sed -i 's/p15_n_loop_err_thre=\"/p15_n_loop_err_thre=\"20/' batch_LiCSBAS.sh
 fi
+
 
 # in general
 sed -i 's/p15_n_unw_r_thre=\"\"/p15_n_unw_r_thre=\"0.5\"/' batch_LiCSBAS.sh
@@ -883,6 +1165,9 @@ fi
 # set comet dev functions...
 sed -i "s/^cometdev=.*/cometdev=\'"$cometdev"\'/" batch_LiCSBAS.sh
 
+if [ $nullify == 1 ]; then
+  sed -i "s/^p12_nullify=.*/p12_nullify=\'y\'/" batch_LiCSBAS.sh
+fi
 
 # setting those values 'everywhere' (originally it was in the modified approach):
 #sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"'$half'/' batch_LiCSBAS.sh
@@ -972,6 +1257,18 @@ if [ $run_jasmin -eq 1 ]; then
   fi
  fi
 
+if [ $platemotion -gt 0 ]; then
+ echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --vstd_fix" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N -p "$geocd"/EQA.dem_par -o "$frame".N.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/hgt -p "$geocd"/EQA.dem_par -o "$frame".hgt.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/coh_avg -p "$geocd"/EQA.dem_par -o "$frame".coh_avg.geo.tif" >> jasmin_run.sh
+ echo "cp TS_"$geocd"/results/vstd_scaled.tif "$frame".vstd_scaled.geo.tif" >> jasmin_run.sh
+ echo "Note - the plate motion post-processing would run following extra commands: "
+ tail -n 5 jasmin_run.sh
+ echo " "
+fi
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
@@ -992,7 +1289,7 @@ if [ $run_jasmin -eq 1 ]; then
  chmod 777 jasmin_run_cmd.sh
  #echo $cmd
  if [ $doublecheck -eq 1 ]; then
-  echo "now can check batch_LiCSBAS and then run ./jasmin_run_cmd.sh"
+  echo "now can edit batch_LiCSBAS.sh (or jasmin_run.sh) and then run ./jasmin_run_cmd.sh to send the job to LOTUS"
  else
   ./jasmin_run_cmd.sh
  fi

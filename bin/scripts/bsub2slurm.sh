@@ -37,21 +37,43 @@ cmd='sbatch '
 addedextrapost=''
 addedextrapre=''
 v=0
+# 2025-03-31 - all machines now use LOTUS2
+lotusversion=2
+#if [ `hostname` == 'host839.jc.rl.ac.uk' ]; then
+#if [[ "host839.jc.rl.ac.uk host838.jc.rl.ac.uk cron-01.jasmin.ac.uk" =~ `hostname` ]]; then
+#  echo "using LOTUS2"
+#  lotusversion=2
+qos='standard'
+hours=0
+#fi
+memm=8192
+memm=16384
+# 2025 - setting the account firmly
+cmd=$cmd' --account=nceo_geohazards'
 while true; do
     case "$1" in
-        -q)
-            cmd=$cmd' -p '"$2"
-            if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ]; then
-#             cmd=$cmd' --account=cpom-comet'
-             cmd=$cmd' --account=comet --partition=comet'
-            fi
-            if [ $2 == 'comet_responder' ]; then
-             cmd=$cmd' --account=comet --partition=comet_responder'
-            fi
+        -q) echo "skipping change of query account, keeping nceo_geohazards"
+            #if [ $lotusversion -gt 1 ]; then
+            #  if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ] || [ $2 == 'comet_responder' ]; then
+            #    cmd=$cmd' --account=comet_lics'
+            #  else
+            #    cmd=$cmd' --account=nceo_geohazards'
+            #  fi
+            #else
+            #  cmd=$cmd' -p '"$2"
+            #  if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ]; then
+  #         #    cmd=$cmd' --account=cpom-comet'
+            #    cmd=$cmd' --account=comet --partition=comet'
+            #  fi
+            #  if [ $2 == 'comet_responder' ]; then
+            #   cmd=$cmd' --account=comet --partition=comet_responder'
+            #  fi
+            #fi
             shift 2
             ;;
         -W)
             cmd=$cmd' --time='"$2"':00'
+            hours=`echo $2 | cut -d ':' -f1 | sed 's/^0//'`
             shift 2
             ;;
         -J)
@@ -67,7 +89,11 @@ while true; do
             shift 2
             ;;
         -n)
-            cmd=$cmd' -n '"$2"
+            #cmd=$cmd' -n '"$2"
+            cmd=$cmd' --cpus-per-task='"$2"
+            if [ $2 -gt 1 ]; then
+              qos='high'
+            fi
             shift 2
             ;;
         -E)
@@ -86,13 +112,20 @@ while true; do
             shift 2
             ;;
         -M)
-            cmd=$cmd' --mem='$2
+            # 2025/04 weird disk IO issues, JASMIN recommends setting higher memory..
+            #let memm=$memm'+'$2;
+            # 2025/07 no such issues anymore..
+            #echo "increasing RAM request to "$memm
+            let memm=$2;
+            #cmd=$cmd' --mem='$memm
             shift 2
             ;;
         -w)
-            #e.g. -w "ended(framebatch_02_coreg_559619) && ended(framebatch_02_coreg_559621)"
-            vars=$2
-            jobids=''
+           #e.g. -w "ended(framebatch_02_coreg_559619) && ended(framebatch_02_coreg_559621)"
+           # 2025/06: but -w 183888 would also work (or -w 184888:183888 for more JOBIDs to wait for)
+           vars=$2
+           jobids=''
+           if [ `echo $vars | grep -c ended` -gt 0 ]; then
             for myJOBNAME in `echo $vars | sed 's/ended(//g' | sed 's/)//g' | sed 's/\&\&//g' | tr "'" " "`; do
              #this way the jobid can be really 'historic'
              #jobid=$(sacct -n --format="JobID" --name $myJOBNAME | head -n1 | cut -d '.' -f1)
@@ -102,8 +135,8 @@ while true; do
              jobid=$(squeue -h --name=${myJOBNAME} --format='%i' | tail -n1)
              while [ -z "${jobid}" ] && [ ${count} -le ${max_count} ]
              do
-                echo "job not found, trying again - attempt "$count"/"$max_count
-                echo "ID of job is: "$myJOBNAME
+                #echo "job not found, trying again - attempt "$count"/"$max_count
+                #echo "ID of job is: "$myJOBNAME
                 echo "trying by: squeue -h --format='%i' --name="$myJOBNAME
                 # great solution by Rich Rigby! as sometimes jobs were not found...
                 jobid=$(squeue -h --name=${myJOBNAME} --format='%i' | tail -n1)
@@ -132,7 +165,11 @@ while true; do
                fi
                #exit
              fi
-            done
+           done
+          else
+            echo "adding JOBID(s) "$vars" as dependencies"
+            jobids=':'$vars
+          fi
             if [ ! -z $jobids ]; then
              cmd=$cmd' --kill-on-invalid-dep=no --dependency=afterany'$jobids
             else
@@ -153,6 +190,25 @@ while true; do
             ;;
     esac
 done
+cmd=$cmd' --mem='$memm
+#if [ $lotusversion -gt 1 ]; then
+if [ $qos == 'standard' ]; then
+    #if [ $hours -gt 47 ]; then
+    #  qos='long';
+    if [ $hours -gt 23 ]; then
+      qos='long';
+    #elif [ $hours -gt 23 ]; then
+    #  qos='highres'
+    #elif [ $hours -lt 5 ]; then
+    #  qos='short'   # seems short does not exist??
+    fi
+    # see https://help.jasmin.ac.uk/docs/batch-computing/how-to-submit-a-job/
+    cmd=$cmd' --partition=standard --qos='$qos
+else
+  cmd=$cmd' --partition=standard --qos='$qos
+fi
+  #cmd=$cmd' --partition='$qos' --qos='$qos
+#fi
 
 if [ $v == 1 ]; then
  echo $cmd

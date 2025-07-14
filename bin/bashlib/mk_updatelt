@@ -6,5 +6,23 @@ mk_updatelt() {
   
   local inlt=$1
   local outlt=$2
+  local filein=$3 # ${master2slave}.fine.off
+  local master=$4 
+  local master2slave=$5
+  local width=$6
+  local rlks=$7
+  local azlks=$8
+  
+  dr=`awk '$1 == "range_offset_polynomial:" {print $2}' ${filein}`
+  dr_mli=`echo "$dr" "$rlks" | awk '{printf "%f", $1/$2}'`
+  daz=`awk '$1 == "azimuth_offset_polynomial:" {print $2}' ${filein}`
+  daz_mli=`echo "$daz" "$azlks" | awk '{printf "%f", $1/$2}'`
+  create_diff_par SLC/${master}.slc.mli.par SLC/${master}.slc.mli.par ${master2slave}.diff_par 1 0 &> /dev/null
+  set_value ${master2slave}.diff_par ${master2slave}.diff_par "range_offset_polynomial"   "$dr_mli   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00" &> /dev/null
+  set_value ${master2slave}.diff_par ${master2slave}.diff_par "azimuth_offset_polynomial" "$daz_mli   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00" &> /dev/null
+  cp ${master2slave}.diff_par ${master2slave}.diff_par.1
+  mv ${inlt} RSLC/${master}.slc.mli.lt.tmp.1
+  gc_map_fine RSLC/${master}.slc.mli.lt.tmp.1 $width ${master2slave}.diff_par ${outlt} 1 &> /dev/null
+  mv RSLC/${master}.slc.mli.lt.tmp.1 ${inlt} 
 }
 mk_updatelt $@

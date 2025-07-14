@@ -5,5 +5,25 @@ LiCSAR_plotifg() {
   local workdir=$3
   local extension=$4
   local transparencyon=$5
+  local inputgrd=${workdir}/${master}_${slave}.${extension}.grd
+  rm -f .gmtdefaults4 .gmtcommands4
+  gmt gmtset HEADER_FONT_SIZE 10 HEADER_OFFSET 0.15 ANNOT_FONT_SIZE_SECONDARY 10 PLOT_DEGREE_FORMAT DF BASEMAP_TYPE plain CHAR_ENCODING Standard+ \
+         COLOR_MODEL RGB DOTS_PR_INCH 1200 INPUT_DATE_FORMAT yyyy/mm/dd PLOT_DATE_FORMAT o \
+         TIME_FORMAT_PRIMARY abbreviated ANNOT_FONT_SIZE_PRIMARY 7p LABEL_FONT_SIZE 7p \
+         TICK_LENGTH 0.1c ANNOT_FONT_SIZE_PRIMARY 7p ANNOT_OFFSET_PRIMARY 0.1c \
+         LABEL_FONT_SIZE 7p LABEL_OFFSET -0.05c # COLOR_BACKGROUND 50/50/50 COLOR_NAN 50/50/50 
+  grd2cpt $inputgrd -D -I -E100 -C${LiCSARpath}/misc/mypolar.cpt > color.cpt
+  maxvalue=`grdinfo -C ${inputgrd} | awk '{print $7}'`
+  minvalue=`grdinfo -C ${inputgrd} | awk '{print $6}'`
+  stepticks=`echo $maxvalue $minvalue | awk '{print int(($1-$2)/8)}'`
+  grdmath ${inputgrd} 0.0 NAN = temp.grd
+  grdimage temp.grd -JM16 -R${inputgrd} -Ccolor.cpt -Q -P -K > ${workdir}/${master}_${slave}.${extension}.ps
+  psscale -D8/1.0/6/0.3h -Ccolor.cpt -B${stepticks}:"Relative motion towards/away satellite  [cm]": -O >> ${workdir}/${master}_${slave}.${extension}.ps
+  ps2raster ${workdir}/${master}_${slave}.${extension}.ps -E600 -Tg -W+k+t"S1 ${master}_${slave}"+l256/-1
+  if [ "$transparencyon" == "1" ]; then
+    #convert ${workdir}/${master}_${slave}.${extension}.png -fuzz 1% -transparent "rgb(50,50,50)" ${workdir}/${master}_${slave}.${extension}.png
+    convert ${workdir}/${master}_${slave}.${extension}.png -transparent white ${workdir}/${master}_${slave}.${extension}.png
+  fi
+  rm -f color.cpt geocode/${master}_${slave}.${extension}.ps temp.grd
 }
 LiCSAR_plotifg $@

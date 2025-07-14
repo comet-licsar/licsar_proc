@@ -58,7 +58,7 @@ for ((long=$west; long <= $east; long++)); do
       if [ -e "${file}.zip" ]; then
           echo "File found"
           #unzip -o ${file}.zip
-          7za x ${file}.zip    # Update to increase performance of unzipping
+          7za -mmt=1 x ${file}.zip    # Update to increase performance of unzipping
 #          jar xf ${file}.zip    # Update to increase performance of unzipping
           rm ${file}.zip
       fi

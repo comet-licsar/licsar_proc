@@ -9,5 +9,35 @@ mk_coreg_TOPS_specdiv() {
   if [ -z "$7" ]; then local IW1=1; else local IW1=$7; fi 
   if [ -z "$8" ]; then local IW3=3; else local IW3=$8; fi
     
+  createSLCtab SLC/${master}/${master}  slc  ${IW1} ${IW3} > SLC1_tab
+  createSLCtab SLC/${slave}/${slave}    slc  ${IW1} ${IW3} > SLC2_tab
+  createSLCtab RSLC/${slave}/${slave}   rslc ${IW1} ${IW3} > RSLC2_tab
+  
+  # Create the offset file
+  create_offset SLC/${master}/${master}.slc.par SLC/${slave}/${slave}.slc.par RSLC/${slave}/${master}_${slave}.off 1 ${rlks} ${azlks} 0 >> $logfile
+  
+  # If a closer in time slave exists, use it to compute spectral diversity
+  if [ -z "$9" ]; then 
+    echo "   Resampling using spectral diversity master-slave [${master} - ${slave}]"
+  else
+    echo "   Resampling using spectral diversity slave2-slave [${slave3} - ${slave}]"  
+    local slave3=$9
+    createSLCtab RSLC/${slave3}/${slave3} rslc ${IW1} ${IW3} > RSLC3_tab
+  fi  
+  
+  # Refine twice offset with spectral diversity
+  if [ ! -f RSLC3_tab ]; then 
+    S1_coreg_overlap SLC1_tab RSLC2_tab RSLC/${slave}/${master}_${slave} RSLC/${slave}/${master}_${slave}.off RSLC/${slave}/${master}_${slave}.off.refine1 0.8 0.01 0.8 1 >> $logfile #2>&1 $logfile  
+    SLC_interp_lt_S1_TOPS SLC2_tab SLC/${slave}/${slave}.slc.par SLC1_tab SLC/${master}/${master}.slc.par RSLC/${slave}/${master}_${slave}.slc.mli.lt SLC/${master}/${master}.slc.mli.par SLC/${slave}/${slave}.slc.mli.par RSLC/${slave}/${master}_${slave}.off.refine1 RSLC2_tab RSLC/${slave}/${slave}.rslc RSLC/${slave}/${slave}.rslc.par >> $logfile
+    S1_coreg_overlap SLC1_tab RSLC2_tab RSLC/${slave}/${master}_${slave} RSLC/${slave}/${master}_${slave}.off.refine1 RSLC/${slave}/${master}_${slave}.off.refine2 0.8 0.01 0.8 1 >> $logfile #2>&1 $logfile
+    SLC_interp_lt_S1_TOPS SLC2_tab SLC/${slave}/${slave}.slc.par SLC1_tab SLC/${master}/${master}.slc.par RSLC/${slave}/${master}_${slave}.slc.mli.lt SLC/${master}/${master}.slc.mli.par SLC/${slave}/${slave}.slc.mli.par RSLC/${slave}/${master}_${slave}.off.refine2 RSLC2_tab RSLC/${slave}/${slave}.rslc RSLC/${slave}/${slave}.rslc.par >> $logfile    
+    rm -f RSLC/${slave}/${master}_${slave}.IW*.*.diff* RSLC/${slave}/${master}_${slave}.IW*.*.int* RSLC/${slave}/${master}_${slave}.IW*.*.off* 
+  else
+    S1_coreg_overlap SLC1_tab RSLC2_tab RSLC/${slave}/${master}_${slave} RSLC/${slave}/${master}_${slave}.off RSLC/${slave}/${master}_${slave}.off.refine1 0.8 0.01 0.8 1 RSLC3_tab >> $logfile #2>&1 $logfile
+    SLC_interp_lt_S1_TOPS SLC2_tab SLC/${slave}/${slave}.slc.par SLC1_tab SLC/${master}/${master}.slc.par RSLC/${slave}/${master}_${slave}.slc.mli.lt SLC/${master}/${master}.slc.mli.par SLC/${slave}/${slave}.slc.mli.par RSLC/${slave}/${master}_${slave}.off.refine1 RSLC2_tab RSLC/${slave}/${slave}.rslc RSLC/${slave}/${slave}.rslc.par >> $logfile
+    S1_coreg_overlap SLC1_tab RSLC2_tab RSLC/${slave}/${master}_${slave} RSLC/${slave}/${master}_${slave}.off.refine1 RSLC/${slave}/${master}_${slave}.off.refine2 0.8 0.01 0.8 1 RSLC3_tab >> $logfile #2>&1 $logfile
+    SLC_interp_lt_S1_TOPS SLC2_tab SLC/${slave}/${slave}.slc.par SLC1_tab SLC/${master}/${master}.slc.par RSLC/${slave}/${master}_${slave}.slc.mli.lt SLC/${master}/${master}.slc.mli.par SLC/${slave}/${slave}.slc.mli.par RSLC/${slave}/${master}_${slave}.off.refine2 RSLC2_tab RSLC/${slave}/${slave}.rslc RSLC/${slave}/${slave}.rslc.par >> $logfile
+    rm -f RSLC/${slave}/${master}_${slave}.IW*.*.diff* RSLC/${slave}/${master}_${slave}.IW*.*.int* RSLC/${slave}/${master}_${slave}.IW*.*.off* 
+  fi
 }
 mk_coreg_TOPS_specdiv $@

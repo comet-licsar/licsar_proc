@@ -7,5 +7,32 @@ check_missing_bursts() {
   if [ -z "$5" ]; then local IW1=1; else local IW1=$5; fi 
   if [ -z "$6" ]; then local IW3=3; else local IW3=$6; fi 
   # Identify which bursts in master are inside the polygon, before starting to merge
+  rm -f ${locdir}/*_zipfiles.txt ${locdir}/*_zipfiles_short.txt
+    
+  # Check the zipfiles 
+  burstsinframe2.sh ${polygon_file} ${burstid_file} ${locdir} ${yyyymmdd} 
+  nb_inframe=`wc -l < $burstid_file | awk '{print $1-1}'`
+  nb_inimage=`cat SLC/${yyyymmdd}/${yyyymmdd}_zipfiles_short.txt | grep -o NA | wc -l`
+  
+  # Check if the number of bursts missing is larger than zero
+  if [ "$nb_inimage" == "0" ]; then 
+    echo $nb_inimage
+  else
+    # First loop from IW1 to IW3 
+    for i in `seq $IW1 $IW3`; do
+      awk '{if ($4=="'${i}'") print $0}' SLC/${yyyymmdd}/${yyyymmdd}_zipfiles_short.txt > tmp1
+      # Convert fifth columns in 1 or 0 (awk '{if ($5=="NA") print 0; else print 1}' tmp1)
+      # Then remove repeated consecutive lines (awk '{sub(".*"$1,$1)}1' | uniq)
+      # Finally transpose the results to find/match a pattern
+      awk '{if ($5=="NA") print 0; else print 1}' tmp1 | awk '{sub(".*"$1,$1)}1' | uniq | paste -sd" " | awk '{ if (/1 0 1/) { print 1} else {print 0} }' >> tmpvals
+    done
+    datagaps=`awk '{s+=$1} END {print s}' tmpvals`
+    if [ "$datagaps" == "0" ]; then 
+      echo $nb_inimage
+    else
+      echo "-1"
+    fi
+    rm -f tmpvals tmp1
+  fi  
 }
 check_missing_bursts $@
