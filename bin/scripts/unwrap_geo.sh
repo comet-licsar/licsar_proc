@@ -25,7 +25,7 @@ fi
 
 #this script will unwrap geocoded data...
 #just set those files:
-maskfile=`ls GEOC/geo/*geo.landmask.tif 2>/dev/null | head -n 1 2>/dev/null`
+maskfile=`ls $heredir/GEOC/geo/*geo.landmask.tif 2>/dev/null | head -n 1 2>/dev/null`
 if [ -z $maskfile ]; then
  maskfile=$LiCSAR_public/$track/$frame/metadata/$frame.geo.landmask.tif
 fi
