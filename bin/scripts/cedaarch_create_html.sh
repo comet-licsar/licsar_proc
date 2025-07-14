@@ -50,8 +50,24 @@ if [ $ddir != interferograms ]; then
   cedaarchwebdir=$cedaarchwebdir/$ddir
 fi
 
-for ext in png tif; do
-  for f in `ls $indir/*.$ext`; do
+rm -f $outhtml
+for ext in png tif kmz; do   # we store only png and tif files in /neodc but need also kmzs
+  for f in `ls $indir/*.$ext 2>/dev/null`; do
     # if the file is symbolic link leading to neodc:
-
+    if [ -L $f ]; then
+      if [ `readlink $f | grep -c neodc` -eq 1 ]; then
+         hrefdir=$cedaarchwebdir
+      else
+         echo "WARNING - file "$f" is a link but not to /neodc. May not work"
+         hrefdir=$pubwebdir
+      fi
     # else just make href to $LiCSAR_public
+    else
+      hrefdir=$pubwebdir
+    fi
+    bf=`basename $f`
+    echo "<a href='"$hrefdir"/"$bf"'>"$bf"</a><br />" >> $outhtml
+  done
+done
+
+chmod 755 $outhtml
