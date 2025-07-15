@@ -32,18 +32,30 @@ if [ ! -d $indir ]; then
   exit
 fi
 
+if [ ! $ddir == interferograms ] && [ ! $ddir == epochs ]; then
+  echo "unsupported directory name provided - cancelling for now"
+  exit
+fi
+
 outdir=$LiCSAR_web/$tr/$frame
-outhtml=$outdir/$ddir
+
 if [ ! -d $outdir ]; then
   mkdir -p $LiCSAR_web/$tr/$frame
+  chmod 755 $LiCSAR_web/$tr/$frame
   cd $LiCSAR_web/$tr/$frame
   # we want to keep local links to metadata
   if [ -d ../../../LiCSAR_products/$tr/$frame/metadata ]; then
    ln -s ../../../LiCSAR_products/$tr/$frame/metadata
+   chmod 755 metadata
   fi
   cd -
 fi
+if [ ! -d $outdir/$ddir ]; then
+  mkdir $outdir/$ddir
+  chmod 755 $outdir/$ddir
+fi
 
+outhtml=$outdir/$ddir/$pairep
 pubwebdir="https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/"$tr/$frame
 cedaarchwebdir="https://data.ceda.ac.uk/neodc/comet/data/licsar_products/"$tr/$frame
 
