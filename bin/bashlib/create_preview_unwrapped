@@ -60,8 +60,10 @@ if [ ! -z $1 ]; then
    gmt grdclip $unwfile -Gtokml.nc -Sr0/NaN
    gmt grd2kml -Ag0 -C$outfile.unw.cpt -nn+t0.1 -Tunwrapped_ifg -Nunwrapped_ifg $extracmd tokml.nc 2>/dev/null
   fi
-  rm $maskedfile $hillshade $unwfile $outfile.unw.cpt tokml.nc 2>/dev/null
-  rm gmt.history 2>/dev/null
+  echo "debug ln 7"
+  rm $maskedfile $hillshade $unwfile $outfile.unw.cpt tokml.nc # 2>/dev/null
+  echo "debug ln 8"
+  rm gmt.history #2>/dev/null
 else
     echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
     echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
