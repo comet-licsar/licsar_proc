@@ -44,9 +44,11 @@ if [ ! -d $outdir ]; then
   chmod 755 $LiCSAR_web/$tr/$frame
   cd $LiCSAR_web/$tr/$frame
   # we want to keep local links to metadata
-  if [ -d ../../../LiCSAR_products/$tr/$frame/metadata ]; then
-   ln -s ../../../LiCSAR_products/$tr/$frame/metadata
+  if [ -d $LiCSAR_public/$tr/$frame/metadata ]; then
+   ln -s $LiCSAR_public/$tr/$frame/metadata
    chmod 755 metadata
+  else
+    echo "WARNING, no metadata folder exists for the given frame"
   fi
   cd -
 fi
