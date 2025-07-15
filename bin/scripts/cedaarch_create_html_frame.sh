@@ -39,6 +39,7 @@ fi
 for ddir in interferograms epochs; do
   echo "linking "$ddir
   for e in `ls $framedir/$ddir | grep ^20`; do
+    echo $e
     cedaarch_create_html.sh $frame $e $ddir
   done
 done
