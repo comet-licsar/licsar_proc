@@ -22,7 +22,7 @@ else
 fi
 
 ddir=interferograms
-if [ ! -z $3 ]; then ddir=$2; fi
+if [ ! -z $3 ]; then ddir=$3; fi
 tr=`track_from_frame $frame`
 
 indir=$LiCSAR_public/$tr/$frame/$ddir/$pairep
