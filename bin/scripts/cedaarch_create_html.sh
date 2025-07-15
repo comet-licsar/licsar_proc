@@ -82,7 +82,7 @@ for ext in png tif kmz; do   # we store only png and tif files in /neodc but nee
       hrefdir=$pubwebdir
     fi
     bf=`basename $f`
-    echo "<a href='"$hrefdir"/"$bf"'>"$bf"</a><br />" >> $outhtml
+    echo "<a href='"$hrefdir"/"$pairep"/"$bf"'>"$bf"</a><br />" >> $outhtml
   done
 done
 
