@@ -37,15 +37,17 @@ outhtml=$outdir/$ddir
 if [ ! -d $outdir ]; then
   mkdir -p $LiCSAR_web/$tr/$frame
   cd $LiCSAR_web/$tr/$frame
+  # we want to keep local links to metadata
   if [ -d ../../../LiCSAR_products/$tr/$frame/metadata ]; then
    ln -s ../../../LiCSAR_products/$tr/$frame/metadata
   fi
   cd -
 fi
 
-pubwebdir=
+pubwebdir="https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/"$tr/$frame
 cedaarchwebdir="https://data.ceda.ac.uk/neodc/comet/data/licsar_products/"$tr/$frame
 
+# on CEDA Archive, we have ifgs directly in the frame dir, but epochs or metadata are under this..
 if [ $ddir != interferograms ]; then
   cedaarchwebdir=$cedaarchwebdir/$ddir
 fi
