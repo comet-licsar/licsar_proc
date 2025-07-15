@@ -58,9 +58,9 @@ if [ ! -d $outdir/$ddir ]; then
 fi
 
 outhtml=$outdir/$ddir/$pairep
-pubwebdir="https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products/"$tr/$frame
-cedaarchwebdir="https://data.ceda.ac.uk/neodc/comet/data/licsar_products/"$tr/$frame
+pubwebdir="https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products.public/"$tr/$frame/$ddir
 
+cedaarchwebdir="https://data.ceda.ac.uk/neodc/comet/data/licsar_products/"$tr/$frame
 # on CEDA Archive, we have ifgs directly in the frame dir, but epochs or metadata are under this..
 if [ $ddir != interferograms ]; then
   cedaarchwebdir=$cedaarchwebdir/$ddir
