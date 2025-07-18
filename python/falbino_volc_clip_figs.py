@@ -645,7 +645,7 @@ def process_frame_volcano(options):
                                llcrnrlon=extent_lonlat[0], llcrnrlat=extent_lonlat[2],
                                urcrnrlon=extent_lonlat[1], urcrnrlat=extent_lonlat[3])
             # plot dem
-            val_dpi = 200
+            val_dpi = 90
             ptA = (xv, ymin)
             ptB = (xv + 1, ymin)
             xscale = gcc.distance_between_points(ptA, ptB)
@@ -824,7 +824,7 @@ def process_frame_volcano(options):
             map_plot = Basemap(projection='cyl', resolution='l',
                                llcrnrlon=extent_lonlat[0], llcrnrlat=extent_lonlat[2],
                                urcrnrlon=extent_lonlat[1], urcrnrlat=extent_lonlat[3])
-            val_dpi = 200
+            val_dpi = 90
             ptA = (xv, ymin)
             ptB = (xv + 1, ymin)
             xscale = gcc.distance_between_points(ptA, ptB)
