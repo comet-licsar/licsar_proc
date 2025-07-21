@@ -86,6 +86,7 @@ RAD2CM = (WAVELENGTH / (4 * pi)) * 100
 # multiprocessing pool size:
 POOL_SIZE = 4
 
+DOPNGS = False
 
 # --- classes
 
@@ -349,6 +350,7 @@ def process_frame_volcano(options):
     projection = options['projection']
     geotransform = options['geotransform']
     volcano = options['volcano']
+    dopngs = options['dopngs']
     xv = options['xv']
     yv = options['yv']
     ''' in case the clip from 'smaller extent' is a problem, will need to do:
@@ -602,390 +604,395 @@ def process_frame_volcano(options):
                     '{0} :: CREATING {1} DONE'.format(volc_label, unwcor_file)
                 )
                 volc_out['tif'] += 1
-    # 4- CREATE THE PNG FILE
-    pha_files = [f for f in os.listdir(dirtif) if f.endswith('unw.tif')]
-    for file in pha_files:
-        pngfile = file[:-7] + 'pha_unw_coh.png'
-        output_png = os.path.join(dirpng, pngfile)
-        masterdate = pngfile[len(volcano) + 1:len(volcano) + 9]
-        slavedate = pngfile[len(volcano) + 10:len(volcano) + 18]
-        titlename = (
-                masterdate[0:4] + '-' + masterdate[4:6] + '-' + masterdate[6:8] +
-                '    ' + slavedate[0:4] + '-' + slavedate[4:6] + '-' + slavedate[6:8]
-        )
-        pngfile2 = file[:-7] + 'GACOS_correction.png'
-        output_png2 = os.path.join(dirpng, pngfile2)
 
-        if not os.path.isfile(output_png):
-            ds = gdal.Open(output_dem)
-            band = ds.GetRasterBand(1)
-            array = band.ReadAsArray()
-            dem_array = hillshade(array, 315, 45)
-            if COUNTRY == 'africa':
-                dem_array[array < -1000] = np.nan
-            else:
-                dem_array[array < 0] = np.nan
-            try:
+    # 4- CREATE THE PNG FILES
+    pha_files = [f for f in os.listdir(dirtif) if f.endswith('unw.tif')]
+    if dopngs:
+        for file in pha_files:
+            pngfile = file[:-7] + 'pha_unw_coh.png'
+            output_png = os.path.join(dirpng, pngfile)
+            masterdate = pngfile[len(volcano) + 1:len(volcano) + 9]
+            slavedate = pngfile[len(volcano) + 10:len(volcano) + 18]
+            titlename = (
+                    masterdate[0:4] + '-' + masterdate[4:6] + '-' + masterdate[6:8] +
+                    '    ' + slavedate[0:4] + '-' + slavedate[4:6] + '-' + slavedate[6:8]
+            )
+            pngfile2 = file[:-7] + 'GACOS_correction.png'
+            output_png2 = os.path.join(dirpng, pngfile2)
+
+            if not os.path.isfile(output_png):
+                ds = gdal.Open(output_dem)
+                band = ds.GetRasterBand(1)
+                array = band.ReadAsArray()
+                dem_array = hillshade(array, 315, 45)
+                if COUNTRY == 'africa':
+                    dem_array[array < -1000] = np.nan
+                else:
+                    dem_array[array < 0] = np.nan
+                try:
+                    dataset = gdal.Open(output_file)
+                    data = dataset.ReadAsArray()
+                except:
+                    print('ERROR getting '+output_file)
+                    continue
+                proj_wkt = dataset.GetProjection()
+                proj = osr.SpatialReference()
+                proj.ImportFromWkt(proj_wkt)
+                extent_lonlat = (
+                    xmin,
+                    xmax,
+                    ymin,
+                    ymax
+                )
+                # plot the data
+                map_plot = Basemap(projection='cyl', resolution='l',
+                                   llcrnrlon=extent_lonlat[0], llcrnrlat=extent_lonlat[2],
+                                   urcrnrlon=extent_lonlat[1], urcrnrlat=extent_lonlat[3])
+                # plot dem
+                val_dpi = 90
+                ptA = (xv, ymin)
+                ptB = (xv + 1, ymin)
+                xscale = gcc.distance_between_points(ptA, ptB)
+                #
+                coh_file = file[:-7] + 'cc.tif'
+                pha_file = file[:-7] + 'diff_pha.tif'
+                unw_file = file[:-7] + 'unw.tif'
+                path_file = os.path.join(dirtif, coh_file)
+                #
+                if not os.path.isfile(path_file):
+                    continue
+                try:
+                    test = gdal.Open(path_file)
+                    coh_data = test.ReadAsArray()
+                    coh_data = np.array(coh_data, dtype=np.float64)
+                except:
+                    print('ERRONEOUS file: '+path_file)
+                    continue
+                path_file = os.path.join(dirtif, pha_file)
+                if not os.path.isfile(path_file):
+                    continue
+                try:
+                    test = gdal.Open(path_file)
+                    pha_data = test.ReadAsArray()
+                    pha_data = np.array(pha_data, dtype=np.float64)
+                except:
+                    print('ERRONEOUS file: '+path_file)
+                    continue
+                path_file = os.path.join(dirtif, unw_file)
+                if not os.path.isfile(path_file):
+                    continue
+                try:
+                    test = gdal.Open(path_file)
+                    unw_data = test.ReadAsArray()
+                    unw_data = np.array(unw_data, dtype=np.float64)
+                except:
+                    print('ERRONEOUS file: '+path_file)
+                    continue
+                #
+                parallels = np.arange(-180, 180, 0.25)
+                meridians = np.arange(0, 360, 0.25)
+                suppress_ticks = False
+                #
+                fig = plt.figure()
+                plt.rcParams.update({'font.size': 6})
+                if COUNTRY == 'africa':
+                    coh_data[array < -1000] = np.nan
+                    pha_data[array < -1000] = np.nan
+                    unw_data[array < -1000] = np.nan
+                else:
+                    coh_data[array < 0] = np.nan
+                    pha_data[array < 0] = np.nan
+                    unw_data[array < 0] = np.nan
+                #
+                pha_data = pha_data * RAD2CM
+                pha_data[pha_data == 0.0] = np.nan
+                #
+                ax1 = fig.add_subplot(131)
+                ax1.set_title('Wrapped LOS change [cm]', size=8)
+                map_plot.drawparallels(
+                    parallels, labels=[1, 0, 0, 0], linewidth=0.5, dashes=[6, 900]
+                )
+                map_plot.drawmeridians(
+                    meridians, labels=[0, 0, 0, 1], linewidth=0.5, dashes=[6, 900]
+                )
+                suppress_ticks = False
+                im1_dem = plt.imshow(
+                    dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
+                )
+                im1 = plt.imshow(
+                    pha_data, cmap='RdYlBu_r', vmin=-1.4, vmax=1.4, alpha=0.5,
+                    extent=extent_lonlat
+                )
+                cbar = map_plot.colorbar(
+                    im1, ax=ax1, location='bottom', pad=0.2, alpha=1
+                )
+                cbar.solids.set(alpha=1)
+                scalebar = ScaleBar(
+                    xscale, units="m", location="lower right",
+                    length_fraction=0.25, sep=1, border_pad=0.2
+                )
+                plt.gca().add_artist(scalebar)
+                #
+                unw_data = unw_data * RAD2CM
+                unw_data[unw_data == 0.0] = np.nan
+                unw_mean = np.nanmean(unw_data)
+                unw_data = unw_data - unw_mean
+                unw_min = np.nanmin(unw_data)
+                unw_max = np.nanmax(unw_data)
+                unw_std = np.nanstd(unw_data)
+                v_unw = max(abs(unw_min), abs(unw_max))
+                ax2 = fig.add_subplot(132)
+                ax2.set_title('Unwrapped LOS change [cm]', size=8)
+                #
+                im2_dem = plt.imshow(
+                    dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
+                )
+                im2 = plt.imshow(
+                    unw_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
+                    alpha=0.5, extent=extent_lonlat
+                )
+                #
+                map_plot.drawparallels(
+                    parallels, linewidth=0.5, dashes=[6, 900]
+                )
+                map_plot.drawmeridians(
+                    meridians, linewidth=0.5, dashes=[6, 900]
+                )
+                #
+                ax2.tick_params(labelbottom=False)
+                cbar = map_plot.colorbar(
+                    im2, ax=ax2, alpha=1, location="bottom", pad=0.2
+                )
+                cbar.solids.set(alpha=1)
+                #
+                coh_data[coh_data == 0.0] = np.nan
+                ax3 = fig.add_subplot(133)
+                ax3.set_title('Coherence', size=8)
+                im3_dem = plt.imshow(
+                    dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
+                )
+                im3 = plt.imshow(
+                    coh_data, cmap='viridis', vmin=0, vmax=1, alpha=0.5,
+                    extent=extent_lonlat
+                )
+                #
+                map_plot.drawparallels(parallels, linewidth=0.5, dashes=[6, 900])
+                map_plot.drawmeridians(meridians, linewidth=0.5, dashes=[6, 900])
+                ax3.tick_params(labelbottom=False)
+                ax3.tick_params(labelleft=False)
+                cbar = map_plot.colorbar(
+                    im3, ax=ax3, alpha=1, location="bottom", pad=0.2
+                )
+                cbar.solids.set(alpha=1)
+                #
+                fig = ax3.get_figure()
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.95)
+                fig.suptitle(titlename, y=0.8, size=10)
+                # save file
+                plt.savefig(
+                    output_png, format='png', dpi=val_dpi, bbox_inches='tight',
+                    pad_inches=0.02
+                )
+                plt.clf()
+                plt.cla()
+                plt.close()
+                ds = None
+                dataset = None
+                test = None
+                del ds, dataset, test
+                _log_message('{0} :: PNG {1} CREATED'.format(volc_label, pngfile))
+                volc_out['png'] += 1
+
+            if not os.path.isfile(output_png2):
+                ds = gdal.Open(output_dem)
+                band = ds.GetRasterBand(1)
+                array = band.ReadAsArray()
+                dem_array = hillshade(array, 315, 45)
+                if COUNTRY == 'africa':
+                    dem_array[array < -1000] = np.nan
+                else:
+                    dem_array[array < 0] = np.nan
                 dataset = gdal.Open(output_file)
                 data = dataset.ReadAsArray()
-            except:
-                print('ERROR getting '+output_file)
-                continue
-            proj_wkt = dataset.GetProjection()
-            proj = osr.SpatialReference()
-            proj.ImportFromWkt(proj_wkt)
-            extent_lonlat = (
-                xmin,
-                xmax,
-                ymin,
-                ymax
-            )
-            # plot the data
-            map_plot = Basemap(projection='cyl', resolution='l',
-                               llcrnrlon=extent_lonlat[0], llcrnrlat=extent_lonlat[2],
-                               urcrnrlon=extent_lonlat[1], urcrnrlat=extent_lonlat[3])
-            # plot dem
-            val_dpi = 90
-            ptA = (xv, ymin)
-            ptB = (xv + 1, ymin)
-            xscale = gcc.distance_between_points(ptA, ptB)
-            #
-            coh_file = file[:-7] + 'cc.tif'
-            pha_file = file[:-7] + 'diff_pha.tif'
-            unw_file = file[:-7] + 'unw.tif'
-            path_file = os.path.join(dirtif, coh_file)
-            #
-            if not os.path.isfile(path_file):
-                continue
-            try:
-                test = gdal.Open(path_file)
-                coh_data = test.ReadAsArray()
-                coh_data = np.array(coh_data, dtype=np.float64)
-            except:
-                print('ERRONEOUS file: '+path_file)
-                continue
-            path_file = os.path.join(dirtif, pha_file)
-            if not os.path.isfile(path_file):
-                continue
-            try:
-                test = gdal.Open(path_file)
-                pha_data = test.ReadAsArray()
-                pha_data = np.array(pha_data, dtype=np.float64)
-            except:
-                print('ERRONEOUS file: '+path_file)
-                continue
-            path_file = os.path.join(dirtif, unw_file)
-            if not os.path.isfile(path_file):
-                continue
-            try:
-                test = gdal.Open(path_file)
-                unw_data = test.ReadAsArray()
-                unw_data = np.array(unw_data, dtype=np.float64)
-            except:
-                print('ERRONEOUS file: '+path_file)
-                continue
-            #
-            parallels = np.arange(-180, 180, 0.25)
-            meridians = np.arange(0, 360, 0.25)
-            suppress_ticks = False
-            #
-            fig = plt.figure()
-            plt.rcParams.update({'font.size': 6})
-            if COUNTRY == 'africa':
-                coh_data[array < -1000] = np.nan
-                pha_data[array < -1000] = np.nan
-                unw_data[array < -1000] = np.nan
-            else:
-                coh_data[array < 0] = np.nan
-                pha_data[array < 0] = np.nan
-                unw_data[array < 0] = np.nan
-            #
-            pha_data = pha_data * RAD2CM
-            pha_data[pha_data == 0.0] = np.nan
-            #
-            ax1 = fig.add_subplot(131)
-            ax1.set_title('Wrapped LOS change [cm]', size=8)
-            map_plot.drawparallels(
-                parallels, labels=[1, 0, 0, 0], linewidth=0.5, dashes=[6, 900]
-            )
-            map_plot.drawmeridians(
-                meridians, labels=[0, 0, 0, 1], linewidth=0.5, dashes=[6, 900]
-            )
-            suppress_ticks = False
-            im1_dem = plt.imshow(
-                dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
-            )
-            im1 = plt.imshow(
-                pha_data, cmap='RdYlBu_r', vmin=-1.4, vmax=1.4, alpha=0.5,
-                extent=extent_lonlat
-            )
-            cbar = map_plot.colorbar(
-                im1, ax=ax1, location='bottom', pad=0.2, alpha=1
-            )
-            cbar.solids.set(alpha=1)
-            scalebar = ScaleBar(
-                xscale, units="m", location="lower right",
-                length_fraction=0.25, sep=1, border_pad=0.2
-            )
-            plt.gca().add_artist(scalebar)
-            #
-            unw_data = unw_data * RAD2CM
-            unw_data[unw_data == 0.0] = np.nan
-            unw_mean = np.nanmean(unw_data)
-            unw_data = unw_data - unw_mean
-            unw_min = np.nanmin(unw_data)
-            unw_max = np.nanmax(unw_data)
-            unw_std = np.nanstd(unw_data)
-            v_unw = max(abs(unw_min), abs(unw_max))
-            ax2 = fig.add_subplot(132)
-            ax2.set_title('Unwrapped LOS change [cm]', size=8)
-            #
-            im2_dem = plt.imshow(
-                dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
-            )
-            im2 = plt.imshow(
-                unw_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
-                alpha=0.5, extent=extent_lonlat
-            )
-            #
-            map_plot.drawparallels(
-                parallels, linewidth=0.5, dashes=[6, 900]
-            )
-            map_plot.drawmeridians(
-                meridians, linewidth=0.5, dashes=[6, 900]
-            )
-            #
-            ax2.tick_params(labelbottom=False)
-            cbar = map_plot.colorbar(
-                im2, ax=ax2, alpha=1, location="bottom", pad=0.2
-            )
-            cbar.solids.set(alpha=1)
-            #
-            coh_data[coh_data == 0.0] = np.nan
-            ax3 = fig.add_subplot(133)
-            ax3.set_title('Coherence', size=8)
-            im3_dem = plt.imshow(
-                dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
-            )
-            im3 = plt.imshow(
-                coh_data, cmap='viridis', vmin=0, vmax=1, alpha=0.5,
-                extent=extent_lonlat
-            )
-            #
-            map_plot.drawparallels(parallels, linewidth=0.5, dashes=[6, 900])
-            map_plot.drawmeridians(meridians, linewidth=0.5, dashes=[6, 900])
-            ax3.tick_params(labelbottom=False)
-            ax3.tick_params(labelleft=False)
-            cbar = map_plot.colorbar(
-                im3, ax=ax3, alpha=1, location="bottom", pad=0.2
-            )
-            cbar.solids.set(alpha=1)
-            #
-            fig = ax3.get_figure()
-            fig.tight_layout()
-            fig.subplots_adjust(top=0.95)
-            fig.suptitle(titlename, y=0.8, size=10)
-            # save file
-            plt.savefig(
-                output_png, format='png', dpi=val_dpi, bbox_inches='tight',
-                pad_inches=0.02
-            )
-            plt.clf()
-            plt.cla()
-            plt.close()
-            ds = None
-            dataset = None
-            test = None
-            del ds, dataset, test
-            _log_message('{0} :: PNG {1} CREATED'.format(volc_label, pngfile))
-            volc_out['png'] += 1
-
-        if not os.path.isfile(output_png2):
-            ds = gdal.Open(output_dem)
-            band = ds.GetRasterBand(1)
-            array = band.ReadAsArray()
-            dem_array = hillshade(array, 315, 45)
-            if COUNTRY == 'africa':
-                dem_array[array < -1000] = np.nan
-            else:
-                dem_array[array < 0] = np.nan
-            dataset = gdal.Open(output_file)
-            data = dataset.ReadAsArray()
-            proj_wkt = dataset.GetProjection()
-            proj = osr.SpatialReference()
-            proj.ImportFromWkt(proj_wkt)
-            extent_lonlat = (
-                xmin,
-                xmax,
-                ymin,
-                ymax
-            )
-            # plot the data
-            map_plot = Basemap(projection='cyl', resolution='l',
-                               llcrnrlon=extent_lonlat[0], llcrnrlat=extent_lonlat[2],
-                               urcrnrlon=extent_lonlat[1], urcrnrlat=extent_lonlat[3])
-            val_dpi = 90
-            ptA = (xv, ymin)
-            ptB = (xv + 1, ymin)
-            xscale = gcc.distance_between_points(ptA, ptB)
-            #
-            unw_file = file[:-7] + 'unw.tif'
-            GACOS_file = file[:-7] + 'GACOS.tif'
-            unwcor_file = file[:-7] + 'unw_GACOS.tif'
-            #
-            path_file = os.path.join(dirtif, unwcor_file)
-            if not os.path.isfile(path_file):
-                continue
-            try:
-                test = gdal.Open(path_file)
-                unwcor_data = test.ReadAsArray()
-                unwcor_data = np.array(unwcor_data, dtype=np.float64)
-            except:
-                print('ERRONEOUS file: '+path_file)
-                continue
-            #
-            path_file = os.path.join(dirtif, unw_file)
-            if not os.path.isfile(path_file):
-                continue
-            try:
-                test = gdal.Open(path_file)
-                unw_data = test.ReadAsArray()
-                unw_data = np.array(unw_data, dtype=np.float64)
-            except:
-                print('ERRONEOUS file: '+path_file)
-                continue
-            #
-            path_file = os.path.join(dirtif, GACOS_file)
-            if not os.path.isfile(path_file):
-                continue
-            try:
-                test = gdal.Open(path_file)
-                GACOS_data = test.ReadAsArray()
-                GACOS_data = np.array(GACOS_data, dtype=np.float64)
-            except:
-                print('ERRONEOUS file: '+path_file)
-                continue
-            parallels = np.arange(-180, 180, 0.25)
-            meridians = np.arange(0, 360, 0.25)
-            suppress_ticks = False
-            #
-            fig = plt.figure()
-            plt.rcParams.update({'font.size': 6})
-            if COUNTRY == 'africa':
-                unwcor_data[array < -1000] = np.nan
-                unw_data[array < -1000] = np.nan
-                GACOS_data[array < -1000] = np.nan
-            else:
-                unwcor_data[array < 0] = np.nan
-                unw_data[array < 0] = np.nan
-                GACOS_data[array < 0] = np.nan
-            #
-            unw_data = unw_data * RAD2CM
-            unw_data[unw_data == 0.0] = np.nan
-            unw_mean = np.nanmean(unw_data)
-            unw_data = unw_data - unw_mean
-            unw_min = np.nanmin(unw_data)
-            unw_max = np.nanmax(unw_data)
-            unw_std = np.nanstd(unw_data)
-            v_unw = max(abs(unw_min), abs(unw_max))
-            #
-            ax1 = fig.add_subplot(131)
-            ax1.set_title('Unwrapped LOS change [cm]', size=8)
-            map_plot.drawparallels(
-                parallels, labels=[1, 0, 0, 0], linewidth=0.5, dashes=[6, 900]
-            )
-            map_plot.drawmeridians(
-                meridians, labels=[0, 0, 0, 1], linewidth=0.5, dashes=[6, 900]
-            )
-            suppress_ticks = False
-            im1_dem = plt.imshow(
-                dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
-            )
-            im1 = plt.imshow(
-                unw_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
-                alpha=0.5, extent=extent_lonlat
-            )
-            cbar = map_plot.colorbar(
-                im1, ax=ax1, location='bottom', pad=0.2, alpha=1
-            )
-            cbar.solids.set(alpha=1)
-            scalebar = ScaleBar(
-                xscale, units="m", location="lower right",
-                length_fraction=0.25, sep=1, border_pad=0.2
-            )
-            plt.gca().add_artist(scalebar)
-            #
-            GACOS_data = GACOS_data * RAD2CM
-            GACOS_data[GACOS_data == 0.0] = np.nan
-            GACOS_mean = np.nanmean(GACOS_data)
-            GACOS_data = GACOS_data - GACOS_mean
-            GACOS_min = np.nanmin(GACOS_data)
-            GACOS_max = np.nanmax(GACOS_data)
-            v_GACOS = max(abs(GACOS_min), abs(GACOS_max))
-            #
-            ax2 = fig.add_subplot(132)
-            ax2.set_title('GACOS LOS change [cm]', size=8)
-            im2_dem = plt.imshow(
-                dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
-            )
-            im2 = plt.imshow(
-                GACOS_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
-                alpha=0.5, extent=extent_lonlat
-            )
-            map_plot.drawparallels(parallels, linewidth=0.5, dashes=[6, 900])
-            map_plot.drawmeridians(meridians, linewidth=0.5, dashes=[6, 900])
-            ax2.tick_params(labelbottom=False)
-            cbar = map_plot.colorbar(
-                im2, ax=ax2, alpha=1, location="bottom", pad=0.2
-            )
-            cbar.solids.set(alpha=1)
-            #
-            unwcor_data = unwcor_data * RAD2CM
-            unwcor_data[unwcor_data == 0.0] = np.nan
-            unwcor_mean = np.nanmean(unwcor_data)
-            unwcor_data = unwcor_data - unwcor_mean
-            unwcor_min = np.nanmin(unwcor_data)
-            unwcor_max = np.nanmax(unwcor_data)
-            v_unwcor = max(abs(unwcor_min), abs(unwcor_max))
-            #
-            ax3 = fig.add_subplot(133)
-            ax3.set_title('Corrected Unwrapped LOS change [cm]', size=8)
-            im3_dem = plt.imshow(
-                dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
-            )
-            im3 = plt.imshow(
-                unwcor_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
-                alpha=0.5, extent=extent_lonlat
-            )
-            map_plot.drawparallels(parallels, linewidth=0.5, dashes=[6, 900])
-            map_plot.drawmeridians(meridians, linewidth=0.5, dashes=[6, 900])
-            ax3.tick_params(labelbottom=False)
-            ax3.tick_params(labelleft=False)
-            cbar = map_plot.colorbar(
-                im3, ax=ax3, alpha=1, location="bottom", pad=0.2
-            )
-            cbar.solids.set(alpha=1)
-            #
-            fig = ax3.get_figure()
-            fig.tight_layout()
-            fig.subplots_adjust(top=0.95)
-            fig.suptitle(titlename, y=0.8, size=10)
-            #
-            plt.savefig(
-                output_png2, format='png', dpi=val_dpi, bbox_inches='tight',
-                pad_inches=0.02
-            )
-            plt.clf()
-            plt.cla()
-            plt.close()
-            ds = None
-            dataset = None
-            test = None
-            del ds, dataset, test
-            _log_message(
-                '{0} :: PNG GACOS {1} CREATED'.format(volc_label, pngfile2)
-            )
-            volc_out['png'] += 1
+                proj_wkt = dataset.GetProjection()
+                proj = osr.SpatialReference()
+                proj.ImportFromWkt(proj_wkt)
+                extent_lonlat = (
+                    xmin,
+                    xmax,
+                    ymin,
+                    ymax
+                )
+                # plot the data
+                map_plot = Basemap(projection='cyl', resolution='l',
+                                   llcrnrlon=extent_lonlat[0], llcrnrlat=extent_lonlat[2],
+                                   urcrnrlon=extent_lonlat[1], urcrnrlat=extent_lonlat[3])
+                val_dpi = 90
+                ptA = (xv, ymin)
+                ptB = (xv + 1, ymin)
+                xscale = gcc.distance_between_points(ptA, ptB)
+                #
+                unw_file = file[:-7] + 'unw.tif'
+                GACOS_file = file[:-7] + 'GACOS.tif'
+                unwcor_file = file[:-7] + 'unw_GACOS.tif'
+                #
+                path_file = os.path.join(dirtif, unwcor_file)
+                if not os.path.isfile(path_file):
+                    continue
+                try:
+                    test = gdal.Open(path_file)
+                    unwcor_data = test.ReadAsArray()
+                    unwcor_data = np.array(unwcor_data, dtype=np.float64)
+                except:
+                    print('ERRONEOUS file: '+path_file)
+                    continue
+                #
+                path_file = os.path.join(dirtif, unw_file)
+                if not os.path.isfile(path_file):
+                    continue
+                try:
+                    test = gdal.Open(path_file)
+                    unw_data = test.ReadAsArray()
+                    unw_data = np.array(unw_data, dtype=np.float64)
+                except:
+                    print('ERRONEOUS file: '+path_file)
+                    continue
+                #
+                path_file = os.path.join(dirtif, GACOS_file)
+                if not os.path.isfile(path_file):
+                    continue
+                try:
+                    test = gdal.Open(path_file)
+                    GACOS_data = test.ReadAsArray()
+                    GACOS_data = np.array(GACOS_data, dtype=np.float64)
+                except:
+                    print('ERRONEOUS file: '+path_file)
+                    continue
+                parallels = np.arange(-180, 180, 0.25)
+                meridians = np.arange(0, 360, 0.25)
+                suppress_ticks = False
+                #
+                fig = plt.figure()
+                plt.rcParams.update({'font.size': 6})
+                if COUNTRY == 'africa':
+                    unwcor_data[array < -1000] = np.nan
+                    unw_data[array < -1000] = np.nan
+                    GACOS_data[array < -1000] = np.nan
+                else:
+                    unwcor_data[array < 0] = np.nan
+                    unw_data[array < 0] = np.nan
+                    GACOS_data[array < 0] = np.nan
+                #
+                unw_data = unw_data * RAD2CM
+                unw_data[unw_data == 0.0] = np.nan
+                unw_mean = np.nanmean(unw_data)
+                unw_data = unw_data - unw_mean
+                unw_min = np.nanmin(unw_data)
+                unw_max = np.nanmax(unw_data)
+                unw_std = np.nanstd(unw_data)
+                v_unw = max(abs(unw_min), abs(unw_max))
+                #
+                ax1 = fig.add_subplot(131)
+                ax1.set_title('Unwrapped LOS change [cm]', size=8)
+                map_plot.drawparallels(
+                    parallels, labels=[1, 0, 0, 0], linewidth=0.5, dashes=[6, 900]
+                )
+                map_plot.drawmeridians(
+                    meridians, labels=[0, 0, 0, 1], linewidth=0.5, dashes=[6, 900]
+                )
+                suppress_ticks = False
+                im1_dem = plt.imshow(
+                    dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
+                )
+                im1 = plt.imshow(
+                    unw_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
+                    alpha=0.5, extent=extent_lonlat
+                )
+                cbar = map_plot.colorbar(
+                    im1, ax=ax1, location='bottom', pad=0.2, alpha=1
+                )
+                cbar.solids.set(alpha=1)
+                scalebar = ScaleBar(
+                    xscale, units="m", location="lower right",
+                    length_fraction=0.25, sep=1, border_pad=0.2
+                )
+                plt.gca().add_artist(scalebar)
+                #
+                GACOS_data = GACOS_data * RAD2CM
+                GACOS_data[GACOS_data == 0.0] = np.nan
+                GACOS_mean = np.nanmean(GACOS_data)
+                GACOS_data = GACOS_data - GACOS_mean
+                GACOS_min = np.nanmin(GACOS_data)
+                GACOS_max = np.nanmax(GACOS_data)
+                v_GACOS = max(abs(GACOS_min), abs(GACOS_max))
+                #
+                ax2 = fig.add_subplot(132)
+                ax2.set_title('GACOS LOS change [cm]', size=8)
+                im2_dem = plt.imshow(
+                    dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
+                )
+                im2 = plt.imshow(
+                    GACOS_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
+                    alpha=0.5, extent=extent_lonlat
+                )
+                map_plot.drawparallels(parallels, linewidth=0.5, dashes=[6, 900])
+                map_plot.drawmeridians(meridians, linewidth=0.5, dashes=[6, 900])
+                ax2.tick_params(labelbottom=False)
+                cbar = map_plot.colorbar(
+                    im2, ax=ax2, alpha=1, location="bottom", pad=0.2
+                )
+                cbar.solids.set(alpha=1)
+                #
+                unwcor_data = unwcor_data * RAD2CM
+                unwcor_data[unwcor_data == 0.0] = np.nan
+                unwcor_mean = np.nanmean(unwcor_data)
+                unwcor_data = unwcor_data - unwcor_mean
+                unwcor_min = np.nanmin(unwcor_data)
+                unwcor_max = np.nanmax(unwcor_data)
+                v_unwcor = max(abs(unwcor_min), abs(unwcor_max))
+                #
+                ax3 = fig.add_subplot(133)
+                ax3.set_title('Corrected Unwrapped LOS change [cm]', size=8)
+                im3_dem = plt.imshow(
+                    dem_array, cmap='Greys', alpha=1, extent=extent_lonlat
+                )
+                im3 = plt.imshow(
+                    unwcor_data, cmap='RdYlBu_r', vmin=-2 * unw_std, vmax=2 * unw_std,
+                    alpha=0.5, extent=extent_lonlat
+                )
+                map_plot.drawparallels(parallels, linewidth=0.5, dashes=[6, 900])
+                map_plot.drawmeridians(meridians, linewidth=0.5, dashes=[6, 900])
+                ax3.tick_params(labelbottom=False)
+                ax3.tick_params(labelleft=False)
+                cbar = map_plot.colorbar(
+                    im3, ax=ax3, alpha=1, location="bottom", pad=0.2
+                )
+                cbar.solids.set(alpha=1)
+                #
+                fig = ax3.get_figure()
+                fig.tight_layout()
+                fig.subplots_adjust(top=0.95)
+                fig.suptitle(titlename, y=0.8, size=10)
+                #
+                plt.savefig(
+                    output_png2, format='png', dpi=val_dpi, bbox_inches='tight',
+                    pad_inches=0.02
+                )
+                plt.clf()
+                plt.cla()
+                plt.close()
+                ds = None
+                dataset = None
+                test = None
+                del ds, dataset, test
+                _log_message(
+                    '{0} :: PNG GACOS {1} CREATED'.format(volc_label, pngfile2)
+                )
+                volc_out['png'] += 1
+    else:
+        print('Skipping generation of PNG files')
+        volc_out['png'] = 0
 
     # 4- CREATE JPG FILE AND TRANSFERT TO DEFOWEB
     if not volc_out['png'] == 0:
@@ -1080,7 +1087,8 @@ def main():
                 'licspath': licspath,
                 'framepath': framepath,
                 'epochpath': epochpath,
-                'paths': paths
+                'paths': paths,
+                'dopngs': DOPNGS
             })
         # move on if frame directory does not exist:
         else:
