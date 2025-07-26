@@ -46,6 +46,7 @@ for geotif in $work_dir/$frame/*.sltd.geo.tif; do
    touch $geotif.copdem
    cp -f $geotif.copdem $prod_dir/$track/$frame/epochs/$date/.
    chmod -R 775 $prod_dir/$track/$frame/epochs/$date 2>/dev/null
+   cedaarch_create_html.sh $frame $date
 done
 
 #for jpg in $work_dir/$frame/*.ztd.jpg; do
