@@ -61,7 +61,8 @@ fi
 outhtml=$outdir/$ddir/$pairep
 pubwebdir="https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products.public/"$tr/$frame/$ddir
 
-cedaarchwebdir="https://data.ceda.ac.uk/neodc/comet/data/licsar_products/"$tr/$frame
+if [ $tr -lt 10 ]; then cedatr=0$tr; else cedatr=$tr; fi
+cedaarchwebdir="https://data.ceda.ac.uk/neodc/comet/data/licsar_products/"$cedatr/$frame
 # on CEDA Archive, we have ifgs directly in the frame dir, but epochs or metadata are under this..
 if [ $ddir != interferograms ]; then
   cedaarchwebdir=$cedaarchwebdir/$ddir
@@ -70,6 +71,7 @@ fi
 rm -f $outhtml
 for ext in png tif kmz; do   # we store only png and tif files in /neodc but need also kmzs
   for f in `ls $indir/*.$ext 2>/dev/null`; do
+  if [ -f $f ]; then    # just in case this is symlink that does not exist...
     # if the file is symbolic link leading to neodc:
     if [ -L $f ]; then
       if [ `readlink $f | grep -c neodc` -eq 1 ]; then
@@ -84,6 +86,7 @@ for ext in png tif kmz; do   # we store only png and tif files in /neodc but nee
     fi
     bf=`basename $f`
     echo "<a href='"$hrefdir"/"$pairep"/"$bf"'>"$bf"</a><br />" >> $outhtml
+  fi
   done
 done
 

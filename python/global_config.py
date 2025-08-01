@@ -31,6 +31,9 @@ coh_unwrap_threshold = 0.35
 # so a compromise:
 #coh_unwrap_threshold = 0.3
 
+# default coherence estimate is from cc_wave -> boxes... (coh_from_ifgmag=False)
+# we can change this from ifg magnitude (that is normalised..)
+coh_from_ifgmag = False
 
 ##########################################
 # the lines below should not be edited
