@@ -472,9 +472,11 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                             filelist2.append(filelist[idx])
                             break
         if len(names) > len(filelist2):
-            print('some file is not existing. cancelling')
-            return 2
-        filelist = filelist2
+            if not autodownload:
+                print('some file is not existing. cancelling')
+                return 2
+        else:
+            filelist = filelist2
     #raise Usage("DEBUG")
     if autodownload:
         try:
