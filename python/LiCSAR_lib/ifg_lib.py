@@ -15,7 +15,7 @@ import global_config as gc
 ################################################################################
 #Make interferograms functions
 ################################################################################
-def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks, geo = True, skiphei = gc.skiphei):
+def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, rglks = gc.rglks, azlks = gc.azlks, geo = True, skiphei = gc.skiphei, coh_from_ifgmag = gc.coh_from_ifgmag):
     """
     Makes a singular interferogram between the SLC on given master and slave dates.
     """
@@ -140,12 +140,17 @@ def make_interferogram(origmasterdate,masterdate,slavedate,procdir, lq, job_id, 
     os.remove(templog)
     
     cohfile = os.path.join(ifgdir,pair,pair+'.cc')
-    logfilename  = os.path.join(procdir,'log','cc_wave_{0}.log'.format(pair))
-    if not cc_wave(difffile,mastermli,slavemli,cohfile,width,logfilename):
-        print('\nERROR:', file=sys.stderr)
-        print('\nSomething went wrong during the coherence estimation.', file=sys.stderr)
-        shutil.rmtree(ifgthisdir)
-        return 5
+    if coh_from_ifgmag:
+        # cpx_to_real 20181222_20181228.diff 20181222_20181228.ccmag $W 2
+        print('Using calculated ifg magnitude as the coherence estimate')
+        rc = os.system('cpx_to_real {0} {1} {2} 2 >/dev/null 2>/dev/null'.format(difffile, cohfile, width))
+    else:
+        logfilename  = os.path.join(procdir,'log','cc_wave_{0}.log'.format(pair))
+        if not cc_wave(difffile,mastermli,slavemli,cohfile,width,logfilename):
+            print('\nERROR:', file=sys.stderr)
+            print('\nSomething went wrong during the coherence estimation.', file=sys.stderr)
+            shutil.rmtree(ifgthisdir)
+            return 5
     
     #create a coherence ras file
     logfilename = os.path.join(procdir,'log','rascc_{0}.log'.format(pair))

@@ -126,7 +126,8 @@ if [ $dobovls == 1 ]; then
   echo "bovl=1" >>local_config.py
 fi
 
-echo "Setting the master image and DEM for frame "$frame
+echo "Setting the master image and DEM for frame "$frame" using:"
+echo LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r $r -a $a -o $outres $setupmasterextra
 LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -r $r -a $a -o $outres $setupmasterextra
 if [ ! -d $curdir/$tr/$frame/SLC ]; then
  echo "Something got wrong with the initiation"
