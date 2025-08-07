@@ -92,6 +92,7 @@ LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
 sbovl=0
 sbovl_model=0 ##daz values is guided via RANSAC and added SBOI to absolute values
+sbovl_resid_check=0
 setides=0
 iono=0
 deramp=0
@@ -111,7 +112,7 @@ phbias=0
 platemotion=0
 rgoffs=0
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:" option; do
+while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:Q" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -123,6 +124,9 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:" option; do
      ;;
   x) sbovl_model=1;
      echo "sbovl will be guided via RANSAC of daz values for absolute values"
+     ;;
+  Q) sbovl_resid_check=1;
+     echo "LiCSBAS13 rerun again to check high residual in first inversion"
      ;;
   E) chch=${OPTARG};
      if [ `echo $chch | grep "[a-zA-Z]" -c` -gt 0 ]; then
@@ -1128,19 +1132,27 @@ if [ "$sbovl" -gt 0 ]; then
   fi
   sed -i 's/p01_sbovl="n"/p01_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p02_sbovl="n"/p02_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p02_sbovl="n"/p02_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p04_sbovl="n"/p04_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p11_sbovl="n"/p11_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p120_sbovl="n"/p120_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p13_sbovl="n"/p13_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p14_sbovl="n"/p14_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p15_sbovl="n"/p15_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p16_sbovl="n"/p16_sbovl="y"/' batch_LiCSBAS.sh
-
+  ##coherence threshold need to be
+  sed -i 's/do04op_mask=\"n/do04op_mask=\"y/' batch_LiCSBAS.sh
+  
   if [ "$setides" -gt 0 ]; then
     sed -i 's/p131_sbovl_tide="n"/p131_sbovl_tide="y"/' batch_LiCSBAS.sh
   fi 
 
   if [ "$iono" -gt 0 ]; then
     sed -i 's/p131_sbovl_iono="n"/p131_sbovl_iono="y"/' batch_LiCSBAS.sh
+  fi
+
+  if [ "$sbovl_resid_check" -gt 0 ]; then
+    sed -i 's/p13resid_rerun="n"/p13resid_rerun="y"/' batch_LiCSBAS.sh
   fi
 
   # Optional: if skipping step 16 for now
@@ -1192,9 +1204,13 @@ else
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
  if [ $sbovl -gt 0 ]; then
    sed -i 's/p11_unw_thre=\"/p11_unw_thre=\"0.01/' batch_LiCSBAS.sh ##We need as much as BOI as possible #MN
+   sed -i 's/p11_maxbtemp=\"\"/p11_maxbtemp=\"60\"/' batch_LiCSBAS.sh ##
    #  sed -i 's/p15_coh_thre=\"\"/p15_coh_thre=\"0.5\"/' batch_LiCSBAS.sh 
-   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"15\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
+   sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"12\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
    sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"10/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
+   ###coherence threshold parameters
+
+   sed -i 's/p04_mask_coh_thre_ifg=\"\"/p04_mask_coh_thre_ifg=\"0.2\"/' batch_LiCSBAS.sh
  else
    sed -i 's/p15_resid_rms_thre=\"/p15_resid_rms_thre=\"10/' batch_LiCSBAS.sh
 
@@ -1268,7 +1284,7 @@ if [ $run_jasmin -eq 1 ]; then
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
- if [ ! $cohmask4 == 0 ]; then clstr=$clstr'mask'; fi
+ if [[ "$cohmask4" != 0 || "$sbovl" -gt 0 ]]; then clstr=$clstr'mask'; fi
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
  tsdir=TS_$geocd
  if [ "$reunw" -eq 0 ]; then

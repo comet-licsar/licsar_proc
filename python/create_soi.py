@@ -77,19 +77,22 @@ temp_file=os.path.join(framedir, 'temp_data')
 if not os.path.exists(temp_file):
     os.makedirs(temp_file)
 
-# File paths for stdout and stderr
-stdout_log_path = os.path.join(temp_file, f"{pair}_soi_out.txt")
-stderr_log_path = os.path.join(temp_file, f"{pair}_soi_err.txt")
-
-# Open separate files for stdout and stderr
-out_file = open(stdout_log_path, "w")
-err_file = open(stderr_log_path, "w")
-
-# Redirect stdout and stderr to their respective files
-sys.stdout = out_file
-sys.stderr = err_file
+# # File paths for stdout and stderr
+# stdout_log_path = os.path.join(temp_file, f"{pair}_soi_out.txt")
+# stderr_log_path = os.path.join(temp_file, f"{pair}_soi_err.txt")
 
 
+# # Open separate files for stdout and stderr
+# out_file = open(stdout_log_path, "w")
+# err_file = open(stderr_log_path, "w")
+
+# breakpoint()
+# print("Opening log files...")  # visible before redirection
+# sys.stdout = out_file
+# sys.stderr = err_file
+# print("Redirection complete")  # this will only go to log
+
+breakpoint()
 ###variable names
 SLC1_tab_mod1_name = os.path.join(tab_folder, prime+'_mod1.SLC_tab')
 SLC1_tab_mod2_name = os.path.join(tab_folder, prime+'_mod2.SLC_tab')
@@ -321,7 +324,7 @@ if not os.path.exists(off_par):  # Corrected os.file.exists to os.path.exists
     exec_str = ['create_offset', mpar, spar, off_par, '1', '20', '4', '0']
     try:
         # Run the command and suppress the output
-        subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(exec_str, check=True)
         # print(f"Command executed successfully: {' '.join(exec_str)}")
         print(f'{off_par} created succesfully!')
     except subprocess.CalledProcessError as e:
@@ -388,7 +391,7 @@ double_diff.byteswap().tofile(diff_double_mask_temp)
 # ##extract phase values from interferogram.
 # exec_str= ['cpx_to_real', diff_double_mask_temp, diff_double_mask_pha_temp, str(width), '4']
 # try:
-#   subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+#   subprocess.run(exec_str, check=True)
 #   # print(f"Command executed successfully: {' '.join(exec_str)}")
 # except subprocess.CalledProcessError as e:
 #   print(f"An error occurred while executing the command: {e}")
@@ -396,7 +399,7 @@ double_diff.byteswap().tofile(diff_double_mask_temp)
 # geoc_file=os.path.join(GEOC_folder,pair, pair + '_soi_pha_raw.geo')
 # exec_str=['geocode_back', phase_data, str(width), lt_fine_file, geoc_file, str(widthgeo), '0', '0', '0']
 # try:
-#   subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+#   subprocess.run(exec_str, check=True)
 #   # print(f"Command executed successfully: {' '.join(exec_str)}")
 # except subprocess.CalledProcessError as e:
 #   print(f"An error occurred while executing the command: {e}")
@@ -404,7 +407,7 @@ double_diff.byteswap().tofile(diff_double_mask_temp)
 # geoc_tif=os.path.join(GEOC_folder,pair, pair + '_soi_pha_raw.geo.tif')
 # exec_str=['data2geotiff', EQA_path, geoc_file,'2', geoc_tif, '0.0' ]
 # try:
-#   subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+#   subprocess.run(exec_str, check=True)
 #   # print(f"Command executed successfully: {' '.join(exec_str)}")
 # except subprocess.CalledProcessError as e:
 #   print(f"An error occurred while executing the command: {e}")
@@ -602,7 +605,7 @@ def process_diff_data(dd_cpx, polygons_filtered,sf_array, pair, suffix, width, a
     # Execute ADF
     exec_str = ['adf', poly_raw_nonan_path, poly_adf_path, poly_coh_path, str(width), '1', '-', '-', '-', '-', '-', '-']
     try:
-        subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(exec_str, check=True)
         # print(f"ADF executed successfully for {suffix}")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while executing ADF for {suffix}: {e}")
@@ -610,7 +613,7 @@ def process_diff_data(dd_cpx, polygons_filtered,sf_array, pair, suffix, width, a
     # Convert complex to real
     exec_str = ['cpx_to_real', poly_adf_path, poly_pha_path, str(width), '4']
     try:
-        subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(exec_str, check=True)
         # print(f"Conversion to real executed successfully for {suffix}")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred during conversion to real for {suffix}: {e}")
@@ -691,7 +694,8 @@ for prefix in ['coh', 'scaled']:  #unscaled
     geoc_file=os.path.join(GEOC_folder,pair, f'{pair}_soi_adf_{prefix}.geo')
     exec_str=['geocode_back', phase_data, str(width), lt_fine_file, geoc_file, str(widthgeo), '0', '0', '0']
     try:
-      subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+    #   subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+      subprocess.run(exec_str, check=True)
       # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
       print(f"An error occurred while executing the command: {e}")
@@ -699,7 +703,7 @@ for prefix in ['coh', 'scaled']:  #unscaled
     geoc_tif=os.path.join(GEOC_folder,pair, f'{pair}_soi_adf_{prefix}.geo.tif')
     exec_str=['data2geotiff', EQA_path, geoc_file,'2', geoc_tif, '0.0']
     try:
-      subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+      subprocess.run(exec_str, check=True)
       # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
       print(f"An error occurred while executing the command: {e}")
@@ -707,12 +711,12 @@ for prefix in ['coh', 'scaled']:  #unscaled
 print('All done!')
 
 # After script finishes, restore stdout and stderr
-sys.stdout = sys.__stdout__
-sys.stderr = sys.__stderr__
+# sys.stdout = sys.__stdout__
+# sys.stderr = sys.__stderr__
 
-# Close the log files
-out_file.close()
-err_file.close()
+# # Close the log files
+# out_file.close()
+# err_file.close()
 
 end_time=time.time()
 execution_time = end_time - start_time
