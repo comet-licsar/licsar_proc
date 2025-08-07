@@ -140,6 +140,20 @@ def get_images_for_footprint(frameName, footprint, startdate = dt.datetime.strpt
     return images
 
 
+def get_images_for_burst(bidtanx, orbdir = 'A'):
+    ''' orbdir for either A or D (scending) orbit direction'''
+    import framecare as fc
+    bidsgpd = fc.bursts2geopandas([bidtanx])
+    footprint = bidsgpd.geometry[0].wkt
+    relorb = bidtanx.split('_')[0]
+    if int(relorb)<100:
+        relorb = '0'+relorb
+    if int(relorb) < 10:
+        relorb = '0' + relorb
+    relorb = relorb+orbdir
+    return get_images_for_footprint(relorb, footprint)
+
+
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
              enddate = dt.date.today(), sensType = 'IW', outAspd = False, asf = True):
     #startdate and enddate should be of type datetime.date (but datetime may also work)
@@ -216,7 +230,8 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
             images = dframefull['title'].values.tolist()
             # DEBUG: ASF uses a bit different filename. So adding this here, as ASF is used as backup (and I don't know how to search with filename from ASF to do it through wget_alaska.sh
             try:
-                images = search_alaska(frameName, footprint, startdate, enddate, sensType)
+                print('CDSE search complete, adding also from ASF (just in case)')
+                images += search_alaska(frameName, footprint, startdate, enddate, sensType)
                 #images += df['granuleName'].values.tolist()
             except:
                 print('error in connection to ASF')

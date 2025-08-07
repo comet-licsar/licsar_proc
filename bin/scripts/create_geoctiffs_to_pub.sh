@@ -455,25 +455,26 @@ fi
 
 if [ $COHDO -eq 1 ]; then
 if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
-# Unfiltered coherence
-if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif ]; then
-  echo "Creating unfiltered coherence tiffs"
+# Unfiltered coherence: .cc, filtered: .filt.cc
+for cc in cc filt.cc; do
+if [ -e ${procdir}/IFG/${ifg}/${ifg}.$cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.tif ]; then
+  echo "Creating "$cc" coherence tiff"
   # Geocode
-  geocode_back ${procdir}/IFG/${ifg}/${ifg}.cc $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc ${width_dem} ${length_dem} 1 0 >> $logfile
+  geocode_back ${procdir}/IFG/${ifg}/${ifg}.$cc $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc ${width_dem} ${length_dem} 1 0 >> $logfile
   # Convert to geotiff
-  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif 0.0  >> $logfile 2>/dev/null
-    if [ -f $hgtfile ]; then
-    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig2.tif
-    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig2.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif
+  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.orig.tif 0.0  >> $logfile 2>/dev/null
+   if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.orig.tif $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.orig2.tif
+    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.orig2.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.orig.tif
    fi
   #for compression types differences, check e.g. https://kokoalberti.com/articles/geotiff-compression-optimization-guide/
-  gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif >> $logfile 2>/dev/null
-  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.orig.tif
+  gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.orig.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.tif >> $logfile 2>/dev/null
+  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.orig.tif
   # create bmps
 
    gmt makecpt -Cgray -T0/255/1 >${procdir}/$GEOCDIR/${ifg}/cc.cpt
-   gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.tif -C${procdir}/$GEOCDIR/${ifg}/cc.cpt -JM1 -nn+t0.1 -A${procdir}/$GEOCDIR/${ifg}/bbb.png
-   coh_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.png
+   gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.tif -C${procdir}/$GEOCDIR/${ifg}/cc.cpt -JM1 -nn+t0.1 -A${procdir}/$GEOCDIR/${ifg}/bbb.png
+   coh_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.png
    convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/bbb.png PNG8:$coh_bmp
    
   #new version of gamma shows coherence in colour... using old-school cpxfiddle as workaround
@@ -484,16 +485,17 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.cc ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/$
   #swap_bytes ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc ${ifg}.geo.cc.tmp 4 >/dev/null
   #cpxfiddle -q normal -w ${width_dem} -f r4 -o sunraster -c gray -M $reducfac_dem/$reducfac_dem -r 0/0.9 ${ifg}.geo.cc.tmp > ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras 2>/dev/null
   #convert ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp
-  rm -f ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.cc.tmp 2>/dev/null
+  rm -f ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.ras ${ifg}.geo.$cc.tmp 2>/dev/null
   # Need to remove the black border, but the command below is no good as it removes the black parts of the coherence!
   #convert -transparent black -resize 30% ${procdir}/GEOC/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/GEOC/${ifg}/${ifg}.geo.cc.bmp
   #convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.png
   if [ $FULL -eq 1 ]; then
-   convert -transparent black ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc.full.png
+   convert -transparent black ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc.full.png
   fi
   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc_blk.bmp 2>/dev/null
-  rm ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/cc.cpt ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.cc 2>/dev/null
+  rm ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/cc.cpt ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$cc 2>/dev/null
 fi
+done
 fi
 
 if [ $MLIDO -eq 1 ]; then

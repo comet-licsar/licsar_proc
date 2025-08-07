@@ -113,8 +113,10 @@ while true; do
             ;;
         -M)
             # 2025/04 weird disk IO issues, JASMIN recommends setting higher memory..
-            let memm=$memm'+'$2;
-            echo "increasing RAM request to "$memm
+            #let memm=$memm'+'$2;
+            # 2025/07 no such issues anymore..
+            #echo "increasing RAM request to "$memm
+            let memm=$2;
             #cmd=$cmd' --mem='$memm
             shift 2
             ;;

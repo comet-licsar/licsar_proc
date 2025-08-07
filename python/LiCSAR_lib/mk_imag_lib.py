@@ -451,8 +451,10 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
     names = set()
     for i in range(len(filelist)):
         names.add(filelist[i][1][0:62])
+    dupli = False
     if len(names) < len(filelist):
         print('a duplicite was found')
+        dupli = True
         filelist2 = []
         for name in names:
             pom = 0
@@ -472,9 +474,11 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                             filelist2.append(filelist[idx])
                             break
         if len(names) > len(filelist2):
-            print('some file is not existing. cancelling')
-            return 2
-        filelist = filelist2
+            if not autodownload:
+                print('some file is not existing. cancelling')
+                return 2
+        else:
+            filelist = filelist2
     #raise Usage("DEBUG")
     if autodownload:
         try:
@@ -493,6 +497,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
         for f in filelist:
             flist.append(list(f))
         filelist = flist
+        tousefl=[]
         for f in filelist:
             i = i+1
             if not os.path.exists(f[2]):
@@ -501,11 +506,16 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 rc = s1.download_asf(filename, slcdir = outdir, ingest = True)
                 newpath = os.path.join(outdir, filename)
                 if not os.path.exists(newpath):
-                    print('ERROR downloading file needed for initialisation, cancelling')
-                    return 2
-                # change the record in the filelist ... as list... NOT as tuples..
-                filelist[i][2] = newpath
-    
+                    if not dupli:
+                        print('ERROR downloading file needed for initialisation, cancelling')
+                        return 2
+                else:
+                    # change the record in the filelist ... as list... NOT as tuples..
+                    filelist[i][2] = newpath
+                    tousefl.append(filelist[i])
+            else:
+                tousefl.append(filelist[i])
+        filelist = tousefl
 ############################################################ Build Frame
     if read_files( filelist, slcdir, date, procdir, licsQuery, job_id, acqMode, test_crosspol ):
         # Only do if read_files does not return False, i.e. hits
@@ -917,7 +927,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 for zipFile in glob(imdir+'/*.zip'):
                     #Loop through zipfiles and get valis orbit file
                     print("Updating orbit for {0}".format(zipFile))
-                    mtch = re.search('.*(S1[AB]).*',zipFile)
+                    mtch = re.search('.*(S1[ABCD]).*',zipFile)
                     sat = mtch.groups()[0]
                     localOrbDir = get_orb_dir(sat)
                     orbit = getValidOrbFile(localOrbDir,zipFile)
@@ -954,7 +964,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             for zipFile in glob(imdir+'/*.zip'):
                 #Loop through zipfiles and get valis orbit file
                 print("Updating orbit for {0}".format(zipFile))
-                mtch = re.search('.*(S1[AB]).*',zipFile)
+                mtch = re.search('.*(S1[ABCD]).*',zipFile)
                 sat = mtch.groups()[0]
                 localOrbDir = get_orb_dir(sat)
                 try:

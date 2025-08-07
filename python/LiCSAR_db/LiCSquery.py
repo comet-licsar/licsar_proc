@@ -111,15 +111,17 @@ def delete_file_from_db(ff, col = 'abs_path'):
     Note: col name is the filename without the tailing .zip
     """
     sql='select fid from files where {0}="{1}";'.format(col, ff)
+    # select fid from files where name = "S1A_IW_SLC__1SDV_20250511T130357_20250511T130424_059147_0756BA_6BE7";
     out = do_pd_query(sql)
+    num = 0
     for fid in out.fid:
         sql='delete from files2jobs where fid={};'.format(fid)
-        num = do_query(sql, True)
+        num += do_query(sql, True)
         sql='delete from files2bursts where fid={};'.format(fid)
-        num = do_query(sql, True)
+        num += do_query(sql, True)
         sql='delete from files where fid={};'.format(fid)
-        num = do_query(sql, True)
-    return True
+        num += do_query(sql, True)
+    return num
 
 
 def delete_frame_only(frame):
