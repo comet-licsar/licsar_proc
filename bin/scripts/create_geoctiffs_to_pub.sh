@@ -426,13 +426,18 @@ if [ $UNFILT -eq 1 ]; then
  ifgext="diff"
  ifgout="diff_unfiltered"
  echo "Creating "$ifgtext" interferogram tiffs"
+  #  geocoding complex data with Lanczos interpolation before extracting phase from it
+ geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 6 1 >> $logfile
+ # extract only phase
+ cpx_to_real ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} 4 >> $logfile
  cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.$ifgext ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width 4  >> $logfile
- geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 1 1 >> $logfile
+ #geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 1 1 >> $logfile
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' 0.0  >> $logfile 2>/dev/null
  if [ $magcc == 1 ]; then
-   cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.$ifgext ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width 3  >> $logfile
-   geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag ${width_dem} ${length_dem} 1 0 >> $logfile
+   cpx_to_real ${procdir}/IFG/$GEOCDIR/${ifg}.$ifgext ${procdir}/$GEOCDIR/${ifg}/${ifg}.diff_mag ${width_dem} 3  >> $logfile
+   #cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.$ifgext ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width 3  >> $logfile
+   #geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag ${width_dem} ${length_dem} 1 0 >> $logfile
   #geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
    # Convert to geotiff
    data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif 0.0  >> $logfile 2>/dev/null
