@@ -36,6 +36,7 @@ UNFILT=0
 FULL=0
 mask=1
 clip=0
+magcc=1
 
 while getopts ":uabmUCFHIML" option; do
  case "${option}" in
@@ -429,6 +430,23 @@ if [ $UNFILT -eq 1 ]; then
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 1 1 >> $logfile
  geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' 0.0  >> $logfile 2>/dev/null
+ if [ $magcc == 1 ]; then
+   cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.$ifgext ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width 3  >> $logfile
+   geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag ${width_dem} ${length_dem} 1 0 >> $logfile
+  #geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
+   # Convert to geotiff
+   data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif 0.0  >> $logfile 2>/dev/null
+   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag
+   ###
+   if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc2.tif
+    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc2.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif
+   fi
+  #for compression types differences, check e.g. https://kokoalberti.com/articles/geotiff-compression-optimization-guide/
+  gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.tif >> $logfile 2>/dev/null
+  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif
+  ###
+ fi
    if [ -f $hgtfile ]; then
     gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif'
     mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
