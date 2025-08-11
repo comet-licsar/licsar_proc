@@ -416,7 +416,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  #raspwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
  # Clean
- rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2>/dev/null
+ rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout 2>/dev/null
 fi
 fi
 
@@ -457,6 +457,9 @@ if [ $UNFILT -eq 1 ]; then
   gmt makecpt -Cgray -T0/255/1 >${procdir}/$GEOCDIR/${ifg}/cc.cpt
   gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.tif -C${procdir}/$GEOCDIR/${ifg}/cc.cpt -JM1 -nn+t0.1 -A${procdir}/$GEOCDIR/${ifg}/bbb.png
   coh_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.png
+  if [ $FULL -eq 1 ]; then
+   convert -transparent black ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.full.png
+  fi
   convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/bbb.png PNG8:$coh_bmp
   rm ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/cc.cpt 2>/dev/null
   ###
