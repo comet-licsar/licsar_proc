@@ -396,7 +396,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  tmpifgbmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.tmp.png
  gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$ifg_bmp
  if [ $FULL -eq 1 ]; then
-   convert $ifg_bmp -transparent black {procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
+   convert $ifg_bmp -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
  fi
  #to flatten it (and fix transparency...sometimes needed..):
  convert $ifg_bmp -transparent black -resize $RESIZE'%' PNG8:$tmpifgbmp
@@ -553,6 +553,9 @@ if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/$GEOCDIR.MLI/$im
   
  #generate raster preview
  raspwr ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
+ if [ $FULL -eq 1 ]; then
+   convert ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp -transparent black ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.full.png
+ fi
  convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.png
  rm ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli  ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig.tif 2>/dev/null
 fi 
