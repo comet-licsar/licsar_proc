@@ -550,7 +550,7 @@ def create_hires_subset(frame, usgs, framesdir = '/data/eq/frames'):
     os.system(clipcmd)
 
 
-def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 12, only_s1a = True):
+def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6, only_s1a = True):
     """Gets earliest expected acquisition time of given frame for given event (time)
        Includes check on S1AorB of the reference epoch
     """
@@ -791,7 +791,7 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, i
     Step 1 would perform full processing (licsar_make_frame),
     step 2 would only check for existing ifgs and ingest them to the related html files, plus generate coseismic kmls.
     step 3 will ingest data to EPOS and GEP (TODO: check if this still works)
-    
+
     Args:
         minmag (float): minimum magnitude in the search
         pastdays: minimum time to history in the search
