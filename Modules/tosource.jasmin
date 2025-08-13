@@ -38,7 +38,8 @@ export ORB_DIR=$grouppath"/orbits/"
 export dems_dir=$grouppath"/DEMs/"
 
 export LiCSARconfig=$configpath"/liveConfig.cnf"
-export LiCSAR_public="/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products"
+export LiCSAR_public="/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products.public"
+export LiCSAR_web="/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products.future"
 export LiCSAR_SLC="/gws/nopw/j04/nceo_geohazards_vol2/LiCS/temp/SLC"
 
 #setup executable paths
