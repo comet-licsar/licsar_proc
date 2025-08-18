@@ -2,6 +2,8 @@
 # saner programming env: these switches turn some bugs into errors
 set -o errexit -o pipefail -o noclobber -o nounset
 
+# NOTE, you can run interactive job e.g. using:
+# salloc -q high -A intera --ntasks-per-node=8 -p standard --mem=32768 --account=nceo_geohazards --time=10:00
 
 # IMPORTANT TODO:
 # use jid1=$(sbatch jobscript | tr -dc '0-9')  to get job id for waiting script

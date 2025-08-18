@@ -36,6 +36,7 @@ UNFILT=0
 FULL=0
 mask=1
 clip=0
+magcc=1
 
 while getopts ":uabmUCFHIML" option; do
  case "${option}" in
@@ -395,7 +396,7 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  tmpifgbmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.tmp.png
  gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.tif' -C$LiCSARpath/misc/pha.cpt -JM1 -nn+t0.1 -Q -A$ifg_bmp
  if [ $FULL -eq 1 ]; then
-   convert $ifg_bmp -transparent black {procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
+   convert $ifg_bmp -transparent black ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout.full.png
  fi
  #to flatten it (and fix transparency...sometimes needed..):
  convert $ifg_bmp -transparent black -resize $RESIZE'%' PNG8:$tmpifgbmp
@@ -415,20 +416,54 @@ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${i
  #raspwr ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_mag.bmp >> $logfile
  #ras_linear ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/GEOC/${ifg}/${ifg}.geo.diff_pha.bmp >> $logfile
  # Clean
- rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2>/dev/null
+ rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout 2>/dev/null
 fi
 fi
 
 if [ $UNFILT -eq 1 ]; then
+ if [ ! -d "${procdir}/$GEOCDIR/${ifg}" ]; then mkdir ${procdir}/$GEOCDIR/${ifg}; fi
  #do the unfiltered ifg as well as filtered
  ifgtext="unfiltered"
  ifgext="diff"
  ifgout="diff_unfiltered"
+ if [ -e ${procdir}/IFG/${ifg}/${ifg}.$ifgext ] && [ ! -e ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.${ifgout}_pha.tif ]; then
  echo "Creating "$ifgtext" interferogram tiffs"
- cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.$ifgext ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width 4  >> $logfile
- geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 1 1 >> $logfile
- geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
+  #  geocoding complex data with Lanczos interpolation before extracting phase from it
+ geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 6 1 >> $logfile
+ # extract only phase
+ cpx_to_real ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} 4 >> $logfile
+ #cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.$ifgext ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width 4  >> $logfile
+ #geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgext $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${width_dem} ${length_dem} 1 1 >> $logfile
+ #geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
  data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' 0.0  >> $logfile 2>/dev/null
+ if [ $magcc == 1 ]; then
+   echo "Additionally create magcc to substitute ccwaved coherence"
+   cpx_to_real ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag ${width_dem} 3  >> $logfile
+   #cpx_to_real ${procdir}/IFG/${ifg}/${ifg}.$ifgext ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width 3  >> $logfile
+   #geocode_back ${procdir}/IFG/${ifg}/${ifg}.diff_mag $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag ${width_dem} ${length_dem} 1 0 >> $logfile
+  #geocode_back ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' $width ${procdir}/$geodir/$master.lt_fine ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha' ${width_dem} ${length_dem} 0 0 >> $logfile
+   # Convert to geotiff
+   data2geotiff ${procdir}/$geodir/EQA.dem_par ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag 2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif 0.0  >> $logfile 2>/dev/null
+   rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.diff_mag
+   ###
+   if [ -f $hgtfile ]; then
+    gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc2.tif
+    mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc2.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif
+   fi
+  #for compression types differences, check e.g. https://kokoalberti.com/articles/geotiff-compression-optimization-guide/
+  gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.tif >> $logfile 2>/dev/null
+  rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.magcc.tif
+  # preview
+  gmt makecpt -Cgray -T0/255/1 >${procdir}/$GEOCDIR/${ifg}/cc.cpt
+  gmt grdimage ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.tif -C${procdir}/$GEOCDIR/${ifg}/cc.cpt -JM1 -nn+t0.1 -A${procdir}/$GEOCDIR/${ifg}/bbb.png
+  coh_bmp=${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.png
+  if [ $FULL -eq 1 ]; then
+   convert -transparent black ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.mag_cc.full.png
+  fi
+  convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR/${ifg}/bbb.png PNG8:$coh_bmp
+  rm ${procdir}/$GEOCDIR/${ifg}/bbb.png ${procdir}/$GEOCDIR/${ifg}/cc.cpt 2>/dev/null
+  ###
+ fi
    if [ -f $hgtfile ]; then
     gdalwarp2match.py ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif' $hgtfile ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif'
     mv ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig2.tif' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_pha.orig.tif'
@@ -450,6 +485,7 @@ if [ $UNFILT -eq 1 ]; then
   #rm ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.png'
  fi
  rm ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_mag' ${procdir}/IFG/${ifg}/${ifg}.$ifgout'_pha' ${procdir}/$GEOCDIR/${ifg}/${ifg}.geo.$ifgout'_blk.bmp' 2>/dev/null
+ fi
 fi
 
 
@@ -520,6 +556,9 @@ if [ -e ${procdir}/RSLC/$im/$im.rslc.mli ] && [ ! -d ${procdir}/$GEOCDIR.MLI/$im
   
  #generate raster preview
  raspwr ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli ${width_dem} - - $reducfac_dem $reducfac_dem - - - ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp 0 - >> $logfile
+ if [ $FULL -eq 1 ]; then
+   convert ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp -transparent black ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.full.png
+ fi
  convert -transparent black -resize $RESIZE'%' ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.png
  rm ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.bmp ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli  ${procdir}/$GEOCDIR.MLI/$im/$im.geo.mli.orig.tif 2>/dev/null
 fi 

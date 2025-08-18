@@ -28,6 +28,7 @@ minmag = 5.5
 #minmag = 4.6
 exceptions = [] #'us60008e8e', 'us6000a50y']
 
+autoinit = False
 
 #table based on John Elliott's know-how..
 eq_data = {'magnitude': [5.5,5.6,5.7,5.8,5.9,6, \
@@ -78,6 +79,7 @@ def create_eq_csv(csvfile = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_pr
     dbcols = ['USGS_ID','magnitude','depth','time','lat','lon', 'link', 'location']
     eq_df[dbcols].to_csv(csvfile, sep = ';', index=False)
     return True
+
 
 def get_eq_frames_table_region(minmag = 6, maxdepth = 70, lonlatvals = (5, 120, 20, 52),
                                datein = dt.datetime(2016, 3, 1), dateout = dt.datetime(2024, 3, 1), outcsv = None):
@@ -548,7 +550,7 @@ def create_hires_subset(frame, usgs, framesdir = '/data/eq/frames'):
     os.system(clipcmd)
 
 
-def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 12, only_s1a = True):
+def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6, only_s1a = True):
     """Gets earliest expected acquisition time of given frame for given event (time)
        Includes check on S1AorB of the reference epoch
     """
@@ -785,8 +787,10 @@ def is_blacklisted(eventid, blacklistfile = '/gws/nopw/j04/nceo_geohazards_vol1/
 def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, ingestedonly = False, onlycoseismic = False, only_non_existing_coseismic = True):
     """
     This will process all earthquakes in given range:
+    step 0 would only find and ingest eq/related frames to the database
     Step 1 would perform full processing (licsar_make_frame),
     step 2 would only check for existing ifgs and ingest them to the related html files, plus generate coseismic kmls.
+    step 3 will ingest data to EPOS and GEP (TODO: check if this still works)
 
     Args:
         minmag (float): minimum magnitude in the search
@@ -826,7 +830,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
 
     Args:
         eventid: USGS ID
-        step: 1 for full processing, 2 for ingesting related data to event htmls (and generating coseismic kmzs if needed), 3 for ingesting coseismic ifgs to EPOS and GEP
+        step: 0 to only ingest, 1 for full processing, 2 for ingesting related data to event htmls (and generating coseismic kmzs if needed), 3 for ingesting coseismic ifgs to EPOS and GEP
         overwrite: if True will overwrite existing data
         makeactive: if True, will also make the event active in EIDP
         skipchecks: will skip some default checks, e.g. by default we limit processing by depth
@@ -882,6 +886,9 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
         eqid = lq.get_eqid(event.id)
     for frame in frames:
         rc = import_to_licsinfo_eq2frame(eqid, event, frame, active = makeactive)
+    if step == 0:
+        print('Ingestion finished')
+        return True
     if step == 1:
         print('{0} frames detected for event {1}, will be processing them'.format(str(len(frames)),event.id))
         indate = event.time-timedelta(days=max_days)
@@ -890,8 +897,12 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
             #frame = frame[0]
             track = str(int(frame[0:3]))
             if not os.path.exists(os.path.join(public_path,track,frame)):
-                print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
-                os.system('licsar_initiate_new_frame.sh {0} >/dev/null 2>/dev/null'.format(frame))
+                if not autoinit:
+                    print('Frame '+frame+' was (probably) not initiated, please check manually.')
+                else:
+                    print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
+                    # os.system('licsar_initiate_new_frame.sh {0} >/dev/null 2>/dev/null'.format(frame))
+                    os.system('licsar_initiate_new_frame.sh {0}'.format(frame))
             framepubdir = os.path.join(public_path,track,frame)
             if os.path.exists(framepubdir):
                 #if eqid:
