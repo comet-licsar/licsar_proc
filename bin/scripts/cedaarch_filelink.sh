@@ -1,5 +1,16 @@
 #!/bin/bash 
 #################################################################
+# for all:
+# frame=
+# frpubdir=$LiCSAR_public/`track_from_frame` $frame/$frame
+# cd $frpubdir
+# for fdir in `ls interferograms/????????_???????? epochs/?????? -d`; do
+#   for ext in tif png; do
+#     for f in `find $ifgdir -name '*.'$ext`; do
+#        cedaarch_filelink.sh $f
+#     done
+#   done
+# done
 
 usage() { 
   echo " " 1>&2; 
@@ -14,6 +25,11 @@ usage() {
 if [ -z $1 ]; then
   usage
 else
+  if [ -L $1 ]; then
+    #if [ `readlink $filepubdir | grep -c neodc` -eq 1 ]; then
+    echo "the file is a link - skipping" # (may improve for neodc check)
+    exit 1
+  fi
   filepubdir=`realpath $1`
 fi
 
@@ -23,18 +39,13 @@ function comparefiles() {
 }
 
 # basic checks
-if [ -L $filepubdir ]; then
-  #if [ `readlink $filepubdir | grep -c neodc` -eq 1 ]; then
-  echo "the file is a link - skipping" # (may improve for neodc check)
-  exit 1
-fi
 if [ ! -f $filepubdir ]; then
   echo "the file does not exist, exiting"
   exit 1
 fi
 ext=`echo "${filepubdir##*.}"`  # from https://stackoverflow.com/questions/965053/extract-filename-and-extension-in-bash
 if [[ ! "png tif" =~ $ext ]]; then
-  echo "cheking only if the extension is tif or png - the file is "$ext;
+  echo "checking only if the extension is tif or png - the file is "$ext;
   exit 1
 fi
 
@@ -67,7 +78,7 @@ if [ `comparefiles $filepubdir $fileneodc` == 'identical' ]; then  # echo "linki
    rm -f $filepubdir;
    if [ ! -f $filepubdir ]; then
      ln -s $fileneodc $filepubdir;
-     chmod 755 $filepubdir;
+     chmod 755 $filepubdir 2>/dev/null;
    else
      echo "WARNING, could not delete file" $filepubdir;
      exit 1
