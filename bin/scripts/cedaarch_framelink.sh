@@ -17,7 +17,7 @@ else
   frame=$1
 fi
 
-frpubdir=$LiCSAR_public/`track_from_frame` $frame/$frame
+frpubdir=$LiCSAR_public/`track_from_frame $frame`/$frame
 if [ ! -d $frpubdir ]; then
   echo "The frame directory does not exist:"
   echo $frpubdir
@@ -28,9 +28,11 @@ fi
  for fdir in `ls interferograms/????????_???????? epochs/?????? -d`; do
    for ext in tif png; do
      for f in `find $fdir -name '*.'$ext`; do
-        echo cedaarch_filelink.sh $f
+        cedaarch_filelink.sh $f
      done
    done
  done
 
  cd -
+
+ cedaarch_create_html_frame.sh $frame

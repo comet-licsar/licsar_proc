@@ -1,16 +1,5 @@
 #!/bin/bash 
 #################################################################
-# for all:
-# frame=
-# frpubdir=$LiCSAR_public/`track_from_frame` $frame/$frame
-# cd $frpubdir
-# for fdir in `ls interferograms/????????_???????? epochs/?????? -d`; do
-#   for ext in tif png; do
-#     for f in `find $ifgdir -name '*.'$ext`; do
-#        cedaarch_filelink.sh $f
-#     done
-#   done
-# done
 
 usage() { 
   echo " " 1>&2; 
