@@ -42,12 +42,12 @@ outdir=$LiCSAR_web/$tr/$frame
 
 if [ ! -d $outdir ]; then
   mkdir -p $LiCSAR_web/$tr/$frame
-  chmod 755 $LiCSAR_web/$tr/$frame
+  chmod 775 $LiCSAR_web/$tr/$frame
   cd $LiCSAR_web/$tr/$frame
   # we want to keep local links to metadata
   if [ -d $LiCSAR_public/$tr/$frame/metadata ]; then
    ln -s $LiCSAR_public/$tr/$frame/metadata
-   chmod 755 metadata
+   chmod 775 metadata
   else
     echo "WARNING, no metadata folder exists for the given frame"
   fi
@@ -55,7 +55,7 @@ if [ ! -d $outdir ]; then
 fi
 if [ ! -d $outdir/$ddir ]; then
   mkdir $outdir/$ddir
-  chmod 755 $outdir/$ddir
+  chmod 775 $outdir/$ddir
 fi
 
 outhtml=$outdir/$ddir/$pairep
@@ -90,4 +90,4 @@ for ext in png tif kmz; do   # we store only png and tif files in /neodc but nee
   done
 done
 
-chmod 755 $outhtml
+chmod 775 $outhtml

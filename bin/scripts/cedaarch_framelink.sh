@@ -25,7 +25,9 @@ if [ ! -d $frpubdir ]; then
 fi
 
  cd $frpubdir
- for fdir in `ls interferograms/????????_???????? epochs/?????? -d`; do
+ echo "Checking for existing CEDA Archive data of"
+ for fdir in `ls interferograms/????????_???????? epochs/???????? -d`; do
+   echo $fdir
    for ext in tif png; do
      for f in `find $fdir -name '*.'$ext`; do
         cedaarch_filelink.sh $f
@@ -34,5 +36,8 @@ fi
  done
 
  cd -
-
+ echo ""
+ echo "links done, now (re)creating HTML files"
  cedaarch_create_html_frame.sh $frame
+
+ echo $frame >> /gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/frames_in_future.txt
