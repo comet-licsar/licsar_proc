@@ -39,3 +39,5 @@ fi
  echo ""
  echo "links done, now (re)creating HTML files"
  cedaarch_create_html_frame.sh $frame
+
+ echo $frame >> /gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/frames_in_future.txt
