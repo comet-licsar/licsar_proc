@@ -67,7 +67,7 @@ if [ `comparefiles $filepubdir $fileneodc` == 'identical' ]; then  # echo "linki
    rm -f $filepubdir;
    if [ ! -f $filepubdir ]; then
      ln -s $fileneodc $filepubdir;
-     chmod 755 $filepubdir 2>/dev/null;
+     chmod 775 $filepubdir 2>/dev/null;
    else
      echo "WARNING, could not delete file" $filepubdir;
      exit 1
