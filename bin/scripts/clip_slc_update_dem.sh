@@ -35,12 +35,18 @@ if [ ! -f $mli ]; then
 else
  if [ ! `get_value $mli azimuth_looks` == $azlks ]; then reprocmli=1; fi
  if [ ! `get_value $mli range_looks` == $rglks ]; then reprocmli=1; fi
+ smli=SLC/$master/$master.slc.mli.par
+ if [ ! `get_value $smli azimuth_looks` == $azlks ]; then reprocmli=1; fi
+ if [ ! `get_value $smli range_looks` == $rglks ]; then reprocmli=1; fi
 fi
 
 if [ $reprocmli == 1 ]; then
   echo "regenerating ref epoch MLI"
   rm RSLC/$master/$master.rslc.mli RSLC/$master/$master.rslc.mli.par
+  rm SLC/$master/$master.slc.mli SLC/$master/$master.slc.mli.par
   multi_look RSLC/$master/$master.rslc RSLC/$master/$master.rslc.par RSLC/$master/$master.rslc.mli RSLC/$master/$master.rslc.mli.par $rglks $azlks >/dev/null 2>/dev/null
+  cp RSLC/$master/$master.rslc.mli SLC/$master/$master.slc.mli
+  cp RSLC/$master/$master.rslc.mli.par SLC/$master/$master.slc.mli.par
 fi
 
 geodir=geo.$resol_m'm'  #`ls geo.*m -d | head -n 1`
