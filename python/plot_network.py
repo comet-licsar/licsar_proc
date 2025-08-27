@@ -207,9 +207,10 @@ if not os.path.exists(bperp_file):
     import framecare as fc
     frame = os.path.basename(framedir)
     bpd = fc.make_bperp_file(frame, bperp_file, donotstore=False)
-else:
-    # horrible fix but seems necessary...
-    rc = os.system("sed -i 's/\.0//g' "+bperp_file)
+
+# else:
+# horrible fix but seems necessary...
+rc = os.system("sed -i 's/\.0//g' "+bperp_file)
 #    print('Make dummy bperp')
 #    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
 #    io_lib.make_dummy_bperp(bperp_file, imdates)
@@ -315,6 +316,7 @@ frame = os.path.basename(framedir)
 plot_network_upd(ifgdates, bperp, frame, pngfile)
 os.system('chmod 777 '+pngfile+' 2>/dev/null')
 os.system('chmod 777 '+bperp_file+' 2>/dev/null')
+rc = os.system("sed -i 's/\.0//g' "+bperp_file)  # just in case...
 
 ## Identify gaps
 G = inv_lib.make_sb_matrix(ifgdates)
