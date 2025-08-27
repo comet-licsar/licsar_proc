@@ -966,6 +966,29 @@ fi
  #   gmt grdmath $infilee'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB WRAP = $outfilee'=gd:Gtiff'
  #   #gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB WRAP = $outfile'=gd:Gtiff'
 
+if [ $phbias -gt 0 ]; then
+  # in such case we should first estimate and correct the phase bias using YMA's codes, using unfiltered phase:
+  # ... hey... but the codes are.... well...
+  echo "[DEFAULT]" > config.txt
+  echo "root_path = ." >> config.txt
+  echo "output_path = phbias" >> config.txt
+  echo "LiCSAR_data = no" >> config.txt
+  echo "frame = "$frame  >> config.txt
+  echo "start = "$startdate ???  >> config.txt
+  echo "end = "$enddate ??? >> config.txt
+  echo "interval = " 6 or 12 ???  >> config.txt
+  echo "nlook = "$ml ???  >> config.txt
+  echo "num_a=2"  >> config.txt
+  echo "estimate_an_values=yes" >> config.txt
+  echo "filtered_ifgs=no" >> config.txt  # HEYYYY - this is HARDCODED in the phase bias scripts!!!!!!
+
+  ln -s GEOC interferograms
+  ln -s GEOC metadata
+
+  # now we should just run on steps 1-5 BUT... it fails... the hardcoded things... the step 3 gives errors already
+  # even if setting manually the 'long ifg' from 216 (hardcoded) to 210, it fails trying loop_360_6 ... nonsense. garbage. not use.
+fi
+
 
 if [ $reunw -gt 0 ]; then
  #echo "preparing for custom multilooking - just run ./multirun.sh"
@@ -1263,10 +1286,10 @@ if [ $platemotion -gt 0 ]; then
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N -p "$geocd"/EQA.dem_par -o "$frame".N.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/hgt -p "$geocd"/EQA.dem_par -o "$frame".hgt.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i "$geocd"/coh_avg -p "$geocd"/EQA.dem_par -o "$frame".coh_avg.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/coh_avg -p "$geocd"/EQA.dem_par -o "$frame".coh_avg.geo.tif" >> jasmin_run.sh
  echo "cp TS_"$geocd"/results/vstd_scaled.tif "$frame".vstd_scaled.geo.tif" >> jasmin_run.sh
  echo "Note - the plate motion post-processing would run following extra commands: "
- tail -n 5 jasmin_run.sh
+ tail -n 7 jasmin_run.sh
  echo " "
 fi
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
