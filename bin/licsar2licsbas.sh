@@ -81,7 +81,8 @@ wls=0
 cometdev=0
 #specmag=0
 # 2023 - keep it ON
-specmag=1
+# 2025 - keep it OFF
+specmag=0
 nproc=1
 ampstab=0
 ampcoh=0
@@ -1061,6 +1062,8 @@ if [ $reunw -gt 0 ]; then
  fi
  if [ $specmag == 1 ]; then
   extraparam=$extraparam", specmag = True"
+ else
+   extraparam=$extraparam", specmag = False"
  fi
  if [ $dogacos == 1 ]; then
   extraparam=$extraparam", subtract_gacos = True" 
