@@ -113,7 +113,9 @@ phbias=0
 platemotion=0
 rgoffs=0
 discmd="$0 $@"
-while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:Q" option; do
+cumulative_process=0
+cum_gps_file=~/moving_weighted_mean_MLY1.csv
+while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:QZ" option; do
  case "${option}" in
   h) lotushours=${OPTARG};
      ;;
@@ -228,6 +230,8 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:Q" option; do
      #clip=1;
      #echo "warning - the clipping will affect only LiCSBAS for now, so in case of ML, the clip will be done only AFTER all reunwrapping"
      #shift
+     ;;
+  Z) cumulative_process=1;
      ;;
  esac
 done
@@ -1439,6 +1443,14 @@ elif [ "$sbovl" -eq 1 ]; then
  fi
 fi
 
+if [ $cumulative_process -eq 1 ]; then
+  echo "LiCSBAS_cum_interpolate.py -t TS_"$geocd" --csv "$cum_gps_file"" >> jasmin_run.sh
+  if [ "$sbovl" -gt 0 ]; then
+    echo "LiCSBAS_cum2tif.py -t TS_"$geocd" -i cum_filt_interpolate.h5 --plate_motion --interseismic_motion --sbovl" >> jasmin_run.sh
+  else
+    echo "LiCSBAS_cum2tif.py -t TS_"$geocd" -i cum_filt_interpolate.h5 --plate_motion --interseismic_motion" >> jasmin_run.sh
+  fi
+fi
 
  # jasmin proc
  cmd="bsub2slurm.sh -o processing_jasmin.out -e processing_jasmin.err -J LB_"$frame" -n "$nproc" -W "$hours":59 -M "$memmfull" -q "$que" ./jasmin_run.sh"
