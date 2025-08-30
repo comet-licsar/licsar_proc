@@ -282,7 +282,10 @@ if [ -f sourceframe ]; then frame=`cat sourceframe`; echo "setting frame from so
 fi
 
 if [ `echo $frame | grep -c '_'` -lt 1 ]; then
- echo "this is not a frame - check your input parameters please, yet continuing"
+ echo "no frame ID identified - check your input parameters please. Trying to continue, please ignore warning/error messages.."
+ sleep 2
+ dolocal=1
+ if [ ! -d GEOC ]; then echo "sorry, but GEOC folder does not exist here - cannot proceed"; exit; fi
 fi
 
 
