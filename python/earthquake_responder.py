@@ -147,7 +147,11 @@ def add_new_event(event, updatecsv = True):
         #just update it then
         lq.do_query("update eq set location='{0}' where USGS_ID='{1}'".format(event.location.replace("'"," "), event.id), 1)
     if updatecsv:
-        update_eq_csv(event.id, eqcsvfile)
+        # if in licsar:
+        if os.path.exists('/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/EQ/eqs.csv'):
+            update_eq_csv(event.id)
+        else:
+            update_eq_csv(event.id, eqcsvfile)
     return True
 
 
@@ -883,9 +887,16 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
         return False
     eqid = import_to_licsinfo_eq(event, active = makeactive)
     if not eqid:
+        isnewevent = False
         eqid = lq.get_eqid(event.id)
+    else:
+        # ok, this was new event - writing to the csv file...
+        isnewevent = True
+        update_eq_csv(event.id)
     for frame in frames:
         rc = import_to_licsinfo_eq2frame(eqid, event, frame, active = makeactive)
+    if isnewevent:
+        update_eq2frames_csv(event.id)
     if step == 0:
         print('Ingestion finished')
         return True
