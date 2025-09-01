@@ -119,15 +119,9 @@ lonxr=lonxr.interpolate_na('dim_1','linear')
 latxr=xr.DataArray(lat)
 latxr=latxr.interpolate_na('dim_0','linear')
 latxr=latxr.interpolate_na('dim_1','linear')
-print('nan values left:')
-nonans = latxr.where(latxr==np.nan).sum()
-print(nonans)
-if nonans > 0:
-    lonxr=lonxr.interpolate_na('dim_0','nearest')
-    latxr=latxr.interpolate_na('dim_0','nearest')
 
-lat=latxr.values
-lon=lonxr.values
+lat=latxr.fillna(0).values
+lon=lonxr.fillna(0).values
 
 lat.tofile(latfile)
 lon.tofile(lonfile)
