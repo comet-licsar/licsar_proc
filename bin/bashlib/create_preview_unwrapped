@@ -29,7 +29,7 @@ if [ ! -z $1 ]; then
    #fi
   fi
   echo "debug ln 1"
-  echo "following command should have been run here: create_colourbar_unw "$unwfile
+  # echo "following command should have been run here: create_colourbar_unw "$unwfile
   barpng=`create_colourbar_unw $unwfile`
   echo "debug ln 2"
   minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
