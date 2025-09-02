@@ -93,17 +93,18 @@ swap_bytes geo/${master_date}.lon INSAR_$master/geo/$master.lon 4 >/dev/null
 
 
 cat << EOF >checkthis_correct_lonlat_as_it_might_be_needed.py
+# print('If you run this from INSAR* folder, please avoid byteswapping below!')
 width=$width
 length=$length
-lonfile='geo/$master.lon'
-latfile='geo/$master.lat'
+lonfile='INSAR_$master/geo/$master.lon'
+latfile='INSAR_$master/geo/$master.lat'
 
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 
-lon=np.fromfile(lonfile, dtype=np.float32)
-lat=np.fromfile(latfile, dtype=np.float32)
+lon=np.fromfile(lonfile, dtype=np.float32) #.byteswap()
+lat=np.fromfile(latfile, dtype=np.float32) #.byteswap()
 
 lon=lon.reshape((length,width))
 lat=lat.reshape((length,width))
@@ -118,10 +119,9 @@ lonxr=lonxr.interpolate_na('dim_1','linear')
 latxr=xr.DataArray(lat)
 latxr=latxr.interpolate_na('dim_0','linear')
 latxr=latxr.interpolate_na('dim_1','linear')
-latxr.where(latxr==np.nan).sum()
 
-lat=latxr.values
-lon=lonxr.values
+lat=latxr.fillna(0).values
+lon=lonxr.fillna(0).values
 
 lat.tofile(latfile)
 lon.tofile(lonfile)
@@ -129,6 +129,9 @@ lon.tofile(lonfile)
 exit()
 EOF
 
+# ok, let's just run this..
+echo "updating lon/lat files"
+python3 checkthis_correct_lonlat_as_it_might_be_needed.py
 
 # make 1-1 hgt
 hgt=geo/${master}_dem.rdc

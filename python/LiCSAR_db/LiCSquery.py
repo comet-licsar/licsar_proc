@@ -15,6 +15,7 @@ from numbers import Number
 from shapely.geometry import Polygon
 from shapely import wkt, wkb
 import pandas as pd
+import unicodedata
 
 # Local imports
 import global_config as gc
@@ -1379,6 +1380,15 @@ def get_usgsid(eqid):
     return res
 
 
+def remove_non_standard_chars(text):
+    # Normalize to NFKD form to separate accents from characters
+    normalized = unicodedata.normalize('NFKD', text)
+    # Encode to ASCII bytes, ignoring non-ASCII characters
+    ascii_bytes = normalized.encode('ASCII', 'ignore')
+    # Decode back to string
+    return ascii_bytes.decode('ASCII')
+
+
 def insert_new_eq(event, active = True):
     if active:
         stract = '1'
@@ -1388,6 +1398,7 @@ def insert_new_eq(event, active = True):
     if not location:
         location = 'Undetermined location'
     else:
+        location = remove_non_standard_chars(location)
         location = location.replace("'", " ")
     sql_q = "INSERT INTO eq " \
             "    (USGS_ID, magnitude, location, depth, time, lat, lon, active) " \
