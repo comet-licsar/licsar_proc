@@ -1,5 +1,5 @@
 #!/bin/bash
-source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 cohthr=10  # cohthr = coh * 255, i.e. 10 is approx coh 0.04
 
