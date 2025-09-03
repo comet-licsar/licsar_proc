@@ -2,7 +2,7 @@
 #this will force regenerate full previews
 overwrite=0
 update_previews=0
-source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 
 if [ $overwrite -eq 1 ]; then

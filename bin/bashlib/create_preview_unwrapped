@@ -29,8 +29,8 @@ if [ ! -z $1 ]; then
    #fi
   fi
   echo "debug ln 1"
-  echo "following command should have been run here: create_colourbar_unw "$unwfile
-  # barpng=`create_colourbar_unw $unwfile`
+  # echo "following command should have been run here: create_colourbar_unw "$unwfile
+  barpng=`create_colourbar_unw $unwfile`
   echo "debug ln 2"
   minmaxcolour=`gmt grdinfo -T+a1+s $unwfile`
   echo "debug ln 3"
@@ -47,14 +47,14 @@ if [ ! -z $1 ]; then
     grav='southwest'
    fi
    echo "debug ln 6"
-   #convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
-   echo "debug: return barpng here"
-   convert $outfile -resize 680x -flatten -transparent black $outfile.sm.png
+   convert $outfile -resize 680x \( $barpng -resize 400x  -background none -gravity center \) -gravity $grav -geometry +7+7 -composite -flatten -transparent black $outfile.sm.png
+   #echo "debug: return barpng here"
+   # convert $outfile -resize 680x -flatten -transparent black $outfile.sm.png
    #save only the small preview..
    mv $outfile.sm.png $outfile
    rm $outfile.unw.cpt
-   echo "debug: return this below"
-   # rm $barpng
+   # echo "debug: return this below"
+   rm $barpng
   else
    #echo "preparing for kml"
    gmt grdclip $unwfile -Gtokml.nc -Sr0/NaN
@@ -67,6 +67,6 @@ if [ ! -z $1 ]; then
 else
     echo "Usage:  create_preview_unwrapped unwrapped_ifg [frame] [to kmz?]"
     echo "(can be either geotiff or nc/grd; if frame is provided, it will use mask/hillshade)"
-    return 0
+    exit 0
 fi
 
