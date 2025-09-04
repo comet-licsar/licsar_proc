@@ -1,5 +1,5 @@
 #!/bin/bash
-source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 cohthr=10  # cohthr = coh * 255, i.e. 10 is approx coh 0.04
 
@@ -25,7 +25,10 @@ fi
 
 #this script will unwrap geocoded data...
 #just set those files:
-maskfile=`ls GEOC/geo/*geo.landmask.tif 2>/dev/null | head -n 1 2>/dev/null`
+maskfile=`ls $heredir/GEOC/geo/*geo.landmask.tif 2>/dev/null | head -n 1 2>/dev/null`
+if [ -z $maskfile ]; then
+ maskfile=`ls $heredir/GEOC/*geo.landmask.tif 2>/dev/null | head -n 1 2>/dev/null`
+fi
 if [ -z $maskfile ]; then
  maskfile=$LiCSAR_public/$track/$frame/metadata/$frame.geo.landmask.tif
 fi
