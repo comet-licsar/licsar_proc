@@ -14,6 +14,8 @@ cat << __EOFHD
     just run with any one parameter.
   
   testing version. we assume you are in standard LiCSAR processing directory, i.e. with geo, DEM, RSLC folders.
+
+  You can set custom reference epoch, second parameter..
   
 __EOFHD
   exit 1
@@ -22,7 +24,13 @@ fi
 
 source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
-master=`get_master`
+if [ ! -z $2 ]; then
+  master=$2
+  if [ ! -d RSLC/$master ]; then echo "no such RSLC: "$master; exit; fi
+  echo "setting reference epoch to "$master
+else
+  master=`get_master`
+fi
 master_date=$master
 
 # start by making new lt - and skip the 'fine' now
