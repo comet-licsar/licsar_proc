@@ -131,8 +131,10 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXC:G:E:t:n:" option; do
      ;;
   N) nullify=1;
      ;;
-  B) phbias=1;  # TODO
-       echo 'not ready yet'; exit;
+  B) phbias=1;
+     echo "phase bias correction of ifgs - need to unwrap afterwards"
+     reunw=1;
+     LB_version=licsbas_comet_dev;
      ;;
   p) platemotion=1;
      ;;
@@ -970,27 +972,69 @@ fi
  #   gmt grdmath $infilee'=gd:Gtiff+n0' 0 NAN $ionod1 $ionod2 SUB SUB WRAP = $outfilee'=gd:Gtiff'
  #   #gmt grdmath -N $infile'=gd:Gtiff+n0' 0 NAN $tided2 $tided1 SUB -226.56 MUL SUB WRAP = $outfile'=gd:Gtiff'
 
+
+# need to clean old files
+rm multirun.sh 2>/dev/null
+
 if [ $phbias -gt 0 ]; then
   # in such case we should first estimate and correct the phase bias using YMA's codes, using unfiltered phase:
   # ... hey... but the codes are.... well...
+  # ok, getting through this... first, need to identify whether to use 6 or 12 days an estimates
+  echo "searching for 6-day interferograms"
+  ls GEOC | grep ^20 | cut -d '_' -f1 | sort -u > epochs.txt
+  numlines=`cat epochs.txt | wc -l`
+  let numlines=$numlines-1
+  numsixes=0
+  minsixes=5
+  for i in `seq $numlines`; do
+    let ii=$i+1
+    ep1=$(sed -n "${i}p" epochs.txt)
+    ep2=$(sed -n "${ii}p" epochs.txt)
+    if [ `datediff $ep1 $ep2` == 6 ]; then
+      if [ -d GEOC/$ep1'_'$ep2 ]; then
+        let numsixes=$numsixes+1;
+        if [ $numsixes == $minsixes ]; then echo "Minimum no of 6-days ifgs ("$minsixes") identified"; break; fi
+      fi
+    fi
+  done
+  if [ $numsixes -ge $minsixes ]; then
+    numdays=6
+  else
+    echo "There are only "$numsixes" ifgs with Btemp=6 days"
+    numdays=12
+  fi
+  echo "Setting phase bias correction optimisation to "$numdays" days"
   echo "[DEFAULT]" > config.txt
-  echo "root_path = ." >> config.txt
+  echo "root_path = "`pwd` >> config.txt
   echo "output_path = phbias" >> config.txt
   echo "LiCSAR_data = no" >> config.txt
-  echo "frame = "$frame  >> config.txt
-  echo "start = "$startdate ???  >> config.txt
-  echo "end = "$enddate ??? >> config.txt
-  echo "interval = " 6 or 12 ???  >> config.txt
-  echo "nlook = "$ml ???  >> config.txt
+  echo "frame = "$frame  >> config.txt  # it's ok - frame is used only if LiCSAR_data is set to 'yes'
+  echo "start = "$startdate  >> config.txt
+  echo "end = "$enddate >> config.txt
+  echo "interval = "$numdays  >> config.txt
+  echo "nlook = "$ml  >> config.txt
   echo "num_a=2"  >> config.txt
-  echo "estimate_an_values=yes" >> config.txt
-  echo "filtered_ifgs=no" >> config.txt  # HEYYYY - this is HARDCODED in the phase bias scripts!!!!!!
+  echo "estimate_an_values=no" >> config.txt # Currently there is some bug in step 3, so skipping the estimation - ask yma to fix this
+  echo "filtered_ifgs=no" >> config.txt  # this was HARDCODED in the original phase bias scripts...
+  echo "landmask=0" >> config.txt
+  echo "a1_6_day=0.50" >> config.txt
+  echo "a2_6_day=0.36" >> config.txt
+  echo "a3_6_day=0.299" >> config.txt
+  echo "a4_6_day=0.2476" >> config.txt
+  echo "a1_12_day=0.494" >> config.txt
+  echo "a2_12_day=0.297" >> config.txt
+  echo "a3_12_day=0.24" >> config.txt
+  echo "a4_12_day=0.22" >> config.txt
 
-  ln -s GEOC interferograms
-  ln -s GEOC metadata
-
+  #ln -s GEOC interferograms
+  ln -s GEOC metadata  # to find the hgt file
+  mkdir phbias phbias_before
   # now we should just run on steps 1-5 BUT... it fails... the hardcoded things... the step 3 gives errors already
   # even if setting manually the 'long ifg' from 216 (hardcoded) to 210, it fails trying loop_360_6 ... nonsense. garbage. not use.
+  # therefore skipping step 3 and just using the default values..
+  echo "PhaseBias_01_Read_Data.py; PhaseBias_02_Loop_Closures.py; PhaseBias_04_Inversion.py; PhaseBias_05_Correction.py" > multirun.sh
+  echo "mv GEOC phbias_before/.; mv phbias/GEOC .; rm metadata" >> multirun.sh  # already multilooked
+  ml=1
 fi
 
 
@@ -1005,7 +1049,7 @@ if [ $reunw -gt 0 ]; then
   mlgeocdir=$mlgeocdir'clip'
  fi
  mkdir $mlgeocdir
- echo cd `pwd`/$mlgeocdir > multirun.sh
+ echo cd `pwd`/$mlgeocdir >> multirun.sh
  if [ $hgts == 1 ]; then
   extraparam=", hgtcorr = True"
  else
