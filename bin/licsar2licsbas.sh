@@ -34,11 +34,11 @@ if [ -z $1 ]; then
  echo "-r ....... perform deramping (degree 1)"
  echo "-L ....... use linear hgt correlation slope correction"
  echo "-N ....... perform nullification"
- # echo "-B ...... add phase bias estimation/removal - Yasser code"
+ echo "-B ...... add phase bias estimation/removal (by yma, use of default an values)"
  # echo "-p ...... plate motion correction (wrt Eurasia)"
  echo "-- Processing tweaks --"
  echo "-h 14 .... set your own number of processing hours (14 by default)"
- echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
+ # echo "-P ....... prioritise, i.e. use comet queue instead of short-serial"
  echo "-n 1 ..... number of processors (by default: 1, used also for reunwrapping)"
  echo "(other params, for admins etc.)"
  # echo "(-R ....... prioritise through comet responder)"  # not anymore in LOTUS2
