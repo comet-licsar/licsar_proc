@@ -981,7 +981,7 @@ if [ $phbias -gt 0 ]; then
   # ... hey... but the codes are.... well...
   # ok, getting through this... first, need to identify whether to use 6 or 12 days an estimates
   echo "searching for 6-day interferograms"
-  ls GEOC | grep ^20 | cut -d '_' -f1 | sort -u > epochs.txt
+  ls GEOC | grep ^20 | cut -d '_' -f1 | cut -d '.' -f1 | sort -u > epochs.txt
   numlines=`cat epochs.txt | wc -l`
   let numlines=$numlines-1
   numsixes=0
@@ -1012,7 +1012,7 @@ if [ $phbias -gt 0 ]; then
   echo "start = "$startdate  >> config.txt
   echo "end = "$enddate >> config.txt
   echo "interval = "$numdays  >> config.txt
-  echo "nlook = "$ml  >> config.txt
+  echo "nlook = "$multi  >> config.txt
   echo "num_a=2"  >> config.txt
   echo "estimate_an_values=no" >> config.txt # Currently there is some bug in step 3, so skipping the estimation - ask yma to fix this
   echo "filtered_ifgs=no" >> config.txt  # this was HARDCODED in the original phase bias scripts...
@@ -1032,7 +1032,8 @@ if [ $phbias -gt 0 ]; then
   # now we should just run on steps 1-5 BUT... it fails... the hardcoded things... the step 3 gives errors already
   # even if setting manually the 'long ifg' from 216 (hardcoded) to 210, it fails trying loop_360_6 ... nonsense. garbage. not use.
   # therefore skipping step 3 and just using the default values..
-  echo "PhaseBias_01_Read_Data.py; PhaseBias_02_Loop_Closures.py; PhaseBias_04_Inversion.py; PhaseBias_05_Correction.py" > multirun.sh
+  echo "cd "`pwd` > multirun.sh
+  echo "PhaseBias_01_Read_Data.py; PhaseBias_02_Loop_Closures.py; PhaseBias_04_Inversion.py; PhaseBias_05_Correction.py" >> multirun.sh
   echo "mv GEOC phbias_before/.; mv phbias/GEOC .; rm metadata" >> multirun.sh  # already multilooked
   ml=1
 fi
