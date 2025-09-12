@@ -16,7 +16,7 @@ cat << __EOFHD
   testing version. we assume you are in standard LiCSAR processing directory, i.e. with geo, DEM, RSLC folders.
 
   You can set custom reference epoch, second parameter..
-  
+
 __EOFHD
   exit 1
 fi
@@ -201,6 +201,11 @@ for x in `cat slist.txt`; do
  fi
  rm $pair.off $pair.simorb
 done
+# adding also the reference epoch:
+cp RSLC/$master/$master.rslc.par INSAR_$master/rslc/.
+swap_bytes RSLC/$master/$master.rslc INSAR_$master/rslc/$master.rslc 2 >/dev/null
+
+# cleaning
 rm -rf stampsifgtemp
 
 
