@@ -104,7 +104,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         heading = heading.interp_like(framevel)
         input_data_set = [framevel.values, heading.values, inc.values]
         if stdname:
-            input_data_set.append(framenc[stdname].values)
+            input_data_set.append(framenc[stdname].interp_like(template).values)
         framesetvel.append(input_data_set)
         if annual:
             # doing the annuals!
