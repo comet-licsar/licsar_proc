@@ -5,7 +5,11 @@ import subprocess as subp
 import numpy as np
 from scipy import interpolate
 from lics_unwrap import *
-import dask.array as da
+try:
+    import dask.array as da
+except:
+    print('warning, no dask installed - the optional function will not work (no worries though)')
+
 import LiCSBAS_inv_lib as inv_lib
 import pandas as pd
 
@@ -41,7 +45,7 @@ cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_
 '''
 
 def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False,
-                       annual_buffer_months = 0, selperiods = None):
+                       annual_buffer_months = 0, selperiods = None, do_velUN=False, velname='vel', stdname = None):
     """ will decompose frame licsbas results
     the basenames in framencs should contain frame id, followed by '.', e.g.:
     framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
@@ -52,6 +56,9 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         annual (bool):   if True, will estimate and decompose annual velocities
         annual_buffer_months (int): adds extra months for annual velocities
         selperiods ... see calculate_annual_vels
+        do_velUN ... see decompose_np
+        velname (str): name of the layer to decompose (usually 'vel')
+        stdname (str): name of the 1-sigma layer to weight velname during decomposition (None means not use)
     Returns:
         xr.Dataset with U, E, [cum_vert] arrays
     """
@@ -61,7 +68,6 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     # getting years in all ncs:
     yearsall = None
     for nc in framencs:
-        frame = os.path.basename(nc).split('.')[0]
         framenc = xr.open_dataset(nc)
         years = framenc.time.dt.year.values
         years = list(set(years))
@@ -80,7 +86,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         print('extracting frame '+frame)
         inc, heading = get_frame_inc_heading(frame)
         framenc = xr.open_dataset(nc)
-        framevel = framenc['vel']
+        framevel = framenc[velname]
         if medianfix:
             framevel = framevel - framevel.median()
         if firstrun:
@@ -96,7 +102,10 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
                 framenc = framenc.interp_like(template)
         inc = inc.interp_like(framevel)
         heading = heading.interp_like(framevel)
-        framesetvel.append((framevel.values, heading.values, inc.values))
+        input_data_set = [framevel.values, heading.values, inc.values]
+        if stdname:
+            input_data_set.append(framenc[stdname].interp_like(template).values)
+        framesetvel.append(input_data_set)
         if annual:
             # doing the annuals!
             nc1 = calculate_annual_vels(framenc, yearsall, annual_buffer_months, selperiods)
@@ -104,9 +113,13 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     dec = xr.Dataset()
     U = template.copy()
     E = template.copy()
-    U.values, E.values = decompose_np_multi(framesetvel)
+    Ustd = template.copy()
+    Estd = template.copy()
+    U.values, E.values, Ustd.values, Estd.values = decompose_np_multi(framesetvel, do_velUN=do_velUN)
     dec['U'] = U
     dec['E'] = E
+    dec['Ustd'] = Ustd
+    dec['Estd'] = Estd
     if annual:
         # if annual, then frameset is from nc.vel_annual, heading.values, inc.values
         years = None
@@ -121,6 +134,8 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         # ok, now then decompose the annuals per year
         vUxr = frameset[0][0].sel(year = years).copy().rename('vU')*0
         vExr = frameset[0][0].sel(year = years).copy().rename('vE')*0
+        vUstdxr = frameset[0][0].sel(year=years).copy().rename('vUstd') * 0
+        vEstdxr = frameset[0][0].sel(year=years).copy().rename('vEstd') * 0
         for year in years:
             annualset = []
             for framedata in frameset:
@@ -128,13 +143,17 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
                 annualset.append((vel, framedata[1], framedata[2]))
             print('decomposing year '+str(year))
             try:
-                vU, vE = decompose_np_multi(annualset) #, beta = 0)
+                vU, vE, vUstd, vEstd = decompose_np_multi(annualset, do_velUN=do_velUN) #, beta = 0)
                 vUxr.loc[year,:,:] = vU
                 vExr.loc[year,:,:] = vE
+                vUstdxr.loc[year, :, :] = vUstd
+                vEstdxr.loc[year, :, :] = vEstd
             except:
                 print('error decomposing, setting nans')
         dec['vU'] = vUxr
         dec['vE'] = vExr
+        dec['vUstd'] = vUstdxr
+        dec['vEstd'] = vEstdxr
     if extract_cum:
         dec['cum'] = cum_vert
     return dec
@@ -293,9 +312,10 @@ def decompose_dask(cube, blocklen=5, num_workers=5):
     return f.compute(num_workers=num_workers)
 
 
-def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, beta=0):
+def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, do_velUN = True):
     """Perform simple decomposition for two frames in asc and desc.
     inputs are xr.dataarrays - this will also check/interpolate them to fit
+    Note - better use decompose_np_multi to get also sigmas etc.
     """
     cube=xr.Dataset()
     cube['asc'] = asc
@@ -308,7 +328,7 @@ def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, beta=0
     if not np.isscalar(inc_asc):
         cube['asc_inc'] = inc_asc.interp_like(asc, method='linear'); inc_asc=cube.asc_inc.values
         cube['desc_inc'] = inc_desc.interp_like(asc, method='linear'); inc_desc=cube.desc_inc.values
-    cube['U'].values, cube['E'].values = decompose_np(cube.asc.values, cube.desc.values, heading_asc, heading_desc, inc_asc , inc_desc)
+    cube['U'].values, cube['E'].values = decompose_np(cube.asc.values, cube.desc.values, heading_asc, heading_desc, inc_asc , inc_desc, do_velUN = do_velUN)
     return cube[['U', 'E']]
 
 
@@ -399,31 +419,46 @@ decomposedxr.to_netcdf('decomposed_s1.nc')
 '''
 
 
-def decompose_np_multi(input_data, beta = 0):
+def decompose_np_multi(input_data, beta = 0, do_velUN=False):
     """Decompose 2 or more frames
     
     Args:
         input data (list of tuples) e.g. input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
-    
+        ... in case there are 4, we will assume vstd (1-sigma) as:
+        [(vel1, heading1, inc1, vstd1), (vel2, heading2, inc2, vstd2), ...]
+    Returns:
+        4x np.ndarray of decomposed outputs U, E, and their 1-sigma Ustd, Estd
     Note: velX is np.array and headingX/incX is in degrees, either a number or np.array
     """
     #
     template = input_data[0][0]
     vel_E = np.zeros(template.shape)
     vel_U = np.zeros(template.shape)
+    vel_Estd = np.zeros(template.shape)
+    vel_Ustd = np.zeros(template.shape)
     #
     Us=list()
     Es=list()
     vels = []
+    vstds = []
     for frame in input_data:
         vel = frame[0]
         heading = frame[1]
         incangle = frame[2]
+        if len(frame)>3:
+            vstd = frame[3]
+        else:
+            vstd = vel*0+1
+        if do_velUN:
+            U = np.sqrt(1 - (np.sin(np.radians(incangle)) ** 2) * (np.cos(np.radians(incangle)) ** 2))
+        else:
+            U = np.cos(np.radians(incangle))
         #Us = np.append(Us, np.cos(np.radians(incangle)))
-        Us.append(np.cos(np.radians(incangle)))
+        Us.append(U)
         #Es = np.append(Es, -np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
         Es.append(-np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
         vels.append(vel)
+        vstds.append(vstd)
         # run for each pixel
     numframes = len(vels)
     Us = np.array(Us)
@@ -432,9 +467,12 @@ def decompose_np_multi(input_data, beta = 0):
         for jj in np.arange(0,vel_E.shape[1]):
             # prepare template for d = G m
             d = np.array(())
+            Qd = np.array(())
             for i in range(numframes):
                 d = np.append(d, np.array([vels[i][ii,jj]]))
+                Qd = np.append(Qd, np.array([vstds[i][ii, jj]**2]))  # should add variances to Qd
             d = np.array([d]).T
+            Qd=np.diag(Qd)
             if np.isnan(d).any():
                 # if at least one is nan, skip it:  # can improve it but 'all' is not an option
                 #if np.isnan(np.max(d)):
@@ -449,14 +487,29 @@ def decompose_np_multi(input_data, beta = 0):
                 # solve the linear system for the Up and East velocities
                 #m = np.linalg.solve(G, d)
                 try:
-                    m = np.linalg.lstsq(G, d)[0]
+                    # 2025/09: thanks A. Watson on his https://github.com/andwatson/decompose_insar_velocities
+                    Qd_inv = np.linalg.inv(Qd) # this means weights..
+                    # m
+                    m = np.linalg.inv(np.dot(G.T, np.dot(Qd_inv, G))) @ np.dot(G.T, np.dot(Qd_inv, d))
+                    # Qm
+                    Qm = np.linalg.inv(np.dot(G.T, np.dot(Qd_inv, G)))
+                    # The lstsq solution does not give Qm ...
+                    #m = np.linalg.lstsq(G, d / np.sqrt(Qd))[0]
+                    #m = m*np.sqrt(Qd)
+                    #m = m[:,0]
                     # save to arrays
                     vel_U[ii,jj] = m[0]
                     vel_E[ii,jj] = m[1]
+                    vel_Ustd[ii,jj] = np.sqrt(Qm[0,0])
+                    vel_Estd[ii, jj] = np.sqrt(Qm[1,1])
                 except:
                     vel_U[ii,jj] = np.nan
                     vel_E[ii,jj] = np.nan
-    return vel_U, vel_E
+                    vel_Ustd[ii, jj] = np.nan
+                    vel_Estd[ii, jj] = np.nan
+    vel_Ustd[vel_Ustd == 0] = np.nan
+    vel_Estd[vel_Estd == 0] = np.nan
+    return vel_U, vel_E, vel_Ustd, vel_Estd
 
 
 '''
