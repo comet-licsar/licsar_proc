@@ -37,15 +37,24 @@ master_date=$master
 
 #dem_par_file=geo/EQA.dem_par        # e.g., geo/EQA.dem_par
 #input_lookuptable=geo/$master.lt_fine   # e.g., geo/$masterdate.lt_fine
-if [ ! -f DEM/dem_crop.dem ]; then
- echo "please include DEM in this folder"
- exit
-fi
 
-echo 'preparing data for geocoding'
-gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
-dem_par_file=tostamps.demseg.par
-input_lookuptable=tostamps.lt
+
+if [ ! -f geo/EQA.dem_par ]; then
+  if [ ! -f DEM/dem_crop.dem ]; then
+    echo "please include DEM in this folder"
+    exit
+  fi
+ echo 'preparing data for geocoding'
+ gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
+ dem_par_file=tostamps.demseg.par
+ input_lookuptable=tostamps.lt
+ demseg=tostamps.demseg
+else
+  echo "using existing geocoding tables"
+  demseg=geo/EQA.dem
+  dem_par_file=geo/EQA.dem_par
+  input_lookuptable=`ls geo/????????.lt_fine | head -n1`
+fi
 
 width=`grep range_samples RSLC/$master/$master.rslc.par | gawk {'print $2'}`
 length=`grep azimuth_lines RSLC/$master/$master.rslc.par | gawk {'print $2'}`
@@ -71,7 +80,7 @@ gmt grdmath -R${lon}/${lon1}/${lat1}/${lat} -I${width_dem}+/${length_dem}+ X = g
 gmt grd2xyz geo.grd -ZTLf > geo.raw # take lons
 swap_bytes geo.raw geolon.raw 4 >/dev/null # set lons to 4-byte floats
 #rashgt geolon.raw - $width_dem - - - 5 5 0.05 - - - lon_dem.ras # To check results
-echo "geocode ${input_lookuptable} geolon.raw ${width_dem} geo/${master_date}.lon ${width} ${length} 2 0 "
+echo "geocode ${input_lookuptable} geolon.raw ${width_dem} geo/${master_date}.lon ${width} ${length} 0 0 "
 geocode ${input_lookuptable} geolon.raw ${width_dem} geo/${master_date}.lon ${width} ${length} 0 0 >/dev/null
 
 
@@ -84,7 +93,7 @@ gmt grdmath -R${lon}/${lon1}/${lat1}/${lat} -I${width_dem}+/${length_dem}+ Y = g
 gmt grd2xyz geo.grd -ZTLf > geo.raw
 swap_bytes geo.raw geolat.raw 4 >/dev/null 
 #rashgt geolat.raw - $width_dem - - - 5 5 0.05 - - - lat_dem.ras # To check results
-echo "geocode ${input_lookuptable} geolat.raw ${width_dem} geo/${master_date}.lat ${width} ${length} 2 0 "
+echo "geocode ${input_lookuptable} geolat.raw ${width_dem} geo/${master_date}.lat ${width} ${length} 0 0 "
 geocode ${input_lookuptable} geolat.raw ${width_dem} geo/${master_date}.lat ${width} ${length} 0 0 >/dev/null 
 #swap_bytes geo/${master_date}.lat geo/${master_date}.lat.raw 4 >/dev/null 
 #rashgt tmp.raw - $width - - - 5 5 0.05 - - - lat.ras # To check results
@@ -143,7 +152,7 @@ python3 checkthis_correct_lonlat_as_it_might_be_needed.py
 
 # make 1-1 hgt
 hgt=geo/${master}_dem.rdc
-geocode ${input_lookuptable} tostamps.demseg ${width_dem} $hgt ${width} ${length} 1 0 >/dev/null 
+geocode ${input_lookuptable} $demseg ${width_dem} $hgt ${width} ${length} 1 0 >/dev/null
 swap_bytes $hgt INSAR_$master/geo/${master}_dem.rdc 4 >/dev/null
 
 
