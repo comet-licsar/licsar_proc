@@ -161,6 +161,7 @@ swap_bytes $hgt INSAR_$master/geo/${master}_dem.rdc 4 >/dev/null
 
 
 echo "selecting dataset"
+rm slist.txt 2>/dev/null
 msize=`ls -al RSLC/$master/$master.rslc | gawk {'print $5'}`
 if [ -z $maxdate ]; then maxdate=999999999; fi
 for x in `ls RSLC`; do 
