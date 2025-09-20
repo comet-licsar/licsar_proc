@@ -83,25 +83,49 @@ import time
 # adding calibrated mlis:
 pp=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc
 OUTDIR=/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/volc/for_simsar
+slcdir=SLC # or RSLC to do it for all...
+if [ $slcdir == 'SLC' ]; then
+ slcc=slc
+elif [ $slcdir == 'RSLC' ]; then
+ slcc=rslc
+else
+ echo "improper SLC dir, cancelling"
+ exit
+fi
 cd $pp
 for vv in `ls -d [1-9]*[0-9]`; do
  echo $vv
  cd $pp
  for fr in `ls $vv`; do
   cd $pp/$vv/$fr
-  m=`ls SLC | head -n1`
-  outname=$vv.$fr
-  radcal_MLI SLC/$m/$m.slc.mli SLC/$m/$m.slc.mli.par - SLC/$m/$m.slc.mli.calibrated - 1 >/dev/null 2>/dev/null;
-  mv SLC/$m/$m.slc.mli SLC/$m/$m.slc.mli.orig;
-  cd SLC/$m; ln -s $m.slc.mli.calibrated $m.slc.mli; cd ../..;
-  mv GEOC.MLI.30m/$m GEOC.MLI.30m/$m.uncalibrated;
+  # m=`ls SLC | head -n1`
+  # 2025/09 - do it for all data in SLC or RSLC ($slcdir)
+ for m in `ls $slcdir`; do
+  echo "calibrating "$m
+  outname=$vv.$fr.$m # added $m to identify the epochdate
+ if [ -f $slcdir/$m/$m.$slcc.mli ]; then
+  nomli=1
+  source local_config.py
+  multi_look $slcdir/$m/$m.$slcc $slcdir/$m/$m.$slcc.par $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $rglks $azlks >/dev/null 2>/dev/null
+ else
+  nomli=0
+ fi
+  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated - 1 >/dev/null 2>/dev/null;
+  mv $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.orig;
+  cd $slcdir/$m; ln -s $m.$slcc.mli.calibrated $m.$slcc.mli; cd ../..;
+  mv GEOC.MLI.30m/$m GEOC.MLI.30m/$m.uncalibrated 2>/dev/null;
   if [ ! -d geo ]; then ln -s geo.30m geo; fi;
   if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.30m GEOC.MLI; fi;
-  create_geoctiffs_to_pub.sh -M `pwd` $m >/dev/null 2>/dev/null; rm geo GEOC.MLI;
-  cp GEOC.MLI.30m/$m/$m.geo.mli.tif $OUTDIR/$outname.geo.mli.radcal.tif
+  create_geoctiffs_to_pub.sh -M `pwd` $m >/dev/null 2>/dev/null; # rm geo GEOC.MLI;
+  mv GEOC.MLI.30m/$m/$m.geo.mli.tif $OUTDIR/$outname.geo.mli.radcal.tif
+  rm -r GEOC.MLI.30m/$m; mv GEOC.MLI.30m/$m.uncalibrated GEOC.MLI.30m/$m 2>/dev/null
   # return it back
-  rm SLC/$m/$m.slc.mli
-  mv SLC/$m/$m.slc.mli.orig SLC/$m/$m.slc.mli
+  rm $slcdir/$m/$m.$slcc.mli
+  mv $slcdir/$m/$m.$slcc.mli.orig $slcdir/$m/$m.$slcc.mli
+ if [ $nomli == 1 ]; then
+  rm $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par
+ fi
+ done
  done
 done
 '''
