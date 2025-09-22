@@ -146,8 +146,8 @@ latxr=latxr.interpolate_na('dim_1','nearest')
 #lat=latxr.fillna(0).values
 #lon=lonxr.fillna(0).values  # not good idea..
 
-lat.values.tofile(latfile)
-lon.values.tofile(lonfile)
+latxr.values.tofile(latfile)
+lonxr.values.tofile(lonfile)
 
 exit()
 EOF

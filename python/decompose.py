@@ -49,7 +49,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     """ will decompose frame licsbas results
     the basenames in framencs should contain frame id, followed by '.', e.g.:
     framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
-    
+
     Args:
         framencs (list):  licsbas nc result files, named by their frame id
         extract_cum (bool): if True, will use the first frame and convert to pseudo vertical
@@ -62,6 +62,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     Returns:
         xr.Dataset with U, E, [cum_vert] arrays
     """
+    interpmethod = 'nearest'
     framesetvel = []
     frameset = []
     firstrun = True
@@ -94,17 +95,17 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
             firstrun = False 
             if extract_cum:
                 cum_vert = framenc['cum']
-                inc = inc.interp_like(framevel)
+                inc = inc.interp_like(framevel, method=interpmethod)
                 cum_vert = cum_vert/np.cos(np.radians(inc))
         else:
-            framevel = framevel.interp_like(template)
+            framevel = framevel.interp_like(template, method=interpmethod)
             if annual:
-                framenc = framenc.interp_like(template)
-        inc = inc.interp_like(framevel)
-        heading = heading.interp_like(framevel)
+                framenc = framenc.interp_like(template, method=interpmethod)
+        inc = inc.interp_like(framevel, method=interpmethod)
+        heading = heading.interp_like(framevel, method=interpmethod)
         input_data_set = [framevel.values, heading.values, inc.values]
         if stdname:
-            input_data_set.append(framenc[stdname].interp_like(template).values)
+            input_data_set.append(framenc[stdname].interp_like(template, method=interpmethod).values)
         framesetvel.append(input_data_set)
         if annual:
             # doing the annuals!
@@ -319,7 +320,7 @@ def decompose_xr(asc, desc, heading_asc, heading_desc, inc_asc, inc_desc, do_vel
     """
     cube=xr.Dataset()
     cube['asc'] = asc
-    cube['desc'] = desc.interp_like(asc, method='linear'); desc=None
+    cube['desc'] = desc.interp_like(asc, method='nearest'); desc=None
     cube['U']=cube.asc.copy()
     cube['E']=cube.asc.copy()
     if not np.isscalar(heading_asc):
