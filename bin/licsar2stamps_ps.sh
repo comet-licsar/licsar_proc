@@ -39,22 +39,24 @@ master_date=$master
 #input_lookuptable=geo/$master.lt_fine   # e.g., geo/$masterdate.lt_fine
 
 
-if [ ! -f geo/EQA.dem_par ]; then
+
+#if [ ! -f geo/EQA.dem_par ]; then
   if [ ! -f DEM/dem_crop.dem ]; then
     echo "please include DEM in this folder"
     exit
   fi
+echo "WARNING - we have to create new geocoding tables, but at this moment, we loose the fine coregistration so expect geocoding errors (you may fix manually)"
  echo 'preparing data for geocoding'
  gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
  dem_par_file=tostamps.demseg.par
  input_lookuptable=tostamps.lt
  demseg=tostamps.demseg
-else
-  echo "using existing geocoding tables"
-  demseg=geo/EQA.dem
-  dem_par_file=geo/EQA.dem_par
-  input_lookuptable=`ls geo/????????.lt_fine | head -n1`
-fi
+#else
+#  echo "using existing geocoding tables"
+#  demseg=geo/EQA.dem
+#  dem_par_file=geo/EQA.dem_par
+#  input_lookuptable=`ls geo/????????.lt_fine | head -n1`
+#fi
 
 width=`grep range_samples RSLC/$master/$master.rslc.par | gawk {'print $2'}`
 length=`grep azimuth_lines RSLC/$master/$master.rslc.par | gawk {'print $2'}`
@@ -132,16 +134,20 @@ lonxr=xr.DataArray(lon)
 #lonxr.plot(); plt.show()
 lonxr=lonxr.interpolate_na('dim_0','linear')
 lonxr=lonxr.interpolate_na('dim_1','linear')
+lonxr=lonxr.interpolate_na('dim_0','nearest')
+lonxr=lonxr.interpolate_na('dim_1','nearest')
 
 latxr=xr.DataArray(lat)
 latxr=latxr.interpolate_na('dim_0','linear')
 latxr=latxr.interpolate_na('dim_1','linear')
+latxr=latxr.interpolate_na('dim_0','nearest') # just in case..
+latxr=latxr.interpolate_na('dim_1','nearest')
 
-lat=latxr.fillna(0).values
-lon=lonxr.fillna(0).values
+#lat=latxr.fillna(0).values
+#lon=lonxr.fillna(0).values  # not good idea..
 
-lat.tofile(latfile)
-lon.tofile(lonfile)
+latxr.values.tofile(latfile)
+lonxr.values.tofile(lonfile)
 
 exit()
 EOF
