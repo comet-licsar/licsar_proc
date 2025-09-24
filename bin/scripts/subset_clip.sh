@@ -18,7 +18,7 @@ halflenazi=3
 locname=kz4
 
 # let's get it from params:
-if [ ! -z $3 ]; the
+if [ ! -z $3 ]; then
 centerlon=$1
 centerlat=$2
 locname=$3
