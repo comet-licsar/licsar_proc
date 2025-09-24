@@ -9,6 +9,8 @@
 # /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/kladno/095D
 makemlinc=1  # this will create MLI NetCDF file.. that should be actually converted to amplitude (and put dB in)
 
+minepoch=20240101
+
 #ls /gws/nopw/j04/nceo_geohazards_vol1/public/shared/temp/earmla/kladno/kz4
 #cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/kladno/095D
 centerlon=14.00393208465662
@@ -57,6 +59,7 @@ let rgdiff=rg2-rg1+1
 # 1. generate the small size mlis (lazy approach. not effective. still ok)
 echo "clipping rslcs"
 for r in `ls RSLC`; do
+ if [ $r -ge $minepoch ]; then
  # TODO from here
  #echo "clipping reference epoch"
  echo $r
@@ -64,21 +67,28 @@ for r in `ls RSLC`; do
  if [ ! -f $outdir/RSLC/$r/$r.rslc ]; then
   SLC_copy RSLC/$r/$r.rslc RSLC/$r/$r.rslc.par $outdir/RSLC/$r/$r.rslc $outdir/RSLC/$r/$r.rslc.par - - $rg1 $rgdiff $azi1 $azidiff - - >/dev/null 2>/dev/null
  fi
+ fi
 done
 
 if [ $makemlinc == 1 ]; then
   echo "generating mlis"
 for r in `ls RSLC`; do
+   if [ $r -ge $minepoch ]; then
+    echo $r
  if [ ! -f $outdir/RSLC/$r/$r.rslc.mli ]; then
   multi_look $outdir/RSLC/$r/$r.rslc $outdir/RSLC/$r/$r.rslc.par $outdir/RSLC/$r/$r.rslc.mli $outdir/RSLC/$r/$r.rslc.mli.par 1 1 >/dev/null 2>/dev/null
  fi
+   fi
 done
 # radcal
   echo "basic radiometric calibration of mlis"
 for r in `ls RSLC`; do
+   if [ $r -ge $minepoch ]; then
+     echo $r
  if [ ! -f $outdir/RSLC/$r/$r.rslc.mli.calibrated ]; then
   radcal_MLI $outdir/RSLC/$r/$r.rslc.mli $outdir/RSLC/$r/$r.rslc.mli.par - $outdir/RSLC/$r/$r.rslc.mli.calibrated - 1 >/dev/null 2>/dev/null
  fi
+   fi
 done
 
 # now load that to netcdf (and convert to amplitude)
@@ -87,6 +97,9 @@ import os
 import numpy as np
 import xarray as xr
 import datetime as dt
+import LiCSAR_misc as misc
+
+minepoch='20240101'
 
 width=int(1+2*$halflenrg)  # 29 #$rgdiff # 29
 length=int(1+2*$halflenazi)  #7 #$azidiff # 7
@@ -113,23 +126,24 @@ epochs = []
 data = []
 todb = False
 for epoch in os.listdir('RSLC'):
-    print(epoch)
-    mli='RSLC/'+epoch+'/'+epoch+'.rslc.mli.calibrated'
-    mlipar='RSLC/'+epoch+'/'+epoch+'.rslc.mli.par'
-    if not os.path.exists(mli):
-        mli='RSLC/'+epoch+'/'+epoch+'.rslc.mli'
-    if os.path.exists(mli):
-        print(mli)
-        a=np.fromfile(mli, dtype=np.float32)
-        if todb:
-            amp=10*np.log10(np.sqrt(a.byteswap())).reshape((length, width))
-        else:
-            amp=np.sqrt(a.byteswap()).reshape((length, width))
-        #if not np.isinf(ampdb):
-        epochdt = mlipartime(mlipar)
-        # epochdt = dt.datetime(int(epoch[:4]), int(epoch[4:6]), int(epoch[6:]), h, m, s)
-        epochs.append(epochdt)
-        data.append(amp)
+    if (int(epoch)>int(minepoch)):
+        print(epoch)
+        mli='RSLC/'+epoch+'/'+epoch+'.rslc.mli.calibrated'
+        mlipar='RSLC/'+epoch+'/'+epoch+'.rslc.mli.par'
+        if not os.path.exists(mli):
+            mli='RSLC/'+epoch+'/'+epoch+'.rslc.mli'
+        if os.path.exists(mli):
+            print(mli)
+            a=np.fromfile(mli, dtype=np.float32)
+            if todb:
+                amp=10*np.log10(np.sqrt(a.byteswap())).reshape((length, width))
+            else:
+                amp=np.sqrt(a.byteswap()).reshape((length, width))
+            #if not np.isinf(ampdb):
+            epochdt = mlipartime(mlipar)
+            # epochdt = dt.datetime(int(epoch[:4]), int(epoch[4:6]), int(epoch[6:]), h, m, s)
+            epochs.append(epochdt)
+            data.append(amp)
 
 
 bb=xr.DataArray(data=data, dims=['epoch','azi','rg'], coords=dict(azi=np.arange(length), rg=np.arange(width), epoch=epochs))
@@ -142,6 +156,7 @@ outnc = '$locname.$relorb.amp.nc'
 bb.to_netcdf(outnc)
 
 EOF
+echo "converting to NetCDF"
 cd $outdir; python3 tonc.py
 
 fi
