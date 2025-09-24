@@ -154,10 +154,10 @@ exit
 cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/kladno
 python3
 import pandas as pd
-import os
+import os, glob
 csv='odrazece.csv'
 df=pd.read_csv(csv, index_col=0)
-for relorb in os.listdir():
+for relorb in glob.glob('*[A,D]'):
     relorbpath = os.path.join(os.getcwd(), relorb)
     for i,row in df.iterrows():
         cmd="cd {0}; subset_clip.sh {1} {2} {3}".format(relorbpath, str(row['lon']), str(row['lat']), row['misto'])
