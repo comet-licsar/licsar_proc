@@ -70,15 +70,18 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     yearsall = None
     for nc in framencs:
         framenc = xr.open_dataset(nc)
-        years = framenc.time.dt.year.values
-        years = list(set(years))
-        # print(years)
-        if not yearsall:
-            yearsall = years
+        if 'time' in framenc:
+            years = framenc.time.dt.year.values
+            years = list(set(years))
+            # print(years)
+            if not yearsall:
+                yearsall = years
+            else:
+                for y in yearsall.copy():
+                    if y not in years:
+                        yearsall.remove(y)
         else:
-            for y in yearsall.copy():
-                if y not in years:
-                    yearsall.remove(y)
+            yearsall = [0,1,2]
     if len(yearsall)==0:
         print('no overlapping year, cancelling annual decomposition')
         return False
