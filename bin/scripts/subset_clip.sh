@@ -139,6 +139,7 @@ for epoch in os.listdir('RSLC'):
                 amp=10*np.log10(np.sqrt(a.byteswap())).reshape((length, width))
             else:
                 amp=np.sqrt(a.byteswap()).reshape((length, width))
+            # amp=np.flipud(amp) # should be in place..
             #if not np.isinf(ampdb):
             epochdt = mlipartime(mlipar)
             # epochdt = dt.datetime(int(epoch[:4]), int(epoch[4:6]), int(epoch[6:]), h, m, s)
@@ -177,3 +178,48 @@ for relorb in glob.glob('*[A,D]'):
     for i,row in df.iterrows():
         cmd="cd {0}; subset_clip.sh {1} {2} {3}".format(relorbpath, str(row['lon']), str(row['lat']), row['misto'])
         print(cmd)
+        os.system(cmd)
+
+
+# oh and... how to convert this to RCS [dBm^2] for direct comparison:
+#For a point target like a corner reflector, the radar equation gives:
+#\sigma = \sigma^0 \cdot A_{\text{res}}
+#Where:
+#- \sigma is the Radar Cross Section in m²
+#- \sigma^0 is the normalized backscatter from the calibrated image
+#- A_{\text{res}} is the resolution cell area in m²:
+#A_{\text{res}} = \Delta r \cdot \Delta a
+#- \Delta r: range resolution (m)
+#- \Delta a: azimuth resolution (m)
+
+import xarray as xr
+import numpy as np
+import glob
+rngres = 2.3
+azires = 14
+for nc in glob.glob('044A/subset.*/*.amp.nc'):
+    print(nc)
+    # nc='146A/subset.KZ-4/KZ-4.146A.amp.nc'
+    outnc = nc.replace('.amp.nc','.rcs.nc')
+    nc=xr.open_dataset(nc)
+    # \sigma_{\text{dBm}^2} = 10 \cdot \log_{10}(\sigma) + 30
+    nc['RCS_dB'] = nc['amplitude'].copy()
+    nc['RCS_dB'].values = 10*np.log10(nc.amplitude.where(nc.amplitude!=0).values*rngres*azires) #+30 # ok, unit will be dB, not dBm^2
+    nc[['RCS_dB']].to_netcdf(outnc)
+
+import xarray as xr
+import numpy as np
+import glob
+ncs = glob.glob('Tu-2.*')
+nc = ncs[0]  # jako ukazka...
+nc = xr.open_dataset(nc)
+# prumerny RCS z poslednich 5 snimku:
+avgrcs = nc['RCS_dB'][-5:].mean(axis=0)
+# najit koordinaty max hodnoty:
+maxazi, maxrg = np.unravel_index(avgrcs.argmax().item(), avgrcs.shape)
+toplot = nc.sel(rg=maxrg, azi=maxazi)['RCS_dB']
+# ted muzes treba:
+# toplot.plot()
+# anebo vytahnout
+x = toplot.epoch.values
+y = toplot.values
