@@ -103,7 +103,7 @@ for vv in `ls -d [1-9]*[0-9]`; do
  for m in `ls $slcdir`; do
   echo "calibrating "$m
   outname=$vv.$fr.$m # added $m to identify the epochdate
- if [ -f $slcdir/$m/$m.$slcc.mli ]; then
+ if [ ! -f $slcdir/$m/$m.$slcc.mli ]; then
   nomli=1
   source local_config.py
   multi_look $slcdir/$m/$m.$slcc $slcdir/$m/$m.$slcc.par $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $rglks $azlks >/dev/null 2>/dev/null
@@ -111,16 +111,20 @@ for vv in `ls -d [1-9]*[0-9]`; do
   nomli=0
  fi
   radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated - 1 >/dev/null 2>/dev/null;
+  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
+  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.gamma0 - 1 - 2 >/dev/null 2>/dev/null;
   mv $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.orig;
-  cd $slcdir/$m; ln -s $m.$slcc.mli.calibrated $m.$slcc.mli; cd ../..;
-  mv GEOC.MLI.30m/$m GEOC.MLI.30m/$m.uncalibrated 2>/dev/null;
   if [ ! -d geo ]; then ln -s geo.30m geo; fi;
   if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.30m GEOC.MLI; fi;
-  create_geoctiffs_to_pub.sh -M `pwd` $m >/dev/null 2>/dev/null; # rm geo GEOC.MLI;
-  mv GEOC.MLI.30m/$m/$m.geo.mli.tif $OUTDIR/$outname.geo.mli.radcal.tif
-  rm -r GEOC.MLI.30m/$m; mv GEOC.MLI.30m/$m.uncalibrated GEOC.MLI.30m/$m 2>/dev/null
+  mv GEOC.MLI.30m/$m GEOC.MLI.30m/$m.uncalibrated 2>/dev/null;
+ for calstr in calibrated calibrated.sigma0 calibrated.gamma0; do
+  cd $slcdir/$m; ln -s $m.$slcc.mli.$calstr $m.$slcc.mli; cd ../..;
+  create_geoctiffs_to_pub.sh -M `pwd` $m >/dev/null 2>/dev/null;
+  mv GEOC.MLI.30m/$m/$m.geo.mli.tif $OUTDIR/$outname.geo.mli.$calstr.tif
+  rm -r GEOC.MLI.30m/$m; rm $slcdir/$m/$m.$slcc.mli
+ done
   # return it back
-  rm $slcdir/$m/$m.$slcc.mli
+  mv GEOC.MLI.30m/$m.uncalibrated GEOC.MLI.30m/$m 2>/dev/null
   mv $slcdir/$m/$m.$slcc.mli.orig $slcdir/$m/$m.$slcc.mli
  if [ $nomli == 1 ]; then
   rm $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par
