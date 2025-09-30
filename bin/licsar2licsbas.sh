@@ -11,6 +11,7 @@ if [ -z $1 ]; then
  echo "-g ....... use GACOS if available for at least half of the epochs (and use only ifgs with both epochs having GACOS correction, other will be skipped)"
  echo "-S ....... (obsolete but still kept parameter) strict mode - in case of GACOS, use it only if available for ALL ifgs"
  echo "-G lon1/lon2/lat1/lat2  .... clip to this AOI"
+ # echo "-R ....... perform LiCSBAS on range offsets (if exist). in combination with -u, use range-offset-supported unwrapping (experimental)"
  echo "-u ....... use the reunwrapping procedure (useful if multilooking..)"
  echo "-- Additional corrections --"
  echo "-i ....... perform ionosphere correction (using CODE GIM)"
@@ -29,12 +30,12 @@ if [ -z $1 ]; then
  echo "-- Control over LiCSBAS processing --"
  echo "-T ....... use testing version of LiCSBAS"
  echo "-C 0.15 .. mask based on coherence threshold on individual ifgs"
- echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular_gauss and coh mask of step 4)"
+ echo "-d ....... use the dev parameters for the testing version of LiCSBAS (currently: this will use --nopngs, --nullify, --singular_gauss)"
  echo "-W ....... use WLS for the inversion (coherence-based)"
  echo "-r ....... perform deramping (degree 1)"
  echo "-L ....... use linear hgt correlation slope correction"
  echo "-N ....... perform nullification"
- echo "-B ...... add phase bias estimation/removal (by yma, use of default an values)"
+ echo "-B ...... add phase bias estimation/removal (by yma, use of default an values) - may work but probably will not"
  # echo "-p ...... plate motion correction (wrt Eurasia)"
  echo "-- Processing tweaks --"
  echo "-h 14 .... set your own number of processing hours (14 by default)"
@@ -1203,6 +1204,10 @@ if [ $reunw -gt 0 ]; then
  sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"10/' batch_LiCSBAS.sh
  #sed -i 's/start_step=\"02\"/start_step=\"16\"/' $x/batch_LiCSBAS.sh
 else
+  # in case of -R but not -u:
+ if [ $rgoffs -gt 0 ]; then
+   sed -i 's/p13_inputunit=\"\"/p13_inputunit=\"m\"/' batch_LiCSBAS.sh
+ fi
  sed -i 's/p11_coh_thre=\"\"/p11_coh_thre=\"0.025\"/' batch_LiCSBAS.sh
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
