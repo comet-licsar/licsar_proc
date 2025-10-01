@@ -1033,6 +1033,17 @@ if [ $phbias -gt 0 ]; then
   # ok, getting through this... first, need to identify whether to use 6 or 12 days an estimates
   echo "searching for 6-day interferograms"
   ls GEOC | grep ^20 | cut -d '_' -f1 | cut -d '.' -f1 | sort -u > epochs.txt
+  # now update epochs.txt based on $startdate and $enddate
+  if [ `grep -c $startdate epochs.txt` -lt 1 ]; then
+   echo $startdate > epochs.tmp.txt
+   startdate=`sort -u epochs.tmp.txt | grep -A1 $startdate | tail -n 1`
+  fi
+  if [ `grep -c $enddate epochs.txt` -lt 1 ]; then
+   echo $enddate > epochs.tmp.txt
+   enddate=`sort -u epochs.tmp.txt | grep -B1 $enddate | head -n 1`
+  fi
+  cp epochs.txt epochs.tmp.txt
+  sort -u epochs.tmp.txt | grep -A999 $startdate | grep -B999 $enddate > epochs.txt
   numlines=`cat epochs.txt | wc -l`
   let numlines=$numlines-1
   numsixes=0
