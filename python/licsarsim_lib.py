@@ -98,7 +98,7 @@ for vv in `ls -d [1-9]*[0-9]`; do
  cd $pp
  for fr in `ls $vv`; do
   cd $pp/$vv/$fr
-  # m=`ls SLC | head -n1`
+  mas=`ls SLC | head -n1`
   # 2025/09 - do it for all data in SLC or RSLC ($slcdir)
  for m in `ls $slcdir`; do
   echo "calibrating "$m
@@ -110,19 +110,22 @@ for vv in `ls -d [1-9]*[0-9]`; do
  else
   nomli=0
  fi
-  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated - 1 >/dev/null 2>/dev/null;
-  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
-  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.gamma0 - 1 - 2 >/dev/null 2>/dev/null;
+  #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated - 1 >/dev/null 2>/dev/null;
+  #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
+  #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.gamma0 - 1 - 2 >/dev/null 2>/dev/null;
+  radcal.py $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0 $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0.par 1 4 --DEM geo/EQA.dem --DEM_par geo/EQA.dem_par --lt geo/$mas.lt_fine --inc geo/inc --hgt geo/$mas.hgt --fill 0 --ls_map geo/ls_map >/dev/null 2>/dev/null;
+
   mv $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.orig;
   if [ ! -d geo ]; then ln -s geo.30m geo; fi;
   if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.30m GEOC.MLI; fi;
   mv GEOC.MLI.30m/$m GEOC.MLI.30m/$m.uncalibrated 2>/dev/null;
- for calstr in calibrated calibrated.sigma0 calibrated.gamma0; do
+ #for calstr in calibrated calibrated.sigma0 calibrated.gamma0; do
+ calstr=calibrated.locinc.gamma0
   cd $slcdir/$m; ln -s $m.$slcc.mli.$calstr $m.$slcc.mli; cd ../..;
   create_geoctiffs_to_pub.sh -M `pwd` $m >/dev/null 2>/dev/null;
   mv GEOC.MLI.30m/$m/$m.geo.mli.tif $OUTDIR/$outname.geo.mli.$calstr.tif
   rm -r GEOC.MLI.30m/$m; rm $slcdir/$m/$m.$slcc.mli
- done
+ #done
   # return it back
   mv GEOC.MLI.30m/$m.uncalibrated GEOC.MLI.30m/$m 2>/dev/null
   mv $slcdir/$m/$m.$slcc.mli.orig $slcdir/$m/$m.$slcc.mli
