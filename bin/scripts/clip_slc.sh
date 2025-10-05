@@ -162,6 +162,7 @@ let azidiff=azi2-azi1+1
 rg1=`cat corners_clip.tmp | rev | gawk {'print $2'} | rev | sort -n | head -n1`
 rg2=`cat corners_clip.tmp | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
 let rgdiff=rg2-rg1+1
+rm corners_clip.tmp
 
 if [ ! -f $outdir/RSLC/$master/$master.rslc ]; then
  mkdir -p $outdir/RSLC/$master
