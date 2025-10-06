@@ -200,8 +200,9 @@ if [ ! -d $geodir ]; then
 	mkdir -p $geodir
 	masterslcdir='RSLC/'$master
 	rm log/geo.err 2>/dev/null
-
-  echo "clip_slc.sh "$outdir $lon1 $lon2 $lat1 $lat2 $hei $resol > sourcecmd.txt
+  
+  echo "cd "$dizdir > sourcecmd.txt
+  echo "clip_slc.sh "$outdir $lon1 $lon2 $lat1 $lat2 $hei $resol >> sourcecmd.txt
   if [ ! -f $outdir/local_config.py ]; then
    echo "azlks="$azl > $outdir/local_config.py
    echo "rglks="$rgl >> $outdir/local_config.py
