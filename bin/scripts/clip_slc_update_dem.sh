@@ -1,7 +1,9 @@
 #!/bin/bash
-# to change the DEM - can include this in clip_slc.sh if needed...
-# now we will replace the DEM to Copernicus DEM (can be changed to any if you generate DEM/dem_crop.dem yourself
-source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# to change the DEM - included in clip_slc.sh.
+
+# now we will replace the DEM to Copernicus DEM
+# or... use path to your DEM (as geotiff) - needs to be over ellipsoid!
+# source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 # please run this inside the subset directory, e.g.
 # cd /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/firat/043A
@@ -14,9 +16,20 @@ if [ -d backup_oldDEM ]; then mv backup_oldDEM backup_oldDEM.old; fi
 
 if [ -d DEM ]; then mkdir backup_oldDEM; mv DEM backup_oldDEM/.; fi
 
-# get the Copernicus DEM
 mkdir DEM
-mk_copdem DEM/dem_crop $lonlats
+if [ ! -z $1 ]; then
+  extdem=$1
+  if [ ! -f $extdem ]; then
+     echo "ERROR - the extra param must be existing geotiff of a DEM"
+     exit
+  fi
+  LiCSAR_01_mk_crop_extDEM DEM/dem_crop 0 $extdem
+  demname=`basename $extdem | cut -d '.' -f 1`
+else
+  # get the Copernicus DEM
+  mk_copdem DEM/dem_crop $lonlats
+  demname="CopernicusDEM_30m"
+fi
 
 
 # in python:
@@ -99,6 +112,6 @@ mv GEOC/lookangles/*.tif GEOC.meta.$resol_m'm'/.
 rm -r GEOC/lookangles GEOC/geo 2>/dev/null
 
 
-echo "DEM=CopernicusDEM_30m" > metadata.txt
+echo "DEM="$demname > metadata.txt
 
 
