@@ -369,12 +369,35 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     fig.coast(shorelines=True, projection=projection)
     if type(plotvec) != type(None):
         fig.plot(plotvec, projection=projection, region=region)
-    fig.colorbar(frame='a10+l"{}"'.format(label))
+    # for colorbar, use proper step:
+    rng = lims[1] - lims[0]
+    step=round_to_nice_step(rng/8)
+    if str(step).split('.')[-1] == '0':
+        step=int(step)
+    #fig.colorbar(frame='a10+l"{}"'.format(label))
+    fig.colorbar(frame='a{0}+l"{1}"'.format(str(step),label))
     # fig.show()
     if interactive:
         return fig, region, projection, xshift, yshift
     else:
         return fig
+
+
+def round_to_nice_step(step):
+    # Get the order of magnitude
+    magnitude = 10 ** np.floor(np.log10(step))
+    # Normalize step to [1, 10)
+    normalized = step / magnitude
+    # Choose a nice base step
+    if normalized < 1.5:
+        nice = 1
+    elif normalized < 3:
+        nice = 2
+    elif normalized < 7:
+        nice = 5
+    else:
+        nice = 10
+    return nice * magnitude
 
 
 def get_region(cube):
