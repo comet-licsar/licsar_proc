@@ -218,4 +218,6 @@ else
   chgrp -R gws_lics_admin $curdir/$tr/$frame
   chgrp -R gws_lics_admin $LiCSAR_public/$tr/$frame
   chmod 777 $LiCSAR_public/$tr/$frame/* # as some users outside the admin group will use store_to_curdir.sh
+  # links to $LiCSAR_web
+  cedaarch_create_html_frame.sh $frame
 fi
