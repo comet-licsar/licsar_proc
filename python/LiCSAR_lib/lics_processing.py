@@ -217,6 +217,21 @@ def cliparea_geo2coords(cliparea_geo):
     return minclipx, maxclipx, minclipy, maxclipy
 
 
+def runcmd(cmd, printcmd = True):
+    """Runs command through os.system
+
+    Args:
+        cmd (string): command to run
+        printcmd (boolean): if True, will do verbose
+    """
+    if printcmd:
+        print(cmd)
+        rc = os.system(cmd)
+    else:
+        #with nostdout():
+        rc = os.system(cmd+' >/dev/null 2>/dev/null')
+    if not rc == 0:
+        print('WARNING - command did not exit as OK')
 
 
 def fit_2D_xarray(da, degree = 'quadratic', maskedonly=True):
