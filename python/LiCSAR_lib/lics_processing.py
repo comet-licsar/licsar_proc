@@ -219,7 +219,7 @@ def cliparea_geo2coords(cliparea_geo):
 
 
 
-def fit_quadratic_xarray(da, degree = 'quadratic'):
+def fit_2D_xarray(da, degree = 'quadratic', maskedonly=True):
     """ ready for either quadratic or cubic fitting"""
     # Get coordinates and flatten
     if 'lon' in da.coords:
@@ -269,46 +269,9 @@ def fit_quadratic_xarray(da, degree = 'quadratic'):
     # Predict full surface
     Z_fit = model.predict(A_full).reshape(da.shape)
     #
+    if maskedonly:
+        Z_fit[np.isnan(da.values)] = np.nan
     return xr.DataArray(Z_fit, coords=da.coords, dims=da.dims)
-
-import xarray as xr
-import numpy as np
-import statsmodels.api as sm
-
-def fit_cubic_surface(da):
-    # Flatten coordinates and values
-    x, y = np.meshgrid(da.x, da.y)
-    X = x.ravel()
-    Y = y.ravel()
-    Z = da.values.ravel()
-
-    # Mask NaNs
-    mask = ~np.isnan(Z)
-    X_valid, Y_valid, Z_valid = X[mask], Y[mask], Z[mask]
-
-    # Design matrix for full 2D cubic:
-    # ax³ + by³ + cxy² + dx²y + ex² + fy² + gxy + hx + iy + j
-    A = np.column_stack([
-        X_valid**3, Y_valid**3,
-        X_valid * Y_valid**2, X_valid**2 * Y_valid,
-        X_valid**2, Y_valid**2,
-        X_valid * Y_valid, X_valid, Y_valid,
-        np.ones_like(X_valid)
-    ])
-    model = sm.OLS(Z_valid, A).fit()
-
-    # Predict full surface
-    A_full = np.column_stack([
-        X**3, Y**3,
-        X * Y**2, X**2 * Y,
-        X**2, Y**2,
-        X * Y, X, Y,
-        np.ones_like(X)
-    ])
-    Z_fit = model.predict(A_full).reshape(da.shape)
-
-    return xr.DataArray(Z_fit, coords=da.coords, dims=da.dims)
-
 
 # based on ChatGPT5 - looks nice but... full of errors!
 # from scipy.signal import convolve2d  # For the convolution
