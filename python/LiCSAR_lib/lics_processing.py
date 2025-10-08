@@ -16,7 +16,7 @@ import subprocess
 import xarray as xr
 xr.set_options(keep_attrs=True)
 import rioxarray
-
+from affine import Affine
 import numpy as np
 from scipy import interpolate
 import statsmodels.api as sm
