@@ -61,7 +61,7 @@ create_LOS_tide() {
   # gaussian filter of sigma=128 leads to residuals of 1e-5 [m] or smaller - this is good enough for SET
   #python3 -c "import lics_unwrap as lu; a=lu.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a.values=lu.gaussian_filter(a, sigma=128); lu.export_xr2tif(a, '"$tide_file"')"
   # but it masks so... will just fit a function there:
-  python3 -c "import lics_processing as lp; a=lp.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a=lp.fit_2D_xarray(a, 'cubic'); lp.export_xr2tif(a, '"$tide_file"')"
+  python3 -c "import lics_processing as lp; a=lp.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a=lp.fit_2D_xarray(a, 'cubic'); lp.export_xr2tif(a, '"$tide_file"')" 2>/dev/null
   #gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 "$epochpath/$date1.tide.geo.T.tif" "$tide_file"
   chmod 777 "$tide_file"
   rm "$epochpath/$date1.tide.geo.T.tif"
