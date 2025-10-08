@@ -59,7 +59,9 @@ create_LOS_tide() {
   gmt earthtide -T"$datem1"'T'"$center_time" -G"$epochpath/tmp_tides.%s.nc" -R"$U" -Cv,e,n 2>/dev/null
   gmt grdmath "$U" "$epochpath/tmp_tides.v.nc" MUL "$E" "$epochpath/tmp_tides.e.nc" MUL ADD "$N" "$epochpath/tmp_tides.n.nc" MUL ADD 0 NAN = "$epochpath/$date1.tide.geo.T.tif"=gd:GTiff
   # gaussian filter of sigma=128 leads to residuals of 1e-5 [m] or smaller - this is good enough for SET
-  python3 -c "import lics_unwrap as lu; a=lu.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a.values=lu.gaussian_filter(a, sigma=128); lu.export_xr2tif(a, '"$tide_file"')"
+  #python3 -c "import lics_unwrap as lu; a=lu.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a.values=lu.gaussian_filter(a, sigma=128); lu.export_xr2tif(a, '"$tide_file"')"
+  # but it masks so... will just fit a function there:
+  python3 -c "import lics_processing as lp; a=lp.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a=lp.fit_2D_xarray(a, 'cubic'); lp.export_xr2tif(a, '"$tide_file"')"
   #gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 "$epochpath/$date1.tide.geo.T.tif" "$tide_file"
   chmod 777 "$tide_file"
   rm "$epochpath/$date1.tide.geo.T.tif"
