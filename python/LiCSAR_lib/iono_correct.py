@@ -611,3 +611,5 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
                 #permmssion
                 os.system('chmod 777 '+tif1)
                 os.system('chmod 777 '+tif2)
+        # update to $LiCSAR_web
+        os.system('cedaarch_create_html.sh {0} {1} epochs'.format(frame,str(epoch)))
