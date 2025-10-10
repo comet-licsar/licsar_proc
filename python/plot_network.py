@@ -152,6 +152,7 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
     # 2022-04-19 adding dots of 'existing epochs'
     print("getting existing epochs for the frame bounding box")
     epochdates = s1.get_epochs_for_frame(frame, firstdate.date(), lastdate.date(), returnAsDate = True)
+    epochdates.sort()
     for imd in imdates_dt:
         imdd = imd.date()
         if imdd in epochdates:
