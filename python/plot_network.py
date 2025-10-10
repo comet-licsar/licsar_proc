@@ -163,6 +163,8 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
         framebursts = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
         epochdates_outburst = []
         for imdd in epochdates:
+            if len(fc.get_frame_files_date(frame, imdd))>0:
+                continue  # if we find something in database, it just means there was this acquisition, so plot it
             print('checking epoch '+str(imdd))
             # there is some overlap but does it have the same bursts?
             try:
@@ -177,7 +179,7 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
                     for b in bursts:
                         if b in framebursts:
                             isinframe = True
-                            continue
+                            break
                     if not isinframe:
                         epochdates.remove(imdd)  # remove from getting plotted as red circles
                         epochdates_outburst.append(imdd)
