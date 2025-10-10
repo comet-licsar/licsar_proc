@@ -13,6 +13,7 @@ import LiCSBAS_inv_lib as inv_lib
 import datetime as dt
 import s1data as s1
 import pandas as pd
+import framecare as fc
 
 #%%
 def read_bperp_file(bperp_file, imdates, return_missflag = False):
@@ -230,7 +231,6 @@ imdates = tools_lib.ifgdates2imdates(ifgdates)
 
 if not os.path.exists(bperp_file):
     print('No baselines file exists. The Bperps will be estimated')
-    import framecare as fc
     frame = os.path.basename(framedir)
     bpd = fc.make_bperp_file(frame, bperp_file, donotstore=False)
 
@@ -267,7 +267,6 @@ try:
                 ismissing = True
     if ismissing:
         print('some epochs have missing bperps, trying to find them through ASF')
-        import framecare as fc
         frame=os.path.basename(framedir)
         bperp=np.array(bperp)
         imdates=np.array(imdates)
@@ -330,7 +329,6 @@ except:
         if os.path.exists(bperp_file):
             os.remove(bperp_file)
         frame=os.path.basename(framedir)
-        import framecare as fc
         rc = fc.make_bperp_file(frame, bperp_file)
         bperp = read_bperp_file(bperp_file, imdates)
     except:
