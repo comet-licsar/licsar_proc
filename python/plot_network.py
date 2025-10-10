@@ -146,13 +146,39 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
         plt.ylabel('Bperp [m]')
     #
     # 2022-04-19 adding dots of 'existing epochs'
+    echo "getting existing epochs for the frame bounding box"
     epochdates = s1.get_epochs_for_frame(frame, firstdate.date(), lastdate.date(), returnAsDate = True)
+    echo "checking if the epochs have any common burst - if not, will plot them anyway, in gray"
+    framebursts = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
+    epochdates_outburst = []
     for imd in imdates_dt:
         imdd = imd.date()
         if imdd in epochdates:
             #print('debug - found and removed ok: '+str(imdd))
             epochdates.remove(imdd)
-    ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red')
+        else:
+            # there is some overlap but does it have the same bursts?
+            try:
+                images = fc.get_images_for_frame(frame, startdate = imdd-dt.timedelta('1 day'), enddate = imdd+dt.timedelta('1 day'), asf = False)
+                for im in images:
+                    bursts = fc.lq.sqlout2list(fc.get_bursts_in_file(im))
+                    if not bursts:
+                        burstsno = fc.ingest_file_to_licsinfo(im, isfullpath=False)
+                        bursts = fc.lq.sqlout2list(fc.get_bursts_in_file(im))
+                    isinframe = False
+                    for b in bursts:
+                        if b in framebursts:
+                            isinframe = True
+                            continue
+                    if not isinframe:
+                        epochdates.remove(imdd)
+                        epochdates_outburst.append(imdd)
+            except:
+                print('some error double checking epoch '+str(imdd)+'. keeping it')
+    if epochdates_outburst:
+        ax.scatter(epochdates_outburst, np.zeros(len(epochdates_outburst)), facecolors='none', edgecolors='gray')
+    if epochdates:
+        ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red')
     # adding timestamp
     timestamp = 'updated: '+str(dt.datetime.now().strftime("%Y-%m-%d %I:%M:%S"))
     plt.title(frame+', '+timestamp)
