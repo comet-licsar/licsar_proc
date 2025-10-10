@@ -186,9 +186,9 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
             except:
                 print('some error double checking epoch '+str(imdd)+'. keeping it')
         if epochdates_outburst:
-            ax.scatter(epochdates_outburst, np.zeros(len(epochdates_outburst)), facecolors='none', edgecolors='gray')
+            ax.scatter(epochdates_outburst, np.zeros(len(epochdates_outburst)), facecolors='none', edgecolors='gray', label='existing acquisition with no frame burst (debug)')
     if epochdates:
-        ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red')
+        ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red', label='existing acquisition')
     # adding timestamp
     timestamp = 'updated: '+str(dt.datetime.now().strftime("%Y-%m-%d %I:%M:%S"))
     plt.title(frame+', '+timestamp)
