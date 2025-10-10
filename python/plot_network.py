@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # two outputs are: png plot and text file for gaps (both are mandatory)
 # e.g. $LiCSAR_public/$track/$frame output.png gaps.txt
+# then... there is optional parameter for check_common_bursts --- so if you add '1' , it will additionally check for the common bursts. will take more time though...
 #%% Import
 import os
 import sys
@@ -14,6 +15,8 @@ import datetime as dt
 import s1data as s1
 import pandas as pd
 import framecare as fc
+
+check_common_bursts = False
 
 #%%
 def read_bperp_file(bperp_file, imdates, return_missflag = False):
@@ -149,22 +152,25 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
     # 2022-04-19 adding dots of 'existing epochs'
     print("getting existing epochs for the frame bounding box")
     epochdates = s1.get_epochs_for_frame(frame, firstdate.date(), lastdate.date(), returnAsDate = True)
-    print("checking if the epochs have any common burst - if not, will plot them anyway, in gray")
-    framebursts = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
-    epochdates_outburst = []
     for imd in imdates_dt:
         imdd = imd.date()
         if imdd in epochdates:
             #print('debug - found and removed ok: '+str(imdd))
             epochdates.remove(imdd)
-        else:
+    if check_common_bursts:
+        print("checking if the epochs have any common burst - if not, will plot them anyway, in gray")
+        framebursts = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
+        epochdates_outburst = []
+        for imdd in epochdates:
+            print('checking epoch '+str(imdd))
             # there is some overlap but does it have the same bursts?
             try:
-                images = fc.get_images_for_frame(frame, startdate = imdd-dt.timedelta('1 day'), enddate = imdd+dt.timedelta('1 day'), asf = False)
+                images = s1.get_images_for_frame(frame, startdate = imdd-dt.timedelta(days=1), enddate = imdd+dt.timedelta(days=1), asf = False)
                 for im in images:
                     bursts = fc.lq.sqlout2list(fc.get_bursts_in_file(im))
                     if not bursts:
-                        burstsno = fc.ingest_file_to_licsinfo(im, isfullpath=False)
+                        filepath = s1.get_neodc_path_images(im, file_or_meta=True)[0]
+                        _ = fc.ingest_file_to_licsinfo(filepath, isfullpath=True)
                         bursts = fc.lq.sqlout2list(fc.get_bursts_in_file(im))
                     isinframe = False
                     for b in bursts:
@@ -172,12 +178,12 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
                             isinframe = True
                             continue
                     if not isinframe:
-                        epochdates.remove(imdd)
+                        epochdates.remove(imdd)  # remove from getting plotted as red circles
                         epochdates_outburst.append(imdd)
             except:
                 print('some error double checking epoch '+str(imdd)+'. keeping it')
-    if epochdates_outburst:
-        ax.scatter(epochdates_outburst, np.zeros(len(epochdates_outburst)), facecolors='none', edgecolors='gray')
+        if epochdates_outburst:
+            ax.scatter(epochdates_outburst, np.zeros(len(epochdates_outburst)), facecolors='none', edgecolors='gray')
     if epochdates:
         ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red')
     # adding timestamp
@@ -199,9 +205,17 @@ try:
     framedir = sys.argv[1]
     pngfile = sys.argv[2] 
     gapfile = sys.argv[3]
+    try:
+        islast = sys.argv[4]
+        if islast == '1':
+            check_common_bursts = True
+            print('will check for the common bursts (more correct "red circles")')
+    except:
+        pass
 except:
     print('Usage: ')
-    print('plot_network.py path_to_frame_directory out_png_file out_gaps_file')
+    print('plot_network.py path_to_frame_directory out_png_file out_gaps_file [1]')
+    print('(where the optional 1 will mean (long but correct) checking of the frame-related epochs based on bursts)')
     exit()
 
 
