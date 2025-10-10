@@ -100,7 +100,7 @@ if [ ! -f $slcpar ]; then echo "the folder is empty, or no mosaic of ref epoch e
 
 #'clip_slc.sh 72.510 72.845 38.130 38.365 3934 0.00027'
 #/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/SAREZ/005D
-outdir=`realpath $1`
+outdir=$1
 if [ -d $outdir ]; then echo "STOP, this directory already exists. skipping for now, as this need some more thinking"; exit; fi
 mkdir -p $outdir 2>/dev/null
 
