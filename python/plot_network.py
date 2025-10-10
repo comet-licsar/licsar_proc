@@ -65,7 +65,7 @@ def read_bperp_file(bperp_file, imdates, return_missflag = False):
 
 
 #%%
-def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(2014, 9, 25), lastdate = dt.datetime(2024, 12, 31)):
+def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(2014, 9, 25), lastdate = dt.datetime(2025, 12, 31)):
     """
     Plot network of interferometric pairs.
     bperp can be dummy (-1~1).
@@ -146,9 +146,9 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
         plt.ylabel('Bperp [m]')
     #
     # 2022-04-19 adding dots of 'existing epochs'
-    echo "getting existing epochs for the frame bounding box"
+    print("getting existing epochs for the frame bounding box")
     epochdates = s1.get_epochs_for_frame(frame, firstdate.date(), lastdate.date(), returnAsDate = True)
-    echo "checking if the epochs have any common burst - if not, will plot them anyway, in gray"
+    print("checking if the epochs have any common burst - if not, will plot them anyway, in gray")
     framebursts = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
     epochdates_outburst = []
     for imd in imdates_dt:
