@@ -370,13 +370,14 @@ def check_convert_dem(indem, fix_geoid = False):
     return demtif, dembin, dempar
 
 
-def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
+def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', mlipar = None):
     ''' function to use simparams with the DEM to generate the simsar output
 
     Args:
         indem (str): path to the input DEM (should be tif but would work if in gamma format)
         simparams (dict): output of extract_simparams()
-
+        extraext (str): extra text in the output filenames (before the extension)
+        mlipar (str): optionally, to use an existing mli par (instead of simparams)
     Returns:
         str (path to the generated sim sar tiff)
     '''
@@ -385,10 +386,12 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     strid = 'H'+str(int(np.round(simparams['heading'])))+'.I'+str(int(np.round(simparams['incidence_angle'])))
     if extraext:
         strid = strid + '.' + extraext
-    mlipar = 'simsar.'+strid+'.par'
+    if not mlipar:
+        mlipar = 'simsar.'+strid+'.par'
     if not os.path.exists(mlipar):
         # prep some of the params:
         #  simparams = extract_simparams(dempar, simparams)
+        mlipar = 'simsar.'+strid+'.par'
         generate_mlipar(mlipar, simparams)
     #
     # minimalistically to get only intensity:
@@ -528,10 +531,13 @@ def rslc2tif(rslc, outtif = None ):
     return outtif
 
 
-def create_simsar_from_dem(volclip='23', indem='23.dem.tif'):
+def create_simsars_from_dem(volclip='23', indem='23.dem.tif'):
     ''' This would simulate SAR intensity for a volclip, given a DEM in either GAMMA's DEM or GeoTIFF format.
     '''
     volclip=str(volclip) # to allow volclip to be int...
+    if not os.path.exists(indem):
+        print('ERROR, the DEM '+indem+' does not exist')
+        return False
     demtif, indem, dempar = check_convert_dem(indem)
     parfiles = glob.glob(volclip+'.????.mli.par')
     if not parfiles:
