@@ -370,7 +370,7 @@ def check_convert_dem(indem, fix_geoid = False):
     return demtif, dembin, dempar
 
 
-def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', mlipar = None):
+def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', mlipar = None, tryovs = False):
     ''' function to use simparams with the DEM to generate the simsar output
 
     Args:
@@ -425,7 +425,10 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
     ovrfactN = str(-1.0*(demresN/outres))
     ovrfactE = str((demresE/outres))
     '''
-    cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '-', '-', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap]
+    if tryovs:
+        cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '2', '2', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap]
+    else:
+        cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '-', '-', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap]
     runcmd(cmd, "Simulating DEM amplitude using gc_map2")
     #
     # now to convert simsar to something normal, e.g.:
