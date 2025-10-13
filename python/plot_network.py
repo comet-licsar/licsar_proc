@@ -179,7 +179,7 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
                     for b in bursts:
                         if b in framebursts:
                             isinframe = True
-                            break
+                            # break
                     if not isinframe:
                         epochdates.remove(imdd)  # remove from getting plotted as red circles
                         epochdates_outburst.append(imdd)
