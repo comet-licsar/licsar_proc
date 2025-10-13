@@ -383,7 +383,10 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
     '''
     demtif, dembin, dempar = check_convert_dem(indem)
     #
-    strid = 'H'+str(int(np.round(simparams['heading'])))+'.I'+str(int(np.round(simparams['incidence_angle'])))
+    if simparams:
+        strid = 'H'+str(int(np.round(simparams['heading'])))+'.I'+str(int(np.round(simparams['incidence_angle'])))
+    else:
+        strid = ''
     if extraext:
         strid = strid + '.' + extraext
     if not mlipar:
