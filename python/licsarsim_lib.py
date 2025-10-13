@@ -43,10 +43,19 @@ Versions:
 Example to generate for all available frames per given volcano:
 volclip='23'
 from licsarsim_lib import *
-indem = volclip+'.dem'
-for parfile in glob.glob(volclip+'.????.mli.par'):
+indem = volclip+'.dem'  # or e.g. 23+'.tif'
+demtif, indem, dempar = check_convert_dem(indem)
+parfiles = glob.glob(volclip+'.????.mli.par')
+if not parfiles:
+    print('extracting from LiCSAR_volc')
+    parfiles = glob.glob(os.path.join(os.environ['LiCSAR_volc'], volclip)+'/???[A,D]/SLC/*/*.mli.par')
+if not parfiles:
+    print('ERROR - no mli par files found')
+
+for parfile in parfiles:
     h,i,r = get_h_i_r_from_parfile(parfile)
-    extraext = parfile[:-8]
+    # extraext = parfile[:-8]
+    extraext = os.path.basename(parfile).split('.')[0]
     main_simsar(indem, h,i,r, extraext)
     
 ## parfile = '1000.054A.mli.par'
@@ -287,9 +296,11 @@ def get_resolution_tif(ifg, in_m=True):
         return float(resdeg)
 
 
-def runcmd(cmd, message = '',logdir = 'logs'):
+def runcmd(cmd, message = '',logdir = 'logs', printcmd = True):
     """ cmd can be either full string command or split to list (as for subp)
     """
+    if printcmd:
+        print(cmd)
     if message:
         print(message)
     if not os.path.exists(logdir):
@@ -516,6 +527,27 @@ def rslc2tif(rslc, outtif = None ):
     out.rio.to_raster(outtif)
     return outtif
 
+
+def create_simsar_from_dem(volclip='23', indem='23.dem.tif'):
+    ''' This would simulate SAR intensity for a volclip, given a DEM in either GAMMA's DEM or GeoTIFF format.
+    '''
+    volclip=str(volclip) # to allow volclip to be int...
+    demtif, indem, dempar = check_convert_dem(indem)
+    parfiles = glob.glob(volclip+'.????.mli.par')
+    if not parfiles:
+        print('extracting from LiCSAR_volc')
+        parfiles = glob.glob(os.path.join(os.environ['LiCSAR_volc'], volclip)+'/???[A,D]/SLC/*/*.mli.par')
+    if not parfiles:
+        print('ERROR - no mli par files found')
+        return False
+    for parfile in parfiles:
+        h,i,r = get_h_i_r_from_parfile(parfile)
+        # extraext = parfile[:-8]
+        extraext = os.path.basename(parfile).split('.')[0]
+        try:
+            main_simsar(indem, h,i,r, extraext)
+        except:
+            print('ERROR during simsar of '+parfile)
 '''
 a=rioxarray.open_rasterio('20160901.slc.tif')
 
