@@ -11,8 +11,7 @@ import os
 import sys
 import subprocess
 import shutil
-from modules_sw_mn import * #functions saved here
-
+from modules_sw_mn import *  # functions saved here
 
 if len(sys.argv) < 2:
     print('Please provide pair information: i.e python create_sbovl_ifg.py 20230129_20230210')
@@ -28,11 +27,11 @@ tempdir = os.getcwd()
 frame = os.path.basename(tempdir)
 # batchdir = os.environ['BATCH_CACHE_DIR']
 framedir = os.path.join(tempdir)
-#TODO I can check the frame name is okay for format of LiCSAR_frame.
+# TODO I can check the frame name is okay for format of LiCSAR_frame.
 pair = sys.argv[1]
-#batchdir = os.environ['BATCH_CACHE_DIR']
+# batchdir = os.environ['BATCH_CACHE_DIR']
 prime, second = pair.split('_')
-#framedir = os.path.join(batchdir, frame)
+# framedir = os.path.join(batchdir, frame)
 IFG_folder = os.path.join(framedir, 'IFG')
 GEOC_folder = os.path.join(framedir, 'GEOC')
 
@@ -52,7 +51,7 @@ if os.path.exists(boi_path):
 else:
     print(f"{boi_path} doesn't exist ,please run create_bovl_ifg.sh first!")
     sys.exit(1)
-    
+
 if os.path.exists(soi_path):
     soi = open_geotiff(soi_path, fill_value=np.nan)
 else:
@@ -71,26 +70,24 @@ else:
     print(f"{soi_coh_path} doesn't exist ,please run create_soi.py first!")
     sys.exit(1)
 
-
 # Process the data
 soi_mm = soi * 1000
 super_sboi = boi_mm.copy()
-super_sboi[super_sboi==0]= np.nan
-soi_mm[soi_mm==0]= np.nan
+super_sboi[super_sboi == 0] = np.nan
+soi_mm[soi_mm == 0] = np.nan
 super_sboi[np.isnan(super_sboi)] = soi_mm[np.isnan(super_sboi)]
 
 # Process and scale coherence data
-boi_coh = boi_coh/255 
-boi_coh[boi_coh==0] = np.nan
+boi_coh = boi_coh / 255
+boi_coh[boi_coh == 0] = np.nan
 super_sboi_coh = boi_coh.copy()
-super_sboi_coh[super_sboi_coh==0] = np.nan
-soi_coh[soi_coh==0]=np.nan
+super_sboi_coh[super_sboi_coh == 0] = np.nan
+soi_coh[soi_coh == 0] = np.nan
 super_sboi_coh[np.isnan(super_sboi_coh)] = soi_coh[np.isnan(super_sboi_coh)]
 
 ##Milan's recommendation
 # super_sboi_coh[super_sboi_coh==0] = np.nan
 super_sboi_coh[np.isnan(super_sboi_coh)] = 0
-
 
 # Export the result to a GeoTIFF
 export_to_tiff(output_path, super_sboi, boi_path)
@@ -134,7 +131,7 @@ print(ORANGE + 'Just remove soi and boi to save space! redundant data..' + ENDC)
 #     if os.path.exists(os.path.join(folder_path, f"{pair}.geo.sbovldiff.adf.mm.tif")):
 #         if '.bovldiff' in i or '_soi_' in i:
 #             os.remove(file_path)  # Uncomment to remove the file
-    
+
 #     # Check if the file name contains '_soi_' and 'geo' and does not contain 'tif'
 #     elif '_soi_' in i and 'geo' in i and 'tif' not in i:
 #             os.remove(file_path)  # Uncomment to remove the file
