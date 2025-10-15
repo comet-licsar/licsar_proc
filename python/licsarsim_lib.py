@@ -409,8 +409,8 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
     resmap = '-'
     lamap = '-'
     simsar = 'simsar.'+strid+'.geo'   # output seems in dB (intensity->log10)
-    #pixareamap = 'pixelarea'   # the normalisation gets too far from the SAR intensity!
-    pixareamap = '-'
+    pixareamap = 'pixelarea.'+strid+'.geo'   # the normalisation gets too far from the SAR intensity!
+    #pixareamap = '-'
     '''
     # now get the oversampling right so the transformed DEM will have same dimensions as requested in mli.par
     # Get dem res N and E (which are latitude and longitude resolutions)
@@ -428,7 +428,7 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
     if tryovs:
         cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '2', '2', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap]
     else:
-        cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '-', '-', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap]
+        cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '-', '-', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap, '-', '-', '2']
     runcmd(cmd, "Simulating DEM amplitude using gc_map2")
     #
     # now to convert simsar to something normal, e.g.:
@@ -436,13 +436,14 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
     simsartif = simsar+'.tif'
     cmd = ['data2geotiff', demsegpar, simsar, gdtype, simsartif]
     cmdone = runcmd(cmd, "Exporting to "+simsartif)
-    #pixareamaptif = pixareamap+'.tif'
-    #cmd = ['data2geotiff', demsegpar, pixareamap, gdtype, pixareamaptif]
-    #runcmd(cmd, "Exporting to "+pixareamaptif)
+    pixareamaptif = pixareamap+'.tif'
+    cmd = ['data2geotiff', demsegpar, pixareamap, gdtype, pixareamaptif]
+    runcmd(cmd, "Exporting to "+pixareamaptif+' (this should be more correct sigma0, might be comparable to radcal_MLI output? to check)')
     if cmdone:
         print('done. to preview, do (in python):')
         #print('note, simsar output is probably amplitude [dB], i.e. log10(sqrt(intensity))')
         print("from lics_vis import vis_tif; vis_tif('"+simsartif+"')")
+        print("from lics_vis import vis_tif; vis_tif('" + pixareamaptif + "')")
     return simsartif
 
 
@@ -537,8 +538,10 @@ def rslc2tif(rslc, outtif = None ):
     return outtif
 
 
-def create_simsars_from_dem(volclip='23', indem='23.dem.tif'):
+def create_simsars_from_dem(volclip='23', indem='23.dem.tif', directpar = True):
     ''' This would simulate SAR intensity for a volclip, given a DEM in either GAMMA's DEM or GeoTIFF format.
+
+    The directpar option: if True, it will just use the mli par file, otherwise it will simulate only based on h,i,r params.
     '''
     volclip=str(volclip) # to allow volclip to be int...
     if not os.path.exists(indem):
@@ -553,13 +556,16 @@ def create_simsars_from_dem(volclip='23', indem='23.dem.tif'):
         print('ERROR - no mli par files found')
         return False
     for parfile in parfiles:
-        h,i,r = get_h_i_r_from_parfile(parfile)
-        # extraext = parfile[:-8]
         extraext = os.path.basename(parfile).split('.')[0]
-        try:
-            main_simsar(indem, h,i,r, extraext)
-        except:
-            print('ERROR during simsar of '+parfile)
+        if directpar:
+            simulate_intensity(indem=indem, simparams=None, extraext=extraext, mlipar=parfile)
+        else:
+            h,i,r = get_h_i_r_from_parfile(parfile)
+            # extraext = parfile[:-8]
+            try:
+                main_simsar(indem, h,i,r, extraext)
+            except:
+                print('ERROR during simsar of '+parfile)
 '''
 a=rioxarray.open_rasterio('20160901.slc.tif')
 
