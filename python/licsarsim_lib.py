@@ -385,10 +385,9 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
     #
     if simparams:
         strid = 'H'+str(int(np.round(simparams['heading'])))+'.I'+str(int(np.round(simparams['incidence_angle'])))
-    else:
-        strid = ''
-    if extraext:
         strid = strid + '.' + extraext
+    else:
+        strid = extraext
     if not mlipar:
         mlipar = 'simsar.'+strid+'.par'
     if not os.path.exists(mlipar):
@@ -558,7 +557,8 @@ def create_simsars_from_dem(volclip='23', indem='23.dem.tif', directpar = True):
     for parfile in parfiles:
         extraext = os.path.basename(parfile).split('.')[0]
         if directpar:
-            simulate_intensity(indem=indem, simparams=None, extraext=extraext, mlipar=parfile)
+            extraext = volclip+'.'+parfile.split('/')[-4]+'.'+extraext
+            simulate_intensity(indem=indem, simparams=None, extraext=volclip+'.'+extraext, mlipar=parfile)
         else:
             h,i,r = get_h_i_r_from_parfile(parfile)
             # extraext = parfile[:-8]
