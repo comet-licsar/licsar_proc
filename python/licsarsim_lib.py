@@ -120,10 +120,22 @@ for vv in `ls -d [1-9]*[0-9]`; do
   nomli=0
  fi
   #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated - 1 >/dev/null 2>/dev/null;
-  #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
+  echo "which one should we use...."
+  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
+  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0.norloss - - - 1 >/dev/null 2>/dev/null;
   #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.gamma0 - 1 - 2 >/dev/null 2>/dev/null;
-  radcal.py $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0 $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0.par 1 4 --DEM geo/EQA.dem --DEM_par geo/EQA.dem_par --lt geo/$mas.lt_fine --inc geo/inc --hgt geo/$mas.hgt --fill 0 --ls_map geo/ls_map >/dev/null 2>/dev/null;
-
+  #radcal.py $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0 $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0.par 1 4 --DEM geo/EQA.dem --DEM_par geo/EQA.dem_par --lt geo/$mas.lt_fine --inc geo/inc --hgt geo/$mas.hgt --fill 0 --ls_map geo/ls_map >/dev/null 2>/dev/null;
+  
+  width=`awk '$1 == "range_samples:" {print $2}' $slcdir/$mas/$mas.slc.mli.par`
+  calmli=$slcdir/$m/$m.$slcc.mli.calibrated.sigma0
+  eqadempar=`ls geo*/EQA.dem_par | tail -n 1`
+  width_dem=`awk '$1 == "width:" {print $2}' $eqadempar`
+  length_dem=`awk '$1 == "nlines:" {print $2}' $eqadempar`
+  geocode_back $calmli $width `ls geo*/*.lt_fine | tail -n 1` $calmli.geo ${width_dem} ${length_dem} 0 0 >/dev/null 2>/dev/null
+  data2geotiff $eqadempar $calmli.geo 2 $calmli.geo.tif 0.0 >/dev/null 2>/dev/null
+  
+  
+  
   mv $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.orig;
   if [ ! -d geo ]; then ln -s geo.30m geo; fi;
   if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.30m GEOC.MLI; fi;
