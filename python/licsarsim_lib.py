@@ -558,7 +558,7 @@ def create_simsars_from_dem(volclip='23', indem='23.dem.tif', directpar = True):
         extraext = os.path.basename(parfile).split('.')[0]
         if directpar:
             extraext = volclip+'.'+parfile.split('/')[-4]+'.'+extraext
-            simulate_intensity(indem=indem, simparams=None, extraext=volclip+'.'+extraext, mlipar=parfile)
+            simulate_intensity(indem=indem, simparams=None, extraext=extraext, mlipar=parfile)
         else:
             h,i,r = get_h_i_r_from_parfile(parfile)
             # extraext = parfile[:-8]
