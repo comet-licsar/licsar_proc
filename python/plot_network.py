@@ -162,13 +162,27 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
         print("checking if the epochs have any common burst - if not, will plot them anyway, in gray")
         framebursts = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
         epochdates_outburst = []
-        for imdd in epochdates:
+        if os.path.exists(temp_outbursts):
+            try:
+                epochdates_outburst = pd.read_csv(temp_outbursts, header=None)[0].to_list()
+                epochdates_outburst = [dt.datetime.strptime(d, "%Y-%m-%d").date() for d in epochdates_outburst]
+            except:
+                print('some error trying to read the temp file '+temp_outbursts)
+                epochdates_outburst = []
+        for ep in epochdates_outburst:  # epochs in the outburst must not appear as the red circles
+            if ep in epochdates:
+                epochdates.remove(ep)
+        epochdatescopy = epochdates.copy()
+        for imdd in epochdatescopy:
             if len(fc.get_frame_files_date(frame, imdd))>0:
                 continue  # if we find something in database, it just means there was this acquisition, so plot it
+            if imdd>dt.date.today()-dt.timedelta(days=1):
+                continue  # maybe not in CDSE database yet? keep it red then
             print('checking epoch '+str(imdd))
             # there is some overlap but does it have the same bursts?
             try:
-                images = s1.get_images_for_frame(frame, startdate = imdd-dt.timedelta(days=1), enddate = imdd+dt.timedelta(days=1), asf = False)
+                imagespd = s1.get_images_for_frame(frame, startdate = imdd-dt.timedelta(days=1), enddate = imdd+dt.timedelta(days=1), asf = False, outAspd=True)
+                images = imagespd['title'].values.tolist()
                 for im in images:
                     bursts = fc.lq.sqlout2list(fc.get_bursts_in_file(im))
                     if not bursts:
@@ -186,6 +200,12 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
             except:
                 print('some error double checking epoch '+str(imdd)+'. keeping it')
         if epochdates_outburst:
+            epochdates_outburst.sort()
+            # store the bursts without coverage to external file for fast-loading it later
+            try:
+                pd.DataFrame(epochdates_outburst)[0].to_csv(temp_outbursts, header=False, index=False)
+            except:
+                print('DEBUG: cannot save the temp data to '+temp_outbursts)
             ax.scatter(epochdates_outburst, np.zeros(len(epochdates_outburst)), facecolors='none', edgecolors='gray', label='existing acquisition with no frame burst (debug)')
     if epochdates:
         ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red', label='existing acquisition')
@@ -224,6 +244,12 @@ except:
 
 ifgdir = os.path.join(framedir, 'interferograms')
 bperp_file = os.path.join(framedir, 'metadata', 'baselines')
+frameprocdir = os.path.join(os.environ['LiCSAR_procdir'], str(int(frame[:3])), frame)
+if os.path.exists(frameprocdir):
+    temp_outbursts = os.path.join(frameprocdir, 'tmp.outburst_epochs.txt')
+else:
+    temp_outbursts = 'tmp.outburst_epochs.txt'
+
 if not os.path.exists(ifgdir):
     # update to have it work in BATCH_CACHE_DIR
     ifgdir = os.path.join(framedir, 'GEOC')
@@ -267,7 +293,7 @@ try:
         bperp = np.array(bperp)
         bperp[np.isnan(bperp)] = 0
         absbp = np.abs(bperp)
-        over = np.where(absbp>800)
+        over = np.where(absbp>800)[0]
         if len(over)>0:
             print('WARNING, removing bperps that are over threshold of 800 m. These will be reestimated.')
             bperp[over]=0
