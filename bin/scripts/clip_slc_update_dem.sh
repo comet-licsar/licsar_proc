@@ -113,5 +113,5 @@ rm -r GEOC/lookangles GEOC/geo 2>/dev/null
 
 
 echo "DEM="$demname > metadata.txt
-
+echo "clip_slc_update_dem.sh "$1 >> sourcecmd.txt
 

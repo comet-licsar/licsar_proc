@@ -552,10 +552,11 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                                     
                     
 # test frame: 144A_04689_111111
-def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_height_km = 450, alpha = 0.85, sbovl = False, startdate='20141001', enddate=None):
+def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height_km=450, alpha=0.85, sbovl=False,
+                          startdate='20141001', enddate=None, localstore=False):
     ''' use either 'code' or 'iri' as the source model for the correction
     This function will generate ionosphere phase screens (LOS) [rad] per epoch.
-    
+
     Args:
         frame (str)
         source (str): either 'iri' or 'code'
@@ -571,46 +572,61 @@ def make_all_frame_epochs(frame, source = 'code', epochslist = None, fixed_f2_he
 
     startdate = pd.to_datetime(startdate, format="%Y%m%d")
     enddate = pd.to_datetime(enddate, format="%Y%m%d")
-    
+
     framepubdir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
-    hgtfile = os.path.join(framepubdir, 'metadata', frame+'.geo.hgt.tif')
+    hgtfile = os.path.join(framepubdir, 'metadata', frame + '.geo.hgt.tif')
     hgt = load_tif2xr(hgtfile)
     mask = (hgt != 0) * (~np.isnan(hgt))
     if not epochslist:
         epochslist = list(set(fc.get_epochs(frame) + fc.get_epochs_from_ifg_list_pubdir(frame)))
         epochslist.sort()
-        #epochslist = os.listdir(os.path.join(framepubdir, 'epochs')) # careful, non-epoch folders would cause error!
-    for epoch in epochslist:
-        epoch_date = pd.to_datetime(epoch, format="%Y%m%d")
-        
-        if (epoch_date < startdate or epoch_date > enddate): ##just to scale between given time
-            continue  # Skip epochs outside the selected date range if sbovl is True
- 
-        epochdir = os.path.join(framepubdir, 'epochs', epoch)
+        # epochslist = os.listdir(os.path.join(framepubdir, 'epochs')) # careful, non-epoch folders would cause error!
+
+    if localstore:
+        epochdir = 'ionocorr.h' + str(fixed_f2_height_km) + '.a' + str(alpha)
+        print('storing locally to ' + epochdir)
         if not os.path.exists(epochdir):
             os.mkdir(epochdir)
-        
+
+    for epoch in epochslist:
+        epoch_date = pd.to_datetime(epoch, format="%Y%m%d")
+
+        if (epoch_date < startdate or epoch_date > enddate):  ##just to scale between given time
+            continue  # Skip epochs outside the selected date range if sbovl is True
+
+        if not localstore:
+            epochdir = os.path.join(framepubdir, 'epochs', epoch)
+
+        if not os.path.exists(epochdir):
+            os.mkdir(epochdir)
+
         if not sbovl:
-            tif = os.path.join(epochdir, epoch+'.geo.iono.'+source+'.tif')
+            tif = os.path.join(epochdir, epoch + '.geo.iono.' + source + '.tif')
             if not os.path.exists(tif):
                 print(epoch)
-                xrda = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
+                xrda = make_ionocorr_epoch(frame, epoch, source=source, fixed_f2_height_km=fixed_f2_height_km,
+                                           alpha=alpha, sbovl=sbovl)
                 xrda = xrda.where(mask)
-                export_xr2tif(xrda, tif) #, refto=hgtfile)
-                os.system('chmod 777 '+tif)
+                export_xr2tif(xrda, tif)  # , refto=hgtfile)
+                os.system('chmod 777 ' + tif)
                 # but it still does not really fit - ok, because the xarray outputs here are gridline-registered while our ifgs are pixel registered...hmmm..
         elif sbovl:
-            tif1= os.path.join(epochdir, epoch+'.geo.iono.'+source+'.sTECA.tif')
-            tif2= os.path.join(epochdir, epoch+'.geo.iono.'+source+'.sTECB.tif')
+            tif1 = os.path.join(epochdir, epoch + '.geo.iono.' + source + '.sTECA.tif')
+            tif2 = os.path.join(epochdir, epoch + '.geo.iono.' + source + '.sTECB.tif')
             if not os.path.exists(tif1) or not os.path.exists(tif2):
                 print(epoch)
-                xrdaA, xrdaB = make_ionocorr_epoch(frame, epoch, source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
-                #mask
+                xrdaA, xrdaB = make_ionocorr_epoch(frame, epoch, source=source, fixed_f2_height_km=fixed_f2_height_km,
+                                                   alpha=alpha, sbovl=sbovl)
+                # mask
                 xrdaA = xrdaA.where(mask)
                 xrdaB = xrdaB.where(mask)
-                #export
-                export_xr2tif(xrdaA, tif1) #, refto=hgtfile)
-                export_xr2tif(xrdaB, tif2) #, refto=hgtfile)
-                #permmssion
-                os.system('chmod 777 '+tif1)
-                os.system('chmod 777 '+tif2)
+                # export
+                export_xr2tif(xrdaA, tif1)  # , refto=hgtfile)
+                export_xr2tif(xrdaB, tif2)  # , refto=hgtfile)
+                # permmssion
+                os.system('chmod 777 ' + tif1)
+                os.system('chmod 777 ' + tif2)
+        # update to $LiCSAR_web
+        if not localstore:
+            os.system('cedaarch_create_html.sh {0} {1} epochs'.format(frame, str(epoch)))
+

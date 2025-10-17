@@ -43,10 +43,19 @@ Versions:
 Example to generate for all available frames per given volcano:
 volclip='23'
 from licsarsim_lib import *
-indem = volclip+'.dem'
-for parfile in glob.glob(volclip+'.????.mli.par'):
+indem = volclip+'.dem'  # or e.g. 23+'.tif'
+demtif, indem, dempar = check_convert_dem(indem)
+parfiles = glob.glob(volclip+'.????.mli.par')
+if not parfiles:
+    print('extracting from LiCSAR_volc')
+    parfiles = glob.glob(os.path.join(os.environ['LiCSAR_volc'], volclip)+'/???[A,D]/SLC/*/*.mli.par')
+if not parfiles:
+    print('ERROR - no mli par files found')
+
+for parfile in parfiles:
     h,i,r = get_h_i_r_from_parfile(parfile)
-    extraext = parfile[:-8]
+    # extraext = parfile[:-8]
+    extraext = os.path.basename(parfile).split('.')[0]
     main_simsar(indem, h,i,r, extraext)
     
 ## parfile = '1000.054A.mli.par'
@@ -111,10 +120,22 @@ for vv in `ls -d [1-9]*[0-9]`; do
   nomli=0
  fi
   #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated - 1 >/dev/null 2>/dev/null;
-  #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
+  echo "which one should we use...."
+  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
+  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0.norloss - - - 1 >/dev/null 2>/dev/null;
   #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.gamma0 - 1 - 2 >/dev/null 2>/dev/null;
-  radcal.py $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0 $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0.par 1 4 --DEM geo/EQA.dem --DEM_par geo/EQA.dem_par --lt geo/$mas.lt_fine --inc geo/inc --hgt geo/$mas.hgt --fill 0 --ls_map geo/ls_map >/dev/null 2>/dev/null;
-
+  #radcal.py $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0 $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0.par 1 4 --DEM geo/EQA.dem --DEM_par geo/EQA.dem_par --lt geo/$mas.lt_fine --inc geo/inc --hgt geo/$mas.hgt --fill 0 --ls_map geo/ls_map >/dev/null 2>/dev/null;
+  
+  width=`awk '$1 == "range_samples:" {print $2}' $slcdir/$mas/$mas.slc.mli.par`
+  calmli=$slcdir/$m/$m.$slcc.mli.calibrated.sigma0
+  eqadempar=`ls geo*/EQA.dem_par | tail -n 1`
+  width_dem=`awk '$1 == "width:" {print $2}' $eqadempar`
+  length_dem=`awk '$1 == "nlines:" {print $2}' $eqadempar`
+  geocode_back $calmli $width `ls geo*/*.lt_fine | tail -n 1` $calmli.geo ${width_dem} ${length_dem} 0 0 >/dev/null 2>/dev/null
+  data2geotiff $eqadempar $calmli.geo 2 $calmli.geo.tif 0.0 >/dev/null 2>/dev/null
+  
+  
+  
   mv $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.orig;
   if [ ! -d geo ]; then ln -s geo.30m geo; fi;
   if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.30m GEOC.MLI; fi;
@@ -287,9 +308,11 @@ def get_resolution_tif(ifg, in_m=True):
         return float(resdeg)
 
 
-def runcmd(cmd, message = '',logdir = 'logs'):
+def runcmd(cmd, message = '',logdir = 'logs', printcmd = True):
     """ cmd can be either full string command or split to list (as for subp)
     """
+    if printcmd:
+        print(cmd)
     if message:
         print(message)
     if not os.path.exists(logdir):
@@ -359,25 +382,30 @@ def check_convert_dem(indem, fix_geoid = False):
     return demtif, dembin, dempar
 
 
-def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
+def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', mlipar = None, tryovs = False):
     ''' function to use simparams with the DEM to generate the simsar output
 
     Args:
         indem (str): path to the input DEM (should be tif but would work if in gamma format)
         simparams (dict): output of extract_simparams()
-
+        extraext (str): extra text in the output filenames (before the extension)
+        mlipar (str): optionally, to use an existing mli par (instead of simparams)
     Returns:
         str (path to the generated sim sar tiff)
     '''
     demtif, dembin, dempar = check_convert_dem(indem)
     #
-    strid = 'H'+str(int(np.round(simparams['heading'])))+'.I'+str(int(np.round(simparams['incidence_angle'])))
-    if extraext:
+    if simparams:
+        strid = 'H'+str(int(np.round(simparams['heading'])))+'.I'+str(int(np.round(simparams['incidence_angle'])))
         strid = strid + '.' + extraext
-    mlipar = 'simsar.'+strid+'.par'
+    else:
+        strid = extraext
+    if not mlipar:
+        mlipar = 'simsar.'+strid+'.par'
     if not os.path.exists(mlipar):
         # prep some of the params:
         #  simparams = extract_simparams(dempar, simparams)
+        mlipar = 'simsar.'+strid+'.par'
         generate_mlipar(mlipar, simparams)
     #
     # minimalistically to get only intensity:
@@ -392,8 +420,8 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     resmap = '-'
     lamap = '-'
     simsar = 'simsar.'+strid+'.geo'   # output seems in dB (intensity->log10)
-    #pixareamap = 'pixelarea'   # the normalisation gets too far from the SAR intensity!
-    pixareamap = '-'
+    pixareamap = 'pixelarea.'+strid+'.geo'   # the normalisation gets too far from the SAR intensity!
+    #pixareamap = '-'
     '''
     # now get the oversampling right so the transformed DEM will have same dimensions as requested in mli.par
     # Get dem res N and E (which are latitude and longitude resolutions)
@@ -408,7 +436,10 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     ovrfactN = str(-1.0*(demresN/outres))
     ovrfactE = str((demresE/outres))
     '''
-    cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '-', '-', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap]
+    if tryovs:
+        cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '2', '2', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap]
+    else:
+        cmd = ['gc_map2', mlipar, dempar, dembin, demsegpar, demseg, lut, '-', '-', lsmap,'-', incmap, resmap, lamap, simsar, '-', '-', '-', pixareamap, '-', '-', '2']
     runcmd(cmd, "Simulating DEM amplitude using gc_map2")
     #
     # now to convert simsar to something normal, e.g.:
@@ -416,13 +447,14 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = ''):
     simsartif = simsar+'.tif'
     cmd = ['data2geotiff', demsegpar, simsar, gdtype, simsartif]
     cmdone = runcmd(cmd, "Exporting to "+simsartif)
-    #pixareamaptif = pixareamap+'.tif'
-    #cmd = ['data2geotiff', demsegpar, pixareamap, gdtype, pixareamaptif]
-    #runcmd(cmd, "Exporting to "+pixareamaptif)
+    pixareamaptif = pixareamap+'.tif'
+    cmd = ['data2geotiff', demsegpar, pixareamap, gdtype, pixareamaptif]
+    runcmd(cmd, "Exporting to "+pixareamaptif+' (this should be more correct sigma0, might be comparable to radcal_MLI output? to check)')
     if cmdone:
         print('done. to preview, do (in python):')
         #print('note, simsar output is probably amplitude [dB], i.e. log10(sqrt(intensity))')
         print("from lics_vis import vis_tif; vis_tif('"+simsartif+"')")
+        print("from lics_vis import vis_tif; vis_tif('" + pixareamaptif + "')")
     return simsartif
 
 
@@ -516,6 +548,36 @@ def rslc2tif(rslc, outtif = None ):
     out.rio.to_raster(outtif)
     return outtif
 
+
+def create_simsars_from_dem(volclip='23', indem='23.dem.tif', directpar = True):
+    ''' This would simulate SAR intensity for a volclip, given a DEM in either GAMMA's DEM or GeoTIFF format.
+
+    The directpar option: if True, it will just use the mli par file, otherwise it will simulate only based on h,i,r params.
+    '''
+    volclip=str(volclip) # to allow volclip to be int...
+    if not os.path.exists(indem):
+        print('ERROR, the DEM '+indem+' does not exist')
+        return False
+    demtif, indem, dempar = check_convert_dem(indem)
+    parfiles = glob.glob(volclip+'.????.mli.par')
+    if not parfiles:
+        print('extracting from LiCSAR_volc')
+        parfiles = glob.glob(os.path.join(os.environ['LiCSAR_volc'], volclip)+'/???[A,D]/SLC/*/*.mli.par')
+    if not parfiles:
+        print('ERROR - no mli par files found')
+        return False
+    for parfile in parfiles:
+        extraext = os.path.basename(parfile).split('.')[0]
+        if directpar:
+            extraext = volclip+'.'+parfile.split('/')[-4]+'.'+extraext
+            simulate_intensity(indem=indem, simparams=None, extraext=extraext, mlipar=parfile)
+        else:
+            h,i,r = get_h_i_r_from_parfile(parfile)
+            # extraext = parfile[:-8]
+            try:
+                main_simsar(indem, h,i,r, extraext)
+            except:
+                print('ERROR during simsar of '+parfile)
 '''
 a=rioxarray.open_rasterio('20160901.slc.tif')
 

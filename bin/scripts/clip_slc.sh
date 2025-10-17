@@ -100,7 +100,7 @@ if [ ! -f $slcpar ]; then echo "the folder is empty, or no mosaic of ref epoch e
 
 #'clip_slc.sh 72.510 72.845 38.130 38.365 3934 0.00027'
 #/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/SAREZ/005D
-outdir=`realpath $1`
+outdir=$1
 if [ -d $outdir ]; then echo "STOP, this directory already exists. skipping for now, as this need some more thinking"; exit; fi
 mkdir -p $outdir 2>/dev/null
 
@@ -140,29 +140,30 @@ fi
 
 # e.g. for cz:
 # clip_slc.sh czclip 18.51884 18.6357 49.7937 49.8515 293.784423828125 0.00027
-rm corners_clip.tmp 2>/dev/null
-cp $outdir/corners_clip.$frame corners_clip.tmp 2>/dev/null
+#rm corners_clip.tmp 2>/dev/null
+#cp $outdir/corners_clip.$frame corners_clip.tmp 2>/dev/null
 mkdir -p $outdir/RSLC $outdir/log 2>/dev/null
 
-if [ ! -f corners_clip.tmp ]; then
-coord_to_sarpix $slcpar - $dempar $lat1 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" > corners_clip.tmp
-coord_to_sarpix $slcpar - $dempar $lat2 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
-coord_to_sarpix $slcpar - $dempar $lat1 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
-coord_to_sarpix $slcpar - $dempar $lat2 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> corners_clip.tmp
+if [ ! -f $outdir/corners_clip.$frame ]; then
+coord_to_sarpix $slcpar - $dempar $lat1 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" > $outdir/corners_clip.$frame
+coord_to_sarpix $slcpar - $dempar $lat2 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> $outdir/corners_clip.$frame
+coord_to_sarpix $slcpar - $dempar $lat1 $lon2 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> $outdir/corners_clip.$frame
+coord_to_sarpix $slcpar - $dempar $lat2 $lon1 $hei | grep "SLC/MLI range, azimuth pixel (int)" >> $outdir/corners_clip.$frame
 fi
 
 if [ ! -f $outdir/corners_clip.$frame ]; then
- cp corners_clip.tmp $outdir/corners_clip.$frame
+  echo "some error creating corners_clip file (permissions?), cancelling"
+  exit
 fi
 
-azi1=`cat corners_clip.tmp | rev | gawk {'print $1'} | rev | sort -n | head -n1`
-azi2=`cat corners_clip.tmp | rev | gawk {'print $1'} | rev | sort -n | tail -n1`
+azi1=`cat $outdir/corners_clip.$frame | rev | gawk {'print $1'} | rev | sort -n | head -n1`
+azi2=`cat $outdir/corners_clip.$frame | rev | gawk {'print $1'} | rev | sort -n | tail -n1`
 let azidiff=azi2-azi1+1
 
-rg1=`cat corners_clip.tmp | rev | gawk {'print $2'} | rev | sort -n | head -n1`
-rg2=`cat corners_clip.tmp | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
+rg1=`cat $outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | head -n1`
+rg2=`cat$outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
 let rgdiff=rg2-rg1+1
-rm corners_clip.tmp
+# rm corners_clip.tmp
 
 if [ ! -f $outdir/RSLC/$master/$master.rslc ]; then
  mkdir -p $outdir/RSLC/$master
@@ -200,8 +201,9 @@ if [ ! -d $geodir ]; then
 	mkdir -p $geodir
 	masterslcdir='RSLC/'$master
 	rm log/geo.err 2>/dev/null
-
-  echo "clip_slc.sh "$outdir $lon1 $lon2 $lat1 $lat2 $hei $resol > sourcecmd.txt
+  
+  echo "cd "$dizdir > sourcecmd.txt
+  echo "clip_slc.sh "$outdir $lon1 $lon2 $lat1 $lat2 $hei $resol >> sourcecmd.txt
   if [ ! -f $outdir/local_config.py ]; then
    echo "azlks="$azl > $outdir/local_config.py
    echo "rglks="$rgl >> $outdir/local_config.py

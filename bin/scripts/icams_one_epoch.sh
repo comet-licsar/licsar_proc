@@ -47,6 +47,8 @@ ttime=`grep center_time $metadir/metadata.txt | cut -d '=' -f2 | cut -c -5`
 tropo_icams_date.py $epoch --region " "$wesn" " --imaging-time $ttime --dem-tif $hgt --resolution $resol
 
 python3 -c "import lics_processing as lp; lp.ztd2sltd('"$icamsout"', '"$U"', outif = '"$sltdout"')"
+# linking this to $LiCSAR_web:
+cedaarch_create_html.sh $frame $epoch epochs
 
 if [ $cleanit -gt 0 ]; then
 # clean?

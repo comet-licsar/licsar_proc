@@ -81,7 +81,7 @@ def create_empty_iw_files():
 def mosaic_and_multilook(epoch):
     stdout_log_path = os.path.join(temp_file, f"{epoch}_soi_mosaic.out")
     stderr_log_path = os.path.join(temp_file, f"{epoch}_soi_mosaic.err")
-    
+
     with open(stdout_log_path, "w") as out_file, open(stderr_log_path, "w") as err_file:
         sys.stdout = out_file
         sys.stderr = err_file
@@ -98,7 +98,7 @@ def mosaic_and_multilook(epoch):
             SLC1_mod2_name = os.path.join(RSLC_folder, epoch, epoch + '_mod2.slc')
             mli1_mod1_name = os.path.join(RSLC_folder, epoch, epoch + '_mod1.mli')
             mli1_mod2_name = os.path.join(RSLC_folder, epoch, epoch + '_mod2.mli')
-    
+
             # Number of looks
             rlks, azlks = 20, 4
 
@@ -130,29 +130,32 @@ def mosaic_and_multilook(epoch):
                 TOPS_par = pg.ParFile(SLC1_tab[i][2])
                 nburst = TOPS_par.get_value('number_of_bursts', dtype=int, index=0)
                 for b in range(nburst):
-                    ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b+1}')
-                    TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[0], index=0)
-                    TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[1], index=1)
-                    TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[4], index=4)
-                    TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[5], index=5)
+                    ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b + 1}')
+                    TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[0], index=0)
+                    TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[1], index=1)
+                    TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[4], index=4)
+                    TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[5], index=5)
                 TOPS_par.write_par(SLC1_tab[i][2])
                 pg.update_par(SLC1_tab[i][2], SLC1_tab[i][2])
 
-            
             # Run mosaicking and multilooking
             if not os.path.exists(SLC1_mod1_name) or os.path.getsize(SLC1_mod1_name) == 0:
-                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
+                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0,
+                                      master_tab_long_name)
             if not os.path.exists(SLC1_mod2_name) or os.path.getsize(SLC1_mod2_name) == 0:
-                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
+                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0,
+                                      master_tab_long_name)
 
             if not os.path.exists(mli1_mod1_name) or os.path.getsize(mli1_mod1_name) == 0:
-                pg.multi_look(SLC1_mod1_name, SLC1_mod1_name + '.par', mli1_mod1_name, mli1_mod1_name + '.par', rlks, azlks)
+                pg.multi_look(SLC1_mod1_name, SLC1_mod1_name + '.par', mli1_mod1_name, mli1_mod1_name + '.par', rlks,
+                              azlks)
             if not os.path.exists(mli1_mod2_name) or os.path.getsize(mli1_mod2_name) == 0:
-                pg.multi_look(SLC1_mod2_name, SLC1_mod2_name + '.par', mli1_mod2_name, mli1_mod2_name + '.par', rlks, azlks)
+                pg.multi_look(SLC1_mod2_name, SLC1_mod2_name + '.par', mli1_mod2_name, mli1_mod2_name + '.par', rlks,
+                              azlks)
 
         except Exception as e:
             print(f"Error processing epoch {epoch}: {e}")
-        
+
         finally:
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__

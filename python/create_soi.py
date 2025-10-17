@@ -18,12 +18,10 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Polygon
 from shapely.geometry import Point
 from matplotlib.path import Path
-from modules_sw_mn import * #functions saved here
+from modules_sw_mn import *  # functions saved here
 import lics_unwrap as lu
 import pickle
 import LiCSAR_misc as misc
-
-
 
 if len(sys.argv) < 2:
     print('Please provide pair information (assuming you run this in your BATCH_CACHE_DIR/frame)')
@@ -32,7 +30,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 BLUE = '\033[94m'
-ORANGE= '\033[38;5;208m'
+ORANGE = '\033[38;5;208m'
 ENDC = '\033[0m'  # ANSI code to end formatting
 
 # Check if -p flag is provided
@@ -45,7 +43,7 @@ if parallel_flag:
 print(BLUE + "Parallel processing enabled!" + ENDC if parallel_flag else ORANGE + "Running in serial mode." + ENDC)
 
 ##Let's start!
-start_time=time.time()
+start_time = time.time()
 
 # print(BLUE + 'SBOVL is creating, please wait!!!' + ENDC)
 
@@ -54,26 +52,25 @@ tempdir = os.getcwd()
 frame = os.path.basename(tempdir)
 # batchdir = os.environ['BATCH_CACHE_DIR']
 framedir = os.path.join(tempdir)
-pair=sys.argv[1]
-#batchdir=os.environ['BATCH_CACHE_DIR']
+pair = sys.argv[1]
+# batchdir=os.environ['BATCH_CACHE_DIR']
 prime, second = pair.split('_')
-#framedir=os.path.join(batchdir, frame)
-tr= int(frame[:3])
+# framedir=os.path.join(batchdir, frame)
+tr = int(frame[:3])
 metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
-master = misc.grep1line('master=',metafile).split('=')[1]
+master = misc.grep1line('master=', metafile).split('=')[1]
 master_slcdir = os.path.join(framedir, 'SLC', master)
-GEOC_folder=os.path.join(framedir, 'GEOC')
-IFG_folder=os.path.join(framedir, 'IFG')
-RSLC_folder=os.path.join(framedir, 'RSLC')
-tab_folder=os.path.join(framedir, 'tab')
+GEOC_folder = os.path.join(framedir, 'GEOC')
+IFG_folder = os.path.join(framedir, 'IFG')
+RSLC_folder = os.path.join(framedir, 'RSLC')
+tab_folder = os.path.join(framedir, 'tab')
 
 if (not os.path.exists(os.path.join(RSLC_folder, prime))) or (not os.path.exists(os.path.join(RSLC_folder, second))):
     print('ERROR: some of the input epoch data does not exist in your RSLC folder')
     sys.exit(1)
 
-
 ##output_dir
-temp_file=os.path.join(framedir, 'temp_data')
+temp_file = os.path.join(framedir, 'temp_data')
 if not os.path.exists(temp_file):
     os.makedirs(temp_file)
 
@@ -92,71 +89,71 @@ if not os.path.exists(temp_file):
 # sys.stderr = err_file
 # print("Redirection complete")  # this will only go to log
 
-breakpoint()
+# breakpoint()
 ###variable names
-SLC1_tab_mod1_name = os.path.join(tab_folder, prime+'_mod1.SLC_tab')
-SLC1_tab_mod2_name = os.path.join(tab_folder, prime+'_mod2.SLC_tab')
-RSLC2_tab_mod1_name = os.path.join(tab_folder, second+'_mod1.SLC_tab')
-RSLC2_tab_mod2_name = os.path.join(tab_folder, second+'_mod2.SLC_tab')
-SLC1_mod1_name = os.path.join(RSLC_folder,prime, prime+'_mod1.slc')
-SLC1_mod2_name = os.path.join(RSLC_folder,prime, prime+'_mod2.slc')
-RSLC2_mod1_name = os.path.join(RSLC_folder,second, second+'_mod1.slc')
-RSLC2_mod2_name = os.path.join(RSLC_folder,second, second+'_mod2.slc')
-mli1_mod1_name = os.path.join(RSLC_folder,prime, prime+'_mod1.mli')
-mli1_mod2_name = os.path.join(RSLC_folder,prime, prime+'_mod2.mli')
-rmli2_mod1_name = os.path.join(RSLC_folder,second, second+'_mod1.mli')
-rmli2_mod2_name = os.path.join(RSLC_folder,second, second+'_mod2.mli')
-diff_mod1_name = os.path.join(IFG_folder,pair, pair+'_mod1.diff')
-diff_mod2_name = os.path.join(IFG_folder,pair, pair+'_mod2.diff')
-diff_mod1_mask_name = os.path.join(IFG_folder,pair, pair+'_mod1_mask.diff')
-diff_mod2_mask_name = os.path.join(IFG_folder,pair, pair+'_mod2_mask.diff')
+SLC1_tab_mod1_name = os.path.join(tab_folder, prime + '_mod1.SLC_tab')
+SLC1_tab_mod2_name = os.path.join(tab_folder, prime + '_mod2.SLC_tab')
+RSLC2_tab_mod1_name = os.path.join(tab_folder, second + '_mod1.SLC_tab')
+RSLC2_tab_mod2_name = os.path.join(tab_folder, second + '_mod2.SLC_tab')
+SLC1_mod1_name = os.path.join(RSLC_folder, prime, prime + '_mod1.slc')
+SLC1_mod2_name = os.path.join(RSLC_folder, prime, prime + '_mod2.slc')
+RSLC2_mod1_name = os.path.join(RSLC_folder, second, second + '_mod1.slc')
+RSLC2_mod2_name = os.path.join(RSLC_folder, second, second + '_mod2.slc')
+mli1_mod1_name = os.path.join(RSLC_folder, prime, prime + '_mod1.mli')
+mli1_mod2_name = os.path.join(RSLC_folder, prime, prime + '_mod2.mli')
+rmli2_mod1_name = os.path.join(RSLC_folder, second, second + '_mod1.mli')
+rmli2_mod2_name = os.path.join(RSLC_folder, second, second + '_mod2.mli')
+diff_mod1_name = os.path.join(IFG_folder, pair, pair + '_mod1.diff')
+diff_mod2_name = os.path.join(IFG_folder, pair, pair + '_mod2.diff')
+diff_mod1_mask_name = os.path.join(IFG_folder, pair, pair + '_mod1_mask.diff')
+diff_mod2_mask_name = os.path.join(IFG_folder, pair, pair + '_mod2_mask.diff')
 
 #####variables for geocoding
-lt_fine_suffix='lt_fine'
-geo_dir= os.path.join(framedir, 'geo')
+lt_fine_suffix = 'lt_fine'
+geo_dir = os.path.join(framedir, 'geo')
 if os.path.exists(geo_dir) and os.path.isdir(geo_dir):
-  for file in os.listdir(geo_dir):
-    if file.endswith(lt_fine_suffix):
-      lt_fine_file=os.path.join(geo_dir, file) 
+    for file in os.listdir(geo_dir):
+        if file.endswith(lt_fine_suffix):
+            lt_fine_file = os.path.join(geo_dir, file)
 
-  EQA_path=os.path.join(geo_dir, 'EQA.dem_par')
-  EQA_par=pg.ParFile(EQA_path)
-  widthgeo=EQA_par.get_value('width', dtype = int, index= 0)
-  print(f'widthgeo value is {widthgeo}')
+    EQA_path = os.path.join(geo_dir, 'EQA.dem_par')
+    EQA_par = pg.ParFile(EQA_path)
+    widthgeo = EQA_par.get_value('width', dtype=int, index=0)
+    print(f'widthgeo value is {widthgeo}')
 
 else:
-  print(f'geo folder doesnt exists. Please check your {framedir}')
+    print(f'geo folder doesnt exists. Please check your {framedir}')
 #####
 # number of looks
 rlks = 20
 azlks = 4
-    
+
 ###paralel flag!
 if not parallel_flag:
-    #tab_files
-    SLC1_tab_name= create_tab_file(prime, framedir, frame, type='RSLC')
-    RSLC2_tab_name= create_tab_file(second, framedir, frame, type='RSLC')
-    master_tab_name= create_tab_file(master, framedir, frame, type='SLC')
-    master_tab_name= create_tab_file(master, framedir, frame, type='RSLC')
-    
+    # tab_files
+    SLC1_tab_name = create_tab_file(prime, framedir, frame, type='RSLC')
+    RSLC2_tab_name = create_tab_file(second, framedir, frame, type='RSLC')
+    master_tab_name = create_tab_file(master, framedir, frame, type='SLC')
+    master_tab_name = create_tab_file(master, framedir, frame, type='RSLC')
+
     print(BLUE + 'STEP-1: Double Difference Interferogram Generation!!!' + ENDC)
-    
+
     # number of looks
     # here should be rechecked and make flexible for different multilooking. it should be improved!
     rlks = 20
     azlks = 4
-    
+
     # read SLC_tab files
     SLC1_tab_temp = pg.read_tab(SLC1_tab_name)
     RSLC2_tab_temp = pg.read_tab(RSLC2_tab_name)
     master_tab_temp = pg.read_tab(master_tab_name)
     SLC1_tab = np.array(framepath_tab(SLC1_tab_temp, framedir))
     RSLC2_tab = np.array(framepath_tab(RSLC2_tab_temp, framedir))
-    master_tab=np.array(framepath_tab(master_tab_temp, framedir))
-    
+    master_tab = np.array(framepath_tab(master_tab_temp, framedir))
+
     ##create the path for SLC1_tab
-    SLC1_tab_long_name=os.path.join(framedir, 'tab', prime + '_tab_long')
-    master_tab_long_name=os.path.join(framedir, 'tab', master +'_tab_long')
+    SLC1_tab_long_name = os.path.join(framedir, 'tab', prime + '_tab_long')
+    master_tab_long_name = os.path.join(framedir, 'tab', master + '_tab_long')
     # Open the file in write mode and write the formatted paths
     if not os.path.exists(master_tab_long_name):
         with open(master_tab_long_name, 'w') as file:
@@ -165,7 +162,7 @@ if not parallel_flag:
                 combined_line = " ".join(line)
                 # Write the combined line to the file
                 file.write(combined_line + "\n")
-    
+
     if not os.path.exists(SLC1_tab_long_name):
         # Open the file in write mode and write the formatted paths
         with open(SLC1_tab_long_name, 'w') as file:
@@ -174,127 +171,128 @@ if not parallel_flag:
                 combined_line = " ".join(line)
                 # Write the combined line to the file
                 file.write(combined_line + "\n")
-    
-    
+
     nrows = SLC1_tab.shape[0]
     ncols = SLC1_tab.shape[1]
     # read image sizes
     nr = []
     naz = []
-    
+
     ####Reading the un-multilooked and un-mosaic pixel number of range and azimuth from .slc.par file for each subswath.
     for i in range(nrows):
-      SLC_par = pg.ParFile(SLC1_tab[i][1])
-      nr.append(SLC_par.get_value('range_samples', dtype = int, index = 0))
-      naz.append(SLC_par.get_value('azimuth_lines', dtype = int, index = 0))
-    
+        SLC_par = pg.ParFile(SLC1_tab[i][1])
+        nr.append(SLC_par.get_value('range_samples', dtype=int, index=0))
+        naz.append(SLC_par.get_value('azimuth_lines', dtype=int, index=0))
+
     ##prepare data with empty subswaths (create an array and store it as a binary file)
     for i in range(nrows):
         # Create the file name using f-string
-        file_name = f'empty.iw{1+i}.slc'
+        file_name = f'empty.iw{1 + i}.slc'
         full_path = os.path.join(temp_file, file_name)
-        
+
         # Create the array
         if not os.path.exists(full_path):
-            pg.create_array(full_path, nr[i], naz[i], 5, 0.0, 0.0) #output width nlines dtpes val val_im
-          
+            pg.create_array(full_path, nr[i], naz[i], 5, 0.0, 0.0)  # output width nlines dtpes val val_im
+
     SLC1_tab_mod1 = SLC1_tab.copy()
     SLC1_tab_mod2 = SLC1_tab.copy()
     RSLC2_tab_mod1 = RSLC2_tab.copy()
     RSLC2_tab_mod2 = RSLC2_tab.copy()
-    
-    ##For both reference and secondary image, 2 SLC mosaics are generated: mod2 use subswaths 1 and 3, mod1 uses subswath 2. 
-    SLC1_tab_mod1[1][0] =os.path.join(temp_file, 'empty.iw2.slc')
-    SLC1_tab_mod2[0][0] =os.path.join(temp_file,'empty.iw1.slc')
-    SLC1_tab_mod2[2][0] =os.path.join(temp_file, 'empty.iw3.slc')
-    RSLC2_tab_mod1[1][0] =os.path.join(temp_file, 'empty.iw2.slc')
-    RSLC2_tab_mod2[0][0] =os.path.join(temp_file, 'empty.iw1.slc')
-    RSLC2_tab_mod2[2][0] =os.path.join(temp_file, 'empty.iw3.slc')
-    
+
+    ##For both reference and secondary image, 2 SLC mosaics are generated: mod2 use subswaths 1 and 3, mod1 uses subswath 2.
+    SLC1_tab_mod1[1][0] = os.path.join(temp_file, 'empty.iw2.slc')
+    SLC1_tab_mod2[0][0] = os.path.join(temp_file, 'empty.iw1.slc')
+    SLC1_tab_mod2[2][0] = os.path.join(temp_file, 'empty.iw3.slc')
+    RSLC2_tab_mod1[1][0] = os.path.join(temp_file, 'empty.iw2.slc')
+    RSLC2_tab_mod2[0][0] = os.path.join(temp_file, 'empty.iw1.slc')
+    RSLC2_tab_mod2[2][0] = os.path.join(temp_file, 'empty.iw3.slc')
+
     ##save the new tabs to temp_file: mod1 is IW2, mod2 is IW1 and IW3
     pg.write_tab(SLC1_tab_mod1, SLC1_tab_mod1_name)
     pg.write_tab(SLC1_tab_mod2, SLC1_tab_mod2_name)
     pg.write_tab(RSLC2_tab_mod1, RSLC2_tab_mod1_name)
     pg.write_tab(RSLC2_tab_mod2, RSLC2_tab_mod2_name)
-    
-    
-    #replace burst_win range paramaters by ext_burst_win range paramaters:
+
+    # replace burst_win range paramaters by ext_burst_win range paramaters:
     for i in range(nrows):
         try:
             TOPS_par_master = pg.ParFile(master_tab[i][2])
             TOPS_par = pg.ParFile(SLC1_tab[i][2])
             nburst = TOPS_par.get_value('number_of_bursts', dtype=int, index=0)
             for b in range(nburst):
-                ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b+1}')
-                burst_win = TOPS_par.get_value(f'burst_win_{b+1}')
-    
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[0], index=0)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[1], index=1)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[4], index=4)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[5], index=5)
-    
+                ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b + 1}')
+                burst_win = TOPS_par.get_value(f'burst_win_{b + 1}')
+
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[0], index=0)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[1], index=1)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[4], index=4)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[5], index=5)
+
             TOPS_par.write_par(SLC1_tab[i][2])
             pg.update_par(SLC1_tab[i][2], SLC1_tab[i][2])
-    
+
             ### Same process for RSLC
             TOPS_par = pg.ParFile(RSLC2_tab[i][2])
             nburst = TOPS_par.get_value('number_of_bursts', dtype=int, index=0)
-    
+
             for b in range(nburst):
-                ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b+1}')
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[0], index=0)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[1], index=1)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[4], index=4)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[5], index=5)
-    
+                ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b + 1}')
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[0], index=0)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[1], index=1)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[4], index=4)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[5], index=5)
+
             TOPS_par.write_par(RSLC2_tab[i][2])
             pg.update_par(RSLC2_tab[i][2], RSLC2_tab[i][2])
-    
+
             ### Same process for master
             TOPS_par = pg.ParFile(master_tab[i][2])
             nburst = TOPS_par.get_value('number_of_bursts', dtype=int, index=0)
-    
+
             for b in range(nburst):
-                ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b+1}')
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[0], index=0)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[1], index=1)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[4], index=4)
-                TOPS_par.set_value(f'burst_win_{b+1}', ext_burst_win[5], index=5)
-    
+                ext_burst_win = TOPS_par_master.get_value(f'ext_burst_win_{b + 1}')
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[0], index=0)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[1], index=1)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[4], index=4)
+                TOPS_par.set_value(f'burst_win_{b + 1}', ext_burst_win[5], index=5)
+
             TOPS_par.write_par(master_tab[i][2])
-            pg.update_par(master_tab[i][2], master_tab[i][2])    
-    
+            pg.update_par(master_tab[i][2], master_tab[i][2])
+
         except Exception as e:
             print(f"Error processing row {i}: {e}")
-    
-    
+
     print(BLUE + 'mosaicking step!!' + ENDC)
-    
+
     # Check conditions and run pg.SLC_mosaic_ScanSAR if appropriate
     if not os.path.exists(SLC1_mod1_name) or os.path.getsize(SLC1_mod1_name) == 0:
-        pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
-    
+        pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0,
+                              master_tab_long_name)
+
     if not os.path.exists(SLC1_mod2_name) or os.path.getsize(SLC1_mod2_name) == 0:
-        pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
-    
+        pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0,
+                              master_tab_long_name)
+
     if not os.path.exists(RSLC2_mod1_name) or os.path.getsize(RSLC2_mod1_name) == 0:
-        pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod1_name, RSLC2_mod1_name, RSLC2_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
-    
+        pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod1_name, RSLC2_mod1_name, RSLC2_mod1_name + '.par', rlks, azlks, 0,
+                              master_tab_long_name)
+
     if not os.path.exists(RSLC2_mod2_name) or os.path.getsize(RSLC2_mod2_name) == 0:
-        pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod2_name, RSLC2_mod2_name, RSLC2_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
-    
+        pg.SLC_mosaic_ScanSAR(RSLC2_tab_mod2_name, RSLC2_mod2_name, RSLC2_mod2_name + '.par', rlks, azlks, 0,
+                              master_tab_long_name)
+
     print(BLUE + 'multilooking step!!' + ENDC)
-    
+
     # Apply multilook if necessary
     if not os.path.exists(mli1_mod1_name) or os.path.getsize(mli1_mod1_name) == 0:
         pg.multi_look(SLC1_mod1_name, SLC1_mod1_name + '.par', mli1_mod1_name, mli1_mod1_name + '.par', rlks, azlks)
-    
+
     if not os.path.exists(mli1_mod2_name) or os.path.getsize(mli1_mod2_name) == 0:
         pg.multi_look(SLC1_mod2_name, SLC1_mod2_name + '.par', mli1_mod2_name, mli1_mod2_name + '.par', rlks, azlks)
-    
+
     if not os.path.exists(rmli2_mod1_name) or os.path.getsize(rmli2_mod1_name) == 0:
         pg.multi_look(RSLC2_mod1_name, RSLC2_mod1_name + '.par', rmli2_mod1_name, rmli2_mod1_name + '.par', rlks, azlks)
-    
+
     if not os.path.exists(rmli2_mod2_name) or os.path.getsize(rmli2_mod2_name) == 0:
         pg.multi_look(RSLC2_mod2_name, RSLC2_mod2_name + '.par', rmli2_mod2_name, rmli2_mod2_name + '.par', rlks, azlks)
 #############################################paralell flag ends..
@@ -308,10 +306,10 @@ else:
     print(f"{mli1_mod1_name + '.par'} does not exist.")
 
 # calculation of differential interferograms
-#checking off_par exits! 
+# checking off_par exits!
 if parallel_flag:
     print('The RSLC creation steps is applied seperately, lets go for IFG/GEOC step!')
-    
+
 os.makedirs(os.path.join(IFG_folder, pair), exist_ok=True)
 os.makedirs(os.path.join(GEOC_folder, pair), exist_ok=True)
 off_par = os.path.join(framedir, 'IFG', pair, pair + '.off')
@@ -319,7 +317,7 @@ off_par = os.path.join(framedir, 'IFG', pair, pair + '.off')
 if not os.path.exists(off_par):  # Corrected os.file.exists to os.path.exists
     mpar = os.path.join(RSLC_folder, prime, prime + '.rslc.par')
     spar = os.path.join(RSLC_folder, second, second + '.rslc.par')
-    
+
     # Command to create the offset
     exec_str = ['create_offset', mpar, spar, off_par, '1', '20', '4', '0']
     try:
@@ -330,13 +328,14 @@ if not os.path.exists(off_par):  # Corrected os.file.exists to os.path.exists
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while executing the command: {e}")
 
-
 # if not (os.path.exists(diff_mod1_name) and os.path.exists(diff_mod2_name)):
 print(f'double diffference is calculating!')
-pg.SLC_intf(SLC1_mod1_name, RSLC2_mod1_name, SLC1_mod1_name + '.par', RSLC2_mod1_name + '.par', off_par, diff_mod1_name, rlks, azlks, 0, '-', 0, 0)
-pg.SLC_intf(SLC1_mod2_name, RSLC2_mod2_name, SLC1_mod2_name + '.par', RSLC2_mod2_name + '.par', off_par, diff_mod2_name, rlks, azlks, 0, '-', 0, 0)
+pg.SLC_intf(SLC1_mod1_name, RSLC2_mod1_name, SLC1_mod1_name + '.par', RSLC2_mod1_name + '.par', off_par, diff_mod1_name,
+            rlks, azlks, 0, '-', 0, 0)
+pg.SLC_intf(SLC1_mod2_name, RSLC2_mod2_name, SLC1_mod2_name + '.par', RSLC2_mod2_name + '.par', off_par, diff_mod2_name,
+            rlks, azlks, 0, '-', 0, 0)
 
-#sim_unw is not necesarry so I have used SLC_intf rather than SLC_diff_intf but it is example if I need in the future:
+# sim_unw is not necesarry so I have used SLC_intf rather than SLC_diff_intf but it is example if I need in the future:
 # pg.SLC_diff_intf(SLC1_mod2_name, RSLC2_mod2_name, SLC1_mod2_name + '.par', RSLC2_mod2_name + '.par', off_par, sim_unw, diff_mod2_name, rlks, azlks, 1, 0, 0.2, 1, 1)
 
 ##create bmp images to apply masking to extract overlaps
@@ -347,7 +346,7 @@ pg.rasmph_pwr(diff_mod2_name, mli1_mod2_name, mli_mosaic_nr)
 pg.mask_data(diff_mod1_name, mli_mosaic_nr, diff_mod1_mask_name, diff_mod2_name + '.bmp', 1)
 pg.mask_data(diff_mod2_name, mli_mosaic_nr, diff_mod2_mask_name, diff_mod1_name + '.bmp', 1)
 
-#Redundant interval data, open if you need
+# Redundant interval data, open if you need
 pg.rasmph_pwr(diff_mod1_mask_name, mli1_mod1_name, mli_mosaic_nr)
 pg.rasmph_pwr(diff_mod2_mask_name, mli1_mod2_name, mli_mosaic_nr)
 # # visualize differential phase of subswath overlap areas
@@ -358,7 +357,7 @@ pg.rasmph_pwr(diff_mod2_mask_name, mli1_mod2_name, mli_mosaic_nr)
 print(BLUE + 'double difference interferogram are calculating!!!!' + ENDC)
 print('printing type and shape of the inf data')
 
-mli_par_path=os.path.join(mli1_mod1_name + '.par')
+mli_par_path = os.path.join(mli1_mod1_name + '.par')
 
 ##the mli_par_path should be exist, othercase can't work properly!
 try:
@@ -376,11 +375,11 @@ try:
 except Exception as e:
     print(f'An error occurred: {e}')
     sys.exit(1)
-          
-diff_mod1=np.fromfile(diff_mod1_mask_name, np.complex64).byteswap()
-diff_mod2=np.fromfile(diff_mod2_mask_name, np.complex64).byteswap()
-double_diff= diff_mod2*np.conj(diff_mod1)
-diff_double_mask_temp=os.path.join(IFG_folder,pair, pair + '_soi_raw')
+
+diff_mod1 = np.fromfile(diff_mod1_mask_name, np.complex64).byteswap()
+diff_mod2 = np.fromfile(diff_mod2_mask_name, np.complex64).byteswap()
+double_diff = diff_mod2 * np.conj(diff_mod1)
+diff_double_mask_temp = os.path.join(IFG_folder, pair, pair + '_soi_raw')
 double_diff.byteswap().tofile(diff_double_mask_temp)
 
 # #### Redundant interval data, open if you need
@@ -403,7 +402,7 @@ double_diff.byteswap().tofile(diff_double_mask_temp)
 #   # print(f"Command executed successfully: {' '.join(exec_str)}")
 # except subprocess.CalledProcessError as e:
 #   print(f"An error occurred while executing the command: {e}")
-    
+
 # geoc_tif=os.path.join(GEOC_folder,pair, pair + '_soi_pha_raw.geo.tif')
 # exec_str=['data2geotiff', EQA_path, geoc_file,'2', geoc_tif, '0.0' ]
 # try:
@@ -413,26 +412,26 @@ double_diff.byteswap().tofile(diff_double_mask_temp)
 #   print(f"An error occurred while executing the command: {e}")
 # ####
 
-## The subswath interferogram calculated perfectly until here if you don't see any error in your screen. 
+## The subswath interferogram calculated perfectly until here if you don't see any error in your screen.
 ##So next step is to divide the subswath overlap into backward and forward as their precision is different.
 print(BLUE + 'STEP-2: Polygons extraction...' + ENDC)
 print(BLUE + 'bwr and fwr polygons are calculating!' + ENDC)
 
-prime_RSLC=os.path.join(framedir, 'RSLC', prime)
-SLC_par=pg.ParFile(os.path.join(prime_RSLC, prime + '.rslc.par'))
+prime_RSLC = os.path.join(framedir, 'RSLC', prime)
+SLC_par = pg.ParFile(os.path.join(prime_RSLC, prime + '.rslc.par'))
 
 nsubswaths = 3
 TOPS_par = []
-for i in range(1,4):
-    TOPS_file=os.path.join(prime_RSLC, prime + f'.IW{i}.rslc.TOPS_par')
+for i in range(1, 4):
+    TOPS_file = os.path.join(prime_RSLC, prime + f'.IW{i}.rslc.TOPS_par')
     if os.path.exists(TOPS_file):
         TOPS_par.append(pg.ParFile(TOPS_file))
-            
+
 # # read SLC parameters
-r0 = SLC_par.get_value('near_range_slc', index = 0, dtype = float)        # near range distance
-rps = SLC_par.get_value('range_pixel_spacing', index = 0, dtype = float)  # range pixel spacing
-t0 = SLC_par.get_value('start_time', index = 0, dtype = float)            # time of first azimuth line
-tazi = SLC_par.get_value('azimuth_line_time', index = 0, dtype = float)   # time between each azimuth line
+r0 = SLC_par.get_value('near_range_slc', index=0, dtype=float)  # near range distance
+rps = SLC_par.get_value('range_pixel_spacing', index=0, dtype=float)  # range pixel spacing
+t0 = SLC_par.get_value('start_time', index=0, dtype=float)  # time of first azimuth line
+tazi = SLC_par.get_value('azimuth_line_time', index=0, dtype=float)  # time between each azimuth line
 
 # get number of bursts per subswath
 # max_nbursts = 0
@@ -466,21 +465,22 @@ azpix0 = np.zeros((nsubswaths, max_nbursts))
 azpix2 = np.zeros((nsubswaths, max_nbursts))
 
 for sw in range(nsubswaths):
-  for b in range(nbursts[sw]):
-    # read burst window (modified burst window as in previous e-mail)
-    ext_burst_win = TOPS_par[sw].get_value('ext_burst_win_%d' %(b+1))
-    burst_win = TOPS_par[sw].get_value('burst_win_%d' %(b+1))
-    # calculate pixel coordinates of bursts in mosaicked image
-    if burst_win is not None:
-        rpix0[sw, b] = round((float(burst_win[0]) - r0) / rps)  ## When you change the ext_burst_win overlap in azimuth direction become overtook.
-        rpix2[sw, b] = round((float(burst_win[1]) - r0) / rps)
-        azpix0[sw, b] = round((float(burst_win[2]) - t0) / tazi)
-        azpix2[sw, b] = round((float(burst_win[3]) - t0) / tazi)
-    else:
-        rpix0[sw, b] = np.nan
-        rpix2[sw, b] = np.nan
-        azpix0[sw, b] = np.nan
-        azpix2[sw, b] = np.nan
+    for b in range(nbursts[sw]):
+        # read burst window (modified burst window as in previous e-mail)
+        ext_burst_win = TOPS_par[sw].get_value('ext_burst_win_%d' % (b + 1))
+        burst_win = TOPS_par[sw].get_value('burst_win_%d' % (b + 1))
+        # calculate pixel coordinates of bursts in mosaicked image
+        if burst_win is not None:
+            rpix0[sw, b] = round((float(burst_win[
+                                            0]) - r0) / rps)  ## When you change the ext_burst_win overlap in azimuth direction become overtook.
+            rpix2[sw, b] = round((float(burst_win[1]) - r0) / rps)
+            azpix0[sw, b] = round((float(burst_win[2]) - t0) / tazi)
+            azpix2[sw, b] = round((float(burst_win[3]) - t0) / tazi)
+        else:
+            rpix0[sw, b] = np.nan
+            rpix2[sw, b] = np.nan
+            azpix0[sw, b] = np.nan
+            azpix2[sw, b] = np.nan
 
 # First and last range and azimuth pixel of each burst (MLI mosaic / interferogram geometry)
 rpix_ml0 = np.where(np.isnan(rpix0), np.nan, np.round(rpix0 / rlks).astype(int))
@@ -495,7 +495,7 @@ for sw in range(nsubswaths - 1):
     p_inter_sw = []
     for b0 in range(nbursts[sw]):
         if np.isnan(rpix_ml0[sw, b0]) or np.isnan(azpix_ml0[sw, b0]):
-            p_inter_sw.append([None] * nbursts[sw+1])
+            p_inter_sw.append([None] * nbursts[sw + 1])
             continue
         p_inter_b0 = []
         rg_az1 = [
@@ -507,16 +507,16 @@ for sw in range(nsubswaths - 1):
         ]
         p0 = Polygon(rg_az1)
         bursts.append(p0)
-        for b1 in range(nbursts[sw+1]):
-            if np.isnan(rpix_ml0[sw+1, b1]) or np.isnan(azpix_ml0[sw+1, b1]):
+        for b1 in range(nbursts[sw + 1]):
+            if np.isnan(rpix_ml0[sw + 1, b1]) or np.isnan(azpix_ml0[sw + 1, b1]):
                 p_inter_b0.append(None)
                 continue
             rg_az2 = [
-                [rpix_ml0[sw+1, b1], azpix_ml0[sw+1, b1]],
-                [rpix_ml2[sw+1, b1], azpix_ml0[sw+1, b1]],
-                [rpix_ml2[sw+1, b1], azpix_ml2[sw+1, b1]],
-                [rpix_ml0[sw+1, b1], azpix_ml2[sw+1, b1]],
-                [rpix_ml0[sw+1, b1], azpix_ml0[sw+1, b1]],  # Close the polygon
+                [rpix_ml0[sw + 1, b1], azpix_ml0[sw + 1, b1]],
+                [rpix_ml2[sw + 1, b1], azpix_ml0[sw + 1, b1]],
+                [rpix_ml2[sw + 1, b1], azpix_ml2[sw + 1, b1]],
+                [rpix_ml0[sw + 1, b1], azpix_ml2[sw + 1, b1]],
+                [rpix_ml0[sw + 1, b1], azpix_ml0[sw + 1, b1]],  # Close the polygon
             ]
             p1 = Polygon(rg_az2)
             p_inter_b0.append(p0.intersection(p1))
@@ -533,7 +533,7 @@ for sw in range(len(p_inter)):
     # Reset counter when switching to a new sub swath
     if sw == 1:
         counter = 0
-        
+
     # Iterate over bursts in the current sub swath
     for b0 in range(len(p_inter[sw])):
         for b1 in range(len(p_inter[sw][b0])):
@@ -553,7 +553,7 @@ for sw in range(len(p_inter)):
                                 bwr.append(p_inter[sw][b0][b1])
                             else:
                                 fwr.append(p_inter[sw][b0][b1])
-                            counter += 1                            
+                            counter += 1
                         elif (azpix_ml0[2][0] - azpix_ml0[1][0] > 0 and sw == 1):
                             if counter % 2 == 0:
                                 fwr.append(p_inter[sw][b0][b1])
@@ -568,8 +568,8 @@ for sw in range(len(p_inter)):
                             counter += 1
 
 ##saving bwr and fwr as pickle##
-bwrs=os.path.join(IFG_folder,pair,pair +'_bwr.pkl')
-fwrs=os.path.join(IFG_folder,pair,pair + '_fwr.pkl')
+bwrs = os.path.join(IFG_folder, pair, pair + '_bwr.pkl')
+fwrs = os.path.join(IFG_folder, pair, pair + '_fwr.pkl')
 with open(bwrs, 'wb') as f:
     pickle.dump(bwr, f)
 
@@ -580,27 +580,29 @@ with open(fwrs, 'wb') as f:
 print(BLUE + 'STEP-3:Scaling factor and filtering!' + ENDC)
 #######calculating scaling factors
 path_to_slcdir = os.path.join(framedir, 'RSLC', prime)
-sf_array=get_sf_array(path_to_slcdir, f0=5405000500, burst_interval=2.758277)
+sf_array = get_sf_array(path_to_slcdir, f0=5405000500, burst_interval=2.758277)
 
 ###reopen interferogram
 print(f'shape check:{az_line}, {width}')
-dd_cpx=np.fromfile(diff_double_mask_temp, np.complex64).byteswap().reshape(az_line, width)
+dd_cpx = np.fromfile(diff_double_mask_temp, np.complex64).byteswap().reshape(az_line, width)
 
 print(BLUE + 'adf_filtering!!!!' + ENDC)
-def process_diff_data(dd_cpx, polygons_filtered,sf_array, pair, suffix, width, az_line):
-    poly_mask=generate_mask_for_polygons_optimized(dd_cpx.shape, polygons_filtered)
-    poly_raw=np.where(poly_mask, dd_cpx, np.nan)
+
+
+def process_diff_data(dd_cpx, polygons_filtered, sf_array, pair, suffix, width, az_line):
+    poly_mask = generate_mask_for_polygons_optimized(dd_cpx.shape, polygons_filtered)
+    poly_raw = np.where(poly_mask, dd_cpx, np.nan)
     # Replace NaN in real and imaginary parts with 0
     real_part_nonan = np.nan_to_num(poly_raw.real)
     imaginary_part_nonan = np.nan_to_num(poly_raw.imag)
     poly_raw_nonan = real_part_nonan + 1j * imaginary_part_nonan
-    poly_raw_nonan_path = os.path.join(IFG_folder,pair, f"{pair}_{suffix}_soi_nonan")
+    poly_raw_nonan_path = os.path.join(IFG_folder, pair, f"{pair}_{suffix}_soi_nonan")
     poly_raw_nonan.astype(np.complex64).byteswap().tofile(poly_raw_nonan_path)
 
     # ADF filtering
-    poly_adf_path = os.path.join(IFG_folder,pair, f"{pair}_{suffix}_soi_adf")
-    poly_pha_path = os.path.join(IFG_folder,pair, f"{pair}_{suffix}_soi_adf_pha")
-    poly_coh_path = os.path.join(IFG_folder,pair, f"{pair}_{suffix}_soi_adf_coh")
+    poly_adf_path = os.path.join(IFG_folder, pair, f"{pair}_{suffix}_soi_adf")
+    poly_pha_path = os.path.join(IFG_folder, pair, f"{pair}_{suffix}_soi_adf_pha")
+    poly_coh_path = os.path.join(IFG_folder, pair, f"{pair}_{suffix}_soi_adf_coh")
 
     # Execute ADF
     exec_str = ['adf', poly_raw_nonan_path, poly_adf_path, poly_coh_path, str(width), '1', '-', '-', '-', '-', '-', '-']
@@ -623,90 +625,90 @@ def process_diff_data(dd_cpx, polygons_filtered,sf_array, pair, suffix, width, a
     print(f"Phase data loaded for {suffix}")
 
     ###scaling_factor:
-    poly_pha_scaled=poly_pha*sf_array
-    poly_pha_scaled_path = os.path.join(IFG_folder,pair, f"{pair}_{suffix}_soi_adf_scaled")
+    poly_pha_scaled = poly_pha * sf_array
+    poly_pha_scaled_path = os.path.join(IFG_folder, pair, f"{pair}_{suffix}_soi_adf_scaled")
     poly_pha_scaled.astype(np.float32).byteswap().tofile(poly_pha_scaled_path)
-    
+
     return
+
 
 # Loop over both fwr and bwr data
 for suffix, polygons_filtered in [('fwr', fwr), ('bwr', bwr)]:
     # Process each and store the resulting phase data
-    process_diff_data(dd_cpx, polygons_filtered,sf_array, pair, suffix, width, az_line)
+    process_diff_data(dd_cpx, polygons_filtered, sf_array, pair, suffix, width, az_line)
 
 print('HouseKeeping')
 #######################################
 #####producing merged adf and cc values
-bwr_ddif_coh_path=os.path.join(IFG_folder,pair, f"{pair}_bwr_soi_adf_coh")
-fwr_ddif_coh_path=os.path.join(IFG_folder,pair, f"{pair}_fwr_soi_adf_coh")
-bwr_ddif_coh=np.fromfile(bwr_ddif_coh_path, dtype=np.float32).byteswap().reshape(az_line, width)
-fwr_ddif_coh=np.fromfile(fwr_ddif_coh_path, dtype=np.float32).byteswap().reshape(az_line, width)
+bwr_ddif_coh_path = os.path.join(IFG_folder, pair, f"{pair}_bwr_soi_adf_coh")
+fwr_ddif_coh_path = os.path.join(IFG_folder, pair, f"{pair}_fwr_soi_adf_coh")
+bwr_ddif_coh = np.fromfile(bwr_ddif_coh_path, dtype=np.float32).byteswap().reshape(az_line, width)
+fwr_ddif_coh = np.fromfile(fwr_ddif_coh_path, dtype=np.float32).byteswap().reshape(az_line, width)
 ##replace zero2nan
-bwr_ddif_coh[bwr_ddif_coh==0]=np.nan
-fwr_ddif_coh[fwr_ddif_coh==0]=np.nan
+bwr_ddif_coh[bwr_ddif_coh == 0] = np.nan
+fwr_ddif_coh[fwr_ddif_coh == 0] = np.nan
 
-#merging coh..
-ddif_coh_merg=np.copy(fwr_ddif_coh)
-mask_bwr=~np.isnan(bwr_ddif_coh)
-ddif_coh_merg[mask_bwr]=bwr_ddif_coh[mask_bwr]
-ddif_coh_merg_path=os.path.join(IFG_folder,pair, f'{pair}_soi_adf_coh')
+# merging coh..
+ddif_coh_merg = np.copy(fwr_ddif_coh)
+mask_bwr = ~np.isnan(bwr_ddif_coh)
+ddif_coh_merg[mask_bwr] = bwr_ddif_coh[mask_bwr]
+ddif_coh_merg_path = os.path.join(IFG_folder, pair, f'{pair}_soi_adf_coh')
 ddif_coh_merg.astype(np.float32).byteswap().tofile(ddif_coh_merg_path)
 
 ##same for merged adf values:
-bwr_ddif_adf_path=os.path.join(IFG_folder,pair, f'{pair}_bwr_soi_adf_scaled')
-fwr_ddif_adf_path=os.path.join(IFG_folder,pair, f'{pair}_fwr_soi_adf_scaled')
-bwr_ddif_adf=np.fromfile(bwr_ddif_adf_path, dtype=np.float32).byteswap().reshape(az_line, width)
-fwr_ddif_adf=np.fromfile(fwr_ddif_adf_path, dtype=np.float32).byteswap().reshape(az_line, width)
+bwr_ddif_adf_path = os.path.join(IFG_folder, pair, f'{pair}_bwr_soi_adf_scaled')
+fwr_ddif_adf_path = os.path.join(IFG_folder, pair, f'{pair}_fwr_soi_adf_scaled')
+bwr_ddif_adf = np.fromfile(bwr_ddif_adf_path, dtype=np.float32).byteswap().reshape(az_line, width)
+fwr_ddif_adf = np.fromfile(fwr_ddif_adf_path, dtype=np.float32).byteswap().reshape(az_line, width)
 
 ##replace zero2nan
-bwr_ddif_adf[bwr_ddif_adf==0]=np.nan
-fwr_ddif_adf[fwr_ddif_adf==0]=np.nan
+bwr_ddif_adf[bwr_ddif_adf == 0] = np.nan
+fwr_ddif_adf[fwr_ddif_adf == 0] = np.nan
 
-#merging adf..
-ddif_adf_merg=np.copy(fwr_ddif_adf)
-mask_bwr=~np.isnan(bwr_ddif_adf)
-ddif_adf_merg[mask_bwr]=bwr_ddif_adf[mask_bwr]
-ddif_adf_merg=ddif_adf_merg.astype(np.float32)
-ddiff_adf_merg_path=os.path.join(IFG_folder,pair, f'{pair}_soi_adf_scaled')
+# merging adf..
+ddif_adf_merg = np.copy(fwr_ddif_adf)
+mask_bwr = ~np.isnan(bwr_ddif_adf)
+ddif_adf_merg[mask_bwr] = bwr_ddif_adf[mask_bwr]
+ddif_adf_merg = ddif_adf_merg.astype(np.float32)
+ddiff_adf_merg_path = os.path.join(IFG_folder, pair, f'{pair}_soi_adf_scaled')
 ddif_adf_merg.byteswap().tofile(ddiff_adf_merg_path)
 
 ##extra for only adf_nonscaled
 ##same for merged adf values:
-bwr_ddif_adf_nonscale_path=os.path.join(IFG_folder,pair, f'{pair}_bwr_soi_adf_pha')
-fwr_ddif_adf_nonscale_path=os.path.join(IFG_folder,pair, f'{pair}_fwr_soi_adf_pha')
-bwr_ddif_adf_nonscale=np.fromfile(bwr_ddif_adf_nonscale_path, dtype=np.float32).byteswap().reshape(az_line, width)
-fwr_ddif_adf_nonscale=np.fromfile(fwr_ddif_adf_nonscale_path, dtype=np.float32).byteswap().reshape(az_line, width)
+bwr_ddif_adf_nonscale_path = os.path.join(IFG_folder, pair, f'{pair}_bwr_soi_adf_pha')
+fwr_ddif_adf_nonscale_path = os.path.join(IFG_folder, pair, f'{pair}_fwr_soi_adf_pha')
+bwr_ddif_adf_nonscale = np.fromfile(bwr_ddif_adf_nonscale_path, dtype=np.float32).byteswap().reshape(az_line, width)
+fwr_ddif_adf_nonscale = np.fromfile(fwr_ddif_adf_nonscale_path, dtype=np.float32).byteswap().reshape(az_line, width)
 
 ##replace zero2nan
-bwr_ddif_adf_nonscale[bwr_ddif_adf_nonscale==0]=np.nan
-fwr_ddif_adf_nonscale[fwr_ddif_adf_nonscale==0]=np.nan
+bwr_ddif_adf_nonscale[bwr_ddif_adf_nonscale == 0] = np.nan
+fwr_ddif_adf_nonscale[fwr_ddif_adf_nonscale == 0] = np.nan
 
-#merging adf..
-ddif_adf_nonscale_merg=np.copy(fwr_ddif_adf_nonscale)
-mask_bwr=~np.isnan(bwr_ddif_adf_nonscale)
-ddif_adf_nonscale_merg[mask_bwr]=bwr_ddif_adf_nonscale[mask_bwr]
-ddif_adf_nonscale_merg=ddif_adf_nonscale_merg.astype(np.float32)
-ddiff_adf_nonscale_merg_path=os.path.join(IFG_folder,pair, f'{pair}_soi_adf_unscaled')
+# merging adf..
+ddif_adf_nonscale_merg = np.copy(fwr_ddif_adf_nonscale)
+mask_bwr = ~np.isnan(bwr_ddif_adf_nonscale)
+ddif_adf_nonscale_merg[mask_bwr] = bwr_ddif_adf_nonscale[mask_bwr]
+ddif_adf_nonscale_merg = ddif_adf_nonscale_merg.astype(np.float32)
+ddiff_adf_nonscale_merg_path = os.path.join(IFG_folder, pair, f'{pair}_soi_adf_unscaled')
 ddif_adf_nonscale_merg.byteswap().tofile(ddiff_adf_nonscale_merg_path)
 
-for prefix in ['coh', 'scaled']:  #unscaled
-    phase_data = os.path.join(IFG_folder,pair, f'{pair}_soi_adf_{prefix}')
-    geoc_file=os.path.join(GEOC_folder,pair, f'{pair}_soi_adf_{prefix}.geo')
-    exec_str=['geocode_back', phase_data, str(width), lt_fine_file, geoc_file, str(widthgeo), '0', '0', '0']
+for prefix in ['coh', 'scaled']:  # unscaled
+    phase_data = os.path.join(IFG_folder, pair, f'{pair}_soi_adf_{prefix}')
+    geoc_file = os.path.join(GEOC_folder, pair, f'{pair}_soi_adf_{prefix}.geo')
+    exec_str = ['geocode_back', phase_data, str(width), lt_fine_file, geoc_file, str(widthgeo), '0', '0', '0']
     try:
-    #   subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
-      subprocess.run(exec_str, check=True)
+      subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
       # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
-      print(f"An error occurred while executing the command: {e}")
-        
-    geoc_tif=os.path.join(GEOC_folder,pair, f'{pair}_soi_adf_{prefix}.geo.tif')
-    exec_str=['data2geotiff', EQA_path, geoc_file,'2', geoc_tif, '0.0']
+        print(f"An error occurred while executing the command: {e}")
+
+    geoc_tif = os.path.join(GEOC_folder, pair, f'{pair}_soi_adf_{prefix}.geo.tif')
+    exec_str = ['data2geotiff', EQA_path, geoc_file, '2', geoc_tif, '0.0']
     try:
-      subprocess.run(exec_str, check=True)
+      subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
       # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
-      print(f"An error occurred while executing the command: {e}")
+        print(f"An error occurred while executing the command: {e}")
 
 print('All done!')
 
@@ -718,6 +720,6 @@ print('All done!')
 # out_file.close()
 # err_file.close()
 
-end_time=time.time()
+end_time = time.time()
 execution_time = end_time - start_time
 print(f"SBOI generated in {round(execution_time)} seconds, You're welcome..")
