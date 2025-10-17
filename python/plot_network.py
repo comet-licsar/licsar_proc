@@ -204,6 +204,7 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
             # store the bursts without coverage to external file for fast-loading it later
             try:
                 pd.DataFrame(epochdates_outburst)[0].to_csv(temp_outbursts, header=False, index=False)
+                os.system('chmod 777 '+temp_outbursts)
             except:
                 print('DEBUG: cannot save the temp data to '+temp_outbursts)
             ax.scatter(epochdates_outburst, np.zeros(len(epochdates_outburst)), facecolors='none', edgecolors='gray', label='existing acquisition with no frame burst (debug)')
