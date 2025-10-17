@@ -226,6 +226,8 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
 #%% File setting
 try:
     framedir = sys.argv[1]
+    if framedir.endswith('/'):
+        framedir=framedir[:-1]
     pngfile = sys.argv[2] 
     gapfile = sys.argv[3]
     try:
@@ -244,11 +246,13 @@ except:
 
 ifgdir = os.path.join(framedir, 'interferograms')
 bperp_file = os.path.join(framedir, 'metadata', 'baselines')
+# try extract the frame id from folder name...
+frame=os.path.basename(framedir)
 frameprocdir = os.path.join(os.environ['LiCSAR_procdir'], str(int(frame[:3])), frame)
 if os.path.exists(frameprocdir):
     temp_outbursts = os.path.join(frameprocdir, 'tmp.outburst_epochs.txt')
 else:
-    temp_outbursts = 'tmp.outburst_epochs.txt'
+    temp_outbursts = os.path.join(framedir, 'tmp.outburst_epochs.txt')
 
 if not os.path.exists(ifgdir):
     # update to have it work in BATCH_CACHE_DIR
