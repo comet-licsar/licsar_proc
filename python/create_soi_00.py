@@ -5,20 +5,22 @@ Created on 10/02/2024
 University of Leeds
 Gamma Remote Sensing
 contact: mr.nergizci@gmail.com
+
+This script will prepare
 '''
 import argparse
 import numpy as np
 import os
 import py_gamma as pg
 import sys
-import subprocess
+# import subprocess
 import shutil
 import time
 import multiprocessing as mp
 import LiCSAR_misc as misc
 from modules_sw_mn import *  # functions saved here
-import lics_unwrap as lu
-import pickle
+# import lics_unwrap as lu
+# import pickle
 
 BLUE = '\033[94m'
 ORANGE = '\033[38;5;208m'

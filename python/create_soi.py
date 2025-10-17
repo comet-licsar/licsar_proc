@@ -89,7 +89,7 @@ if not os.path.exists(temp_file):
 # sys.stderr = err_file
 # print("Redirection complete")  # this will only go to log
 
-breakpoint()
+# breakpoint()
 ###variable names
 SLC1_tab_mod1_name = os.path.join(tab_folder, prime + '_mod1.SLC_tab')
 SLC1_tab_mod2_name = os.path.join(tab_folder, prime + '_mod2.SLC_tab')
