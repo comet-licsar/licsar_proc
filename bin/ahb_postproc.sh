@@ -105,12 +105,23 @@ if [ ! -f $ahbdir/$outframe.cum.h5 ]; then
  cp TS_$geocd/cum.h5 $ahbdir/$outframe.cum.h5
 fi
 echo ""
-# nah, we will instead downsample the original ENUs and hgt + apply gdalwarp2match.py - I will do it (Milan)
-#for x in U E N hgt; do
-#  if [ ! -f $frame.$x.geo.tif ]; then
-#    LiCSBAS_flt2geotiff.py -i $geocd/$x -p $geocd/EQA.dem_par -o $frame.$x.geo.tif
-#  fi
-#done
+
+for x in U E N hgt; do
+  if [ ! -f $frame.$x.geo.tif ]; then
+    LiCSBAS_flt2geotiff.py -i $geocd/$x -p $geocd/EQA.dem_par -o $frame.$x.geo.tif
+  fi
+  if [ ! -f $ahbdir/$frame.$x.geo.tif ]; then
+   cp $frame.$x.geo.tif $ahbdir/.
+  fi
+done
+
+if [ ! -f $ahbdir/metadata.txt ]; then
+  cdpub $frame
+  cp metadata/metadata.txt $ahbdir/.
+  cd -
+fi
+
+chmod 777 $ahbdir/* 2>/dev/null
 
 echo "done. Basic info on the dataset"
 info=`ls TS_$geocd/info/13used_image.txt`
@@ -126,6 +137,17 @@ cat TS_$geocd/results/vstd_rescaling_parameters.txt
 echo ""
 
 exit
+
+
+
+
+
+
+
+
+
+
+
 
 below are comments to the other things:
 
