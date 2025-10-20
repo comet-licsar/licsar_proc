@@ -172,6 +172,7 @@ if __name__ == "__main__":
     if args.epoch_list:
         with open(args.epoch_list, "r") as f:
             epochs = [line.strip() for line in f if line.strip()]
+        epochs = list(set(epochs)) # possible duplicities?
     else:
         epochs = [epoch for epoch in os.listdir(RSLC_folder) if os.path.isdir(os.path.join(RSLC_folder, epoch))]
 
