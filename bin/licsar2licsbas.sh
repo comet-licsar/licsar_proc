@@ -669,23 +669,25 @@ if [ "$setides" -gt 0 ]; then
         fi
 
         if [ -f "$tided1" ] && [ -f "$tided2" ]; then
+          # 2025/10: the gridline vs pixel registration was really pain... instead, just using the python command - bit slower but works..
+          ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
           #echo $pair
-          if [ "$(gmt grdinfo "$infile" | grep registration | awk '{print $2}')" == "$regt" ]; then #Pixel ]; then ## (either "Pixel" or "Gridline")
-            if [ "$sbovl" -le 0 ]; then
-              gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 226.56 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff ##226=(4*np.pi)/(0.055465) for m2rad
-            else
-              gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 1000 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff  ##1000 for m2mm
-            fi
-          else
-            # half pixel issue in older frames! but ok for tides, so:
-            # echo "print('"$pair"')" >> $tmpy
-            echo "Warning, the pair $pair is in pixel registration. Slower workaround"
-            ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
-            #echo "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
-            
-            # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
-			      # may work anyway...
-          fi
+          #if [ "$(gmt grdinfo "$infile" | grep registration | awk '{print $2}')" == "$regt" ]; then #Pixel ]; then ## (either "Pixel" or "Gridline")
+          #  if [ "$sbovl" -le 0 ]; then
+          #    gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 226.56 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff ##226=(4*np.pi)/(0.055465) for m2rad
+          #  else
+          #    gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 1000 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff  ##1000 for m2mm
+          #  fi
+          #else
+          #  # half pixel issue in older frames! but ok for tides, so:
+          #  # echo "print('"$pair"')" >> $tmpy
+          #  echo "Warning, the pair $pair is in pixel registration. Slower workaround"
+          #  ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
+          #  #echo "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
+          #
+          #  # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
+			    #  # may work anyway...
+          #fi
 
           if [ -f "$outfile" ]; then
             rm "$infile" # only removing the link

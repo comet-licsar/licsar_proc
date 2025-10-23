@@ -20,6 +20,7 @@ t2 = r.open_rasterio(t2f).squeeze()
 # Replace height values with interferogram values
 h = h.copy()
 h.values = i.values
+h=h.where(h!=0)
 
 # Compute dt based on file naming
 if "bovl" in ifile:  # Check if 'bovl' is in filename
