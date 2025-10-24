@@ -281,7 +281,9 @@ if [ $l2l2q -gt 0 ]; then
   cmd="bsub2slurm.sh -o l2l_"$frame".out -e l2l_"$frame".err -J l2l_"$frame" -n 1 -W "$whours":59 -M 16384 ./l2l_"$frame".in"
   echo $cmd > l2l_$frame'_lotus.sh'
   chmod 777 l2l_$frame'_lotus.sh'
+  echo "Sending the procedure to the LOTUS queue"
   ./l2l_$frame'_lotus.sh'
+  exit
 fi
 
 if [ $thres == $thresdef ]; then
