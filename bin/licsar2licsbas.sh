@@ -243,13 +243,17 @@ shift $((OPTIND -1))
 if [ $l2l2q -gt 0 ]; then
   echo $discmd | sed 's/\-Q//' > l2l_$frame.in
   chmod 777 l2l_$frame.in
-  if [ $longprep -gt 1 ]; then
-    whours=47  # will go through 'high' partition
+  if [ $longprep -gt 2 ]; then
+    whours=91  # will use long qos
+  elif [ $longprep -gt 1 ]; then
+    whours=47  # will go through 'high' qus
+  elif [ $longprep -eq 1 ]; then
+    whours=23  # will remain in standard qos
   else
-    whours=23  # will remain in standard partition
+    whours=03 # use short (high priority queue)
   fi
-  # if 2 days is not enough, we can add long partition, but will need to use squeue directly. check https://help.jasmin.ac.uk/docs/batch-computing/slurm-queues/
-  cmd="bsub2slurm.sh -o l2l_"$frame".out -e l2l_"$frame".err -J l2l_"$frame" -n 1 -W "$whours":59 -M 16384 -q short-serial ./l2l_"$frame".in"
+  # see https://help.jasmin.ac.uk/docs/batch-computing/slurm-queues/
+  cmd="bsub2slurm.sh -o l2l_"$frame".out -e l2l_"$frame".err -J l2l_"$frame" -n 1 -W "$whours":59 -M 16384 ./l2l_"$frame".in"
   echo $cmd > l2l_$frame'_lotus.sh'
   chmod 777 l2l_$frame'_lotus.sh'
   ./l2l_$frame'_lotus.sh'

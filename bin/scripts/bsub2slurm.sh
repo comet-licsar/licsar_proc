@@ -74,7 +74,7 @@ while true; do
             shift 2
             ;;
         -W)
-            cmd=$cmd' --time='"$2"':00'
+            cmd=$cmd' --time='"$2"':59'
             hours=`echo $2 | cut -d ':' -f1 | sed 's/^0//'`
             shift 2
             ;;
@@ -195,14 +195,14 @@ done
 cmd=$cmd' --mem='$memm
 #if [ $lotusversion -gt 1 ]; then
 if [ $qos == 'standard' ]; then
-    #if [ $hours -gt 47 ]; then
-    #  qos='long';
-    if [ $hours -gt 23 ]; then
+    if [ $hours -gt 47 ]; then
       qos='long';
+    elif [ $hours -gt 23 ]; then
+      qos='high';
     #elif [ $hours -gt 23 ]; then
     #  qos='highres'
-    #elif [ $hours -lt 5 ]; then
-    #  qos='short'   # seems short does not exist??
+    elif [ $hours -lt 4 ]; then
+      qos='short';   # seems short does not exist??
     fi
     # see https://help.jasmin.ac.uk/docs/batch-computing/how-to-submit-a-job/
     cmd=$cmd' --partition=standard --qos='$qos
