@@ -239,11 +239,32 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOQBPpRrLwkXC:G:E:t:n:" option; do
 done
 shift $((OPTIND -1))
 
+
+# LOCAL OR FROM LICSAR_PUBLIC?
+if [ -d GEOC ]; then
+ echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
+ dolocal=1;
+fi
+
+# frame info
+if [ -f sourceframe ]; then frame=`cat sourceframe`; echo "setting frame from sourceframe file to "$frame;
+    else frame=$1;
+fi
+
+if [ `echo $frame | grep -c '_'` -lt 1 ]; then
+ echo "no frame ID identified - check your input parameters please. Trying to continue, please ignore warning/error messages.."
+ sleep 2
+ dolocal=1
+ if [ ! -d GEOC ]; then echo "sorry, but GEOC folder does not exist here - cannot proceed"; exit; fi
+fi
+
+# START BY ENSURING WE HAVE GACOS DATA
 if [ $dogacos == 1 ]; then
   echo "update 20250124 - running gacos request for this (whole) frame, just in case we missed some epochs"
   framebatch_update_gacos.sh $frame
 fi
 
+# ONLY NOW WE CAN RUN TO QUEUE
 if [ $l2l2q -gt 0 ]; then
   echo $discmd | sed 's/\-Q//' > l2l_$frame.in
   chmod 777 l2l_$frame.in
@@ -310,22 +331,6 @@ else
 fi
 
 
-if [ -d GEOC ]; then
- echo "warning - GEOC folder detected. will use its contents for processing, rather than link from LiCSAR_public"
- dolocal=1;
-fi
-
-# frame info
-if [ -f sourceframe ]; then frame=`cat sourceframe`; echo "setting frame from sourceframe file to "$frame;
-    else frame=$1;
-fi
-
-if [ `echo $frame | grep -c '_'` -lt 1 ]; then
- echo "no frame ID identified - check your input parameters please. Trying to continue, please ignore warning/error messages.."
- sleep 2
- dolocal=1
- if [ ! -d GEOC ]; then echo "sorry, but GEOC folder does not exist here - cannot proceed"; exit; fi
-fi
 
 
 
