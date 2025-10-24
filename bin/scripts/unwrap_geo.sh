@@ -41,8 +41,12 @@ else
   coh=$ifgdir/$ifgid.geo.cc.tif
 fi
 outunw=$ifgdir/$ifgid.geo.unw.tif
-
+outunwpng=$ifgdir/$ifgid.geo.unw.png
 if [ -f $outunw ]; then
+  if [ ! -f $outunwpng ]; then
+    echo "regenerating missing preview"
+    create_preview_unwrapped $outunw $frame
+  fi
  echo "the unw file already exists, cancelling"
  exit
 fi
