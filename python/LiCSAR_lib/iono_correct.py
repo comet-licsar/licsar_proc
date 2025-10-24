@@ -549,17 +549,17 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                                     
                     
 # test frame: 144A_04689_111111
-def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height_km=450, alpha=0.85, sbovl=False,
+def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height_km=290, alpha=0.85, sbovl=False,
                           startdate='20141001', enddate=None, localstore=False):
-    ''' use either 'code' or 'iri' as the source model for the correction
+    ''' use either 'code' or 'iri' as the source model for the correction - note 'code' would actually try getting JPL GIM by default - will change the name
     This function will generate ionosphere phase screens (LOS) [rad] per epoch.
 
     Args:
         frame (str)
         source (str): either 'iri' or 'code'
         epochslist (list): e.g. ['20180930', '20181012'] - if given, only IPS for only those epochs are created, otherwise for all epochs
-        fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if None, it will use IRI to estimate ionospheric height
-        alpha (float): for CODE only
+        fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if None, it will use IRI to estimate ionospheric height. Probably 290 km is better estimation..
+        alpha (float): for CODE only (0.85 was a common guess during calm ionosphere. it might dynamically change - ongoing investigation)
         sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points
         startdate (str): Start date for filtering epochs, format "YYYYMMDD".
         enddate (str): End date for filtering epochs, format "YYYYMMDD".
