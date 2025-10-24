@@ -239,6 +239,10 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOQBPpRrLwkXC:G:E:t:n:" option; do
 done
 shift $((OPTIND -1))
 
+if [ $dogacos == 1 ]; then
+  echo "update 20250124 - running gacos request for this (whole) frame, just in case we missed some epochs"
+  framebatch_update_gacos.sh $frame
+fi
 
 if [ $l2l2q -gt 0 ]; then
   echo $discmd | sed 's/\-Q//' > l2l_$frame.in
@@ -382,8 +386,6 @@ source $metadir/metadata.txt #this will bring 'master=' info
 mkdir GEOC 2>/dev/null
 if [ $dogacos == 1 ]; then
   mkdir -p GACOS # 2>/dev/null
-  echo "update 20250124 - running gacos request for this frame, just in case we missed some epochs"
-  framebatch_update_gacos.sh $frame
   #echo "debug gacos 1"
 fi
 
