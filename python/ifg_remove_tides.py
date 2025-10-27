@@ -18,15 +18,16 @@ t1 = r.open_rasterio(t1f).squeeze()
 t2 = r.open_rasterio(t2f).squeeze()
 
 # Replace height values with interferogram values
-h = h.copy()
+# h = h.copy()
 h.values = i.values
 h=h.where(h!=0)
 
+dt = h.copy()
 # Compute dt based on file naming
 if "bovl" in ifile:  # Check if 'bovl' is in filename
-    dt = (t1 - t2) * 1000 # Convert m2mm
+    dt.values = (t1.values - t2.values) * 1000 # Convert m2mm
 else:
-    dt = (t1 - t2) * 226.56 #Convert m2rad
+    dt.values = (t1.values - t2.values) * 226.56 #Convert m2rad
 
 # Apply phase correction
 h.values = h.values - dt.values
