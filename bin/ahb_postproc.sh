@@ -31,7 +31,7 @@ rumble=0
 outframe=`pwd | rev | cut -d '/' -f 1 | rev` # will solve the '_2' etc naming
 if [ -z $frame ]; then echo "please provide the frame ID"; exit; fi
 if [ ! -z $3 ]; then ovr=$3; echo "setting overwrite flag to "$ovr; fi
-if [ ! -z $4 ]; then rumble=$4; echo "setting rumble flag to "$ovr; fi
+if [ ! -z $4 ]; then rumble=$4; echo "setting rumble flag to "$rumble; fi
 #frame=$outf`pwd | rev | cut -d '/' -f 1 | rev`; echo "assuming frame "$frame; fi
 ahbdir=$LiCSAR_public/AHB/$outframe
 
@@ -149,9 +149,10 @@ echo ""
 if [ $rumble -eq 1 ]; then
   echo "ok, storing needed data to vol1 disk (takes time)"
   ahblbdir=$LiCSAR_public/AHB_licsbas
-  if [ -d $ahblbdir/$frame ]; then mv $ahblbdir/$frame $ahblbdir/old_results2/.; fi
+  if [ -d $ahblbdir/$frame ]; then mv $ahblbdir/$frame $ahblbdir/$frame.old_results2; fi
   mkdir -p $ahblbdir/$frame
   for x in *.in *.sh *err *.out *png *tif log TS_$geocd *txt; do cp -r $x $ahblbdir/$frame/.; done
+  chmod -R 775 $ahblbdir/$frame
   echo "done, finally move this frame to complete dir"
   cd ..; mkdir -p stored; mv $frame stored/.;
 fi
