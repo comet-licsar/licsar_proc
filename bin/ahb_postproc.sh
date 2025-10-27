@@ -1,13 +1,14 @@
 #!/bin/bash
 
 if [ -z $1 ]; then
- echo "Usage: ahb_postproc.sh FINALGEOCDIR frameID [ovrflag]"
+ echo "Usage: ahb_postproc.sh FINALGEOCDIR frameID [ovrflag] [rumble]"
  echo "e.g.:  ahb_postproc.sh GEOCml10GACOSmask 155D_02611_050400 1"
  echo "This script will perform extra processing and copying of outputs after finished LiCSBAS processing" # licsar2licsbas.sh"
  echo "PLEASE run it inside your frame directory (where you have GEOCmlX and TS_GEOCmlX directories)"
  echo "frameID MUST BE PROVIDED - please use the WHOLE FRAME ID as in LiCSAR. If you have the $frame'_2' etc and you are in such named folder, it will auto-identify it"
  echo "the FINALGEOCDIR must be the last one, for which you have TS_... folder existing"
  echo "please add '1' (as ovrflag) if you HAVE UPDATED MASK (and processed with step 16) to OVERWRITE EXISTING in AHB folder"
+ echo "if you set 'rumble' to 1, it will get bit wild, but should update things as needed.. "
  #echo "parameters: GEOCDIR frameID"
  #echo "e.g. GEOCml10GACOSmask 155D_02611_050400"
  echo "--------"
@@ -26,11 +27,19 @@ fi
 geocd=$1
 frame=$2
 ovr=0
+rumble=0
 outframe=`pwd | rev | cut -d '/' -f 1 | rev` # will solve the '_2' etc naming
 if [ -z $frame ]; then echo "please provide the frame ID"; exit; fi
+if [ ! -z $3 ]; then ovr=$3; echo "setting overwrite flag to "$ovr; fi
+if [ ! -z $4 ]; then rumble=$4; echo "setting rumble flag to "$ovr; fi
 #frame=$outf`pwd | rev | cut -d '/' -f 1 | rev`; echo "assuming frame "$frame; fi
 ahbdir=$LiCSAR_public/AHB/$outframe
 
+if [ $rumble -eq 1 ]; then
+  rmdir $ahbdir 2>/dev/null
+  if [ -d $ahbdir ]; then mv $ahbdir $LiCSAR_public/AHB/old_results2/.; fi
+  mkdir -p $ahbdir;
+fi
 if [ ! -d $ahbdir ]; then echo "ERROR, this directory does not exist: "$ahbdir; exit; fi
 
 if [ ! -f TS_$geocd/cum_filt.h5 ]; then
@@ -135,6 +144,18 @@ echo $frst'-'$lst','$noim','$noifgs
 cat TS_$geocd/results/vstd_rescaling_parameters.txt
 
 echo ""
+
+
+if [ $rumble -eq 1 ]; then
+  echo "ok, storing needed data to vol1 disk (takes time)"
+  ahblbdir=$LiCSAR_public/AHB_licsbas
+  if [ -d $ahblbdir/$frame ]; then mv $ahblbdir/$frame $ahblbdir/old_results2/.; fi
+  mkdir -p $ahblbdir/$frame
+  for x in *.in *.sh *err *.out *png *tif log TS_$geocd *txt; do cp -r $x $ahblbdir/$frame/.; done
+  echo "done, finally move this frame to complete dir"
+  cd ..; mkdir -p stored; mv $frame stored/.;
+fi
+
 
 exit
 

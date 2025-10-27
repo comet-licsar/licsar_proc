@@ -1402,7 +1402,7 @@ if [ $run_jasmin -eq 1 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
-  if [ $gacos -gt 0 ]; then
+  if [ $dogacos -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer gacos"
     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GACOS', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False)\"" >> jasmin_run.sh
   fi
