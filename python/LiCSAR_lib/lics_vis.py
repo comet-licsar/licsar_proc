@@ -116,7 +116,7 @@ def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims
 
     We only modified this for CIW 2024 tutorial purposes on LiCSBAS'''
     # print("%matplotlib widget")
-    from IPython.display import Image
+    from PIL import Image
     # first of all generate the left plot:
     tempng = '/tmp/pygmt_pi.png'
     grid = cube['vel']
