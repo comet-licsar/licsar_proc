@@ -7,6 +7,12 @@ if [ -z $1 ]; then
  exit
 fi
 
+if [ -f ~/.cdsapi ]; then
+  if [ `grep -c beta ~/.cdsapi` -gt 0 ]; then
+    echo "ERROR - please update your .cdsapi file - remove the 'beta' from URL"
+    exit
+  fi
+fi
 
 frame=$1
 epoch=$2
