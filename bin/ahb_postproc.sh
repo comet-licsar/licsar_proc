@@ -102,11 +102,11 @@ if [ ! -f $outprd ]; then
 fi
 #
 echo "... checking and copying cum.h5 file, EQA par etc as needed"
-if [ $ovr -gt 0 ]; then
+#if [ $ovr -gt 0 ]; then
 cp TS_$geocd/mask_ts.png $ahbdir/$outframe'_mask_ts.png'
 cp TS_$geocd/network/network13.png $ahbdir/$outframe'_network.png'
 cp TS_$geocd/cum.h5  $ahbdir/$outframe.cum.h5
-fi
+#fi
 if [ ! -f $ahbdir/$outframe.EQA.dem_par ]; then
  cp $eqapar $ahbdir/$outframe.EQA.dem_par
 fi
