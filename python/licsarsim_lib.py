@@ -10,7 +10,8 @@ Inputs:
  - heading, centre inc angle, centre inc angle
  - other params (corresponding to Sentinel-1 IW 'mid-swath')
 Outputs:
- - geocoded simulated intensity
+ - geocoded simulated intensity --- this is comparable to the original SAR sigma0 [dB], i.e. after using radcal_MLI and then convert to dB (10*log10)
+ - geocoded pixel area --- not clear if necessary, but sim_sigma0/pxarea is indeed closer to the original SAR sigma0 [dB]
 
 This will:
  - estimate satellite position (update SOVs) - primary contribution here
@@ -120,9 +121,10 @@ for vv in `ls -d [1-9]*[0-9]`; do
   nomli=0
  fi
   #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated - 1 >/dev/null 2>/dev/null;
-  echo "which one should we use...."
+  # echo "which one should we use...."
+  echo "creating radcal sigma0 including range spreading calibration" # yes, we want to calibrate for the 'distance in range difference in spread'
   radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0 - 1 - 1 >/dev/null 2>/dev/null;
-  radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0.norloss - - - 1 >/dev/null 2>/dev/null;
+  # radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.sigma0.norloss - - - 1 >/dev/null 2>/dev/null 
   #radcal_MLI $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par - $slcdir/$m/$m.$slcc.mli.calibrated.gamma0 - 1 - 2 >/dev/null 2>/dev/null;
   #radcal.py $slcdir/$m/$m.$slcc.mli $slcdir/$m/$m.$slcc.mli.par $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0 $slcdir/$m/$m.$slcc.mli.calibrated.locinc.gamma0.par 1 4 --DEM geo/EQA.dem --DEM_par geo/EQA.dem_par --lt geo/$mas.lt_fine --inc geo/inc --hgt geo/$mas.hgt --fill 0 --ls_map geo/ls_map >/dev/null 2>/dev/null;
   
@@ -449,7 +451,7 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
     cmdone = runcmd(cmd, "Exporting to "+simsartif)
     pixareamaptif = pixareamap+'.tif'
     cmd = ['data2geotiff', demsegpar, pixareamap, gdtype, pixareamaptif]
-    runcmd(cmd, "Exporting to "+pixareamaptif+' (this should be more correct sigma0, might be comparable to radcal_MLI output? to check)')
+    runcmd(cmd, "Exporting to "+pixareamaptif+' (sigma0/pixarea should be more comparable to sigma0 from radcal_MLI [dB], although extra scaling is needed)')
     if cmdone:
         print('done. to preview, do (in python):')
         #print('note, simsar output is probably amplitude [dB], i.e. log10(sqrt(intensity))')
