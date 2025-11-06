@@ -392,6 +392,7 @@ def simulate_intensity(indem = 'dem_crop.dem', simparams = None, extraext = '', 
         simparams (dict): output of extract_simparams()
         extraext (str): extra text in the output filenames (before the extension)
         mlipar (str): optionally, to use an existing mli par (instead of simparams)
+        tryovs (bool): if True, it will generate oversampled product - for testing
     Returns:
         str (path to the generated sim sar tiff)
     '''
