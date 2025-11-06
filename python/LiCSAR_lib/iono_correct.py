@@ -292,8 +292,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     """
     Args:
         ...
-        fixed_f2_height_km (int or None): CODE is valid for h=450. Still, if None, it will use IRI2016 to estimate the height (in mid point between scene centre and satellite)
-        alpha (float): used only for 'CODE' - standard value is 0.85
+        fixed_f2_height_km (int or None): CODE/JPL is valid for h=450 but ~280 km should be better guess. If None, it will use IRI to estimate the height (in mid point between scene centre and satellite)
+        alpha (float): used only for GIM (CODE or JPL) - standard value is 0.85; but can use 'auto' (since 11/2025)
         return_phase (bool): if not, it will return TEC, otherwise returns phase
         sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points #TODO can be more precise for subswath overlap. 
         outif (str or None): output tif filename - if None, it will continue without saving
@@ -301,6 +301,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     Returns:
         xr.DataArray
     """
+    if source == 'jpl':
+        source = 'code' # TODO... both try JPL and revert to CODE
     #if source == 'code':
     #    # this is to grid to less points:
     #    ionosampling=10000 # m 
@@ -366,13 +368,14 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
         #hiono = 450
         hiono = fixed_f2_height_km
     else:
-        # get estimated hiono from IRI2016 in that middle point (F2 peak altitude):
+        # get estimated hiono from IRI in that middle point (F2 peak altitude):
         try:
-            tecs, hionos = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
-                            returnhei=True)
+            tecs, hionos, alphas = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
+                            returnhei=True, alpha = alpha, returnalpha = True)
             hiono = hionos[0]
+            alpha = alphas[0]
         except:
-            print('error in IRI2016, perhaps not installed? Setting standard F2 peak altitude')
+            print('error in IRI, perhaps not installed? Setting 450 km')
             hiono = 450
     print('Getting IPP in the altitude of {} km'.format(str(int(hiono))))
     hiono = hiono * 1000  # m
@@ -627,3 +630,28 @@ def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height
         if not localstore:
             os.system('cedaarch_create_html.sh {0} {1} epochs'.format(frame, str(epoch)))
 
+
+def test_corr_iono(csv):
+    from sklearn.linear_model import HuberRegressor
+    ''' this will use the csv file that includes TEC, and would correlate and then also correct '''
+    #gg = pd.read_csv(os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame + '.azirg.csv'),
+    #            index_col=0)
+    gg = pd.read_csv(csv, index_col=0)
+    #gg = gg.sort_values('epoch')
+    #gg = gg.set_index('epoch')
+    # xdaz = gg.daz.values * 14000
+    xdaz = (gg.daz - gg.daz_iono).values * 14000  # mm
+    # x = gg[firstindex:].drg_iono_mm.values
+    ytec = gg.dTECS.values
+
+    huber = HuberRegressor()
+    rc = huber.fit(x.reshape(-1, 1), y)
+    slope = huber.coef_[0]
+
+    coefficients = np.polyfit(x, y, 1)
+
+    # Extract the slope (a) and intercept (b)
+    ca, cb = coefficients
+
+    print(f"Slope (a): {ca}")
+    print(f"Intercept (b): {cb}")
