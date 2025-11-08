@@ -139,7 +139,7 @@ def slant_ranges(frame, master, range2iono):
     
     return ds
 
-def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 450, outif=None):
+def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 450, alpha = 0.85, outif=None):
     """ This will generate ionospheric correction for given frame-pair.
     It would optionally output the result to a geotiff.
     
@@ -148,7 +148,8 @@ def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height
         pair (str):     pair (e.g. '20180930_20181012')
         sbovl (bool):   if the sbovl true, ionospheric gradient calculated
         source (str):   source model for TEC values. Either 'iri' or 'code'.
-        fixed_f2_height_km (int):  if None, it will estimate this using IRI
+        fixed_f2_height_km (int):  if 'auto', it will estimate this using IRI
+        alpha (float):  if 'auto', it will estimate this using IRI
         outif (str):    if given, will export the iono phase screen to given geotiff
     Returns:
         xr.DataArray:   estimated ionospheric phase screen
@@ -162,11 +163,11 @@ def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height
         if os.path.exists(tecphase1):
             tecphase1 = load_tif2xr(tecphase1)
         else:
-            tecphase1 = make_ionocorr_epoch(frame, epochs[0], fixed_f2_height_km = fixed_f2_height_km, source = source)
+            tecphase1 = make_ionocorr_epoch(frame, epochs[0], fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, source = source)
         if os.path.exists(tecphase2):
             tecphase2 = load_tif2xr(tecphase2)
         else:
-            tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, source = source)
+            tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, source = source)
         # do their difference
         tecdiff = tecphase1 - tecphase2
         #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
@@ -368,12 +369,16 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
         #hiono = 450
         hiono = fixed_f2_height_km
     else:
+        print('estimating altitude of F2 peak')
         # get estimated hiono from IRI in that middle point (F2 peak altitude):
         try:
             tecs, hionos, alphas = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
                             returnhei=True, alpha = alpha, returnalpha = True)
             hiono = hionos[0]
             alpha = alphas[0]
+            print('Hiono = '+str(hiono))
+            if alpha == 'auto':
+                print('alpha = '+str(alpha))
         except:
             print('error in IRI, perhaps not installed? Setting 450 km')
             hiono = 450
