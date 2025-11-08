@@ -476,7 +476,9 @@ fi
 
 
 if [ $dogacos == 1 ]; then
-for epoch in `ls $epochdir`; do
+for epochpath in `ls -d $epochdir/20*`; do
+  epoch=$(basename "$epochpath")
+  # echo $epoch
   if [ $epoch -ge $startdate ] && [ $epoch -le $enddate ]; then
     gacosfile=$epochdir/$epoch/$epoch.sltd.geo.tif
     if [ -f $gacosfile ]; then
