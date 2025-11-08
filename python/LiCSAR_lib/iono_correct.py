@@ -467,7 +467,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     theta = float(np.radians(incml.values[i, j]))
                     sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
                     ionoxr.values[i, j] = ionoij / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
-        
+        print('interpolating to frame data dimensions')
         if not return_phase:
             # if we want to return only TEC
             ionoxr = interpolate_nans_bivariate(ionoxr)
