@@ -8,22 +8,18 @@ contact: mr.nergizci@gmail.com
 '''
 import argparse
 import numpy as np
-import os
+import os, sys
 import py_gamma as pg
-import sys
-import subprocess
-import shutil
 import time
 import multiprocessing as mp
 import LiCSAR_misc as misc
 from modules_sw_mn import *  # functions saved here
-import lics_unwrap as lu
-import pickle
 
-#Just for colored outputs
-BLUE = '\033[94m'
-ORANGE = '\033[38;5;208m'
-ENDC = '\033[0m'  # ANSI code to end formatting
+"""
+This scripth creates extended mod1 and mod2 RSLC and MLI files for each epoch by mosaicking and multilooking.
+mod1 represent the extended subswath 1 (IW1) and subswath 3 (IW3) data, while mod2 represents the extended subswath 2 (IW2) data.
+
+"""
 
 
 # Function to create empty `iw` files once

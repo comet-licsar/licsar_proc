@@ -1362,7 +1362,7 @@ if [ $clip -gt 0 ]; then
 fi
 
 if [ $maskbias -gt 0 ]; then
-  sed -i 's/p15_avg_phasebias=\"\"/p15_avg_phasebias=\"1\"/' batch_LiCSBAS.sh
+  sed -i 's/p15_avg_phasebias=\"\"/p15_avg_phasebias=\"0.4\"/' batch_LiCSBAS.sh
 fi
 
 if [ $run_jasmin -eq 1 ]; then
