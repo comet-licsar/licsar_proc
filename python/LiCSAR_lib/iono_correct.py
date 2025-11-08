@@ -374,18 +374,17 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
             tecs, hionos, alphas = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
                             returnhei=True, alpha = alpha, returnalpha = True)
             hiono = hionos[0]
-            alpha = alphas[0]
+            alphatouse = alphas[0]
             print('Hiono = '+str(hiono))
             if alpha == 'auto':
-                print('alpha = '+str(alpha))
+                print('alpha = '+str(alphatouse))
         except:
             print('error in IRI, perhaps not installed? Setting default values')
             hiono = 450
-            alpha = 0.85
+            alphatouse = 0.85
     if fixed_f2_height_km != 'auto':
         hiono = fixed_f2_height_km
-    if alpha != 'auto':
-        alpha = alphatouse
+    alpha = alphatouse
     print('Getting IPP in the altitude of {} km'.format(str(int(hiono))))
     hiono = hiono * 1000  # m
     # first, get IPP - ionosphere pierce point
