@@ -292,7 +292,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     """
     Args:
         ...
-        fixed_f2_height_km (int or None): CODE/JPL is valid for h=450 but ~280 km should be better guess. If None, it will use IRI to estimate the height (in mid point between scene centre and satellite)
+        fixed_f2_height_km (int or 'auto'): CODE/JPL is valid for h=450 but ~280 km should be better guess. If 'auto', it will use IRI to estimate the height (at mid point between scene centre and satellite)
         alpha (float): used only for GIM (CODE or JPL) - standard value is 0.85; but can use 'auto' (since 11/2025)
         return_phase (bool): if not, it will return TEC, otherwise returns phase
         sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points #TODO can be more precise for subswath overlap. 
@@ -364,7 +364,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     path = nv.GeoPath(Pscene_center.to_nvector(), Psatg.to_nvector())   #https://pypi.org/project/nvector/
     # get point in the middle
     Pmid_scene_sat = path.interpolate(0.5).to_geo_point()
-    if fixed_f2_height_km:
+    if fixed_f2_height_km != 'auto':
         #hiono = 450
         hiono = fixed_f2_height_km
     else:
@@ -561,11 +561,12 @@ def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height
         frame (str)
         source (str): either 'iri' or 'code'
         epochslist (list): e.g. ['20180930', '20181012'] - if given, only IPS for only those epochs are created, otherwise for all epochs
-        fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if None, it will use IRI to estimate ionospheric height. Probably 290 km is better estimation..
-        alpha (float): for CODE only (0.85 was a common guess during calm ionosphere. it might dynamically change - ongoing investigation)
+        fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if 'auto', it will use IRI to estimate ionospheric height. Probably 290 km is better estimation..
+        alpha (float): for GIM only - can use 'auto' (0.85 was a common guess during calm ionosphere. it might dynamically change - ongoing investigation)
         sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points
         startdate (str): Start date for filtering epochs, format "YYYYMMDD".
         enddate (str): End date for filtering epochs, format "YYYYMMDD".
+        localstore (bool): if False, it will check/store in LiCSAR_public, otherwise in a directory
     '''
     if enddate is None:
         enddate = pd.to_datetime("today").strftime("%Y%m%d")
