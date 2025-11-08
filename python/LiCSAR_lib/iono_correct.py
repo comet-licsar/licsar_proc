@@ -365,11 +365,10 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     path = nv.GeoPath(Pscene_center.to_nvector(), Psatg.to_nvector())   #https://pypi.org/project/nvector/
     # get point in the middle
     Pmid_scene_sat = path.interpolate(0.5).to_geo_point()
-    if fixed_f2_height_km != 'auto':
-        #hiono = 450
-        hiono = fixed_f2_height_km
-    else:
-        print('estimating altitude of F2 peak')
+    if alpha != 'auto':
+        alphatouse = alpha
+    if (fixed_f2_height_km == 'auto') or (alpha == 'auto'):
+        print('estimating altitude of F2 peak and alpha')
         # get estimated hiono from IRI in that middle point (F2 peak altitude):
         try:
             tecs, hionos, alphas = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
@@ -380,8 +379,13 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
             if alpha == 'auto':
                 print('alpha = '+str(alpha))
         except:
-            print('error in IRI, perhaps not installed? Setting 450 km')
+            print('error in IRI, perhaps not installed? Setting default values')
             hiono = 450
+            alpha = 0.85
+    if fixed_f2_height_km != 'auto':
+        hiono = fixed_f2_height_km
+    if alpha != 'auto':
+        alpha = alphatouse
     print('Getting IPP in the altitude of {} km'.format(str(int(hiono))))
     hiono = hiono * 1000  # m
     # first, get IPP - ionosphere pierce point
