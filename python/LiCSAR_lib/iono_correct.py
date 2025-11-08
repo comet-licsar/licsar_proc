@@ -454,7 +454,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0)
                                     #  float(hgtml.values[i, j])) # to consider hgt ... better without
                     ilat, ilon, ialt = ecef2latlonhei(x, y, z)
-                    
+                    breakpoint()
                     if source=='code':
                         ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon)
                     elif source=='iri':
