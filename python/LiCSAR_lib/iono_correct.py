@@ -416,7 +416,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     # get range towards iono single-layer in the path to the satellite, consider hgt
     # range2iono = (hiono - hgtml) / np.cos(np.radians(incml))
     # get range towards iono single-layer in the path to the satellite, do not consider hgt
-    range2iono = hiono / np.cos(np.radians(incml))  ##IPP to ground in the slant range direction 
+    range2iono = hiono / np.cos(np.radians(incml))  ##IPP to ground in the slant range direction
     earth_radius = 6378160  # m
     
     ##define the output xr
@@ -449,14 +449,14 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     eledeg = float(90 - incml.values[i, j])
                     #ground_scene
                     ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
-                    
+
                     ##it directly starts from IPP scene
                     x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0)
                                     #  float(hgtml.values[i, j])) # to consider hgt ... better without
                     ilat, ilon, ialt = ecef2latlonhei(x, y, z)
-                    breakpoint()
+
                     if source=='code':
-                        ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon)
+                        ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon, method='linear')
                     elif source=='iri':
                         ionoij = get_tecs(ilat, ilon, sat_alt_km, [acqtime], False)[0]  ##why sat_alt_km rather than ialt? MN
                         
@@ -529,8 +529,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
         
                     if source=='code':
                         # print('code selected')
-                        ionoijA = get_vtec_from_tecxr(tecxr, acqtime, PippA.latitude_deg, PippA.longitude_deg)
-                        ionoijB = get_vtec_from_tecxr(tecxr, acqtime, PippB.latitude_deg, PippB.longitude_deg)
+                        ionoijA = get_vtec_from_tecxr(tecxr, acqtime, PippA.latitude_deg, PippA.longitude_deg, method='linear')
+                        ionoijB = get_vtec_from_tecxr(tecxr, acqtime, PippB.latitude_deg, PippB.longitude_deg, method='linear')
                     else:
                         # print('iri selected')
                         ionoijA = get_tecs(PippA.latitude_deg, PippA.longitude_deg, sat_alt_km, [acqtime], False, source=source)[0]  ##TODO ask Milan why we set the sat_alt_km rather than ipp_alt when we apply IRI model? it select IPP itself?
