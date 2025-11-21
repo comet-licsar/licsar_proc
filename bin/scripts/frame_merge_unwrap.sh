@@ -63,11 +63,15 @@ elif [ $FMU -eq 1 ]; then
        rm $frame/ifg_merge_unwrap.list
    fi
    echo "Checking the total number of interferogram pairs to process..."
+   if [ ! -d $frame1/GEOC ]; then ln -s $frame1/interferograms $frame1/GEOC; fi
+   if [ ! -d $frame1/GEOC ]; then ln -s $frame2/interferograms $frame2/GEOC; fi
    for i in `ls -d $frame1/GEOC/20*`;
    do
        if [ -d "$frame2/GEOC/${i:0-17:17}" ]; then
            ifg=${i:0-17:17}
-           echo $ifg >> $frame/ifg_merge_unwrap.list
+           if [ ! -d $frame/GEOC/$ifg ]; then
+             echo $ifg >> $frame/ifg_merge_unwrap.list
+           fi
        fi
    done
 fi
