@@ -59,6 +59,7 @@ if COUNTRY not in [
     sys.stderr.write(err_msg)
     sys.exit()
 
+
 if COUNTRY == 'autoframe':
     frame=sys.argv[2]
     print('Trying to get region code automatically')
@@ -86,7 +87,11 @@ try:
     print('running for frame')
     print(frames)
 except:
-    frames = open(LIST_FRAME, "r")
+    framesreader = open(LIST_FRAME, "r")
+    frames = []
+    for frame in (raw.strip().split() for raw in framesreader):
+        frames.append(frame)
+    framesreader.close()
 
 # path to volcano list file:
 LIST_VOLCANO = LISTPATH + COUNTRY + '_volcano.txt'
@@ -1085,7 +1090,7 @@ def main():
     #frames = open(LIST_FRAME, "r")
 
     # loop through frames:
-    for columns in (raw.strip().split() for raw in frames):
+    for columns in frames:   #(raw.strip().split() for raw in frames):
         # frame name:
         frame = columns[0]
         # get frame path number:
@@ -1116,7 +1121,7 @@ def main():
             log_message('{0} :: Frame does not exist'.format(frame))
 
     # close frames file:
-    frames.close()
+    # frames.close()
 
     # how many frames we have found:
     frame_count = len(mp_options)
