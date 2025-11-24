@@ -500,8 +500,8 @@ def process_frame_volcano(options):
             os.walk(path) for path in paths
     ):
         for file in files:
-            if (file.endswith('diff_pha.tif') | file.endswith('cc.tif') |
-                    file.endswith('unw.tif') | file.endswith('mli.tif') |
+            if (file.endswith('geo.diff_pha.tif') | file.endswith('geo.cc.tif') |
+                    file.endswith('geo.unw.tif') | file.endswith('mli.tif') |
                     file.endswith('sltd.geo.tif') ):
                 filecrop = volcano + '_' + file
                 masterdate = filecrop[len(volcano) + 1:len(volcano) + 9]
