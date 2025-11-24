@@ -5,7 +5,7 @@ Proces LiCSAR data for volcanoes
 
 Create required tif and image files for each volcano and frame.
 
-Inputs: "country" ID - e.g. africa
+Inputs: "country" ID - e.g. africa (or 'autoframe' if with frame, see below)
 Optional (second) input: frame ID (this would run only for that frame)
 """
 
@@ -53,11 +53,20 @@ COUNTRY = sys.argv[1]
 if COUNTRY not in [
     'africa', 'atlantic_island', 'central_america', 'eastern_asia', 'europe',
     'iceland', 'indian_island', 'middle_east', 'north_america',
-    'northern_asia', 'pacific_island', 'south_america', 'southeast_asia'
+    'northern_asia', 'pacific_island', 'south_america', 'southeast_asia', 'autoframe'
 ]:
     err_msg = 'Unknown region: {0}\n'.format(COUNTRY)
     sys.stderr.write(err_msg)
     sys.exit()
+
+if COUNTRY == 'autoframe':
+    frame=sys.argv[2]
+    print('Trying to get region code automatically')
+    import volcdb as v
+    a = v.get_volcanoes_in_frame(frame).vportal_area
+    COUNTRY = list(set(list(a[~a.isna()])))[0]
+    print(COUNTRY)
+
 
 # main volc-proc directory:
 HOMEPATH = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/'
