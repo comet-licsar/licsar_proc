@@ -89,8 +89,8 @@ try:
 except:
     framesreader = open(LIST_FRAME, "r")
     frames = []
-    for frame in (raw.strip().split() for raw in framesreader):
-        frames.append(frame)
+    for framelst in (raw.strip().split() for raw in framesreader):
+        frames.append(framelst[0])
     framesreader.close()
 
 # path to volcano list file:
@@ -1090,9 +1090,9 @@ def main():
     #frames = open(LIST_FRAME, "r")
 
     # loop through frames:
-    for columns in frames:   #(raw.strip().split() for raw in frames):
+    for frame in frames:   #(raw.strip().split() for raw in frames):
         # frame name:
-        frame = columns[0]
+        # frame = columns[0]
         # get frame path number:
         number = int(frame[:3])
         number = str(number)
