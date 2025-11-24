@@ -1098,9 +1098,12 @@ def main():
         number = str(number)
 
         # OPTION 1 - download on public
-        licspath = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products.public/'
-        framepath = licspath + number + '/' + frame + '/' + 'interferograms/'
-        epochpath = licspath + number + '/' + frame + '/' + 'epochs/'
+        try:
+            licspath = os.environ['LiCSAR_public']
+        except:
+            licspath = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products.public/'
+        framepath = os.path.join(licspath, number, frame, 'interferograms/')
+        epochpath = os.path.join(licspath, number, frame, 'epochs/')
         paths = (framepath, epochpath)
 
         # check if frame exists:
