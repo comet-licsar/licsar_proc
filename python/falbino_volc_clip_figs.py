@@ -3,7 +3,10 @@
 """
 Proces LiCSAR data for volcanoes
 
-Create required tif and image files for each volcano and frame
+Create required tif and image files for each volcano and frame.
+
+Inputs: "country" ID - e.g. africa
+Optional (second) input: frame ID (this would run only for that frame)
 """
 
 # -- imports
@@ -67,6 +70,15 @@ WORKPATH = HOMEPATH + 'current/' + COUNTRY
 
 # path to frame list file:
 LIST_FRAME = LISTPATH + COUNTRY + '_frame.txt'
+
+try:
+    frame = sys.argv[2]
+    frames = [frame]
+    print('running for frame')
+    print(frames)
+except:
+    frames = open(LIST_FRAME, "r")
+
 # path to volcano list file:
 LIST_VOLCANO = LISTPATH + COUNTRY + '_volcano.txt'
 # path to report / log file:
@@ -343,8 +355,8 @@ def process_frame_volcano(options):
     frame = options['frame']
     number = options['number']
     licspath = options['licspath']
-    framepath = options['framepath']
-    epochpath = options['epochpath']
+    # framepath = options['framepath']
+    # epochpath = options['epochpath']
     paths = options['paths']
     log_lock = options['mp_log_lock']
     projection = options['projection']
@@ -1061,7 +1073,7 @@ def main():
     # init list for multiprocessing options:
     mp_options = []
     # open frames file for reading:
-    frames = open(LIST_FRAME, "r")
+    #frames = open(LIST_FRAME, "r")
 
     # loop through frames:
     for columns in (raw.strip().split() for raw in frames):
