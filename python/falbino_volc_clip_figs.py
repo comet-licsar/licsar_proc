@@ -369,8 +369,8 @@ def process_frame_volcano(options):
     frame = options['frame']
     number = options['number']
     licspath = options['licspath']
-    # framepath = options['framepath']
-    # epochpath = options['epochpath']
+    framepath = options['framepath']
+    epochpath = options['epochpath']
     paths = options['paths']
     log_lock = options['mp_log_lock']
     projection = options['projection']
@@ -1098,7 +1098,7 @@ def main():
         number = str(number)
 
         # OPTION 1 - download on public
-        licspath = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/'
+        licspath = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products.public/'
         framepath = licspath + number + '/' + frame + '/' + 'interferograms/'
         epochpath = licspath + number + '/' + frame + '/' + 'epochs/'
         paths = (framepath, epochpath)
