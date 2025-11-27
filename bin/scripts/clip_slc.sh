@@ -134,7 +134,7 @@ if [ $hei == 0 ]; then
 # echo "getting the avg height"
 hei=`python3 -c "import xarray as xr; import rioxarray; import os; frame='"$frame"'; \
 hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif'); \
-a=rioxarray.open_rasterio(hgt); medhgt=float(a.sel(x=("$lon1","$lon2"), y=("$lat1", "$lat2"), method='nearest').median()); \
+a=rioxarray.open_rasterio(hgt); medhgt=int(a.sel(x=slice("$lon1","$lon2"), y=slice("$lat2", "$lat1")).median()); \
 print(medhgt)"`
 fi
 
