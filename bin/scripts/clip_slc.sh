@@ -322,6 +322,7 @@ if [ $process_ifgs == 1 ]; then
 	cd $outdir
 	if [ ! -d geo ]; then ln -s geo.$resol_m'm' geo; fi
 	if [ ! -d GEOC ]; then ln -s GEOC.$resol_m'm' GEOC; fi
+	mkdir -p GEOC.$resol_m'm' GEOC.MLI.$resol_m'm'
 	if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.$resol_m'm' GEOC.MLI; fi
 	# generate 'standard' connections ifgs
 	echo "processing ifgs"
@@ -332,6 +333,7 @@ fi
 if [ $process_geomlis == 1 ]; then
 	if [ ! -d geo ]; then ln -s geo.$resol_m'm' geo; fi
 	if [ ! -d GEOC ]; then ln -s GEOC.$resol_m'm' GEOC; fi
+	mkdir -p GEOC.$resol_m'm' GEOC.MLI.$resol_m'm'
 	if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.$resol_m'm' GEOC.MLI; fi
 	echo 'generating MLI geotiffs'
 	for x in `ls RSLC | grep 20`; do
