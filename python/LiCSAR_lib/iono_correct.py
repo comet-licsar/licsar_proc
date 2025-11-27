@@ -6,7 +6,12 @@ from scipy.constants import speed_of_light
 import numpy as np
 from scipy.interpolate import griddata
 from LiCSAR_misc import *
-import framecare as fc
+try:
+    import framecare as fc
+except:
+    print('LiCSAR FrameBatch tools cannot be loaded - frame data generator will not work')
+
+
 from scipy.interpolate import interp1d
 
 def get_tecs_func(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 11:26:38'), pd.Timestamp('2014-11-29 11:26:38')]):
@@ -351,7 +356,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     theta = np.radians(avg_incidence_angle)
     wgs84 = nv.FrameE(name='WGS84')
     Pscene_center = wgs84.GeoPoint(latitude=scene_center_lat, longitude=scene_center_lon, degrees=True)
-    burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
+    # burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
+    bovl_acq_dist = 7100 * (2.75 * 2 + 110 * 0.002056)  # see daz_iono
     ###### do the satg_lat, lon
     azimuthDeg = heading - 90  # yes, azimuth is w.r.t. N (positive to E)
     elevationDeg = 90 - avg_incidence_angle  # this is to get the avg sat altitude/range
@@ -507,16 +513,23 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     sat_alt_km = round(sat_alt / 1000)
                     Psatg = wgs84.GeoPoint(latitude=satg_lat, longitude=satg_lon, degrees=True)
                     #then get A', B' ##squint angle in azimuth direction lead that shift.
-                    PsatgA, _azimuth = Psatg.displace(distance=burst_len/2, azimuth=heading-180, method='ellipsoid', degrees=True)
-                    PsatgB, _azimuth = Psatg.displace(distance=burst_len/2, azimuth= heading, method='ellipsoid', degrees=True)
-                    
+                    #PsatgA, _azimuth = Psatg.displace(distance=burst_len/2, azimuth=heading-180, method='ellipsoid', degrees=True)
+                    #PsatgB, _azimuth = Psatg.displace(distance=burst_len/2, azimuth= heading, method='ellipsoid', degrees=True)
+                    PsatgA, _azimuth = Psatg.displace(distance=bovl_acq_dist / 2, azimuth=heading - 180, method='ellipsoid',
+                                                      degrees=True)
+                    PsatgB, _azimuth = Psatg.displace(distance=bovl_acq_dist / 2, azimuth=heading, method='ellipsoid',
+                                                      degrees=True)
                     ##IPP scene, 
                     x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0) #range should be in meter
                     ippg_lat, ippg_lon, ipp_alt = ecef2latlonhei(x, y, z)
                     Pippg = wgs84.GeoPoint(latitude=ippg_lat, longitude=ippg_lon, degrees=True)
                     #then get A', B'
-                    PippAt, _azimuth = Pippg.displace(distance=burst_len, azimuth=heading-180, method='ellipsoid', degrees=True) #We extend burst_len to cover the intersection area. theorically burst_length/2 ideal
-                    PippBt, _azimuth = Pippg.displace(distance=burst_len, azimuth= heading, method='ellipsoid', degrees=True)
+                    #PippAt, _azimuth = Pippg.displace(distance=burst_len, azimuth=heading-180, method='ellipsoid', degrees=True) #We extend burst_len to cover the intersection area. theorically burst_length/2 ideal
+                    #PippBt, _azimuth = Pippg.displace(distance=burst_len, azimuth= heading, method='ellipsoid', degrees=True)
+                    PippAt, _azimuth = Pippg.displace(distance=bovl_acq_dist, azimuth=heading - 180, method='ellipsoid',
+                                                      degrees=True)  # We extend burst_len to cover the intersection area. theorically burst_length/2 ideal
+                    PippBt, _azimuth = Pippg.displace(distance=bovl_acq_dist, azimuth=heading, method='ellipsoid',
+                                                      degrees=True)
         
                     ##intersection, to make sure IPP coordinates found
                     path_ipp = nv.GeoPath(PippAt, PippBt)
