@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 import xarray as xr
-from daz_iono import *
+try:
+    from daz_iono import *
+except:
+    print('daz tools were not loaded - cannot generate new iono corrections (still ok if they exist)')
+
+
 from lics_unwrap import *
 from scipy.constants import speed_of_light
 import numpy as np
