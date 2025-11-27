@@ -76,6 +76,17 @@ source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 dizdir=`pwd`
 frame=`basename $dizdir`
+# or...
+if [ -f sourceframe ]; then
+  frame=`cat sourceframe`
+fi
+
+tr=`track_from_frame $frame`
+if [ ! -d $LiCSAR_procdir/$tr/$frame ]; then
+  echo "the frame "$frame" does not exist"
+  exit
+fi
+
 #demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
 #framedir=$LiCSAR_procdir/`track_from_frame $frame`/$frame
 #if [ ! -d $demdir ]; then demdir=`pwd`/DEM; fi  # maybe it is there, locally?
