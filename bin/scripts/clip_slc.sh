@@ -172,7 +172,7 @@ azi2=`cat $outdir/corners_clip.$frame | rev | gawk {'print $1'} | rev | sort -n 
 let azidiff=azi2-azi1+1
 
 rg1=`cat $outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | head -n1`
-rg2=`cat$outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
+rg2=`cat $outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
 let rgdiff=rg2-rg1+1
 # rm corners_clip.tmp
 
