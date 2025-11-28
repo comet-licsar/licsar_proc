@@ -362,7 +362,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     wgs84 = nv.FrameE(name='WGS84')
     Pscene_center = wgs84.GeoPoint(latitude=scene_center_lat, longitude=scene_center_lon, degrees=True)
     # burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
-    bovl_acq_dist = 7100 * (2.75 * 2 + 110 * 0.002056)  # see daz_iono
+    bovl_acq_dist = 7100 * (2.75/3*2 + 0.07)  # see daz_iono
     ###### do the satg_lat, lon
     azimuthDeg = heading - 90  # yes, azimuth is w.r.t. N (positive to E)
     elevationDeg = 90 - avg_incidence_angle  # this is to get the avg sat altitude/range
@@ -391,7 +391,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                 print('alpha = '+str(alphatouse))
         except:
             print('error in IRI, perhaps not installed? Setting default values')
-            hiono = 450
+            hiono = 290
             alphatouse = 0.85
     if fixed_f2_height_km != 'auto':
         hiono = fixed_f2_height_km
