@@ -440,13 +440,14 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     
     if source == 'code':
         tecxr=get_vtec_from_code(acqtime, lat=0, lon=0, return_fullxr = True)
-        if acqtime<tecxr.time.min():
-            # need to join day before:
-            tecxr2=get_vtec_from_code(acqtime-pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
-            tecxr = xr.concat([tecxr2, tecxr], dim='time')
-        if acqtime>tecxr.time.max():
-            tecxr2=get_vtec_from_code(acqtime+pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
-            tecxr = xr.concat([tecxr, tecxr2], dim='time')
+        # 2025: already fixed in get_vtec_from_code..
+        #if acqtime<tecxr.time.min():
+        #    # need to join day before:
+        #    tecxr2=get_vtec_from_code(acqtime-pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
+        #    tecxr = xr.concat([tecxr2, tecxr], dim='time')
+        #if acqtime>tecxr.time.max():
+        #    tecxr2=get_vtec_from_code(acqtime+pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
+        #    tecxr = xr.concat([tecxr, tecxr2], dim='time')
         tecxr = alpha * tecxr
     print('getting TEC values sampled by {} km.'.format(str(round(ionosampling / 1000))))
     
