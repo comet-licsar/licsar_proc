@@ -96,7 +96,7 @@ if [ ! -f $frame/GEOC/$frame.geo.$more.tif ]; then
  echo "merging "$more
  morefrom1=$LiCSAR_public/$track/$frame1/metadata/$frame1.geo.$more.tif
  morefrom2=$LiCSAR_public/$track/$frame2/metadata/$frame2.geo.$more.tif
- gdal_merge.py -co COMPRESS=DEFLATE -o $frame.geo.$more.tif $morefrom1 $morefrom2 # output file name containing path got error
+ gdal_merge.py -n 0 -co COMPRESS=DEFLATE -o $frame.geo.$more.tif $morefrom1 $morefrom2 # output file name containing path got error
  mv $frame.geo.$more.tif $frame/GEOC/.
 fi
 done
@@ -108,7 +108,7 @@ m2=`get_master $frame2`
 morefrom2=$LiCSAR_public/$track/$frame2/$m2/$m2.geo.mli.tif
 if [ -f $morefrom1 ] && [ -f $morefrom2 ]; then
  echo "merging mli"
- gdal_merge.py -co COMPRESS=DEFLATE -o $frame/GEOC/$frame.geo.mli.tif $morefrom1 $morefrom2 
+ gdal_merge.py -n 0 -co COMPRESS=DEFLATE -o $frame/GEOC/$frame.geo.mli.tif $morefrom1 $morefrom2 
  mv $frame.geo.mli.tif $frame/GEOC/.
 fi
 fi
@@ -145,11 +145,19 @@ fi
 
 diff1=$frame1/GEOC/$ifg/${ifg}.geo.diff_pha.tif
 diff2=$frame2/GEOC/$ifg/${ifg}.geo.diff_pha.tif
+undiff1=$frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.tif
+undiff2=$frame2/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.tif
 if [ ! -f $diff1 ]; then
    diff1=$LiCSAR_public/$track/$frame1/interferograms/$ifg/${ifg}.geo.diff_pha.tif
 fi
 if [ ! -f $diff2 ]; then
    diff2=$LiCSAR_public/$track/$frame2/interferograms/$ifg/${ifg}.geo.diff_pha.tif
+fi
+if [ ! -f $undiff1 ]; then
+   undiff1=$LiCSAR_public/$track/$frame1/interferograms/$ifg/${ifg}.geo.diff_unfiltered_pha.tif
+fi
+if [ ! -f $undiff2 ]; then
+   undiff2=$LiCSAR_public/$track/$frame2/interferograms/$ifg/${ifg}.geo.diff_unfiltered_pha.tif
 fi
 
 cur=`cat $frame/ifg_merge_unwrap.list | grep -n $ifg | awk -F ":" '{print $1}'`
@@ -157,8 +165,7 @@ echo "Working on interferogram pair $ifg ($cur of $sum) ..."
 
 if [ ! -f $frame/GEOC/$ifg/${ifg}.geo.cc.tif ]; then
    echo "merging cc..."
-   gdal_merge.py -co COMPRESS=DEFLATE -o ${ifg}.geo.cc.tif $cc1 $cc2
-   mv ${ifg}.geo.cc.tif $frame/GEOC/$ifg/
+   gdal_merge.py -n 0 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.cc.tif $cc1 $cc2
 fi
 
 if [ -f $frame/GEOC/$ifg/${ifg}.geo.unw.tif ]; then
@@ -219,9 +226,13 @@ else
      gmt grdmath $unw2 0 NAN $unw1 0 NAN SUB MEDIAN = $frame/GEOC/$ifg/median.grd
      correction=`gmt grdinfo -T $frame/GEOC/$ifg/median.grd | cut -d '/' -f2`
      gmt grdmath $diff1 0 NAN $correction ADD WRAP = $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.grd
+     gmt grdmath $undiff1 0 NAN $correction ADD WRAP = $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.grd
      gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -a_srs EPSG:4326 $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.grd $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif
-     gdal_merge.py -co PREDICTOR=3 -co COMPRESS=DEFLATE -o ${ifg}.geo.diff_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif $diff2
-     mv ${ifg}.geo.diff_pha.tif $frame/GEOC/$ifg/
+     gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -a_srs EPSG:4326 $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.grd $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.tif
+     gdal_merge.py -n 0 -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif $diff2
+     gdal_merge.py -n 0 -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.tif $undiff2
+     # diff_unfiltered_pha
+     #mv ${ifg}.geo.diff_pha.tif $frame/GEOC/$ifg/
  
      if [ $LOTUS -eq 1 ]; then 
       bsub2slurm.sh -o $frame'_'$ifg.out -e $frame'_'$ifg.err -J 'mergeunw_'$frame'_'$ifg -q comet -n 1 -W 00:50 -M 12288 jin_unwrap_geo.sh $frame $ifg
