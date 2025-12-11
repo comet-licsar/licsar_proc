@@ -113,17 +113,20 @@ if [ -f $morefrom1 ] && [ -f $morefrom2 ]; then
 fi
 fi
 
+for ext in geo.iono.code.tif  sltd.geo.tif  tide.geo.tif geo.mli.tif; do
+  echo "merging "$ext
 for epoch in `ls $LiCSAR_public/$track/$frame2/epochs | grep 20`; do 
-if [ ! -f $frame/epochs/$epoch/$epoch.sltd.geo.tif ]; then
- morefrom1=$LiCSAR_public/$track/$frame2/epochs/$epoch/$epoch.sltd.geo.tif
- morefrom2=$LiCSAR_public/$track/$frame1/epochs/$epoch/$epoch.sltd.geo.tif
+if [ ! -f $frame/epochs/$epoch/$epoch.$ext ]; then
+ morefrom1=$LiCSAR_public/$track/$frame2/epochs/$epoch/$epoch.$ext
+ morefrom2=$LiCSAR_public/$track/$frame1/epochs/$epoch/$epoch.$ext
  if [ -f $morefrom1 ] && [ -f $morefrom2 ]; then
    mkdir -p $frame/epochs/$epoch
-   echo "merging GACOS corrections for epoch "$epoch
-   gdal_merge.py -co COMPRESS=DEFLATE -o $epoch.sltd.geo.tif $morefrom1 $morefrom2 # output file name containing path got error
-   mv $epoch.sltd.geo.tif $frame/epochs/$epoch/.
+   echo "  "$epoch
+   gdal_merge.py -n 0 -co COMPRESS=DEFLATE -o $frame/epochs/$epoch/$epoch.$ext $morefrom1 $morefrom2 # output file name containing path got error
+   #mv $epoch.sltd.geo.tif $frame/epochs/$epoch/.
  fi
 fi
+done
 done
 
 for ifg in `cat $frame/ifg_merge_unwrap.list`; do
@@ -256,6 +259,7 @@ fi
 echo "correcting directory structure"
 mkdir $frame/metadata
 mv $frame/GEOC/*tif $frame/metadata/.
+cp $frame1/metadata/metadata.txt $frame/metadata/.
 mv $frame/GEOC $frame/interferograms
 stop_time=`date +%s`
 echo "Elapsed time: `echo "scale=1;($stop_time - $start_time)/3600" | bc` h"

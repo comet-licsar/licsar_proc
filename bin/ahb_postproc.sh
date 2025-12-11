@@ -317,3 +317,70 @@ for fr in frames:
     fix_enus(fr, onlyrights=True)
 
     173A_04952_131313
+
+
+
+
+# 2025-12-05
+# how tos: FIGURES
+
+cd $LiCSAR_public/AHB
+outdir=$LiCSAR_public/AHB_figures
+# merge
+mdir=MERGED.20251205
+mkdir -p $mdir
+gdal_merge.py -o $mdir/loop_ph_avg_abs.A.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???A_?????_??????/*.loop_ph_avg_abs.geo.tif
+gdal_merge.py -o $mdir/loop_ph_avg_abs.D.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???D_?????_??????/*.loop_ph_avg_abs.geo.tif
+
+./merging_fix_zeronans.coh.sh
+gdal_merge.py -o $mdir/coh_avg.A.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???A_?????_??????/*.coh_avg.geo.ok.tif
+gdal_merge.py -o $mdir/coh_avg.D.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???D_?????_??????/*.coh_avg.geo.ok.tif
+
+cd $mdir
+gmt grdmath coh_avg.D.tif 0 DENAN 0 NAN = coh_avg.D.ok.tif=gd:GTiff
+gmt grdmath coh_avg.A.tif 0 DENAN 0 NAN = coh_avg.A.ok.tif=gd:GTiff
+
+cd Milan/fig_fulls
+nano phavgs.extended.gmt
+. phavgs.extended.gmt
+
+nano cohavg.gmt
+. cohavg.gmt
+
+ddt=20251205
+mv phavg.A.$ddt.png $outdir/phavg.A.png
+mv phavg.D.$ddt.png $outdir/phavg.D.png
+
+ddt=20251205
+mv cohavg.A.$ddt.png $outdir/cohavg.A.png
+mv cohavg.D.$ddt.png $outdir/cohavg.D.png
+# coherence
+
+# plate motion:
+cd $LiCSAR_public/AHB
+aa=`pwd`
+for x in ????_?????_??????; do cdpub $x;
+if [ ! -f metadata/$x.geo.vlos_eur.tif ]; then echo $x;
+python3 -c "import lics_tstools as lts; lts.generate_pmm_velocity('"$x"', plate='Eurasia', outif='metadata/"$x".geo.vlos_eur.tif')";
+fi;
+eutif=`pwd`/metadata/$x.geo.vlos_eur.tif
+ln -s $eutif $aa/$x/$x.geo.vlos_eur.tif
+done
+
+cd $aa
+# make them smaller
+for x in ????_?????_??????; do eur=$x/$x.geo.vlos_eur.tif; gdalwarp2match.py $eur $x/$x.hgt.geo.tif $x/vlos_eur.tif; done
+
+# make sure they are correct small!
+for x in */vlos_eur.tif; do if [ ` gdalinfo $x | grep Size | grep Pixel | grep -c 0.0100` -lt 1 ]; then echo $x; gdalinfo $x | grep Size | grep Pixel ; fi; done
+for x in 175A_03997_131313/vlos_eur.tif .......; do mv $x $x.tif; gdal_translate -tr 0.01 0.01 -r nearest -co "COMPRESS=DEFLATE" -co "PREDICTOR=3" $x.tif $x; done
+
+# now merge them:
+gdal_merge.py -o $mdir/platemotion.A.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???A_?????_??????/vlos_eur.tif
+gdal_merge.py -o $mdir/platemotion.D.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???D_?????_??????/vlos_eur.tif
+
+cd Milan/fig_fulls
+nano platemotion.gmt
+. platemotion.gmt
+mv platemotion.A.png $outdir/platemotion.A.png
+mv platemotion.D.png $outdir/platemotion.D.png

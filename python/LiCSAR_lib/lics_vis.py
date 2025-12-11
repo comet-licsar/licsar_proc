@@ -516,17 +516,28 @@ def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, 
     return fig
 
 
-def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True,
+def pygmt_plot_bursts(burstlist = None, framelist = None, title = '', background = True,
                       projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True):
     sourcetiles = ctx.providers.Esri.WorldImagery
-    bidsgpd = fc.bursts2geopandas(burstlist)
-    #framelist = ['037D_04691_021207']
-
-    region = bidsgpd.bounds.minx.min() - bevel, \
-             bidsgpd.bounds.maxx.max() + bevel, \
-             bidsgpd.bounds.miny.min() - bevel, \
-             bidsgpd.bounds.maxy.max() + bevel
-
+    if framelist:
+        framesgpd = fc.get_frames_gpd(framelist)
+    #
+    if burstlist:
+        bidsgpd = fc.bursts2geopandas(burstlist)
+        # framelist = ['037D_04691_021207']
+        region = bidsgpd.bounds.minx.min() - bevel, \
+                 bidsgpd.bounds.maxx.max() + bevel, \
+                 bidsgpd.bounds.miny.min() - bevel, \
+                 bidsgpd.bounds.maxy.max() + bevel
+    elif framelist:
+        region = framesgpd.bounds.minx.min() - bevel, \
+                 framesgpd.bounds.maxx.max() + bevel, \
+                 framesgpd.bounds.miny.min() - bevel, \
+                 framesgpd.bounds.maxy.max() + bevel
+    else:
+        print('nothing to plot - provide burst or framelist')
+        return False
+    #
     fig = pygmt.Figure()
     # pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain")
     pygmt.config(FONT_TITLE="12p")
@@ -535,7 +546,7 @@ def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True
         fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
     else:
         fig.basemap(region=region, projection=projection, frame=["af"])
-
+    #
     if background:
         fig.tilemap(
             region=region,
@@ -543,38 +554,41 @@ def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True
             # Use tiles from OpenStreetMap tile server
             source=sourcetiles
         )
-
+    #
     fig.coast(region=region, shorelines=True, frame=True)
-    fig.plot(bidsgpd.geometry, pen='1p,red')
+    if burstlist:
+        fig.plot(bidsgpd.geometry, pen='1p,red')
     if framelist:
-        framesgpd = fc.get_frames_gpd(framelist)
+        # framesgpd = fc.get_frames_gpd(framelist)
         fig.plot(framesgpd.geometry, pen='1p,blue')
         fig.text(text=framelist, x=framesgpd.geometry.centroid.x.values,
                  y=framesgpd.geometry.centroid.y.values,
                  font="8p,Helvetica,blue")
     #
-    if label_nofiles:
-        iwbs = fc.bursts_group_to_iws(burstlist)
-        iwl = 0
-        i = 0
-        for iw in iwbs:
-            iwlt = len(iw)
-            if iwlt > iwl:
-                iwl = iwlt
-                seliw = i
-            i += 1
-        iwbs = iwbs[seliw]
-        bidsgpd = fc.bursts2geopandas(iwbs)
-        blens = []
-        print('getting no of files per burst, as imported to LiCSInfo')
-        for b in iwbs:
-            blens.append(len(fc.get_files_from_burst(b)))
-        bidsgpd['nofiles'] = blens
-        fig.text(text=bidsgpd.nofiles.values, x=bidsgpd.geometry.centroid.x.values,
-                 y=bidsgpd.geometry.centroid.y.values,
-                 font="8p,Helvetica")
-    elif label_bids:
-        fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values, y=bidsgpd.geometry.centroid.y.values,
-                 font="5p,Helvetica")  # , justify="RT", offset='J/30p')
-
+    if burstlist:
+        if label_nofiles:
+            iwbs = fc.bursts_group_to_iws(burstlist)
+            iwl = 0
+            i = 0
+            for iw in iwbs:
+                iwlt = len(iw)
+                if iwlt > iwl:
+                    iwl = iwlt
+                    seliw = i
+                i += 1
+            iwbs = iwbs[seliw]
+            bidsgpd = fc.bursts2geopandas(iwbs)
+            blens = []
+            print('getting no of files per burst, as imported to LiCSInfo')
+            for b in iwbs:
+                blens.append(len(fc.get_files_from_burst(b)))
+            bidsgpd['nofiles'] = blens
+            fig.text(text=bidsgpd.nofiles.values, x=bidsgpd.geometry.centroid.x.values,
+                     y=bidsgpd.geometry.centroid.y.values,
+                     font="8p,Helvetica")
+        elif label_bids:
+            fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values,
+                     y=bidsgpd.geometry.centroid.y.values,
+                     font="5p,Helvetica")  # , justify="RT", offset='J/30p')
+    #
     return fig
