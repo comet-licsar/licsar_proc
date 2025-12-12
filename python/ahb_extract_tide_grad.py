@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # this is set of functions developed to get nice AHB paper figures
+# second param is e.g. 'tide', or 'gacos'
 #import pygmt
 import os
 import pandas as pd
@@ -21,7 +22,10 @@ if not os.path.exists(gradir):
 
 
 outfile=os.path.join(ahbdir,colname+'grads',fr+'.nc')
-
+if os.path.exists(outfile):
+    print('outfile already exists:')
+    print(outfile)
+    exit()
 
 # now this will perform iono gradient estimation
 
@@ -30,6 +34,16 @@ outfile=os.path.join(ahbdir,colname+'grads',fr+'.nc')
 h5file = os.path.join(ahbdir, fr, fr+'.cum.h5')
 a=xr.open_dataset(h5file) #, engine="h5netcdf")
 
+if colname not in a:
+    matches = [item for item in list(a.data_vars) if colname in item]
+    if len(matches) == 1:
+        realcol = matches[0]
+        print('using '+realcol)
+        a = a.rename({realcol: colname})
+    else:
+        print('no unique column with this name:')
+        print(matches)
+        exit()
 
 g=colname
 def gradts(a,g,resolm=300):

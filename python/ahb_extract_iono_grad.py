@@ -16,6 +16,10 @@ mahb=os.path.join(ahbdir, 'Milan')
 figdir=os.path.join(ahbdir+'_figures', 'ionoetc')
 outfile=os.path.join(ahbdir,'ionograds',fr+'.nc')
 
+if os.path.exists(outfile):
+    print('outfile already exists:')
+    print(outfile)
+    exit()
 
 # now this will perform iono gradient estimation
 
@@ -52,7 +56,16 @@ a['iono']=a['iono']-a['iono'][i]
 #imdates = np.concatenate([imdates[:i], imdates[i+1:]], axis=0)
 
 # now get the iono gradients
-valsI = gradts(a,'iono', resolm)
+ionovar = 'iono'
+if 'iono' not in a:
+    ionovar = 'geo.iono.code.tif'
+
+if ionovar not in a:
+    print('NO IONO LAYER INSIDE H5 FILE?!')
+    exit()
+
+
+valsI = gradts(a,ionovar, resolm)
 #valsT = gradts(a,'tide')
 
 x=a.imdates.values
