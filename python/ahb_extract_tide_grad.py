@@ -121,3 +121,19 @@ dataset.attrs['frame']=fr
 
 
 dataset.to_netcdf(outfile)
+
+
+
+'''
+for col in gacos tide; do
+ mv $col'grads' $col'grads.old';
+ mkdir $col'grads';
+ for fr in ????_?????_??????; do
+echo $fr;
+cd $fr;
+ahb_extract_tide_grad.py $fr $col;
+ cd $LiCSAR_public/AHB;
+done;
+done
+
+'''
