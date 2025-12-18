@@ -44,7 +44,7 @@ h=`ls GEOC.meta*/*geo.hgt.tif | head -n 1`
 
 slc=SLC/$m/$m.slc
 slcpar=SLC/$m/$m.slc.par
-if [ ! -f tmp.subset.centre ]; then
+if [ ! -f $outdir/tmp.subset.centre ]; then
  #hei=`python3 -c "import rioxarray;a=rioxarray.open_rasterio('"$h"'); aa=a.sel(x="$centerlon",y="$centerlat", method='nearest'); print(aa.values[0])"`
  hei=`gdallocationinfo -geoloc -valonly $h $centerlon $centerlat`
  coord_to_sarpix $slcpar - - $centerlat $centerlon $hei | grep "SLC/MLI range, azimuth pixel (int)" > $outdir/tmp.subset.centre
@@ -199,19 +199,23 @@ for relorb in glob.glob('*[A,D]'):
 
 import xarray as xr
 import numpy as np
-import glob
+import glob,os
 rngres = 2.3
 azires = 14
-for nc in glob.glob('044A/subset.*/*.amp.nc'):
+for nc in glob.glob('*/subset.*/*.amp.nc'):
     print(nc)
     # nc='146A/subset.KZ-4/KZ-4.146A.amp.nc'
     outnc = nc.replace('.amp.nc','.rcs.nc')
+    if os.path.exists(outnc):
+        os.remove(outnc)
     nc=xr.open_dataset(nc)
     # \sigma_{\text{dBm}^2} = 10 \cdot \log_{10}(\sigma) + 30
     nc['RCS_dB'] = nc['amplitude'].copy()
     nc['RCS_dB'].values = 10*np.log10(nc.amplitude.where(nc.amplitude!=0).values*rngres*azires) #+30 # ok, unit will be dB, not dBm^2
     nc[['RCS_dB']].to_netcdf(outnc)
 
+
+# finally, to identify the reflector based on max value in the last 5 images, and get the x,y to plot this..
 import xarray as xr
 import numpy as np
 import glob
@@ -224,7 +228,7 @@ avgrcs = nc['RCS_dB'][-5:].mean(axis=0)
 maxazi, maxrg = np.unravel_index(avgrcs.argmax().item(), avgrcs.shape)
 toplot = nc.sel(rg=maxrg, azi=maxazi)['RCS_dB']
 # ted muzes treba:
-# toplot.plot()
+toplot.plot()
 # anebo vytahnout
 x = toplot.epoch.values
 y = toplot.values
