@@ -352,4 +352,4 @@ fi
 chmod 777 $outdir
 
 rm -r $tmpdir 2>/dev/null
-cd $outdir; rm geo GEOC GEOC.MLI gmt.history 2>/dev/null; cd $dizdir
+cd $outdir; rm gmt.history 2>/dev/null; cd $dizdir

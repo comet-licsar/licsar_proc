@@ -3,8 +3,9 @@
 # this script can also work in full frame but it is set to allow subset clipping to even smaller area
 # e.g. to find corner reflector where we want to load intensities into datacube
 # usage with params:
-# subset_clip.sh lon lat foldername [half range] [half azi]
-
+# subset_clip.sh lon lat locationname [half range] [half azi]
+# outputs will be stored as subset.$locationname
+#
 # must be run inside the subset directory, e.g. in
 # /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/kladno/095D
 makemlinc=1  # this will create MLI NetCDF file.. that should be actually converted to amplitude (and put dB in)
@@ -28,22 +29,26 @@ if [ ! -z $5 ]; then
   halflenrg=$4
   halflenazi=$5
 fi
+else
+  echo " please provide parameters"
+  exit
 fi
 outdir=subset.$locname
 relorb=`pwd | rev | cut -d '/' -f 1 | rev`
 
 mkdir -p $outdir/RSLC
+cp $outdir/command.in $outdir/command.in.old 2>/dev/null
 echo "cd "`pwd`"; subset_clip.sh "$centerlon" "$centerlat" "$locname" "$halflenrg" "$halflenazi > $outdir/command.in
 m=`ls SLC | head -n 1`
 h=`ls GEOC.meta*/*geo.hgt.tif | head -n 1`
 
 slc=SLC/$m/$m.slc
 slcpar=SLC/$m/$m.slc.par
-#if [ ! -f tmp.subset.centre ]; then
+if [ ! -f tmp.subset.centre ]; then
  #hei=`python3 -c "import rioxarray;a=rioxarray.open_rasterio('"$h"'); aa=a.sel(x="$centerlon",y="$centerlat", method='nearest'); print(aa.values[0])"`
  hei=`gdallocationinfo -geoloc -valonly $h $centerlon $centerlat`
  coord_to_sarpix $slcpar - - $centerlat $centerlon $hei | grep "SLC/MLI range, azimuth pixel (int)" > $outdir/tmp.subset.centre
-#fi
+fi
 azipx=`cat $outdir/tmp.subset.centre | rev | gawk {'print $1'} | rev`
 rgpx=`cat $outdir/tmp.subset.centre | rev | gawk {'print $2'} | rev`
 
