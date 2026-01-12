@@ -278,13 +278,62 @@ def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
     plotdaz(dazes, frame, toshow = toshow, lim = lim, ylim=ylim)
 
 
+## from COPILOT:
+import math
+import re
+def parse_width_cm(code: str) -> int:
+    """
+    Extract numeric width in cm from a code like 'M13c'.
+    Returns the integer width in centimeters.
+    """
+    match = re.search(r'(\d+)', code)
+    if match:
+        return int(match.group(1))
+    else:
+        raise ValueError(f"No numeric width found in '{code}'")
+
+
+def calculate_zoom(width_cm, dpi, lon_span_deg, latitude_deg=0.0):
+    """
+    Calculate appropriate Web Mercator zoom level for contextily.
+    Parameters
+    ----------
+    width_cm : float
+        Width of the map image in centimeters.
+    dpi : int
+        Resolution in dots per inch.
+    lon_span_deg : float
+        Longitude span of the map in degrees (WGS-84).
+    latitude_deg : float, optional
+        Central latitude of the map in degrees (default=0.0, equator).
+    Returns
+    -------
+    int
+        Recommended zoom level (0–22).
+    """
+    # Step 1: convert width to pixels
+    inches = width_cm / 2.54
+    pixels = inches * dpi
+    # Step 2: convert longitude span to meters
+    meters_per_degree = 111_320 * math.cos(math.radians(latitude_deg))
+    span_meters = lon_span_deg * meters_per_degree
+    # Step 3: required resolution (meters per pixel)
+    required_res = span_meters / pixels
+    # Step 4: Web Mercator resolution formula
+    # resolution(z) = 156543 / 2^z
+    zoom = math.log2(156543 / required_res)
+    # Clamp to valid zoom levels
+    zoom = max(0, min(22, zoom))
+    return round(zoom)
+
+
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None, interactive = False,
                region = None, projection = "M13c"):
     ''' Function to generate (nice) plot of given grid using pyGMT
     
     Args:
-        grid (xr.DataArray): input grid to plot
+        grid (xr.DataArray): input grid to plot (for tif, use e.g. lics_processing.load_tif2xr)
         title (str):  title (note too long title will disbalance the figure)
         label (str):  label below the colour scale
         lims (list):  colour scale limits (if None, it will do min max minus 2std)
@@ -347,6 +396,13 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     if photobg:
         import contextily as ctx
         sourcetiles = ctx.providers.Esri.WorldImagery
+        try:
+            width_cm=parse_width_cm(projection)
+            zoomlevel=calculate_zoom(width_cm, dpi=150, lon_span_deg=maxlon-minlon, latitude_deg=round((maxlat-minlat)/2, 1))
+            print('using zoom level of '+str(zoomlevel))
+        except:
+            print('error calculating zoom level - using default')
+            zoomlevel=9
         fig.tilemap(
             region=region, projection=projection,
             # region=[-157.84, -157.8, 21.255, 21.285],
@@ -356,7 +412,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             # surface with more tiles covering a smaller
             # geographic area and thus more details and vice versa
             # Please note, not all zoom levels are always available
-            zoom=14,
+            zoom=zoomlevel,
             # Use tiles from OpenStreetMap tile server
             source=sourcetiles
         )
