@@ -293,7 +293,7 @@ def parse_width_cm(code: str) -> int:
         raise ValueError(f"No numeric width found in '{code}'")
 
 
-def calculate_zoom(width_cm, dpi, lon_span_deg, latitude_deg=0.0):
+def calculate_zoom(width_cm, dpi, lon_span_deg, latitude_deg=0.0, return_resolution=False):
     """
     Calculate appropriate Web Mercator zoom level for contextily.
     Parameters
@@ -319,6 +319,8 @@ def calculate_zoom(width_cm, dpi, lon_span_deg, latitude_deg=0.0):
     span_meters = lon_span_deg * meters_per_degree
     # Step 3: required resolution (meters per pixel)
     required_res = span_meters / pixels
+    if return_resolution:
+        return round(np.abs(required_res))
     # Step 4: Web Mercator resolution formula
     # resolution(z) = 156543 / 2^z
     zoom = math.log2(156543 / required_res)
@@ -368,7 +370,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     #
     # grid = a['U'].where(a.mask < 5) - 10
     # topo_data = '@earth_relief_03s' #3 arc second global relief (SRTM3S)
-    topo_data = '@earth_relief_01s'  # 3 arc second global relief (SRTM3S)
+    topo_data = '@earth_relief_01s'  # 1 arc second global relief (SRTM3S) (30 m)
 
     if not region:
         minlon, maxlon = float(np.min(grid.lon)), float(np.max(grid.lon))
@@ -420,6 +422,23 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             pygmt.makecpt(cmap=cmap, series=lims, background=True)
             fig.grdview(grid=grid, cmap=True, projection=projection, surftype='c', transparency=40)
     else:
+        try:
+            width_cm=parse_width_cm(projection)
+            imresol=calculate_zoom(width_cm, dpi=150, lon_span_deg=maxlon-minlon, latitude_deg=round((maxlat-minlat)/2, 1), return_resolution=True)
+            # https://docs.generic-mapping-tools.org/6.0/datasets/earth_relief.html
+            if imresol<80:
+                topo_data = '@earth_relief_01s'  # 1 arc second global relief (SRTM3S) (30 m)
+            elif imresol<400:
+                topo_data = '@earth_relief_03s'
+            elif imresol<800:
+                topo_data = '@earth_relief_15s'
+            elif imresol<1700:
+                topo_data = '@earth_relief_30s'
+            else:
+                topo_data = '@earth_relief_01m'
+            print('using topo_data '+str(topo_data))
+        except:
+            print('error calculating im resolution - using default topo_data: '+str(topo_data))
         pygmt.makecpt(cmap="gray", series=[-8000, 8000, 1000], continuous=True)
         fig.grdimage(
             grid=topo_data,
