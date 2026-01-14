@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import lics_vis as lv
-import lics_processing as lp
 import os
 
 def main():
@@ -40,7 +38,9 @@ def main():
     #
     if args.title == 'preview':
         args.title = os.path.splitext(os.path.basename(args.grid))[0]
-    #
+    ########## load the huge modules
+    import lics_vis as lv
+    import lics_processing as lp
     ########## generate it
     intif = lp.load_tif2xr(args.grid)
     #
@@ -52,7 +52,7 @@ def main():
         projection=args.projection,
         photobg=args.photobg,
         )
-    gg.savefig(outfile, dpi=dpi)
+    gg.savefig(outfile, dpi=args.dpi)
     #
     print(outfile)
 
