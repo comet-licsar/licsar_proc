@@ -13,7 +13,7 @@ def main():
     parser.add_argument("--label", default='unit',
                         help="label below the colour scale")
     parser.add_argument("--lims", nargs=2, type=float,
-                        help="min max (set as separate numbers, e.g. --lims -10 10")
+                        help="min max of colour map (set as separate numbers, e.g. --lims -10 10")
     parser.add_argument("--cmap", default='roma',
                         help="colour scale map (def: roma, try e.g. vik, viridis")
     parser.add_argument("--photobg", action='store_true',
@@ -22,6 +22,8 @@ def main():
                         help="DPI for output png")
     parser.add_argument("--projection", default='M10c',
                         help="standard GMT projection string")
+    parser.add_argument("--region", nargs=4, type=float,
+                        help="can be set using numbers as --region minlon maxlon minlat maxlat")
     #
     args = parser.parse_args()
     # checks:
@@ -32,6 +34,11 @@ def main():
         lims = None
     else:
         lims = args.lims
+    #
+    if not args.region:
+        region = None
+    else:
+        region = args.region
     ##
     outfile = os.path.splitext(args.grid)[0]+'.png'
     #
@@ -51,6 +58,7 @@ def main():
         cmap=args.cmap,
         projection=args.projection,
         photobg=args.photobg,
+        region=region,
         )
     gg.savefig(outfile, dpi=args.dpi)
     #
