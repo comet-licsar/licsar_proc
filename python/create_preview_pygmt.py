@@ -24,6 +24,10 @@ def main():
                         help="standard GMT projection string")
     parser.add_argument("--region", nargs=4, type=float,
                         help="can be set using numbers as --region minlon maxlon minlat maxlat")
+    parser.add_argument("--medianfix", action='store_true',
+                        help="would center values to the median in given region")
+    parser.add_argument("--show", action='store_true',
+                        help="displays after generating the fig")
     #
     args = parser.parse_args()
     # checks:
@@ -58,11 +62,14 @@ def main():
         cmap=args.cmap,
         projection=args.projection,
         photobg=args.photobg,
+        medfix=args.medianfix,
         region=region,
         )
     gg.savefig(outfile, dpi=args.dpi)
     #
     print(outfile)
+    if args.show:
+        os.system('display '+outfile)
 
 
 if __name__ == '__main__':
