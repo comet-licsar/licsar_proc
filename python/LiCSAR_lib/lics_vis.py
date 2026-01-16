@@ -331,7 +331,7 @@ def calculate_zoom(width_cm, dpi, lon_span_deg, latitude_deg=0.0, return_resolut
 
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None, interactive = False,
-               region = None, projection = "M13c"):
+               region = None, projection = "M13c", medfix=False):
     ''' Function to generate (nice) plot of given grid using pyGMT
     
     Args:
@@ -344,6 +344,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         plotvec (geopandas etc): will plot vector data to the map, using pyGMT defaults
         region (tuple/None):  either None or set using tuple (minlon, maxlon, minlat, maxlat)
         projection (str):  standard GMT projection string - try e.g."M13c" or 'R13c' for Robinson etc.
+        medfix (bool): if True, it will center the values to their median (set 0)
 
     Returns:
         pygmt.figure.Figure
@@ -388,7 +389,9 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     pygmt.config(FORMAT_GEO_MAP="ddd.xx") #, MAP_FRAME_TYPE="plain")
     # projection = "M13c" # 'R13c' for Robinson etc.
     region = [minlon, maxlon, minlat, maxlat]
-
+    if medfix:
+        grid=grid - grid.sel(lon=slice(minlon,maxlon), lat=slice(maxlat, minlat)).median()
+    
     if interactive:
         xshift = '1.5c'
         yshift = '2.5c'
