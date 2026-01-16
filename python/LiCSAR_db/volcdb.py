@@ -105,9 +105,11 @@ def get_existing_rslcs_for_volclip(vid):
     if not os.path.exists(volclippath):
         return rtable
     for subframe in os.listdir(volclippath):
-        rslcs = os.listdir(os.path.join(volclippath, subframe, 'RSLC'))
-        norslcs = len(rslcs)-1
-        rtable.loc[len(rtable)] = [vid,subframe, norslcs]
+        rslcdir = os.path.join(volclippath, subframe, 'RSLC')
+        if os.path.exists(rslcdir):
+            rslcs = os.listdir(rslcdir)
+            norslcs = len(rslcs)-1
+            rtable.loc[len(rtable)] = [vid,subframe, norslcs]
     return rtable
 
 
