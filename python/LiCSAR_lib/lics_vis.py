@@ -72,7 +72,7 @@ def licsbas_pygmt_plot(cube, title = 'vel', vminmax = [-15, 15],
 
 
 
-def volcano_clip_plot(volcid, bevel = 0.1):
+def volcano_clip_plot(volcid, bevel = 0.1, outpng=None):
     '''plots volcano given by its volcano id - see volcdb'''
     #volcid = 243040
     import volcdb as volc
@@ -84,6 +84,7 @@ def volcano_clip_plot(volcid, bevel = 0.1):
     lon1, lon2, lat1, lat2 = float(volclip.bounds.minx), float(volclip.bounds.maxx), float(volclip.bounds.miny), float(
         volclip.bounds.maxy)
     fig = pygmt.Figure()
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
     region = [lon1 - bevel, lon2 + bevel, lat1 - bevel, lat2 + bevel]
     fig.tilemap(
         region=region,  # projection=projection,
@@ -94,13 +95,16 @@ def volcano_clip_plot(volcid, bevel = 0.1):
         # surface with more tiles covering a smaller
         # geographic area and thus more details and vice versa
         # Please note, not all zoom levels are always available
-        zoom=14,
+        zoom=11,
         # Use tiles from OpenStreetMap tile server
         source=sourcetiles
     )
-    fig.coast(region=region, shorelines=True)  # , water="lightblue")
-    fig.plot(volclip.geom)
+    # fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
+    fig.coast(region=region, shorelines=True, frame=["af"] )  # , water="lightblue")
+    fig.plot(volclip.geom, pen='4p,red')
     fig.plot(volcrecord.geom, color='red')
+    if outpng:
+        fig.savefig(outpng, dpi=150)
     # fig.plot(gpd_overlaps)
     return fig #fig.show()
 
