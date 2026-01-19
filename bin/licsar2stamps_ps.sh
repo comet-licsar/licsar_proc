@@ -41,13 +41,20 @@ master_date=$master
 
 
 #if [ ! -f geo/EQA.dem_par ]; then
-  if [ ! -f DEM/dem_crop.dem ]; then
-    echo "please include DEM in this folder"
-    exit
-  fi
+
 echo "WARNING - we have to create new geocoding tables, but at this moment, we loose the fine coregistration so expect geocoding errors (you may fix manually)"
  echo 'preparing data for geocoding'
+if [ ! -f DEM/dem_crop.dem ]; then
+  if [ ! -f geo/EQA.dem_par ]; then
+    echo "please include either DEM or geo directory here"
+    exit
+  else
+    echo "using geo/EQA.dem"
+    gc_map RSLC/$master/$master.rslc.par - DEM/EQA.dem_par DEM/EQA.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
+  fi
+else
  gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
+fi
  dem_par_file=tostamps.demseg.par
  input_lookuptable=tostamps.lt
  demseg=tostamps.demseg

@@ -395,7 +395,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     region = [minlon, maxlon, minlat, maxlat]
     if medfix:
         grid=grid - grid.sel(lon=slice(minlon,maxlon), lat=slice(maxlat, minlat)).median()
-    
+
     if interactive:
         xshift = '1.5c'
         yshift = '2.5c'
