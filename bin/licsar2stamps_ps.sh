@@ -50,7 +50,7 @@ if [ ! -f DEM/dem_crop.dem ]; then
     exit
   else
     echo "using geo/EQA.dem"
-    gc_map RSLC/$master/$master.rslc.par - DEM/EQA.dem_par DEM/EQA.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
+    gc_map RSLC/$master/$master.rslc.par - geo/EQA.dem_par geo/EQA.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
   fi
 else
  gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
