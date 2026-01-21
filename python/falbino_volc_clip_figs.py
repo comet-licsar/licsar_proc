@@ -52,7 +52,7 @@ COUNTRY = sys.argv[1]
 # check region is valid or give up:
 if COUNTRY not in [
     'africa', 'atlantic_island', 'central_america', 'eastern_asia', 'europe',
-    'iceland', 'indian_island', 'middle_east', 'north_america',
+    'iceland', 'indian_island', 'middle_east', 'north_america', 'oceania', 'ocean_island', 'antarctica',
     'northern_asia', 'pacific_island', 'south_america', 'southeast_asia', 'autoframe'
 ]:
     err_msg = 'Unknown region: {0}\n'.format(COUNTRY)
@@ -67,6 +67,9 @@ if COUNTRY == 'autoframe':
     a = v.get_volcanoes_in_frame(frame).vportal_area
     COUNTRY = list(set(list(a[~a.isna()])))[0]
     print(COUNTRY)
+    if not COUNTRY:
+        print('no region found for this volcano, cancelling')
+        sys.exit()
 
 
 # main volc-proc directory:
