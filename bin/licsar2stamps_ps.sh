@@ -22,15 +22,26 @@ __EOFHD
 fi
 #maxdate=20180501
 
-source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+master=`get_master`
+startdate=19840126
+enddate=21000101
 
-if [ ! -z $2 ]; then
-  master=$2
-  if [ ! -d RSLC/$master ]; then echo "no such RSLC: "$master; exit; fi
-  echo "setting reference epoch to "$master
-else
-  master=`get_master`
-fi
+while getopts ":s:e:m:" option; do
+ case "${option}" in
+  s) startdate=${OPTARG};
+     ;;
+  e) enddate=${OPTARG};
+     ;;
+  m) master=${OPTARG};
+     if [ ! -d RSLC/$master ]; then echo "no such RSLC: "$master; exit; fi
+     echo "setting reference epoch to "$master
+     ;;
+ esac
+done
+shift $((OPTIND -1))
+
+
 master_date=$master
 
 # start by making new lt - and skip the 'fine' now
