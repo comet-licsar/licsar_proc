@@ -687,7 +687,7 @@ def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20
         for im in todowncp:
             bursts = lq.sqlout2list(lq.get_bursts_in_file(im))
             if not bursts:
-                print('error checking file '+im)
+                print('WARNING: burst check failed for '+im+'. Probably no metadata at CEDA.')
             else:
                 isinframe = False
                 for b in bursts:
