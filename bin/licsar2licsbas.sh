@@ -1256,6 +1256,7 @@ if [ $reunw -gt 0 ]; then # && [ $clip == 1 ]; then
  # in this case, the whole dataset should be ready for time series processing
  sed -i 's/start_step=\"01\"/start_step=\"11\"/' batch_LiCSBAS.sh
  sed -i 's/GEOCmldir=\"GEOCml${nlook}/GEOCmldir=\"'$mlgeocdir'/' batch_LiCSBAS.sh
+ sed -i 's/p11_s_param="n"/p11_s_param="y"/' batch_LiCSBAS.sh  #to check ionopsheric ramp removal
 else
  sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
 fi
