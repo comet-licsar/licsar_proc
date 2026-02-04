@@ -111,6 +111,7 @@ def volcano_clip_plot(volcid, bevel = 0.1, outpng=None):
 
 def volcano_clips_plot_frames(framelist, bevel=0.05):
     ''' this will create pygmt figure showing volcanoes and their clips within frame(s) in framelist (must be a list)'''
+    import geopandas as gpd
     import volcdb as v
     frst = True
     for fr in framelist:
