@@ -610,7 +610,8 @@ def get_neodc_path_images(images, file_or_meta = False):
 
 
 def import_to_licsinfo(images, meta = True, extradirs = [os.environ['LiCSAR_SLC']]): #,'/work/xfc/vol5/user_cache/earmla/SLC']):
-    ''' if meta, it will import either real zip or metafile (if the zip is not existing)'''
+    ''' if meta, it will import either real zip or metafile (if the zip is not existing).
+    It returns zips not existing in the system (in case of meta, it returns only files that do not have neither zip nor metadata info in /neodc)'''
     # updating extradirs
     try:
         extradir=os.path.join(os.environ['XFCPATH'], 'SLC')
@@ -661,6 +662,7 @@ def import_to_licsinfo(images, meta = True, extradirs = [os.environ['LiCSAR_SLC'
 
 
 def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(), enddate = dt.date.today(), meta = True, reingest = False):
+    ''' this checks S1 frame data that are to be downloaded - only zips with frame bursts are returned if '''
     print('Checking S1 images available on /neodc and importing them to licsinfo database')
     if frameName.split('_')[1] == 'SM':
         sensType = 'SM'
@@ -687,7 +689,7 @@ def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20
         for im in todowncp:
             bursts = lq.sqlout2list(lq.get_bursts_in_file(im))
             if not bursts:
-                print('WARNING: burst check failed for '+im+'. Probably no metadata at CEDA.')
+                print('WARNING: burst check failed for '+im+'. Probably no metadata at CEDA. Marking for download')
             else:
                 isinframe = False
                 for b in bursts:

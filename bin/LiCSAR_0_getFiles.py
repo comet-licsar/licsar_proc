@@ -75,10 +75,13 @@ class noFrameGivenError(badFrameError):
 def main(argv=None):
 
     def check_nla(zipFile):
+        ''' this will return True only if the file does not exist already, and is registered in NLA (onTape)'''
         if not path.exists(zipFile):
             if nla.ls(zipFile,'UDTAR'):
                 return True
             else:
+                #print(zipFile+' not on tape')
+                #return False
                 raise notOnNLAError(zipFile)
         return False
     def make_nla_request(fileSeries,userEmail=None):
@@ -170,6 +173,7 @@ def main(argv=None):
 
     print('checking for S1 data not ingested to licsinfo db')
     s1dataa = s1data.check_and_import_to_licsinfo(frameName, startDate.date(), endDate.date())
+    # s1dataa now contains only zip filenames that are not in /neodc, i.e. cannot check for bursts..
     print('check for existing S1 data finished')
     #if not s1dataa:
     #    print('no data to download found, quitting')
@@ -184,16 +188,20 @@ def main(argv=None):
     acq_dates = [f[1] for f in frameFilesTable]
     files = [f[3] for f in frameFilesTable]
     zipFiles = [re.sub('.metadata_only','',fI) for fI in files]
-    
+
+    zipFilesNeverInCEDA = []
     if s1dataa:
         print('correcting paths for {} missing files'.format(len(s1dataa)))
         for s1f in s1dataa:
             s1neodc = s1data.get_neodc_path_images(s1f.split('.')[0])[0]
             if path.exists(s1neodc.replace('.zip','.manifest')):
-                zipFiles.append(s1neodc)
+                # this means it is in /neodc but metadata_only.zip file was missing..
+                zipFiles.append(s1neodc)   # thus add it to the NLA request
                 #files.append(s1neodc)
                 s1f_date = dt.datetime.strptime(s1f.split('_')[5].split('T')[0],"%Y%m%d")
                 acq_dates.append(s1f_date.date())
+            else:
+                zipFilesNeverInCEDA.append(s1neodc)
 
     #fix for zipFiles that are not in /neodc:
     for zipf in zipFiles:
@@ -204,6 +212,7 @@ def main(argv=None):
 
     filesDF = pd.DataFrame({'files':zipFiles,'onTape':False},index=pd.to_datetime(acq_dates))
     filesDF = filesDF.drop_duplicates()
+    filesDF = filesDF.sort_index()
     
     # this is to correct for duplicate images, see explanation at lq.get_frame_files_period
     pom=''
@@ -225,19 +234,32 @@ def main(argv=None):
             # for zipFile in zipFiles:
             for date,zipFile in filesDF['files'].items():
                 f.write(zipFile+"\n")
+        if zipFilesNeverInCEDA:
+            zipFilesNeverInCEDA.sort()
+            zipListFile2 = zipListFile + '.todown'
+            print('there are '+str(len(zipFilesNeverInCEDA))+' files never in CEDA - see '+zipListFile2)
+            with open(zipListFile2,'w') as f:
+                for zipFile in zipFilesNeverInCEDA:
+                    f.write(zipFile + "\n")
     else:
         print("No zip file list filename provided - not writing file list")
 
 ############################## Work out which files are on tape and which are not
     print('checking for files existing on Tape')
     filesDF['onTape'] = filesDF['files'].map(check_nla)
-    fileSeries = filesDF.loc[filesDF['onTape'],'files']
+    fileSeries = filesDF.loc[filesDF['onTape'],'files']  # means, get files that are 'onTape'
     fileSeries = fileSeries.sort_index()
     print('There are {0} files to be requested'.format(str(len(fileSeries))))
     existing = len(filesDF['files'])-len(fileSeries)
     if existing > 0:
-        print('Seems there are {0} files already existing on disk'.format(str(existing)))
-        print('WARNING - we will not update their NLA expiry date')
+        print('Seems there are {0} files already existing on disk (or not on Tape!)'.format(str(existing)))
+        if zipListFile:
+            zipListFile2 = zipListFile + '.notrequested'
+            print('adding them to ' + zipListFile2)
+            with open(zipListFile2, 'a') as f:
+                for date, zipFile in filesDF.loc[~filesDF['onTape'],'files'].items():
+                    f.write(zipFile + "\n")
+        print('WARNING - we will not update their NLA expiry date if any')
 ############################## Make batches of NLA request
     if makeNLAReq:
         print("Making NLA file request")
