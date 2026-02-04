@@ -109,8 +109,24 @@ def volcano_clip_plot(volcid, bevel = 0.1, outpng=None):
     return fig #fig.show()
 
 
-def volcano_clips_plot_frames(framelist, bevel=0.05):
-    ''' this will create pygmt figure showing volcanoes and their clips within frame(s) in framelist (must be a list)'''
+def volcano_clip_plot_with_frames(volcid, outpng = None):
+    ''' Get the volcano ID e.g. using
+    volcdb.find_volcano_by_name('inatubo')
+    '''
+    import volcdb as v
+    try:
+        volcid = int(volcid)
+    except:
+        print('you provided volcano name... trying to find the id, but may fail')
+        volcid = v.find_volcano_by_name(volcid)['volc_id'].values[0]
+    framelist = v.get_volcano_frames(volcid)
+    return volcano_clips_plot_frames(framelist, bevel=0.05, outpng=outpng)
+
+
+def volcano_clips_plot_frames(framelist, bevel=0.05, outpng = None):
+    ''' this will create pygmt figure showing volcanoes and their clips within frame(s) in framelist (must be a list).
+    You can get the framelist for example using volcdb.get_volcano_frames(volcid) where you can get volcid e.g. by volcdb.find_volcano_by_name('inatubo')
+    '''
     import geopandas as gpd
     import volcdb as v
     frst = True
@@ -147,6 +163,9 @@ def volcano_clips_plot_frames(framelist, bevel=0.05):
     fig.plot(gglp.geom, pen='0.5p,green')  # lower prior
     fig.plot(gg.geom, pen='0.5p,blue')  # higher prior
     fig.text(text=vset.name.str[:3].values, x=vset.lon.values, y=vset.lat.values, justify="RT", offset='J/30p')
+    if outpng:
+        fig.savefig(outpng, dpi=150)
+        print('saved as '+outpng)
     return fig
 
 
