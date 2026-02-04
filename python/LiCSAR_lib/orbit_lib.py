@@ -451,7 +451,7 @@ class orbUrlNotFnd(Exception):
 ################################################################################
 def strpSat(filename):
     """ Strips out the satalite from the file name"""
-    satPat = '.*(S1[AB])_.*'
+    satPat = '.*(S1[ABCD])_.*'
 
     mtch = re.search(satPat,filename)
 
