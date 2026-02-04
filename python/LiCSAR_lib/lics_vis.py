@@ -109,6 +109,69 @@ def volcano_clip_plot(volcid, bevel = 0.1, outpng=None):
     return fig #fig.show()
 
 
+def volcano_clips_plot_frames(framelist, bevel=0.05):
+    ''' this will create pygmt figure showing volcanoes and their clips within frame(s) in framelist (must be a list)'''
+    import volcdb as v
+    frst = True
+    for fr in framelist:
+        vs = v.get_volcanoes_in_frame(fr)
+        if frst:
+            vset = vs.copy()
+            frst = False
+        else:
+            vset = vset.append(vs).drop_duplicates().reset_index(drop=True)
+    # ####### make A1-B2 show differently
+    vids = []
+    vidslp = []
+    geoms = []
+    geomslp = []
+    for volcid in vset[np.isin(vset['priority'], ['A1', 'A2', 'B1', 'B2'])].volc_id.values:
+        vid = v.get_volclip_vids(volcid)[0]
+        vids.append(vid)
+        geoms.append(v.get_volclips_gpd(vid).geom.values[0])
+    for volcid in vset[~np.isin(vset['priority'], ['A1', 'A2', 'B1', 'B2'])].volc_id.values:
+        vid = v.get_volclip_vids(volcid)[0]
+        vidslp.append(vid)
+        geomslp.append(v.get_volclips_gpd(vid).geom.values[0])
+    gg = gpd.GeoDataFrame({'geom': geoms})
+    gg = gg.set_geometry('geom')  # .values
+    gglp = gpd.GeoDataFrame({'geom': geomslp})
+    gglp = gglp.set_geometry('geom')  # .values
+    #
+    framesgpd = fc.get_frames_gpd(framelist)
+    hlon1, hlon2, hlat1, hlat2 = framesgpd.bounds.minx.min(), framesgpd.bounds.maxx.max(), framesgpd.bounds.miny.min(), framesgpd.bounds.maxy.max()
+    fig = prepare_pygmt_fig(hlon1, hlon2, hlat1, hlat2, bevel=bevel)
+    fig.plot(framesgpd.geometry)
+    fig.plot(vset.geom, style='c2p', color='black')  # volcanoes as dots
+    fig.plot(gglp.geom, pen='0.5p,green')  # lower prior
+    fig.plot(gg.geom, pen='0.5p,blue')  # higher prior
+    fig.text(text=vset.name.str[:3].values, x=vset.lon.values, y=vset.lat.values, justify="RT", offset='J/30p')
+    return fig
+
+
+def prepare_pygmt_fig(hlon1, hlon2, hlat1, hlat2, bevel = 0.05):
+    fig = pygmt.Figure()
+    region = [hlon1 - bevel, hlon2 + bevel, hlat1 - bevel, hlat2 + bevel]
+    #
+    fig.coast(region=region, shorelines=True, frame=True, water='lightblue')
+    #
+    with fig.inset(
+            position="jBR+o0.1c",
+            box="+gwhite+p1p",
+            projection="G" + str((hlon1 + hlon2) / 2) + "/" + str((hlat1 + hlat2) / 2) + "/3c",
+            region="g",  # global
+    ):
+        fig.coast(
+            shorelines=True, water='lightblue'
+        )
+        # Plot a rectangle ("r") in the inset map to show the area of the main
+        # figure. "+s" means that the first two columns are the longitude and
+        # latitude of the bottom left corner of the rectangle, and the last two
+        # columns the longitude and latitude of the upper right corner.
+        rectangle = [[region[0], region[2], region[1], region[3]]]
+        fig.plot(data=rectangle, style="r+s", pen="2p,blue")
+    return fig
+
 def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims=[-15, 50],
                            cmap="polar", photobg=False, plotvec=None, yrange = None):
     ''' This will start a simple interactive viewer in jupyter ntb.
