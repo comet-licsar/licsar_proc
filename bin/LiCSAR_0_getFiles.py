@@ -30,11 +30,13 @@ import re
 import datetime as dt
 import sys
 import os.path as path
-import nla_client_lib as nla
+# import nla_client_lib as nla
 from getopt import getopt
 import pandas as pd
 from LiCSAR_lib import s1data
 
+sys.path.insert(0, '/gws/smf/j04/nceo_geohazards/software/mambalics/lib/python3.8/site-packages')
+from nla_client import nla_client_lib as nla
 ################################################################################
 #Exceptions
 ################################################################################

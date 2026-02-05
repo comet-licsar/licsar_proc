@@ -55,14 +55,13 @@ create_LOS_tide() {
     E="$LiCSAR_public/$track/$frame/metadata/$frame.geo.E.tif"
     N="$LiCSAR_public/$track/$frame/metadata/$frame.geo.N.tif"
   fi
-
-  gmt earthtide -T"$datem1"'T'"$center_time" -G"$epochpath/tmp_tides.%s.nc" -R"$U" -Cv,e,n 2>/dev/null
-  gmt grdmath "$U" "$epochpath/tmp_tides.v.nc" MUL "$E" "$epochpath/tmp_tides.e.nc" MUL ADD "$N" "$epochpath/tmp_tides.n.nc" MUL ADD 0 NAN = "$epochpath/$date1.tide.geo.T.tif"=gd:GTiff
-  # gaussian filter of sigma=128 leads to residuals of 1e-5 [m] or smaller - this is good enough for SET
-  #python3 -c "import lics_unwrap as lu; a=lu.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a.values=lu.gaussian_filter(a, sigma=128); lu.export_xr2tif(a, '"$tide_file"')"
-  # but it masks so... will just fit a function there:
-  python3 -c "import lics_processing as lp; a=lp.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a=lp.fit_2D_xarray(a, 'cubic'); lp.export_xr2tif(a, '"$tide_file"')" 2>/dev/null
-  #gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 "$epochpath/$date1.tide.geo.T.tif" "$tide_file"
+  gmt earthtide -T"$datem1"'T'"$center_time" -G"$epochpath/tmp_tides.%s.nc" -R"$N" -Ce,n,v 2>/dev/null #as the U is full of NaN for SBOI
+  if [[ -n "$sbovl_flag" ]]; then
+    gmt grdmath "$E" "$epochpath/tmp_tides.e.nc" MUL "$N" "$epochpath/tmp_tides.n.nc" MUL ADD 0 NAN = "$epochpath/$date1.tide.geo.T.tif"=gd:GTiff
+  else
+    gmt grdmath "$E" "$epochpath/tmp_tides.e.nc" MUL "$N" "$epochpath/tmp_tides.n.nc" MUL ADD "$U" "$epochpath/tmp_tides.v.nc" MUL ADD 0 NAN = "$epochpath/$date1.tide.geo.T.tif"=gd:GTiff
+  fi
+  gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 "$epochpath/$date1.tide.geo.T.tif" "$tide_file"
   chmod 777 "$tide_file"
   rm "$epochpath/$date1.tide.geo.T.tif"
   rm "$epochpath/tmp_tides."*.nc

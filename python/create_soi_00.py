@@ -10,52 +10,18 @@ This script will prepare
 '''
 import argparse
 import numpy as np
-import os
+import os, sys
 import py_gamma as pg
-import sys
-# import subprocess
-import shutil
 import time
 import multiprocessing as mp
 import LiCSAR_misc as misc
 from modules_sw_mn import *  # functions saved here
-# import lics_unwrap as lu
-# import pickle
 
-BLUE = '\033[94m'
-ORANGE = '\033[38;5;208m'
-ENDC = '\033[0m'  # ANSI code to end formatting
+"""
+This scripth creates extended mod1 and mod2 RSLC and MLI files for each epoch by mosaicking and multilooking.
+mod1 represent the extended subswath 1 (IW1) and subswath 3 (IW3) data, while mod2 represents the extended subswath 2 (IW2) data.
 
-# Command-line arguments
-parser = argparse.ArgumentParser(description="Process mosaic and multilooking in parallel.")
-parser.add_argument("--n_para", type=int, default=10, help="Number of parallel processes (default: 10)")
-parser.add_argument("--epoch_list", type=str, help="Path to a file with a list of epochs to process (optional)")
-args = parser.parse_args()
-
-# n_para or default value
-n_para = args.n_para
-
-# n_para or default value
-n_para = args.n_para
-
-# Start time
-start_time = time.time()
-
-# Variables
-tempdir = os.getcwd()
-frame = os.path.basename(tempdir)
-# batchdir = os.environ['BATCH_CACHE_DIR']
-framedir = os.path.join(tempdir)
-tr = int(frame[:3])
-metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
-master = misc.grep1line('master=', metafile).split('=')[1]
-RSLC_folder = os.path.join(framedir, 'RSLC')
-tab_folder = os.path.join(framedir, 'tab')
-
-# Output directory
-temp_file = os.path.join(framedir, 'temp_data')
-if not os.path.exists(temp_file):
-    os.makedirs(temp_file)
+"""
 
 
 # Function to create empty `iw` files once
@@ -84,6 +50,7 @@ def mosaic_and_multilook(epoch):
     stdout_log_path = os.path.join(temp_file, f"{epoch}_soi_mosaic.out")
     stderr_log_path = os.path.join(temp_file, f"{epoch}_soi_mosaic.err")
 
+    ## Redirect stdout and stderr to log files
     with open(stdout_log_path, "w") as out_file, open(stderr_log_path, "w") as err_file:
         sys.stdout = out_file
         sys.stderr = err_file
@@ -142,18 +109,14 @@ def mosaic_and_multilook(epoch):
 
             # Run mosaicking and multilooking
             if not os.path.exists(SLC1_mod1_name) or os.path.getsize(SLC1_mod1_name) == 0:
-                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0,
-                                      master_tab_long_name)
+                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod1_name, SLC1_mod1_name, SLC1_mod1_name + '.par', rlks, azlks, 0, master_tab_long_name)
             if not os.path.exists(SLC1_mod2_name) or os.path.getsize(SLC1_mod2_name) == 0:
-                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0,
-                                      master_tab_long_name)
+                pg.SLC_mosaic_ScanSAR(SLC1_tab_mod2_name, SLC1_mod2_name, SLC1_mod2_name + '.par', rlks, azlks, 0, master_tab_long_name)
 
             if not os.path.exists(mli1_mod1_name) or os.path.getsize(mli1_mod1_name) == 0:
-                pg.multi_look(SLC1_mod1_name, SLC1_mod1_name + '.par', mli1_mod1_name, mli1_mod1_name + '.par', rlks,
-                              azlks)
+                pg.multi_look(SLC1_mod1_name, SLC1_mod1_name + '.par', mli1_mod1_name, mli1_mod1_name + '.par', rlks, azlks)
             if not os.path.exists(mli1_mod2_name) or os.path.getsize(mli1_mod2_name) == 0:
-                pg.multi_look(SLC1_mod2_name, SLC1_mod2_name + '.par', mli1_mod2_name, mli1_mod2_name + '.par', rlks,
-                              azlks)
+                pg.multi_look(SLC1_mod2_name, SLC1_mod2_name + '.par', mli1_mod2_name, mli1_mod2_name + '.par', rlks, azlks)
 
         except Exception as e:
             print(f"Error processing epoch {epoch}: {e}")
@@ -165,6 +128,33 @@ def mosaic_and_multilook(epoch):
 
 ### Main processing
 if __name__ == "__main__":
+    
+    # Argument parser
+    parser = argparse.ArgumentParser(description="Process mosaic and multilooking in parallel.")
+    parser.add_argument("--n_para", type=int, default=10, help="Number of parallel processes (default: 10)")
+    parser.add_argument("--epoch_list", type=str, help="Path to a file with a list of epochs to process (optional)")
+    args = parser.parse_args()
+
+    # Start time
+    start_time = time.time()
+
+    # Variables
+    tempdir = os.getcwd()
+    frame = os.path.basename(tempdir)
+    # batchdir = os.environ['BATCH_CACHE_DIR']
+    framedir = os.path.join(tempdir)
+    tr = int(frame[:3])
+    metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
+    master = misc.grep1line('master=', metafile).split('=')[1]
+    RSLC_folder = os.path.join(framedir, 'RSLC')
+    tab_folder = os.path.join(framedir, 'tab')
+    n_para = args.n_para
+    ## Output directory
+    temp_file = os.path.join(framedir, 'temp_data')
+    if not os.path.exists(temp_file):
+        os.makedirs(temp_file)
+
+    
     # Create empty `iw` files once
     create_empty_iw_files()
     print('empty subswaths created...')
@@ -175,8 +165,14 @@ if __name__ == "__main__":
         epochs = list(set(epochs)) # possible duplicities?
     else:
         epochs = [epoch for epoch in os.listdir(RSLC_folder) if os.path.isdir(os.path.join(RSLC_folder, epoch))]
+        # if master in epochs: ## Keep it, I am not sure master epoch should be excluded or not.
+        #     epochs.remove(master)
+            
+    # for epoch in epochs: ## MN this is for sequential processing for testing via breakpoint()
+    #     print(f"{BLUE}Processing epoch: {epoch}{ENDC}")
+    #     mosaic_and_multilook(epoch)
 
-    # Run parallel processing for epochs
+    # Mosaicking and multilooking in parallel 
     with mp.Pool(processes=n_para) as pool:
         pool.map(mosaic_and_multilook, epochs)
 
