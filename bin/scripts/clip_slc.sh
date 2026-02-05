@@ -76,6 +76,17 @@ source $LiCSARpath/lib/LiCSAR_bash_lib.sh
 
 dizdir=`pwd`
 frame=`basename $dizdir`
+# or...
+if [ -f sourceframe ]; then
+  frame=`cat sourceframe`
+fi
+
+tr=`track_from_frame $frame`
+if [ ! -d $LiCSAR_procdir/$tr/$frame ]; then
+  echo "the frame "$frame" does not exist"
+  exit
+fi
+
 #demdir=$LiCSAR_procdir/`track_from_frame $frame`/$frame/DEM
 #framedir=$LiCSAR_procdir/`track_from_frame $frame`/$frame
 #if [ ! -d $demdir ]; then demdir=`pwd`/DEM; fi  # maybe it is there, locally?
@@ -123,7 +134,7 @@ if [ $hei == 0 ]; then
 # echo "getting the avg height"
 hei=`python3 -c "import xarray as xr; import rioxarray; import os; frame='"$frame"'; \
 hgt=os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame+'.geo.hgt.tif'); \
-a=rioxarray.open_rasterio(hgt); medhgt=float(a.sel(x=("$lon1","$lon2"), y=("$lat1", "$lat2"), method='nearest').median()); \
+a=rioxarray.open_rasterio(hgt); medhgt=int(a.sel(x=slice("$lon1","$lon2"), y=slice("$lat2", "$lat1")).median()); \
 print(medhgt)"`
 fi
 
@@ -161,7 +172,7 @@ azi2=`cat $outdir/corners_clip.$frame | rev | gawk {'print $1'} | rev | sort -n 
 let azidiff=azi2-azi1+1
 
 rg1=`cat $outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | head -n1`
-rg2=`cat$outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
+rg2=`cat $outdir/corners_clip.$frame | rev | gawk {'print $2'} | rev | sort -n | tail -n1`
 let rgdiff=rg2-rg1+1
 # rm corners_clip.tmp
 
@@ -311,6 +322,7 @@ if [ $process_ifgs == 1 ]; then
 	cd $outdir
 	if [ ! -d geo ]; then ln -s geo.$resol_m'm' geo; fi
 	if [ ! -d GEOC ]; then ln -s GEOC.$resol_m'm' GEOC; fi
+	mkdir -p GEOC.$resol_m'm' GEOC.MLI.$resol_m'm'
 	if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.$resol_m'm' GEOC.MLI; fi
 	# generate 'standard' connections ifgs
 	echo "processing ifgs"
@@ -321,6 +333,7 @@ fi
 if [ $process_geomlis == 1 ]; then
 	if [ ! -d geo ]; then ln -s geo.$resol_m'm' geo; fi
 	if [ ! -d GEOC ]; then ln -s GEOC.$resol_m'm' GEOC; fi
+	mkdir -p GEOC.$resol_m'm' GEOC.MLI.$resol_m'm'
 	if [ ! -d GEOC.MLI ]; then ln -s GEOC.MLI.$resol_m'm' GEOC.MLI; fi
 	echo 'generating MLI geotiffs'
 	for x in `ls RSLC | grep 20`; do
@@ -339,4 +352,4 @@ fi
 chmod 777 $outdir
 
 rm -r $tmpdir 2>/dev/null
-cd $outdir; rm geo GEOC GEOC.MLI gmt.history 2>/dev/null; cd $dizdir
+cd $outdir; rm gmt.history 2>/dev/null; cd $dizdir

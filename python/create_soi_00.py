@@ -5,6 +5,8 @@ Created on 10/02/2024
 University of Leeds
 Gamma Remote Sensing
 contact: mr.nergizci@gmail.com
+
+This script will prepare
 '''
 import argparse
 import numpy as np
@@ -160,6 +162,7 @@ if __name__ == "__main__":
     if args.epoch_list:
         with open(args.epoch_list, "r") as f:
             epochs = [line.strip() for line in f if line.strip()]
+        epochs = list(set(epochs)) # possible duplicities?
     else:
         epochs = [epoch for epoch in os.listdir(RSLC_folder) if os.path.isdir(os.path.join(RSLC_folder, epoch))]
         # if master in epochs: ## Keep it, I am not sure master epoch should be excluded or not.

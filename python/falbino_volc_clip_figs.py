@@ -3,7 +3,10 @@
 """
 Proces LiCSAR data for volcanoes
 
-Create required tif and image files for each volcano and frame
+Create required tif and image files for each volcano and frame.
+
+Inputs: "country" ID - e.g. africa (or 'autoframe' if with frame, see below)
+Optional (second) input: frame ID (this would run only for that frame)
 """
 
 # -- imports
@@ -49,12 +52,25 @@ COUNTRY = sys.argv[1]
 # check region is valid or give up:
 if COUNTRY not in [
     'africa', 'atlantic_island', 'central_america', 'eastern_asia', 'europe',
-    'iceland', 'indian_island', 'middle_east', 'north_america',
-    'northern_asia', 'pacific_island', 'south_america', 'southeast_asia'
+    'iceland', 'indian_island', 'middle_east', 'north_america', 'oceania', 'ocean_island', 'antarctica',
+    'northern_asia', 'pacific_island', 'south_america', 'southeast_asia', 'autoframe'
 ]:
     err_msg = 'Unknown region: {0}\n'.format(COUNTRY)
     sys.stderr.write(err_msg)
     sys.exit()
+
+
+if COUNTRY == 'autoframe':
+    frame=sys.argv[2]
+    print('Trying to get region code automatically')
+    import volcdb as v
+    a = v.get_volcanoes_in_frame(frame).vportal_area
+    COUNTRY = list(set(list(a[~a.isna()])))[0]
+    print(COUNTRY)
+    if not COUNTRY:
+        print('no region found for this volcano, cancelling')
+        sys.exit()
+
 
 # main volc-proc directory:
 HOMEPATH = '/gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/volc-proc/'
@@ -67,6 +83,19 @@ WORKPATH = HOMEPATH + 'current/' + COUNTRY
 
 # path to frame list file:
 LIST_FRAME = LISTPATH + COUNTRY + '_frame.txt'
+
+try:
+    frame = sys.argv[2]
+    frames = [frame]
+    print('running for frame')
+    print(frames)
+except:
+    framesreader = open(LIST_FRAME, "r")
+    frames = []
+    for framelst in (raw.strip().split() for raw in framesreader):
+        frames.append(framelst[0])
+    framesreader.close()
+
 # path to volcano list file:
 LIST_VOLCANO = LISTPATH + COUNTRY + '_volcano.txt'
 # path to report / log file:
@@ -474,8 +503,8 @@ def process_frame_volcano(options):
             os.walk(path) for path in paths
     ):
         for file in files:
-            if (file.endswith('diff_pha.tif') | file.endswith('cc.tif') |
-                    file.endswith('unw.tif') | file.endswith('mli.tif') |
+            if (file.endswith('geo.diff_pha.tif') | file.endswith('geo.cc.tif') |
+                    file.endswith('geo.unw.tif') | file.endswith('mli.tif') |
                     file.endswith('sltd.geo.tif') ):
                 filecrop = volcano + '_' + file
                 masterdate = filecrop[len(volcano) + 1:len(volcano) + 9]
@@ -1061,20 +1090,23 @@ def main():
     # init list for multiprocessing options:
     mp_options = []
     # open frames file for reading:
-    frames = open(LIST_FRAME, "r")
+    #frames = open(LIST_FRAME, "r")
 
     # loop through frames:
-    for columns in (raw.strip().split() for raw in frames):
+    for frame in frames:   #(raw.strip().split() for raw in frames):
         # frame name:
-        frame = columns[0]
+        # frame = columns[0]
         # get frame path number:
         number = int(frame[:3])
         number = str(number)
 
         # OPTION 1 - download on public
-        licspath = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products/'
-        framepath = licspath + number + '/' + frame + '/' + 'interferograms/'
-        epochpath = licspath + number + '/' + frame + '/' + 'epochs/'
+        try:
+            licspath = os.environ['LiCSAR_public']
+        except:
+            licspath = '/gws/nopw/j04/nceo_geohazards_vol1/public/LiCSAR_products.public/'
+        framepath = os.path.join(licspath, number, frame, 'interferograms/')
+        epochpath = os.path.join(licspath, number, frame, 'epochs/')
         paths = (framepath, epochpath)
 
         # check if frame exists:
@@ -1095,7 +1127,7 @@ def main():
             log_message('{0} :: Frame does not exist'.format(frame))
 
     # close frames file:
-    frames.close()
+    # frames.close()
 
     # how many frames we have found:
     frame_count = len(mp_options)

@@ -99,15 +99,18 @@ def get_volc_info(volcid=None):
     return a
 
 
+
 def get_existing_rslcs_for_volclip(vid):
     volclippath = os.path.join(subvolcpath, str(vid))
     rtable = pd.DataFrame(columns=['vid','subframe', 'no_rslcs'])
     if not os.path.exists(volclippath):
         return rtable
     for subframe in os.listdir(volclippath):
-        rslcs = os.listdir(os.path.join(volclippath, subframe, 'RSLC'))
-        norslcs = len(rslcs)-1
-        rtable.loc[len(rtable)] = [vid,subframe, norslcs]
+        rslcdir = os.path.join(volclippath, subframe, 'RSLC')
+        if os.path.exists(rslcdir):
+            rslcs = os.listdir(rslcdir)
+            norslcs = len(rslcs)-1
+            rtable.loc[len(rtable)] = [vid,subframe, norslcs]
     return rtable
 
 

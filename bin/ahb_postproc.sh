@@ -1,13 +1,14 @@
 #!/bin/bash
 
 if [ -z $1 ]; then
- echo "Usage: ahb_postproc.sh FINALGEOCDIR frameID [ovrflag]"
- echo "e.g.:  ahb_postproc.sh GEOCml10GACOSmask 155D_02611_050400 1"
+ echo "Usage: ahb_postproc.sh FINALGEOCDIR frameID [ovrflag] [rumble]"
+ echo "e.g.:  ahb_postproc.sh GEOCml10GACOSmask 155D_02611_050400 0 1"
  echo "This script will perform extra processing and copying of outputs after finished LiCSBAS processing" # licsar2licsbas.sh"
  echo "PLEASE run it inside your frame directory (where you have GEOCmlX and TS_GEOCmlX directories)"
  echo "frameID MUST BE PROVIDED - please use the WHOLE FRAME ID as in LiCSAR. If you have the $frame'_2' etc and you are in such named folder, it will auto-identify it"
  echo "the FINALGEOCDIR must be the last one, for which you have TS_... folder existing"
  echo "please add '1' (as ovrflag) if you HAVE UPDATED MASK (and processed with step 16) to OVERWRITE EXISTING in AHB folder"
+ echo "if you set 'rumble' to 1, it will get bit wild, but should update things as needed.. "
  #echo "parameters: GEOCDIR frameID"
  #echo "e.g. GEOCml10GACOSmask 155D_02611_050400"
  echo "--------"
@@ -26,11 +27,19 @@ fi
 geocd=$1
 frame=$2
 ovr=0
+rumble=0
 outframe=`pwd | rev | cut -d '/' -f 1 | rev` # will solve the '_2' etc naming
 if [ -z $frame ]; then echo "please provide the frame ID"; exit; fi
+if [ ! -z $3 ]; then ovr=$3; echo "setting overwrite flag to "$ovr; fi
+if [ ! -z $4 ]; then rumble=$4; echo "setting rumble flag to "$rumble; fi
 #frame=$outf`pwd | rev | cut -d '/' -f 1 | rev`; echo "assuming frame "$frame; fi
 ahbdir=$LiCSAR_public/AHB/$outframe
 
+if [ $rumble -eq 1 ]; then
+  rmdir $ahbdir 2>/dev/null
+  if [ -d $ahbdir ]; then mv $ahbdir $ahbdir.old_results2; fi
+  mkdir -p $ahbdir;
+fi
 if [ ! -d $ahbdir ]; then echo "ERROR, this directory does not exist: "$ahbdir; exit; fi
 
 if [ ! -f TS_$geocd/cum_filt.h5 ]; then
@@ -93,11 +102,11 @@ if [ ! -f $outprd ]; then
 fi
 #
 echo "... checking and copying cum.h5 file, EQA par etc as needed"
-if [ $ovr -gt 0 ]; then
+#if [ $ovr -gt 0 ]; then
 cp TS_$geocd/mask_ts.png $ahbdir/$outframe'_mask_ts.png'
 cp TS_$geocd/network/network13.png $ahbdir/$outframe'_network.png'
 cp TS_$geocd/cum.h5  $ahbdir/$outframe.cum.h5
-fi
+#fi
 if [ ! -f $ahbdir/$outframe.EQA.dem_par ]; then
  cp $eqapar $ahbdir/$outframe.EQA.dem_par
 fi
@@ -105,12 +114,23 @@ if [ ! -f $ahbdir/$outframe.cum.h5 ]; then
  cp TS_$geocd/cum.h5 $ahbdir/$outframe.cum.h5
 fi
 echo ""
-# nah, we will instead downsample the original ENUs and hgt + apply gdalwarp2match.py - I will do it (Milan)
-#for x in U E N hgt; do
-#  if [ ! -f $frame.$x.geo.tif ]; then
-#    LiCSBAS_flt2geotiff.py -i $geocd/$x -p $geocd/EQA.dem_par -o $frame.$x.geo.tif
-#  fi
-#done
+
+for x in U E N hgt; do
+  if [ ! -f $frame.$x.geo.tif ]; then
+    LiCSBAS_flt2geotiff.py -i $geocd/$x -p $geocd/EQA.dem_par -o $frame.$x.geo.tif
+  fi
+  if [ ! -f $ahbdir/$frame.$x.geo.tif ]; then
+   cp $frame.$x.geo.tif $ahbdir/.
+  fi
+done
+
+if [ ! -f $ahbdir/metadata.txt ]; then
+  cdpub $frame
+  cp metadata/metadata.txt $ahbdir/.
+  cd -
+fi
+
+chmod 777 $ahbdir/* 2>/dev/null
 
 echo "done. Basic info on the dataset"
 info=`ls TS_$geocd/info/13used_image.txt`
@@ -123,9 +143,33 @@ let noifgs=$noifgs-1
 echo $frst'-'$lst','$noim','$noifgs
 cat TS_$geocd/results/vstd_rescaling_parameters.txt
 
-echo ""
+echo "done - now just setting open permissions"
+chmod -R 775 $ahbdir
+
+#if [ $rumble -eq 1 ]; then
+#  echo "ok, storing needed data to vol1 disk (takes time)"
+#  ahblbdir=$LiCSAR_public/AHB_licsbas
+#  if [ -d $ahblbdir/$frame ]; then mv $ahblbdir/$frame $ahblbdir/$frame.old_results2; fi
+#  mkdir -p $ahblbdir/$frame
+#  for x in *.in *.sh *err *.out *png *tif log TS_$geocd *txt; do cp -r $x $ahblbdir/$frame/.; done
+#  chmod -R 775 $ahblbdir/$frame
+#  echo "done, finally move this frame to complete dir"
+#  cd ..; mkdir -p stored; mv $frame stored/.;
+#fi
+
 
 exit
+
+
+
+
+
+
+
+
+
+
+
 
 below are comments to the other things:
 
@@ -273,3 +317,70 @@ for fr in frames:
     fix_enus(fr, onlyrights=True)
 
     173A_04952_131313
+
+
+
+
+# 2025-12-05
+# how tos: FIGURES
+
+cd $LiCSAR_public/AHB
+outdir=$LiCSAR_public/AHB_figures
+# merge
+mdir=MERGED.20251205
+mkdir -p $mdir
+gdal_merge.py -o $mdir/loop_ph_avg_abs.A.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???A_?????_??????/*.loop_ph_avg_abs.geo.tif
+gdal_merge.py -o $mdir/loop_ph_avg_abs.D.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???D_?????_??????/*.loop_ph_avg_abs.geo.tif
+
+./merging_fix_zeronans.coh.sh
+gdal_merge.py -o $mdir/coh_avg.A.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???A_?????_??????/*.coh_avg.geo.ok.tif
+gdal_merge.py -o $mdir/coh_avg.D.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???D_?????_??????/*.coh_avg.geo.ok.tif
+
+cd $mdir
+gmt grdmath coh_avg.D.tif 0 DENAN 0 NAN = coh_avg.D.ok.tif=gd:GTiff
+gmt grdmath coh_avg.A.tif 0 DENAN 0 NAN = coh_avg.A.ok.tif=gd:GTiff
+
+cd Milan/fig_fulls
+nano phavgs.extended.gmt
+. phavgs.extended.gmt
+
+nano cohavg.gmt
+. cohavg.gmt
+
+ddt=20251205
+mv phavg.A.$ddt.png $outdir/phavg.A.png
+mv phavg.D.$ddt.png $outdir/phavg.D.png
+
+ddt=20251205
+mv cohavg.A.$ddt.png $outdir/cohavg.A.png
+mv cohavg.D.$ddt.png $outdir/cohavg.D.png
+# coherence
+
+# plate motion:
+cd $LiCSAR_public/AHB
+aa=`pwd`
+for x in ????_?????_??????; do cdpub $x;
+if [ ! -f metadata/$x.geo.vlos_eur.tif ]; then echo $x;
+python3 -c "import lics_tstools as lts; lts.generate_pmm_velocity('"$x"', plate='Eurasia', outif='metadata/"$x".geo.vlos_eur.tif')";
+fi;
+eutif=`pwd`/metadata/$x.geo.vlos_eur.tif
+ln -s $eutif $aa/$x/$x.geo.vlos_eur.tif
+done
+
+cd $aa
+# make them smaller
+for x in ????_?????_??????; do eur=$x/$x.geo.vlos_eur.tif; gdalwarp2match.py $eur $x/$x.hgt.geo.tif $x/vlos_eur.tif; done
+
+# make sure they are correct small!
+for x in */vlos_eur.tif; do if [ ` gdalinfo $x | grep Size | grep Pixel | grep -c 0.0100` -lt 1 ]; then echo $x; gdalinfo $x | grep Size | grep Pixel ; fi; done
+for x in 175A_03997_131313/vlos_eur.tif .......; do mv $x $x.tif; gdal_translate -tr 0.01 0.01 -r nearest -co "COMPRESS=DEFLATE" -co "PREDICTOR=3" $x.tif $x; done
+
+# now merge them:
+gdal_merge.py -o $mdir/platemotion.A.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???A_?????_??????/vlos_eur.tif
+gdal_merge.py -o $mdir/platemotion.D.tif -n nan -co COMPRESS=DEFLATE -a_nodata nan ???D_?????_??????/vlos_eur.tif
+
+cd Milan/fig_fulls
+nano platemotion.gmt
+. platemotion.gmt
+mv platemotion.A.png $outdir/platemotion.A.png
+mv platemotion.D.png $outdir/platemotion.D.png

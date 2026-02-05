@@ -156,6 +156,19 @@ def get_images_for_burst(bidtanx, orbdir = 'A'):
 
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
              enddate = dt.date.today(), sensType = 'IW', outAspd = False, asf = True):
+    ''' Will get filenames from CDSE and ASF for the frame. Note this is based on frame polygon, overlapping bursts might cause issues!
+
+    Args:
+        frameName: str
+        startdate: dt.date
+        enddate: dt.date
+        sensType: 'IW' or 'SM'
+        outAspd: if True, it will use only CDSE (skip ASF) and return the outputs as more complete pd.DataFrame
+        asf: would use ONLY ASF (will avoid CDSE) for the search (does not include everything...), otherwise CDSE+ASF (or purely CDSE in case of outAspd==True)
+
+    Returns:
+        list or pd.DataFrame
+    '''
     #startdate and enddate should be of type datetime.date (but datetime may also work)
     # problem is that only full days are selected, no search by time
     if str(type(startdate)).split("'")[1] == 'str':
@@ -230,7 +243,7 @@ def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001',
             images = dframefull['title'].values.tolist()
             # DEBUG: ASF uses a bit different filename. So adding this here, as ASF is used as backup (and I don't know how to search with filename from ASF to do it through wget_alaska.sh
             try:
-                print('CDSE search complete, adding also from ASF (just in case)')
+                print('CDSE search complete, adding also from ASF (as some filenames there differ in the last 4 digits)')
                 images += search_alaska(frameName, footprint, startdate, enddate, sensType)
                 #images += df['granuleName'].values.tolist()
             except:
@@ -597,6 +610,7 @@ def get_neodc_path_images(images, file_or_meta = False):
 
 
 def import_to_licsinfo(images, meta = True, extradirs = [os.environ['LiCSAR_SLC']]): #,'/work/xfc/vol5/user_cache/earmla/SLC']):
+    ''' if meta, it will import either real zip or metafile (if the zip is not existing)'''
     # updating extradirs
     try:
         extradir=os.path.join(os.environ['XFCPATH'], 'SLC')
@@ -652,7 +666,7 @@ def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20
         sensType = 'SM'
     else:
         sensType = 'IW'
-    images = get_images_for_frame(frameName, startdate, enddate, sensType)
+    images = get_images_for_frame(frameName, startdate, enddate, sensType, asf=False)  # I need to extract everything from CDSE(+ASF)
     if images:
         print('There are {0} acquired images within the given period'.format(str(len(images))))
     else:
@@ -664,7 +678,24 @@ def check_and_import_to_licsinfo(frameName, startdate = dt.datetime.strptime('20
         import framecare as fc
         for fileid in images:
             fc.reingest_file(fileid)
-    todown = import_to_licsinfo(images, meta)
+    todown = import_to_licsinfo(images, meta)  # [ 'S1A...zip', ...]
+    if todown:
+        import LiCSquery as lq
+        print('Ensuring only images with frame bursts are returned')
+        framebursts = lq.sqlout2list(lq.get_bidtanxs_in_frame(frameName))
+        todowncp = todown.copy()
+        for im in todowncp:
+            bursts = lq.sqlout2list(lq.get_bursts_in_file(im))
+            if not bursts:
+                print('WARNING: burst check failed for '+im+'. Probably no metadata at CEDA.')
+            else:
+                isinframe = False
+                for b in bursts:
+                    if b in framebursts:
+                        isinframe = True
+                        break
+                if not isinframe:
+                    todown.remove(im)
     if len(todown)>0:
         print('Summary: There are '+str(len(todown))+' images that were physically acquired but do not exist in CEDA Archive')
     else:

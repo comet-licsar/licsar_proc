@@ -41,8 +41,12 @@ else
   coh=$ifgdir/$ifgid.geo.cc.tif
 fi
 outunw=$ifgdir/$ifgid.geo.unw.tif
-
+outunwpng=$ifgdir/$ifgid.geo.unw.png
 if [ -f $outunw ]; then
+  if [ ! -f $outunwpng ]; then
+    echo "regenerating missing preview"
+    create_preview_unwrapped $outunw $frame
+  fi
  echo "the unw file already exists, cancelling"
  exit
 fi
@@ -165,6 +169,9 @@ gdal_edit.py -a_srs EPSG:4326 $outunw
 # finally, for some reason, the final geotiff might have different resolution (noticed in one frame, ifg: 0.0005 resolution, unw: 0.000500059340). fixing this (lazy, slower) way:
 mv $outunw $outunw.tif
 gdalwarp2match.py $outunw.tif $ifg $outunw
+# compressing
+mv $outunw $outunw.tif
+gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 -a_srs EPSG:4326 $outunw.tif $outunw
 rm $outunw.tif
 
 #mv unw1png `echo $outunw | rev | cut -c 4- | rev`png

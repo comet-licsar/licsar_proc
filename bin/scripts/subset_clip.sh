@@ -3,8 +3,9 @@
 # this script can also work in full frame but it is set to allow subset clipping to even smaller area
 # e.g. to find corner reflector where we want to load intensities into datacube
 # usage with params:
-# subset_clip.sh lon lat foldername [half range] [half azi]
-
+# subset_clip.sh lon lat locationname [half range] [half azi]
+# outputs will be stored as subset.$locationname
+#
 # must be run inside the subset directory, e.g. in
 # /gws/nopw/j04/nceo_geohazards_vol1/projects/LiCS/proc/current/subsets/kladno/095D
 makemlinc=1  # this will create MLI NetCDF file.. that should be actually converted to amplitude (and put dB in)
@@ -28,22 +29,26 @@ if [ ! -z $5 ]; then
   halflenrg=$4
   halflenazi=$5
 fi
+else
+  echo " please provide parameters"
+  exit
 fi
 outdir=subset.$locname
 relorb=`pwd | rev | cut -d '/' -f 1 | rev`
 
 mkdir -p $outdir/RSLC
+cp $outdir/command.in $outdir/command.in.old 2>/dev/null
 echo "cd "`pwd`"; subset_clip.sh "$centerlon" "$centerlat" "$locname" "$halflenrg" "$halflenazi > $outdir/command.in
 m=`ls SLC | head -n 1`
 h=`ls GEOC.meta*/*geo.hgt.tif | head -n 1`
 
 slc=SLC/$m/$m.slc
 slcpar=SLC/$m/$m.slc.par
-#if [ ! -f tmp.subset.centre ]; then
+if [ ! -f $outdir/tmp.subset.centre ]; then
  #hei=`python3 -c "import rioxarray;a=rioxarray.open_rasterio('"$h"'); aa=a.sel(x="$centerlon",y="$centerlat", method='nearest'); print(aa.values[0])"`
  hei=`gdallocationinfo -geoloc -valonly $h $centerlon $centerlat`
  coord_to_sarpix $slcpar - - $centerlat $centerlon $hei | grep "SLC/MLI range, azimuth pixel (int)" > $outdir/tmp.subset.centre
-#fi
+fi
 azipx=`cat $outdir/tmp.subset.centre | rev | gawk {'print $1'} | rev`
 rgpx=`cat $outdir/tmp.subset.centre | rev | gawk {'print $2'} | rev`
 
@@ -194,19 +199,23 @@ for relorb in glob.glob('*[A,D]'):
 
 import xarray as xr
 import numpy as np
-import glob
+import glob,os
 rngres = 2.3
 azires = 14
-for nc in glob.glob('044A/subset.*/*.amp.nc'):
+for nc in glob.glob('*/subset.*/*.amp.nc'):
     print(nc)
     # nc='146A/subset.KZ-4/KZ-4.146A.amp.nc'
     outnc = nc.replace('.amp.nc','.rcs.nc')
+    if os.path.exists(outnc):
+        os.remove(outnc)
     nc=xr.open_dataset(nc)
     # \sigma_{\text{dBm}^2} = 10 \cdot \log_{10}(\sigma) + 30
     nc['RCS_dB'] = nc['amplitude'].copy()
     nc['RCS_dB'].values = 10*np.log10(nc.amplitude.where(nc.amplitude!=0).values*rngres*azires) #+30 # ok, unit will be dB, not dBm^2
     nc[['RCS_dB']].to_netcdf(outnc)
 
+
+# finally, to identify the reflector based on max value in the last 5 images, and get the x,y to plot this..
 import xarray as xr
 import numpy as np
 import glob
@@ -219,7 +228,7 @@ avgrcs = nc['RCS_dB'][-5:].mean(axis=0)
 maxazi, maxrg = np.unravel_index(avgrcs.argmax().item(), avgrcs.shape)
 toplot = nc.sel(rg=maxrg, azi=maxazi)['RCS_dB']
 # ted muzes treba:
-# toplot.plot()
+toplot.plot()
 # anebo vytahnout
 x = toplot.epoch.values
 y = toplot.values

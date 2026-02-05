@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 import xarray as xr
-from daz_iono import *
+try:
+    from daz_iono import *
+except:
+    print('daz tools were not loaded - cannot generate new iono corrections (still ok if they exist)')
+
+
 from lics_unwrap import *
 from scipy.constants import speed_of_light
 import numpy as np
 from scipy.interpolate import griddata
 from LiCSAR_misc import *
-import framecare as fc
+try:
+    import framecare as fc
+except:
+    print('LiCSAR FrameBatch tools cannot be loaded - frame data generator will not work')
+
+
 from scipy.interpolate import interp1d
 
 def get_tecs_func(lat = 15.1, lon = 30.3, acq_times = [pd.Timestamp('2014-11-05 11:26:38'), pd.Timestamp('2014-11-29 11:26:38')]):
@@ -142,7 +152,7 @@ def slant_ranges(frame, master, range2iono):
 
     return ds
 
-def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 450, outif=None):
+def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 450, alpha = 0.85, outif=None):
     """ This will generate ionospheric correction for given frame-pair.
     It would optionally output the result to a geotiff.
     
@@ -151,7 +161,8 @@ def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height
         pair (str):     pair (e.g. '20180930_20181012')
         sbovl (bool):   if the sbovl true, ionospheric gradient calculated
         source (str):   source model for TEC values. Either 'iri' or 'code'.
-        fixed_f2_height_km (int):  if None, it will estimate this using IRI
+        fixed_f2_height_km (int):  if 'auto', it will estimate this using IRI
+        alpha (float):  if 'auto', it will estimate this using IRI
         outif (str):    if given, will export the iono phase screen to given geotiff
     Returns:
         xr.DataArray:   estimated ionospheric phase screen
@@ -165,11 +176,11 @@ def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height
         if os.path.exists(tecphase1):
             tecphase1 = load_tif2xr(tecphase1)
         else:
-            tecphase1 = make_ionocorr_epoch(frame, epochs[0], fixed_f2_height_km = fixed_f2_height_km, source = source)
+            tecphase1 = make_ionocorr_epoch(frame, epochs[0], fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, source = source)
         if os.path.exists(tecphase2):
             tecphase2 = load_tif2xr(tecphase2)
         else:
-            tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, source = source)
+            tecphase2 = make_ionocorr_epoch(frame, epochs[1], fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, source = source)
         # do their difference
         tecdiff = tecphase1 - tecphase2
         #    # tecdiff = interpolate_nans_pyinterp(tecdiff)
@@ -295,8 +306,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     """
     Args:
         ...
-        fixed_f2_height_km (int or None): CODE is valid for h=450. Still, if None, it will use IRI2016 to estimate the height (in mid point between scene centre and satellite)
-        alpha (float): used only for 'CODE' - standard value is 0.85
+        fixed_f2_height_km (int or 'auto'): CODE/JPL is valid for h=450 but ~280 km should be better guess. If 'auto', it will use IRI to estimate the height (at mid point between scene centre and satellite)
+        alpha (float): used only for GIM (CODE or JPL) - standard value is 0.85; but can use 'auto' (since 11/2025)
         return_phase (bool): if not, it will return TEC, otherwise returns phase
         sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points #TODO can be more precise for subswath overlap. 
         outif (str or None): output tif filename - if None, it will continue without saving
@@ -304,6 +315,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     Returns:
         xr.DataArray
     """
+    if source == 'jpl':
+        source = 'code' # TODO... both try JPL and revert to CODE
     #if source == 'code':
     #    # this is to grid to less points:
     #    ionosampling=10000 # m 
@@ -351,7 +364,8 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     theta = np.radians(avg_incidence_angle)
     wgs84 = nv.FrameE(name='WGS84')
     Pscene_center = wgs84.GeoPoint(latitude=scene_center_lat, longitude=scene_center_lon, degrees=True)
-    burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
+    # burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
+    bovl_acq_dist = 7100 * (2.75/3*2 + 0.07)  # see daz_iono
     ###### do the satg_lat, lon
     azimuthDeg = heading - 90  # yes, azimuth is w.r.t. N (positive to E)
     elevationDeg = 90 - avg_incidence_angle  # this is to get the avg sat altitude/range
@@ -365,18 +379,26 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     path = nv.GeoPath(Pscene_center.to_nvector(), Psatg.to_nvector())   #https://pypi.org/project/nvector/
     # get point in the middle
     Pmid_scene_sat = path.interpolate(0.5).to_geo_point()
-    if fixed_f2_height_km:
-        #hiono = 450
-        hiono = fixed_f2_height_km
-    else:
-        # get estimated hiono from IRI2016 in that middle point (F2 peak altitude):
+    if alpha != 'auto':
+        alphatouse = alpha
+    if (fixed_f2_height_km == 'auto') or (alpha == 'auto'):
+        print('estimating altitude of F2 peak and alpha')
+        # get estimated hiono from IRI in that middle point (F2 peak altitude):
         try:
-            tecs, hionos = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
-                            returnhei=True)
+            tecs, hionos, alphas = get_tecs(Pmid_scene_sat.latitude_deg, Pmid_scene_sat.longitude_deg, sat_alt_km, [acqtime],
+                            returnhei=True, alpha = alpha, returnalpha = True)
             hiono = hionos[0]
+            alphatouse = alphas[0]
+            print('Hiono = '+str(hiono))
+            if alpha == 'auto':
+                print('alpha = '+str(alphatouse))
         except:
-            print('error in IRI2016, perhaps not installed? Setting standard F2 peak altitude')
-            hiono = 450
+            print('error in IRI, perhaps not installed? Setting default values')
+            hiono = 290
+            alphatouse = 0.85
+    if fixed_f2_height_km != 'auto':
+        hiono = fixed_f2_height_km
+    alpha = alphatouse
     print('Getting IPP in the altitude of {} km'.format(str(int(hiono))))
     hiono = hiono * 1000  # m
     # first, get IPP - ionosphere pierce point
@@ -408,7 +430,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     # get range towards iono single-layer in the path to the satellite, consider hgt
     # range2iono = (hiono - hgtml) / np.cos(np.radians(incml))
     # get range towards iono single-layer in the path to the satellite, do not consider hgt
-    range2iono = hiono / np.cos(np.radians(incml))  ##IPP to ground in the slant range direction 
+    range2iono = hiono / np.cos(np.radians(incml))  ##IPP to ground in the slant range direction
     earth_radius = 6378160  # m
     
     ##define the output xr
@@ -421,13 +443,14 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     
     if source == 'code':
         tecxr=get_vtec_from_code(acqtime, lat=0, lon=0, return_fullxr = True)
-        if acqtime<tecxr.time.min():
-            # need to join day before:
-            tecxr2=get_vtec_from_code(acqtime-pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
-            tecxr = xr.concat([tecxr2, tecxr], dim='time')
-        if acqtime>tecxr.time.max():
-            tecxr2=get_vtec_from_code(acqtime+pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
-            tecxr = xr.concat([tecxr, tecxr2], dim='time')
+        # 2025: already fixed in get_vtec_from_code..
+        #if acqtime<tecxr.time.min():
+        #    # need to join day before:
+        #    tecxr2=get_vtec_from_code(acqtime-pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
+        #    tecxr = xr.concat([tecxr2, tecxr], dim='time')
+        #if acqtime>tecxr.time.max():
+        #    tecxr2=get_vtec_from_code(acqtime+pd.Timedelta('1 day'), lat=0, lon=0, return_fullxr = True)
+        #    tecxr = xr.concat([tecxr, tecxr2], dim='time')
         tecxr = alpha * tecxr
     print('getting TEC values sampled by {} km.'.format(str(round(ionosampling / 1000))))
     
@@ -441,12 +464,12 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     eledeg = float(90 - incml.values[i, j])
                     #ground_scene
                     ilat_ground, ilon_ground = range2iono.lat.values[i], range2iono.lon.values[j]
-                    
+
                     ##it directly starts from IPP scene
                     x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0)
                                     #  float(hgtml.values[i, j])) # to consider hgt ... better without
                     ilat, ilon, ialt = ecef2latlonhei(x, y, z)
-                    
+
                     if source=='code':
                         ionoij = get_vtec_from_tecxr(tecxr, acqtime, ilat, ilon, method='linear')
                     elif source=='iri':
@@ -459,7 +482,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     theta = float(np.radians(incml.values[i, j]))
                     sin_thetaiono = earth_radius / (earth_radius + hiono) * np.sin(theta)
                     ionoxr.values[i, j] = ionoij / np.sqrt(1 - sin_thetaiono ** 2) # with the last term, we get it to LOS (STEC)
-        
+        print('interpolating to frame data dimensions')
         if not return_phase:
             # if we want to return only TEC
             ionoxr = interpolate_nans_bivariate(ionoxr)
@@ -499,16 +522,23 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                     sat_alt_km = round(sat_alt / 1000)
                     Psatg = wgs84.GeoPoint(latitude=satg_lat, longitude=satg_lon, degrees=True)
                     #then get A', B' ##squint angle in azimuth direction lead that shift.
-                    PsatgA, _azimuth = Psatg.displace(distance=burst_len/2, azimuth=heading-180, method='ellipsoid', degrees=True)
-                    PsatgB, _azimuth = Psatg.displace(distance=burst_len/2, azimuth= heading, method='ellipsoid', degrees=True)
-                    
+                    #PsatgA, _azimuth = Psatg.displace(distance=burst_len/2, azimuth=heading-180, method='ellipsoid', degrees=True)
+                    #PsatgB, _azimuth = Psatg.displace(distance=burst_len/2, azimuth= heading, method='ellipsoid', degrees=True)
+                    PsatgA, _azimuth = Psatg.displace(distance=bovl_acq_dist / 2, azimuth=heading - 180, method='ellipsoid',
+                                                      degrees=True)
+                    PsatgB, _azimuth = Psatg.displace(distance=bovl_acq_dist / 2, azimuth=heading, method='ellipsoid',
+                                                      degrees=True)
                     ##IPP scene, 
                     x, y, z = aer2ecef(azimuthDeg, eledeg, range2iono.values[i, j], ilat_ground, ilon_ground, 0) #range should be in meter
                     ippg_lat, ippg_lon, ipp_alt = ecef2latlonhei(x, y, z)
                     Pippg = wgs84.GeoPoint(latitude=ippg_lat, longitude=ippg_lon, degrees=True)
                     #then get A', B'
-                    PippAt, _azimuth = Pippg.displace(distance=burst_len, azimuth=heading-180, method='ellipsoid', degrees=True) #We extend burst_len to cover the intersection area. theorically burst_length/2 ideal
-                    PippBt, _azimuth = Pippg.displace(distance=burst_len, azimuth= heading, method='ellipsoid', degrees=True)
+                    #PippAt, _azimuth = Pippg.displace(distance=burst_len, azimuth=heading-180, method='ellipsoid', degrees=True) #We extend burst_len to cover the intersection area. theorically burst_length/2 ideal
+                    #PippBt, _azimuth = Pippg.displace(distance=burst_len, azimuth= heading, method='ellipsoid', degrees=True)
+                    PippAt, _azimuth = Pippg.displace(distance=bovl_acq_dist, azimuth=heading - 180, method='ellipsoid',
+                                                      degrees=True)  # We extend burst_len to cover the intersection area. theorically burst_length/2 ideal
+                    PippBt, _azimuth = Pippg.displace(distance=bovl_acq_dist, azimuth=heading, method='ellipsoid',
+                                                      degrees=True)
         
                     ##intersection, to make sure IPP coordinates found
                     path_ipp = nv.GeoPath(PippAt, PippBt)
@@ -552,20 +582,21 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
                                     
                     
 # test frame: 144A_04689_111111
-def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height_km=450, alpha=0.85, sbovl=False,
+def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height_km=290, alpha=0.85, sbovl=False,
                           startdate='20141001', enddate=None, localstore=False):
-    ''' use either 'code' or 'iri' as the source model for the correction
+    ''' use either 'code' or 'iri' as the source model for the correction - note 'code' would actually try getting JPL GIM by default - will change the name
     This function will generate ionosphere phase screens (LOS) [rad] per epoch.
 
     Args:
         frame (str)
         source (str): either 'iri' or 'code'
         epochslist (list): e.g. ['20180930', '20181012'] - if given, only IPS for only those epochs are created, otherwise for all epochs
-        fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if None, it will use IRI to estimate ionospheric height
-        alpha (float): for CODE only
+        fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if 'auto', it will use IRI to estimate ionospheric height. Probably 290 km is better estimation..
+        alpha (float): for GIM only - can use 'auto' (0.85 was a common guess during calm ionosphere. it might dynamically change - ongoing investigation)
         sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points
         startdate (str): Start date for filtering epochs, format "YYYYMMDD".
         enddate (str): End date for filtering epochs, format "YYYYMMDD".
+        localstore (bool): if False, it will check/store in LiCSAR_public, otherwise in a directory
     '''
     if enddate is None:
         enddate = pd.to_datetime("today").strftime("%Y%m%d")
@@ -630,3 +661,28 @@ def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height
         if not localstore:
             os.system('cedaarch_create_html.sh {0} {1} epochs'.format(frame, str(epoch)))
 
+
+def test_corr_iono(csv):
+    from sklearn.linear_model import HuberRegressor
+    ''' this will use the csv file that includes TEC, and would correlate and then also correct '''
+    #gg = pd.read_csv(os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame, 'metadata', frame + '.azirg.csv'),
+    #            index_col=0)
+    gg = pd.read_csv(csv, index_col=0)
+    #gg = gg.sort_values('epoch')
+    #gg = gg.set_index('epoch')
+    # xdaz = gg.daz.values * 14000
+    xdaz = (gg.daz - gg.daz_iono).values * 14000  # mm
+    # x = gg[firstindex:].drg_iono_mm.values
+    ytec = gg.dTECS.values
+
+    huber = HuberRegressor()
+    rc = huber.fit(x.reshape(-1, 1), y)
+    slope = huber.coef_[0]
+
+    coefficients = np.polyfit(x, y, 1)
+
+    # Extract the slope (a) and intercept (b)
+    ca, cb = coefficients
+
+    print(f"Slope (a): {ca}")
+    print(f"Intercept (b): {cb}")

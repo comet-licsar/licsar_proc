@@ -72,7 +72,7 @@ def licsbas_pygmt_plot(cube, title = 'vel', vminmax = [-15, 15],
 
 
 
-def volcano_clip_plot(volcid, bevel = 0.1):
+def volcano_clip_plot(volcid, bevel = 0.1, outpng=None):
     '''plots volcano given by its volcano id - see volcdb'''
     #volcid = 243040
     import volcdb as volc
@@ -84,6 +84,7 @@ def volcano_clip_plot(volcid, bevel = 0.1):
     lon1, lon2, lat1, lat2 = float(volclip.bounds.minx), float(volclip.bounds.maxx), float(volclip.bounds.miny), float(
         volclip.bounds.maxy)
     fig = pygmt.Figure()
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
     region = [lon1 - bevel, lon2 + bevel, lat1 - bevel, lat2 + bevel]
     fig.tilemap(
         region=region,  # projection=projection,
@@ -94,19 +95,22 @@ def volcano_clip_plot(volcid, bevel = 0.1):
         # surface with more tiles covering a smaller
         # geographic area and thus more details and vice versa
         # Please note, not all zoom levels are always available
-        zoom=14,
+        zoom=11,
         # Use tiles from OpenStreetMap tile server
         source=sourcetiles
     )
-    fig.coast(region=region, shorelines=True)  # , water="lightblue")
-    fig.plot(volclip.geom)
+    # fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
+    fig.coast(region=region, shorelines=True, frame=["af"] )  # , water="lightblue")
+    fig.plot(volclip.geom, pen='4p,red')
     fig.plot(volcrecord.geom, color='red')
+    if outpng:
+        fig.savefig(outpng, dpi=150)
     # fig.plot(gpd_overlaps)
     return fig #fig.show()
 
 
 def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims=[-15, 50],
-                           cmap="polar", photobg=False, plotvec=None):
+                           cmap="polar", photobg=False, plotvec=None, yrange = None):
     ''' This will start a simple interactive viewer in jupyter ntb.
     Note you need ipympl installed and the matplotlib widget must be set here.
 
@@ -114,8 +118,16 @@ def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims
     COMET Summer MSc Internship 2024 - and she did magnificent job interactivizing pygmt.
     Her original tool resides here: https://github.com/chelle0425/IntPyGMT
 
-    We only modified this for CIW 2024 tutorial purposes on LiCSBAS'''
+    We only modified this for CIW 2024 tutorial purposes on LiCSBAS
+
+    yrange can be e.g. [-50,50]
+    '''
     # print("%matplotlib widget")
+    from PIL import Image
+    import matplotlib.image as mpimg
+    from pygmt.clib import Session
+    from pygmt.helpers import GMTTempFile
+    #
     # first of all generate the left plot:
     tempng = '/tmp/pygmt_pi.png'
     grid = cube['vel']
@@ -180,8 +192,11 @@ def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims
     #cum = cube["cum"]
     # ymin = float(cube.cum.mean() - 3*cube.cum.std())
     # ymax = float(cube.cum.mean() + 3*cube.cum.std())
-    ymin = float(cube.cum.min())
-    ymax = float(cube.cum.max())
+    if yrange:
+        ymin,ymax=yrange
+    else:
+        ymin = float(cube.cum.min())
+        ymax = float(cube.cum.max())
     #
     def pos_to_lonlat(x, y):
         # xyshift input in cm
@@ -267,13 +282,64 @@ def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
     plotdaz(dazes, frame, toshow = toshow, lim = lim, ylim=ylim)
 
 
+## from COPILOT:
+import math
+import re
+def parse_width_cm(code: str) -> int:
+    """
+    Extract numeric width in cm from a code like 'M13c'.
+    Returns the integer width in centimeters.
+    """
+    match = re.search(r'(\d+)', code)
+    if match:
+        return int(match.group(1))
+    else:
+        raise ValueError(f"No numeric width found in '{code}'")
+
+
+def calculate_zoom(width_cm, dpi, lon_span_deg, latitude_deg=0.0, return_resolution=False):
+    """
+    Calculate appropriate Web Mercator zoom level for contextily.
+    Parameters
+    ----------
+    width_cm : float
+        Width of the map image in centimeters.
+    dpi : int
+        Resolution in dots per inch.
+    lon_span_deg : float
+        Longitude span of the map in degrees (WGS-84).
+    latitude_deg : float, optional
+        Central latitude of the map in degrees (default=0.0, equator).
+    Returns
+    -------
+    int
+        Recommended zoom level (0–22).
+    """
+    # Step 1: convert width to pixels
+    inches = width_cm / 2.54
+    pixels = inches * dpi
+    # Step 2: convert longitude span to meters
+    meters_per_degree = 111_320 * math.cos(math.radians(latitude_deg))
+    span_meters = lon_span_deg * meters_per_degree
+    # Step 3: required resolution (meters per pixel)
+    required_res = span_meters / pixels
+    if return_resolution:
+        return round(np.abs(required_res))
+    # Step 4: Web Mercator resolution formula
+    # resolution(z) = 156543 / 2^z
+    zoom = math.log2(156543 / required_res)
+    # Clamp to valid zoom levels
+    zoom = max(0, min(22, zoom))
+    return round(zoom)
+
+
 def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
                cmap="roma", photobg=False, plotvec=None, interactive = False,
-               region = None, projection = "M13c"):
+               region = None, projection = "M13c", medfix=False):
     ''' Function to generate (nice) plot of given grid using pyGMT
     
     Args:
-        grid (xr.DataArray): input grid to plot
+        grid (xr.DataArray): input grid to plot (for tif, use e.g. lics_processing.load_tif2xr)
         title (str):  title (note too long title will disbalance the figure)
         label (str):  label below the colour scale
         lims (list):  colour scale limits (if None, it will do min max minus 2std)
@@ -282,6 +348,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         plotvec (geopandas etc): will plot vector data to the map, using pyGMT defaults
         region (tuple/None):  either None or set using tuple (minlon, maxlon, minlat, maxlat)
         projection (str):  standard GMT projection string - try e.g."M13c" or 'R13c' for Robinson etc.
+        medfix (bool): if True, it will center the values to their median (set 0)
 
     Returns:
         pygmt.figure.Figure
@@ -308,7 +375,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     #
     # grid = a['U'].where(a.mask < 5) - 10
     # topo_data = '@earth_relief_03s' #3 arc second global relief (SRTM3S)
-    topo_data = '@earth_relief_01s'  # 3 arc second global relief (SRTM3S)
+    topo_data = '@earth_relief_01s'  # 1 arc second global relief (SRTM3S) (30 m)
 
     if not region:
         minlon, maxlon = float(np.min(grid.lon)), float(np.max(grid.lon))
@@ -326,6 +393,8 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     pygmt.config(FORMAT_GEO_MAP="ddd.xx") #, MAP_FRAME_TYPE="plain")
     # projection = "M13c" # 'R13c' for Robinson etc.
     region = [minlon, maxlon, minlat, maxlat]
+    if medfix:
+        grid=grid - grid.sel(lon=slice(minlon,maxlon), lat=slice(maxlat, minlat)).median()
 
     if interactive:
         xshift = '1.5c'
@@ -336,6 +405,13 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     if photobg:
         import contextily as ctx
         sourcetiles = ctx.providers.Esri.WorldImagery
+        try:
+            width_cm=parse_width_cm(projection)
+            zoomlevel=calculate_zoom(width_cm, dpi=150, lon_span_deg=maxlon-minlon, latitude_deg=round((maxlat-minlat)/2, 1))
+            print('using zoom level of '+str(zoomlevel))
+        except:
+            print('error calculating zoom level - using default')
+            zoomlevel=9
         fig.tilemap(
             region=region, projection=projection,
             # region=[-157.84, -157.8, 21.255, 21.285],
@@ -345,7 +421,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             # surface with more tiles covering a smaller
             # geographic area and thus more details and vice versa
             # Please note, not all zoom levels are always available
-            zoom=14,
+            zoom=zoomlevel,
             # Use tiles from OpenStreetMap tile server
             source=sourcetiles
         )
@@ -353,6 +429,23 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
             pygmt.makecpt(cmap=cmap, series=lims, background=True)
             fig.grdview(grid=grid, cmap=True, projection=projection, surftype='c', transparency=40)
     else:
+        try:
+            width_cm=parse_width_cm(projection)
+            imresol=calculate_zoom(width_cm, dpi=150, lon_span_deg=maxlon-minlon, latitude_deg=round((maxlat-minlat)/2, 1), return_resolution=True)
+            # https://docs.generic-mapping-tools.org/6.0/datasets/earth_relief.html
+            if imresol<80:
+                topo_data = '@earth_relief_01s'  # 1 arc second global relief (SRTM3S) (30 m)
+            elif imresol<400:
+                topo_data = '@earth_relief_03s'
+            elif imresol<800:
+                topo_data = '@earth_relief_15s'
+            elif imresol<1700:
+                topo_data = '@earth_relief_30s'
+            else:
+                topo_data = '@earth_relief_01m'
+            print('using topo_data '+str(topo_data))
+        except:
+            print('error calculating im resolution - using default topo_data: '+str(topo_data))
         pygmt.makecpt(cmap="gray", series=[-8000, 8000, 1000], continuous=True)
         fig.grdimage(
             grid=topo_data,
@@ -505,17 +598,28 @@ def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, 
     return fig
 
 
-def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True,
+def pygmt_plot_bursts(burstlist = None, framelist = None, title = '', background = True,
                       projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True):
     sourcetiles = ctx.providers.Esri.WorldImagery
-    bidsgpd = fc.bursts2geopandas(burstlist)
-    #framelist = ['037D_04691_021207']
-
-    region = bidsgpd.bounds.minx.min() - bevel, \
-             bidsgpd.bounds.maxx.max() + bevel, \
-             bidsgpd.bounds.miny.min() - bevel, \
-             bidsgpd.bounds.maxy.max() + bevel
-
+    if framelist:
+        framesgpd = fc.get_frames_gpd(framelist)
+    #
+    if burstlist:
+        bidsgpd = fc.bursts2geopandas(burstlist)
+        # framelist = ['037D_04691_021207']
+        region = bidsgpd.bounds.minx.min() - bevel, \
+                 bidsgpd.bounds.maxx.max() + bevel, \
+                 bidsgpd.bounds.miny.min() - bevel, \
+                 bidsgpd.bounds.maxy.max() + bevel
+    elif framelist:
+        region = framesgpd.bounds.minx.min() - bevel, \
+                 framesgpd.bounds.maxx.max() + bevel, \
+                 framesgpd.bounds.miny.min() - bevel, \
+                 framesgpd.bounds.maxy.max() + bevel
+    else:
+        print('nothing to plot - provide burst or framelist')
+        return False
+    #
     fig = pygmt.Figure()
     # pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain")
     pygmt.config(FONT_TITLE="12p")
@@ -524,7 +628,7 @@ def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True
         fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
     else:
         fig.basemap(region=region, projection=projection, frame=["af"])
-
+    #
     if background:
         fig.tilemap(
             region=region,
@@ -532,38 +636,41 @@ def pygmt_plot_bursts(burstlist, framelist = None, title = '', background = True
             # Use tiles from OpenStreetMap tile server
             source=sourcetiles
         )
-
+    #
     fig.coast(region=region, shorelines=True, frame=True)
-    fig.plot(bidsgpd.geometry, pen='1p,red')
+    if burstlist:
+        fig.plot(bidsgpd.geometry, pen='1p,red')
     if framelist:
-        framesgpd = fc.get_frames_gpd(framelist)
+        # framesgpd = fc.get_frames_gpd(framelist)
         fig.plot(framesgpd.geometry, pen='1p,blue')
         fig.text(text=framelist, x=framesgpd.geometry.centroid.x.values,
                  y=framesgpd.geometry.centroid.y.values,
                  font="8p,Helvetica,blue")
     #
-    if label_nofiles:
-        iwbs = fc.bursts_group_to_iws(burstlist)
-        iwl = 0
-        i = 0
-        for iw in iwbs:
-            iwlt = len(iw)
-            if iwlt > iwl:
-                iwl = iwlt
-                seliw = i
-            i += 1
-        iwbs = iwbs[seliw]
-        bidsgpd = fc.bursts2geopandas(iwbs)
-        blens = []
-        print('getting no of files per burst, as imported to LiCSInfo')
-        for b in iwbs:
-            blens.append(len(fc.get_files_from_burst(b)))
-        bidsgpd['nofiles'] = blens
-        fig.text(text=bidsgpd.nofiles.values, x=bidsgpd.geometry.centroid.x.values,
-                 y=bidsgpd.geometry.centroid.y.values,
-                 font="8p,Helvetica")
-    elif label_bids:
-        fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values, y=bidsgpd.geometry.centroid.y.values,
-                 font="5p,Helvetica")  # , justify="RT", offset='J/30p')
-
+    if burstlist:
+        if label_nofiles:
+            iwbs = fc.bursts_group_to_iws(burstlist)
+            iwl = 0
+            i = 0
+            for iw in iwbs:
+                iwlt = len(iw)
+                if iwlt > iwl:
+                    iwl = iwlt
+                    seliw = i
+                i += 1
+            iwbs = iwbs[seliw]
+            bidsgpd = fc.bursts2geopandas(iwbs)
+            blens = []
+            print('getting no of files per burst, as imported to LiCSInfo')
+            for b in iwbs:
+                blens.append(len(fc.get_files_from_burst(b)))
+            bidsgpd['nofiles'] = blens
+            fig.text(text=bidsgpd.nofiles.values, x=bidsgpd.geometry.centroid.x.values,
+                     y=bidsgpd.geometry.centroid.y.values,
+                     font="8p,Helvetica")
+        elif label_bids:
+            fig.text(text=bidsgpd.burstID.values, x=bidsgpd.geometry.centroid.x.values,
+                     y=bidsgpd.geometry.centroid.y.values,
+                     font="5p,Helvetica")  # , justify="RT", offset='J/30p')
+    #
     return fig

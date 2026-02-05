@@ -55,7 +55,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         extract_cum (bool): if True, will use the first frame and convert to pseudo vertical
         annual (bool):   if True, will estimate and decompose annual velocities
         annual_buffer_months (int): adds extra months for annual velocities
-        selperiods ... see calculate_annual_vels
+        selperiods (list or None):  used only if annual=True; override the selection by providing list as [[np.datetime64('2014-01-01'), np.datetime64('2024-01-01')]]
         do_velUN ... see decompose_np
         velname (str): name of the layer to decompose (usually 'vel')
         stdname (str): name of the 1-sigma layer to weight velname during decomposition (None means not use)

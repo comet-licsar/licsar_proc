@@ -11,8 +11,10 @@ dte1=$(date --utc --date "$A" +%s)
 dte2=$(date --utc --date "$B" +%s)
 diffSec=$((dte2-dte1))
 ROZDIL=$((diffSec/sec))
-#if ((diffSec < 0)); then abs=-1; else abs=1; fi
-#ROZDIL=$((diffSec/sec*abs))
+if [ ! -z $3 ]; then if [ $3 == 1 ]; then
+if ((diffSec < 0)); then abs=-1; else abs=1; fi
+ROZDIL=$((diffSec/sec*abs))
+fi; fi
 echo $ROZDIL
 }
 datediff $@

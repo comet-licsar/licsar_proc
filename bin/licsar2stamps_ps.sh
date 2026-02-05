@@ -22,15 +22,26 @@ __EOFHD
 fi
 #maxdate=20180501
 
-source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+# source $LiCSARpath/lib/LiCSAR_bash_lib.sh
+master=`get_master`
+startdate=19840126
+enddate=21000101
 
-if [ ! -z $2 ]; then
-  master=$2
-  if [ ! -d RSLC/$master ]; then echo "no such RSLC: "$master; exit; fi
-  echo "setting reference epoch to "$master
-else
-  master=`get_master`
-fi
+while getopts ":s:e:m:" option; do
+ case "${option}" in
+  s) startdate=${OPTARG};
+     ;;
+  e) enddate=${OPTARG};
+     ;;
+  m) master=${OPTARG};
+     if [ ! -d RSLC/$master ]; then echo "no such RSLC: "$master; exit; fi
+     echo "setting reference epoch to "$master
+     ;;
+ esac
+done
+shift $((OPTIND -1))
+
+
 master_date=$master
 
 # start by making new lt - and skip the 'fine' now
@@ -41,13 +52,20 @@ master_date=$master
 
 
 #if [ ! -f geo/EQA.dem_par ]; then
-  if [ ! -f DEM/dem_crop.dem ]; then
-    echo "please include DEM in this folder"
-    exit
-  fi
+
 echo "WARNING - we have to create new geocoding tables, but at this moment, we loose the fine coregistration so expect geocoding errors (you may fix manually)"
  echo 'preparing data for geocoding'
+if [ ! -f DEM/dem_crop.dem ]; then
+  if [ ! -f geo/EQA.dem_par ]; then
+    echo "please include either DEM or geo directory here"
+    exit
+  else
+    echo "using geo/EQA.dem"
+    gc_map RSLC/$master/$master.rslc.par - geo/EQA.dem_par geo/EQA.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
+  fi
+else
  gc_map RSLC/$master/$master.rslc.par - DEM/dem_crop.dem_par DEM/dem_crop.dem tostamps.demseg.par tostamps.demseg tostamps.lt - - - - - tostamps.inc - - - 0 1 >/dev/null
+fi
  dem_par_file=tostamps.demseg.par
  input_lookuptable=tostamps.lt
  demseg=tostamps.demseg
