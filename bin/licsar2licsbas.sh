@@ -915,9 +915,9 @@ if [ "$iono" -gt 0 ]; then
 	   cd $pair
 	   outfile=$pair.geo.$outext.tif
 	   if [ -e ${outfile} ]; then
-		 # link this one instead of this link
-		 ifglink=$pair.geo.$extofproc.tif
-     ifglink2=$pair.geo.$extofproc2.tif
+      # link this one instead of this link
+      ifglink=$pair.geo.$extofproc.tif
+      ifglink2=$pair.geo.$extofproc2.tif
 		 if [ -L $ifglink ]; then
 			rm $ifglink
 			ln -s $outfile $ifglink
@@ -1005,9 +1005,9 @@ if [ "$iono" -gt 0 ]; then
 	   cd $pair
 	   outfile=$pair.geo.$outext.tif
 	   if [ -e ${outfile} ]; then
-		 # link this one instead of this link
-		 ifglink=$pair.geo.$extofproc.tif
-     ifglink2=$pair.geo.$extofproc2.tif #it is only active for sbovl situatuon
+      # link this one instead of this link
+      ifglink=$pair.geo.$extofproc.tif
+      ifglink2=$pair.geo.$extofproc2.tif #it is only active for sbovl situatuon
      
      # Check if sbovl does not exist, but bovl exists → link bovl to sbovl ##it is not preferred senario.
      if [ ! -e "$ifglink" ] && [ -e "$ifglink2" ] && [ "$sbovl" -gt 0 ]; then
