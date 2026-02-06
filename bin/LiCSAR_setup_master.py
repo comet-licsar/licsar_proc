@@ -117,11 +117,11 @@ def main(argv=None):
     customdem = ''
     dryrun = False
     autodownload = False
-    
+    startdate, enddate = None, None
 ############################################################ Parse argument list
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vhf:V:d:j:L:m:a:r:o:A:D:e:", ["version", "help","automaster"])
+            opts, args = getopt.getopt(argv[1:], "vhf:V:d:j:L:m:a:r:o:A:D:e:", ["version", "help","automaster", "startdate=", "enddate="])
         except getopt.error as msg:
             raise Usage(msg)
         for p, a in opts:
@@ -149,6 +149,10 @@ def main(argv=None):
             elif p == '-m':
                 masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
                 autodownload = True
+            elif p == '--startdate':
+                startdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
+            elif p == '--enddate':
+                enddate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
             elif p == '-A' or p == '--automaster':
                 automaster = 1
                 autodownload = True
@@ -214,10 +218,16 @@ def main(argv=None):
             return 1
     else:
         print('checking for S1 data not ingested to licsinfo db')
-        todown = s1data.check_and_import_to_licsinfo(framename,(dt.date.today() - timedelta(days=days_limit)), reingest = False)
+        if not startdate:
+            startdate = dt.date.today() - timedelta(days=days_limit)
+        if not enddate:
+            enddate = dt.date.today() - timedelta(days=days_limit_POD)
+        elif enddate > dt.date.today() - timedelta(days=days_limit_POD):
+            enddate = dt.date.today() - timedelta(days=days_limit_POD)
+        todown = s1data.check_and_import_to_licsinfo(framename, startdate, enddate, reingest = False)
         print(todown)
         try:
-            burstlist, filelist, dates = check_bursts(framename,dt.date(2015,10,0o1),dt.date.today(),lq)
+            burstlist, filelist, dates = check_bursts(framename,startdate, enddate,lq)
         except:
             burstlist = None
             filelist = None
@@ -232,7 +242,8 @@ def main(argv=None):
             for m in sorted(list(dates), reverse=True):
                 #master should be from files with POD (<3 weeks) and available (>90 days... or just 'days_limit')
                 #but if we focus on earthquake response, we may use the latest ones also for master - so lets try
-                if m > (dt.date.today() - timedelta(days=days_limit)) and m < (dt.date.today() - timedelta(days=days_limit_POD)) and rc == 1:
+                # if m > (dt.date.today() - timedelta(days=days_limit)) and m < (dt.date.today() - timedelta(days=days_limit_POD)) and rc == 1:
+                if rc == 1:
                     a = m.strftime('%Y%m%d')
                     masterdate = dt.date(int(a[:4]),int(a[4:6]),int(a[6:8]))
                     print('Checking {0} date as master'.format(masterdate))

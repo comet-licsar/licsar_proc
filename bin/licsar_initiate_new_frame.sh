@@ -31,11 +31,13 @@ then
  echo " -L 365 would do same as -V but also auto-choose and process such master epoch"
  echo " -T - would include some extra Tien Shan related tuning"
  echo " -C lat1/lat2/lon1/lon2 - would establish a crop area for the frame"
+ echo " (-s YYYYMMDD - startdate (e.g. with -V, overriding the lastdays option)"
+ echo " (-e YYYYMMDD - enddate (e.g. with -V, overriding the lastdays option)"
  exit
 fi
 
 #improved getopts, finally
-while getopts ":HMbR:a:r:TD:V:L:C:" option; do
+while getopts ":HMbR:a:r:TD:V:L:C:s:e:" option; do
  case "${option}" in
   H) a=1; r=5; outres=0.00015; dolocal=1; echo "high resolution option enabled"
      ;;
@@ -57,6 +59,10 @@ while getopts ":HMbR:a:r:TD:V:L:C:" option; do
   V) dryrun=1;
      lastdays=$OPTARG;
      ;;
+  s) startdate=$OPTARG;
+     ;;
+  e) enddate=$OPTARG;
+     ;;
   L) lastdays=$OPTARG;
      setupmasterextra=$setupmasterextra" -L "$lastdays;
      ;;
@@ -75,7 +81,10 @@ if [ ! -z $2 ]; then
  getmaster="-A 1"
 fi
 
-
+if [ ! -z $startdate ]; then
+  if [ -z $enddate ]; then enddate=`date +%Y%m%d`; fi;
+  setupmasterextra=$setupmasterextra" --startdate "$startdate" --enddate "$enddate
+fi
  frame=$1
  # update if the frame is for H:
  if [ ${frame:9:1} == 'H' ]; then
@@ -106,7 +115,7 @@ cd $curdir/$tr/$frame
 
 if [ $dryrun -gt 0 ]; then
  #lastdays=365
- echo "Finding master candidates in last "$lastdays" days."
+ echo "Finding master candidates"
  LiCSAR_setup_master.py -f $frame -d $curdir/$tr/$frame $getmaster -V $lastdays -r $r -a $a -o $outres $setupmasterextra
  exit
 fi
