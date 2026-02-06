@@ -28,9 +28,12 @@ pair=sys.argv[2]
 
 tr = int(frame[:3])
 
-tif=os.path.join('GEOC',pair,pair+'.geo.bovldiff.adf.tif')
-outtif=os.path.join('GEOC',pair,pair+'.geo.bovldiff.adf.mm.tif')
 
+# tif=os.path.join('GEOC',pair,pair+'.geo.bovldiff.adf.tif')
+tif=f"{pair}.geo.bovldiff.adf.tif"
+# outtif=os.path.join('GEOC',pair,pair+'.geo.bovldiff.adf.mm.tif')
+outtif=f"{frame[0:4]}_{frame[5:8]}-{pair}.geo.bovldiff.adf.mm.tif"
+breakpoint()
 if not os.path.exists(tif):
     print('the file does not exist here, trying to find it in batchdir')
     batch=os.environ['BATCH_CACHE_DIR']
@@ -81,6 +84,7 @@ PRF=486.486
 az_res=14000 ##it can be improved extracting from par file 
 dfDCs=dl.get_dfDC(path_to_slcdir, f0=5405000500, burst_interval=2.758277, returnka=False, returnperswath=True) # no bursts in swath = np.nan (i.e. dfDCs will always have 3 values, corresp. to swaths)
 
+
 ##rad2mm scaling factor.
 scaling_factors = dict()
 for sw in sw_overlaps_dict.keys():
@@ -88,38 +92,38 @@ for sw in sw_overlaps_dict.keys():
 
 print('dfDCs have been calculated, please wait....')
 
-tif_list = []
-outbovl = bovlpha*0
-for subswath in sw_overlaps_dict.keys():
-    # Create a GeoDataFrame for the current subswath
-    crs = {"init": "epsg:4326"}
-    sw_overlaps_dict[subswath] = sw_overlaps_dict[subswath].set_crs(crs, allow_override=True)
-    g = gpd.GeoDataFrame(
-        {'bovl': sw_overlaps_dict[subswath].index.values},
-        geometry=sw_overlaps_dict[subswath].geometry,
-        crs={"init": "epsg:4326"}
-    )
-    # Create a GeoCube with the same spatial dimensions as 'aa'
-    bovls = make_geocube(vector_data=g, like=aa.rio.set_spatial_dims(x_dim='lon', y_dim='lat'))
-    bovls = bovls.rename({'x': 'lon', 'y': 'lat'})
+# tif_list = []
+# outbovl = bovlpha*0
+# for subswath in sw_overlaps_dict.keys():
+#     # Create a GeoDataFrame for the current subswath
+#     crs = {"init": "epsg:4326"}
+#     sw_overlaps_dict[subswath] = sw_overlaps_dict[subswath].set_crs(crs, allow_override=True)
+#     g = gpd.GeoDataFrame(
+#         {'bovl': sw_overlaps_dict[subswath].index.values},
+#         geometry=sw_overlaps_dict[subswath].geometry,
+#         crs={"init": "epsg:4326"}
+#     )
+#     # Create a GeoCube with the same spatial dimensions as 'aa'
+#     bovls = make_geocube(vector_data=g, like=aa.rio.set_spatial_dims(x_dim='lon', y_dim='lat'))
+#     bovls = bovls.rename({'x': 'lon', 'y': 'lat'})
 
-    # Interpolate the 'bovls' data to match the spatial dimensions of 'bovlpha'
-    #bovls = bovls.rio.interp_like(bovlpha)
-    bovls = bovls.interp_like(bovlpha)
+#     # Interpolate the 'bovls' data to match the spatial dimensions of 'bovlpha'
+#     #bovls = bovls.rio.interp_like(bovlpha)
+#     bovls = bovls.interp_like(bovlpha)
 
-    # Create a binary mask where 'bovls' is multiplied by 0 and then added by 1
-    bovls = bovls * 0 + 1
+#     # Create a binary mask where 'bovls' is multiplied by 0 and then added by 1
+#     bovls = bovls * 0 + 1
 
-    # Multiply 'bovlpha' by the binary mask 'bovls' to apply the mask
-    bovlphatemp = bovlpha * bovls.bovl * scaling_factors[subswath]
-    #if subswath in scaling_factors: # the concept should be actually opposite - but ok for now, good to test in some frame without one of subswaths
-    #    bovlphatemp = bovlphatemp * scaling_factors[subswath]
+#     # Multiply 'bovlpha' by the binary mask 'bovls' to apply the mask
+#     bovlphatemp = bovlpha * bovls.bovl * scaling_factors[subswath]
+#     #if subswath in scaling_factors: # the concept should be actually opposite - but ok for now, good to test in some frame without one of subswaths
+#     #    bovlphatemp = bovlphatemp * scaling_factors[subswath]
 
-    # add the grid values to the final output
-    outbovl = outbovl.fillna(0) + bovlphatemp.fillna(0)
-    #Export 'bovlphatemp' to a GeoTIFF file for the current subswath
-    #export_xr2tif(bovlphatemp.bovl, f'subswath{subswath}.tif')
-    #tif_list.append(f'subswath{subswath}.tif)
+#     # add the grid values to the final output
+#     outbovl = outbovl.fillna(0) + bovlphatemp.fillna(0)
+#     #Export 'bovlphatemp' to a GeoTIFF file for the current subswath
+#     #export_xr2tif(bovlphatemp.bovl, f'subswath{subswath}.tif')
+#     #tif_list.append(f'subswath{subswath}.tif)
 
 
 ''' this is ugly
@@ -143,9 +147,11 @@ print('done')
 '''
 
 
-
+bovl_mm = bovlpha * scaling_factors[3]
+outbovl = bovl_mm.where(~np.isnan(bovl_mm),0)
+export_xr2tif(outbovl, outtif)      #.bovl, f'subswath{subswath}.tif')  
 # much more elegant:
-export_xr2tif(outbovl.where(outbovl != 0), outtif)      #.bovl, f'subswath{subswath}.tif')  
+# export_xr2tif(outbovl.where(outbovl != 0), outtif)      #.bovl, f'subswath{subswath}.tif')  
 
 
 ''' ML: MN, please test/check this line, I write without possibility to test it now - maybe should be outbovl.bovl?

@@ -697,17 +697,16 @@ for prefix in ['coh', 'scaled']:  # unscaled
     geoc_file = os.path.join(GEOC_folder, pair, f'{pair}_soi_adf_{prefix}.geo')
     exec_str = ['geocode_back', phase_data, str(width), lt_fine_file, geoc_file, str(widthgeo), '0', '0', '0']
     try:
-        #   subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
-        subprocess.run(exec_str, check=True)
-        # print(f"Command executed successfully: {' '.join(exec_str)}")
+      subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+      # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while executing the command: {e}")
 
     geoc_tif = os.path.join(GEOC_folder, pair, f'{pair}_soi_adf_{prefix}.geo.tif')
     exec_str = ['data2geotiff', EQA_path, geoc_file, '2', geoc_tif, '0.0']
     try:
-        subprocess.run(exec_str, check=True)
-        # print(f"Command executed successfully: {' '.join(exec_str)}")
+      subprocess.run(exec_str, check=True, stdout=subprocess.DEVNULL)
+      # print(f"Command executed successfully: {' '.join(exec_str)}")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while executing the command: {e}")
 
