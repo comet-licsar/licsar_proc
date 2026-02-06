@@ -61,7 +61,8 @@ create_LOS_tide() {
   else
     gmt grdmath "$E" "$epochpath/tmp_tides.e.nc" MUL "$N" "$epochpath/tmp_tides.n.nc" MUL ADD "$U" "$epochpath/tmp_tides.v.nc" MUL ADD 0 NAN = "$epochpath/$date1.tide.geo.T.tif"=gd:GTiff
   fi
-  gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 "$epochpath/$date1.tide.geo.T.tif" "$tide_file"
+  # gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=3 "$epochpath/$date1.tide.geo.T.tif" "$tide_file"
+  python3 -c "import lics_processing as lp; a=lp.load_tif2xr('"$epochpath/$date1.tide.geo.T.tif"'); a=lp.fit_2D_xarray(a, 'cubic'); lp.export_xr2tif(a, '"$tide_file"')" 2>/dev/null
   chmod 777 "$tide_file"
   rm "$epochpath/$date1.tide.geo.T.tif"
   rm "$epochpath/tmp_tides."*.nc
