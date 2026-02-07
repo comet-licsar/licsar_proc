@@ -7,6 +7,6 @@ export LiCSAR_proc_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH=$(echo "$PATH" | awk -v RS=: -v ORS=: '$0 !~ /licsar_proc/' | sed 's/:$//')
 export PYTHONPATH=$(echo "$PYTHONPATH" | awk -v RS=: -v ORS=: '$0 !~ /licsar_proc/' | sed 's/:$//')
 
-# Add the new LiCSAR_proc paths
-export PATH="$LiCSAR_proc_path/bin:$LiCSAR_proc_path/python:$PATH"
-export PYTHONPATH="$LiCSAR_proc_path/python:$PYTHONPATH"
+# add local paths (mirror what your modulefile does)
+export PATH="$LiCSAR_proc_path/bin:$LiCSAR_proc_path/bin/orig:$LiCSAR_proc_path/bin/scripts:$LiCSAR_proc_path/bin/bashlib:$LiCSAR_proc_path/python:$PATH"
+export PYTHONPATH="$LiCSAR_proc_path/python:$LiCSAR_proc_path/python/LiCSAR_lib:$LiCSAR_proc_path/python/LiCSAR_db:$PYTHONPATH"
