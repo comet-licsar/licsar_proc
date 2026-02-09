@@ -31,8 +31,8 @@ then
  echo " -L 365 would do same as -V but also auto-choose and process such master epoch"
  echo " -T - would include some extra Tien Shan related tuning"
  echo " -C lat1/lat2/lon1/lon2 - would establish a crop area for the frame"
- echo " (-s YYYYMMDD - startdate (e.g. with -V, overriding the lastdays option)"
- echo " (-e YYYYMMDD - enddate (e.g. with -V, overriding the lastdays option)"
+ echo " (-s YYYYMMDD - startdate (e.g. with -V XXX, overriding the lastdays option - please keep the number of lastdays anyway, e.g. set to 0)"
+ echo " (-e YYYYMMDD - enddate (e.g. with -V XXX, overriding the lastdays option - please keep the number of lastdays anyway, e.g. set to 0)"
  exit
 fi
 
