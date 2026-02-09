@@ -357,11 +357,13 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     except:
         centre_range_m=float(grep1line('centre_range_m',metafile).split('=')[1])
     #
+    # estimate also satellite altitude (hsat)
+    theta = np.radians(avg_incidence_angle)
+    hsat = centre_range_m * np.cos(theta)
     master=str(grep1line('master',metafile).split('=')[1])
     #
     acqtime = pd.to_datetime(str(epoch) + 'T' + center_time)
     # this is to get point between sat and scene centre
-    theta = np.radians(avg_incidence_angle)
     wgs84 = nv.FrameE(name='WGS84')
     Pscene_center = wgs84.GeoPoint(latitude=scene_center_lat, longitude=scene_center_lon, degrees=True)
     # burst_len = 7100*2.758277 #approx. satellite velocity on the ground 7100 [m/s] * burst_interval [s]
@@ -437,7 +439,10 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450,
     if sbovl:
         ionoxrA = incml.copy(deep=True)
         ionoxrB = incml.copy(deep=True)
-        slantRanges=slant_ranges(frame, master, range2iono)
+        # slantRanges=slant_ranges(frame, master, range2iono)
+        # ML 02/2026: there were few issues with this, changing by:
+        print('getting slant ranges assuming sat altitude of '+str(round(hsat/1000))+' km')
+        slantRanges = hsat / np.cos(np.radians(incml))
     else:
         ionoxr = incml.copy(deep=True)
     

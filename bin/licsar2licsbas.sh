@@ -55,8 +55,8 @@ if [ -z $1 ]; then
  echo "-p ........ finalise by correcting plate motion velocity w.r.t. Eurasia (plus correct ref effect in vstd)"
  echo "-b ........ would start sbovls-licsbas (use dev version here..)"
  echo "-q ........ if sbovl-licsbas, will rerun again to check high residual in first inversion (LiCSBAS13)"
- echo "-x .......  if sbovl active, will use RANSAC is used to guide the daz values by incorporating the sbovl interferograms, allowing the LiCSBAS sbovl processing to continue using absolute values"
- echo "-Z .......  cumulative process - will generates the cumulative displacement (w.r.t. the first epoch) tif files, after the LiCSBAS processing. It is in progress, please contact the MN or ML if you want to use. 
+ echo "-x .......  if sbovl active, will use RANSAC to guide the daz values by incorporating the sbovl interferograms, allowing the LiCSBAS sbovl processing to continue using absolute values"
+ echo "-Z .......  cumulative process - will generate the cumulative displacement (w.r.t. the first epoch) tif files, after the LiCSBAS processing. It is in progress, please contact the MN or ML if you want to use."
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  #echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  #echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -323,6 +323,7 @@ fi
 
 ##if sbovl is open these should be closed automatically!
 if [ $sbovl -gt 0 ]; then
+ echo "using sbovls - disabling -u -g etc (if set)"
  reunw=0
  dogacos=0
  deramp=0 #not sure yet?
@@ -678,12 +679,12 @@ if [ "$setides" -gt 0 ]; then
   disprocdir=$(pwd)
 
   if [ "$reunw" -gt 0 ]; then  # in such case we correct before unwrapping || [ "$sbovl" -gt 0 ]
-    if [ "$sbovl" -gt 0 ]; then
-      echo "applying the SET correction in azimuth"
-      mkdir -p GEOC.corr ##this is to store the corrections
-    else
+    # if [ "$sbovl" -gt 0 ]; then
+    #  echo "applying the SET correction in azimuth"
+    #  mkdir -p GEOC.corr ##this is to store the corrections
+    #else
       echo "applying the SET correction in range"
-    fi
+    # fi
     # now using them to create either pha or unw tifs (to GEOC)
     cd GEOC
     disdir=$(pwd)
@@ -695,9 +696,9 @@ if [ "$setides" -gt 0 ]; then
     hgtfile="$disdir/$hgtfile"
     regt=$(gmt grdinfo "$hgtfile" | grep "registration" | awk '{print $2}')
     #if [ $extofproc == 'unw' ]; then grdmextra=''; else grdmextra='WRAP'; fi   # now use only for wrapped data..
-    # grdmextra='WRAP'
-    if [ "${extofproc}" == "sbovldiff.adf.mm" ]; then grdmextra=""; else grdmextra="WRAP"; fi 
-    
+    grdmextra='WRAP'
+    # if [ "${extofproc}" == "sbovldiff.adf.mm" ]; then grdmextra=""; else grdmextra="WRAP"; fi
+
     for pair in $(ls -d 20??????_20??????); do
       echo "$pair"
       cd "$pair"
@@ -707,12 +708,12 @@ if [ "$setides" -gt 0 ]; then
       echo "Checking file: $infile"
 
       # First, check if infile is a symlink
-      if [ ! -L "$infile" ]; then
-        if [ "$sbovl" -gt 0 ]; then
-          echo "Warning: $infile is not a symlink, checking alternative file (bovl)..."
-          infile="$infile2"
-        fi
-      fi
+      #if [ ! -L "$infile" ]; then
+      #  if [ "$sbovl" -gt 0 ]; then
+      #    echo "Warning: $infile is not a symlink, checking alternative file (bovl)..."
+      #    infile="$infile2"
+      #  fi
+      #fi
 
       # Now check if the updated infile is still missing
       if [ ! -L "$infile" ]; then
@@ -725,14 +726,14 @@ if [ "$setides" -gt 0 ]; then
       outfile="$(pwd)/$pair.geo.$extofproc.notides.tif" ##after that one sbovl and bovl is called as sbovl?
       tobad=0
       if [ ! -f "$outfile" ]; then
-        if [ "$sbovl" -gt 0 ]; then
-          tided1="$epochdir/$date1/$date1.tide.geo.azi.tif"
-          tided2="$epochdir/$date2/$date2.tide.geo.azi.tif"
-          outcorfile="$disprocdir/GEOC.corr/$pair.geo.$extofproc.tides_correction.tif"  
-        else
+        #if [ "$sbovl" -gt 0 ]; then
+        #  tided1="$epochdir/$date1/$date1.tide.geo.azi.tif"
+        #  tided2="$epochdir/$date2/$date2.tide.geo.azi.tif"
+        #  outcorfile="$disprocdir/GEOC.corr/$pair.geo.$extofproc.tides_correction.tif"
+        #else
           tided1="$epochdir/$date1/$date1.tide.geo.tif"
           tided2="$epochdir/$date2/$date2.tide.geo.tif" # should be A-B....
-        fi
+        #fi
 
         if [ -f "$tided1" ] && [ -f "$tided2" ]; then
           # 2025/10: the gridline vs pixel registration was really pain... instead, just using the python command - bit slower but works..
@@ -930,6 +931,7 @@ if [ "$iono" -gt 0 ]; then
 	 done
 	 rm $tmpy
 
+  # ML: the condition below is never happening... TODO for MN - perhaps just delete the section?
   elif [ "$sbovl" -gt 0 ] && [ "$reunw" -gt 0 ]; then ##Iono looks more complex so let's do it in another elif block ##TODO sbovl correction will be applied in in the cum, so I have put reunw condition to skip here.
    echo "applying the ionospheric correction for SBOI"    
    ######
