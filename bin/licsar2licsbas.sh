@@ -529,8 +529,8 @@ for epochpath in `ls -d $epochdir/20*`; do
   if [ $epoch -ge $startdate ] && [ $epoch -le $enddate ]; then
     gacosfile=$epochdir/$epoch/$epoch.sltd.geo.tif
     if [ -s $gacosfile ]; then
-     if [ ! -f $epoch.sltd.geo.tif ]; then
-       cp $gacosfile $workdir/GACOS/$epoch.sltd.geo.tif . 2>/dev/null
+     if [ ! -f $workdir/GACOS/$epoch.sltd.geo.tif ]; then
+       cp $gacosfile $workdir/GACOS/$epoch.sltd.geo.tif 2>/dev/null
      fi
     fi
   fi
@@ -667,12 +667,13 @@ if [ $icams -gt 0 ]; then
       if [ -f $epochpath/$epoch.$extfull ]; then
         if [ ! -e $epoch/$epoch.$extfull ]; then
          mkdir -p $epoch
-         cd $epoch
-         cp $epochpath/$epoch.$extfull .
-         cd ..
+         #cd $epoch
+         cp $epochpath/$epoch.$extfull $epoch/.
+         #cd ..
         fi
       fi
    done
+   cd $disdir
 fi
 
 if [ "$setides" -gt 0 ]; then
