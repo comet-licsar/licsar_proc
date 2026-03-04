@@ -26,11 +26,16 @@ def merge_volclips_of_volcanoes(volcid, vtomerge):
     mergeclipid = v.get_volclip_vids(vtomerge)[0]
     vidclip_geom = v.get_volclips_gpd(vidclip).geom.values[0]
     vtomerge_geom = v.get_volclips_gpd(mergeclipid).geom.values[0]
+    return merge_gpds(vidclip_geom, vtomerge_geom)
+
+
+def merge_gpds(vidclip_geom, vtomerge_geom):
     minx, miny, maxx, maxy = vtomerge_geom.union(vidclip_geom).bounds
     newpoly = box(minx, miny, maxx, maxy)
-    newpoly = gpd.GeoDataFrame({'geom': [newpoly]}) #, crs=largerpr.crs)
-    newpoly=newpoly.set_geometry('geom')
+    newpoly = gpd.GeoDataFrame({'geom': [newpoly]})  # , crs=largerpr.crs)
+    newpoly = newpoly.set_geometry('geom')
     return newpoly
+
 
 ############ update volcano clip - Pedro's boxes
 # 1. identify the volcano and set the preliminary box
@@ -42,6 +47,7 @@ def merge_volclips_of_volcanoes(volcid, vtomerge):
 vid = 241070
 # vname = 'Taupo'
 # Pedro's clip
+largeclip = False
 new_minx, new_maxx, new_miny, new_maxy = 175.498, 176.315, -39.055, -38.536
 
 #### 1, and 2,
@@ -55,21 +61,24 @@ newpoly=enlarge_rectangle(origpoly, bufferdistance)
 gg=gpd.GeoDataFrame({'geom': [newpoly]})
 gg=gg.set_geometry('geom') #.values
 # transform Pedro's clip
-largepoly = Polygon([(new_minx, new_miny), (new_minx, new_maxy), (new_maxx, new_maxy), (new_maxx, new_miny)])
-largepoly = gpd.GeoDataFrame({'geom': [largepoly]}) #, crs=largerpr.crs)
-largepoly=largepoly.set_geometry('geom')
+if largeclip:
+    largepoly = Polygon([(new_minx, new_miny), (new_minx, new_maxy), (new_maxx, new_maxy), (new_maxx, new_miny)])
+    largepoly = gpd.GeoDataFrame({'geom': [largepoly]}) #, crs=largerpr.crs)
+    largepoly=largepoly.set_geometry('geom')
 
 # or if merging:
 newpoly = merge_volclips_of_volcanoes(vid, vtomerge)
 #gg = enlarge_rectangle(newpoly.geom.values[0], 8/111.111, cstr='D') # UDLR
-gg = enlarge_rectangle(newpoly.geom.values[0], 2/111.111, cstr='DRLU')
+gg = enlarge_rectangle(newpoly.geom.values[0], 5/111.111, cstr='DR')
 gg = enlarge_rectangle(gg, 2/111.111, cstr='U')
 gg=gpd.GeoDataFrame({'geom': [gg]})
 gg=gg.set_geometry('geom') #.values
 # plot the overview
 fig=lv.volcano_clip_plot_with_frames(vid)
 fig.plot(gg.geom, pen='0.5p,orange')
-#fig.plot(largepoly.geom, pen='1p,red')
+if largeclip:
+    fig.plot(largepoly.geom, pen='1p,red')
+
 fig.savefig('delme.png', dpi=150); os.system('display delme.png')
 
 
