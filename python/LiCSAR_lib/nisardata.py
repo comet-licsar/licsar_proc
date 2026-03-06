@@ -171,6 +171,157 @@ encoding = {
 # This will execute lazily by chunks, not loading everything into memory
 ds_out.to_netcdf("ifg_components.nc", engine="netcdf4", encoding=encoding)
 
+# but the orig data is still large - downsample to 50x50 m:
+import numpy as np
+import xarray as xr
+import numpy as np
+import xarray as xr
+
+def multilook_ifg_phase_mag_to_netcdf(
+    nc_in: str,
+    nc_out: str,
+    phase_var: str = "phase",
+    magnitude_var: str = "magnitude",
+    looks_y: int = 10,
+    looks_x: int = 10,
+    chunks: dict | None = None,
+    write_magnitude: bool = True,
+    netcdf_engine: str = "netcdf4",
+    coord_reduce: str = "mean",  # "mean" or "center"
+):
+    """
+    Lazily multilook an interferogram stored as phase/magnitude in NetCDF and
+    write the multilooked phase (and optionally magnitude) to a new NetCDF.
+
+    Strategy:
+        1) Reconstruct complex: C = M * exp(i * phase)
+        2) Coarsen (mean) with factors (looks_y, looks_x), boundary='trim'
+        3) Phase_out = angle(mean(C)), Magnitude_out = abs(mean(C))
+        4) Coarsen 1D coords x, y to match new sizes (mean or window center)
+        5) Write to NetCDF with chunked encoding (out-of-core)
+
+    Notes:
+        - Assumes 2D variables with dims ("y", "x") or a permutation thereof.
+        - Coordinates 'x' and 'y' are assumed to be 1D monotonic vectors.
+    """
+    # 1) Open lazily
+    ds = xr.open_dataset(nc_in, engine=netcdf_engine, chunks=chunks)
+
+    # Identify dims of the phase variable (e.g., ('y','x') or ('x','y'))
+    pdims = ds[phase_var].dims
+    if len(pdims) != 2:
+        raise ValueError(f"{phase_var} must be 2D, got dims {pdims}")
+
+    # Make sure order is (y, x)
+    if pdims == ("y", "x"):
+        ydim, xdim = "y", "x"
+        phase = ds[phase_var]
+        mag   = ds[magnitude_var]
+    elif pdims == ("x", "y"):
+        ydim, xdim = "y", "x"
+        phase = ds[phase_var].transpose("y", "x")
+        mag   = ds[magnitude_var].transpose("y", "x")
+    else:
+        # Fall back: sort dims by name if not exact
+        dims_sorted = tuple(sorted(pdims))
+        raise ValueError(f"Unexpected dims {pdims}; expected ('y','x') or ('x','y').")
+
+    phase = phase.astype("float32")
+    mag   = mag.astype("float32")
+
+    # 2) Reconstruct complex interferogram lazily: C = M * exp(i * phase)
+    C = mag * xr.apply_ufunc(
+        lambda p: np.exp(1j * p),
+        phase,
+        dask="parallelized",
+        output_dtypes=[np.complex64],
+    ).astype("complex64")
+
+    # 3) Multilook via coarsen (mean), trimming edges that don't complete a window
+    C_ml = C.coarsen({ydim: looks_y, xdim: looks_x}, boundary="trim").mean()
+
+    # Convert back to phase and magnitude lazily
+    phase_ml = xr.apply_ufunc(np.angle, C_ml, dask="parallelized", output_dtypes=[np.float32]).astype("float32")
+    if write_magnitude:
+        magnitude_ml = xr.apply_ufunc(np.abs, C_ml, dask="parallelized", output_dtypes=[np.float32]).astype("float32")
+
+    # 4) Build coarsened coordinates that MATCH the multilooked sizes
+    coords_out = {}
+
+    # Coarsen y coordinate if present & 1D
+    if ydim in ds.coords and ds[ydim].ndim == 1:
+        if coord_reduce == "mean":
+            y_ml = ds[ydim].coarsen({ydim: looks_y}, boundary="trim").mean().astype("float32")
+        elif coord_reduce == "center":
+            n_y = ds.sizes[ydim]
+            n_y_trim = (n_y // looks_y) * looks_y
+            y_trim = ds[ydim].isel({ydim: slice(0, n_y_trim)})
+            y_ml = y_trim.coarsen({ydim: looks_y}).construct(f"{ydim}_win").isel({f"{ydim}_win": looks_y // 2})
+            y_ml = y_ml.astype("float32")
+        else:
+            raise ValueError("coord_reduce must be 'mean' or 'center'")
+        coords_out[ydim] = (ydim, y_ml.data)
+
+    # Coarsen x coordinate if present & 1D
+    if xdim in ds.coords and ds[xdim].ndim == 1:
+        if coord_reduce == "mean":
+            x_ml = ds[xdim].coarsen({xdim: looks_x}, boundary="trim").mean().astype("float32")
+        elif coord_reduce == "center":
+            n_x = ds.sizes[xdim]
+            n_x_trim = (n_x // looks_x) * looks_x
+            x_trim = ds[xdim].isel({xdim: slice(0, n_x_trim)})
+            x_ml = x_trim.coarsen({xdim: looks_x}).construct(f"{xdim}_win").isel({f"{xdim}_win": looks_x // 2})
+            x_ml = x_ml.astype("float32")
+        else:
+            raise ValueError("coord_reduce must be 'mean' or 'center'")
+        coords_out[xdim] = (xdim, x_ml.data)
+
+    # 5) Output dataset with matching dims & coords
+    data_vars = {"phase_ml": (phase_ml.dims, phase_ml.data)}
+    if write_magnitude:
+        data_vars["magnitude_ml"] = (phase_ml.dims, magnitude_ml.data)
+
+    # Safe attrs (avoid None)
+    attrs = {"description": f"Multilooked {looks_y}x{looks_x} from complex mean"}
+    for key in ("crs", "epsg", "source1", "source2"):
+        val = ds.attrs.get(key)
+        if val is not None:
+            attrs[key] = str(val)
+
+    ds_out = xr.Dataset(data_vars=data_vars, coords=coords_out, attrs=attrs)
+
+    # 6) Chunked encoding (use first chunk per dimension)
+    out_chunks = tuple(ch[0] for ch in phase_ml.data.chunks)  # e.g., (1024, 1024)
+    encoding = {
+        "phase_ml": {
+            "zlib": True, "complevel": 4,
+            "dtype": "float32",
+            "chunksizes": out_chunks,
+            "_FillValue": np.float32(np.nan),
+        }
+    }
+    if write_magnitude:
+        encoding["magnitude_ml"] = {
+            "zlib": True, "complevel": 4,
+            "dtype": "float32",
+            "chunksizes": out_chunks,
+            "_FillValue": np.float32(np.nan),
+        }
+
+    # 7) Write lazily, chunk-by-chunk (no full-RAM load)
+    ds_out.to_netcdf(nc_out, engine=netcdf_engine, encoding=encoding)
+
+# Example: 10×10 multilook, chunks are multiples of 10 for efficiency
+multilook_ifg_phase_mag_to_netcdf(
+    nc_in="ifg_components.nc",
+    nc_out="ifg_components_ml_10x10.nc",
+    looks_y=10,
+    looks_x=10,
+    chunks={"y": 4000, "x": 4000},  # multiples of looks are efficient
+    write_magnitude=True,
+    coord_reduce="mean",            # or "center"
+)
+
 
 '''
 # then to convert to WGS-84:
