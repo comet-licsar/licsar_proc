@@ -28,6 +28,169 @@ results=asf.search(dataset='NISAR', processingLevel='GSLC')  # or 'GUNW'
 asf_session = get_asf_session()
 results.download(path='.', session=asf_session)   # tested - works ok
 
+lat=33.74; lon=-118.37
+wkt = f"POINT({lon} {lat})"
+results=asf.geo_search(dataset='NISAR', processingLevel='GSLC', intersectsWith=wkt, maxResults=50)
+# , flightDirection='ASCENDING'
+images = []
+downloadit=True
+asf_session = get_asf_session()
+downpath = 'NISAR'
+reslen = len(results)
+i = 0
+for gg in results:
+    i = i+1
+    imname = gg.properties['sceneName']
+    images.append(imname)
+    if downloadit:
+        print('Downloading '+imname+' ({0}/{1})'.format(str(i), str(reslen)))
+        gg.download(downpath, session=asf_session)
+        
+
+import h5py
+import dask.array as da
+import xarray as xr
+from rasterio.crs import CRS  # optional but convenient
+
+
+def load_gslc_frequencyA(path, chunks="auto"):
+    """
+    Lazily load OPERA/GSLC FrequencyA HH grid as xarray.Dataset with:
+    - complex data
+    - x/y coordinates
+    - EPSG CRS (if present)
+    """
+    f = h5py.File(path, "r")
+    base = "/science/LSAR/GSLC/grids/frequencyA/HH"
+    # could do also from RSLC, but then the geocoding etc......
+    # base='/science/LSAR/RSLC/swaths/frequencyA/HH'
+    # --- main complex grid (lazy) ---
+    dset = f[base]
+    data = da.from_array(dset, chunks=chunks)
+    # --- coordinates (lazy) ---
+    x = da.from_array(f["/science/LSAR/GSLC/grids/frequencyA/xCoordinates"], chunks=chunks)
+    y = da.from_array(f["/science/LSAR/GSLC/grids/frequencyA/yCoordinates"], chunks=chunks)
+    # --- CRS ---
+    proj_group = f["/science/LSAR/GSLC/grids/frequencyA/projection"]
+    epsg = proj_group.attrs.get("epsg_code", None)
+    crs = CRS.from_epsg(int(epsg)).to_string() if epsg is not None else None
+    # --- Build xarray Dataset ---
+    ds = xr.Dataset(
+        data_vars={
+            "HH": (("y", "x"), data)
+        },
+        coords={
+            "x": ("x", x),
+            "y": ("y", y),
+        },
+        attrs={
+            "epsg": epsg,
+            "crs": crs,
+            "source_file": path,
+        }
+    )
+    return ds
+
+
+in1='NISAR/NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5'
+ds1 = load_gslc_frequencyA(in1)
+in2='NISAR/NISAR_L2_PR_GSLC_007_034_A_018_4005_DHDH_A_20251206T130751_20251206T130826_X05009_N_F_J_001.h5'
+ds2 = load_gslc_frequencyA(in2)
+
+# Lazy interferogram
+ifg = ds1.HH * ds2.HH.conj()
+
+ifg_da = xr.DataArray(
+    ifg,
+    coords=ds1.coords,
+    dims=ds1.HH.dims,
+    attrs={"description": "Interferogram (S1 * conj(S2))"}
+)
+
+ifg_da.attrs.update({
+    #"source1": ds1.attrs.get("source_file", "epoch1.h5"),
+    #"source2": ds2.attrs.get("source_file", "epoch2.h5"),
+    "crs": ds1.attrs.get("crs"),
+    "epsg": ds1.attrs.get("epsg"),
+})
+
+
+import numpy as np
+import xarray as xr
+
+# Lazily compute phase and magnitude (no .values!)
+phase = xr.apply_ufunc(
+    np.angle,
+    ifg_da,
+    dask="parallelized",
+    output_dtypes=[np.float32],
+)
+
+magnitude = xr.apply_ufunc(
+    np.abs,
+    ifg_da,
+    dask="parallelized",
+    output_dtypes=[np.float32],
+)
+
+ds_out = xr.Dataset(
+    data_vars={
+        "phase": (ifg_da.dims, phase.data),
+        "magnitude": (ifg_da.dims, magnitude.data),
+    },
+    coords=ifg_da.coords,
+    attrs={
+        "description": "Interferogram components from S1 * conj(S2)",
+        #"source1": str(ifg_da.attrs.get("source1", "")),
+        #"source2": str(ifg_da.attrs.get("source2", "")),
+        "crs": ifg_da.attrs.get("crs", None),
+        "epsg": ifg_da.attrs.get("epsg", None),
+    },
+)
+
+# Choose compression + chunk sizes for NetCDF
+# Use the same chunking as in the dask graph to avoid rechunking during write
+# xarray expects chunk sizes per dimension as a tuple
+chunksizes = tuple(ch[0] for ch in phase.data.chunks)  # e.g. (1024, 1024)
+
+encoding = {
+    "phase": {
+        "zlib": True, "complevel": 4,  # netCDF4/deflate compression
+        "dtype": "float32",
+        "chunksizes": chunksizes,       # ensure chunk-wise writing
+        "_FillValue": np.float32(np.nan),
+    },
+    "magnitude": {
+        "zlib": True, "complevel": 4,
+        "dtype": "float32",
+        "chunksizes": chunksizes,
+        "_FillValue": np.float32(np.nan),
+    },
+}
+
+# This will execute lazily by chunks, not loading everything into memory
+ds_out.to_netcdf("ifg_components.nc", engine="netcdf4", encoding=encoding)
+
+
+'''
+# then to convert to WGS-84:
+gdal_translate \
+  -of GTiff \
+  -co COMPRESS=LZW \
+  -co TILED=YES \
+  NETCDF:ifg_components.nc:phase \
+  phase_utm.tif
+
+gdalwarp \
+  -t_srs EPSG:4326 \
+  -r nearest \
+  -co COMPRESS=DEFLATE -co PREDICTOR=2 \
+  -co TILED=YES \
+  phase_utm.tif \
+  phase_wgs84.tif
+'''
+
+
 def download(filename, slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC', ingest = False, provider='cdse'):
     '''wrapper to wget commands. the provider must be one of ['cdse', 'alaska']
     '''
