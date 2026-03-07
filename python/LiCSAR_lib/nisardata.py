@@ -323,6 +323,25 @@ multilook_ifg_phase_mag_to_netcdf(
 )
 
 
+# now convert to wgs-84 geotiff:
+a=xr.open_dataset('ifg_components_ml_10x10.nc')
+p=a.phase_ml
+p=p.rio.write_crs(a.crs)
+p.rio.to_raster('ifg_pha.tif')
+m=a.magnitude_ml
+m=m.rio.write_crs(a.crs)
+m.rio.to_raster('ifg_mag.tif') # no need for compression as i will translate to wgs later
+cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 ifg_pha.tif ifg_pha.wgs84.tif"
+os.system(cmd)
+cmd = "gdalwarp -t_srs EPSG:4326 -r average -co COMPRESS=DEFLATE -co PREDICTOR=2 ifg_mag.tif ifg_mag.wgs84.tif"
+os.system(cmd)
+
+# now you can create e.g. some nice previews
+cmd = "create_preview_pygmt.py --grid ifg_pha.wgs84.tif --title 20251206_20251230 --label phase --photobg --lims -3.1416 3.1416"
+os.system(cmd)
+cmd = "create_preview_pygmt.py --grid ifg_mag.wgs84.tif --title 20251206_20251230 --cmap gray --label magnitude --photobg --lims 0 2"
+os.system(cmd)
+
 '''
 # then to convert to WGS-84:
 gdal_translate \
