@@ -193,7 +193,7 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
     return xrpha
 
 
-def cliparea_geo2coords(cliparea_geo):
+def cliparea_geo2coords(cliparea_geo, outputaswkt = False):
     """Exports the string to min/max clip values
 
     Args:
@@ -214,7 +214,21 @@ def cliparea_geo2coords(cliparea_geo):
         tmpcl = minclipx
         minclipx = maxclipx
         maxclipx = tmpcl
-    return minclipx, maxclipx, minclipy, maxclipy
+    if outputaswkt:
+        from shapely.geometry import Polygon
+        minx, maxx = minclipx, maxclipx
+        miny, maxy = minclipy, maxclipy
+        poly = Polygon([
+            (minx, miny),
+            (minx, maxy),
+            (maxx, maxy),
+            (maxx, miny),
+            (minx, miny)  # close the polygon
+        ])
+        wkt_polygon = poly.wkt
+        return wkt_polygon
+    else:
+        return minclipx, maxclipx, minclipy, maxclipy
 
 
 def runcmd(cmd, printcmd = True):
