@@ -290,7 +290,8 @@ def get_nomissing_rslcs(rslcCache, mstrDate, builtRslcs):
             size_iwrslc = os.path.getsize(iwrslc)
             size_rslcs = size_rslcs + size_iwrslc
         if size_rslcs == size_master_rslcs:
-            builtRslcs_nomissing = builtRslcs_nomissing.append(rslcdate)
+            # builtRslcs_nomissing = builtRslcs_nomissing.append(rslcdate)
+            builtRslcs_nomissing.loc[len(builtRslcs_nomissing)] = rslcdate # yes... updated pandas removed append. so doing append workaround..
     #else:
     #    print('ERROR - master RSLC mosaic does not exist!')
     return builtRslcs_nomissing
