@@ -217,7 +217,7 @@ def main(argv=None):
         ############################################################Create Geoencoded directory
             demdir = os.path.join(procdir,'DEM')
             if not os.path.exists(demdir):
-                print("\ERROR:", file=sys.stderr)
+                print("ERROR:", file=sys.stderr)
                 print("DEM directory {0} does not seem to exist.".format(demdir), file=sys.stderr)
                 return 1
             geodir = os.path.join(procdir,'geo')
