@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+'''
+Created by Milan Lazecky in 2026 - based on his previous dask experience.
+Yes, I first tried Copilot and I keep his messy codes in captions here, for now..
+Then I looked at my lics_unwrap, reminded few tricks, and replaced the many lines by few.. and more correct ones.
+This is only to remind that Copilot is really useful for a fast first step, but you just need the experience and some digging.
+
+This is still early in dev, but NISAR search, download, and ifg processing works well - give it a try!
+(just get your GSLC .h5 files of the same track and path, and then apply generate_ifg function)
+'''
 import os
 import datetime as dt
 import re
@@ -140,18 +149,19 @@ def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
             "epsg": epsg,
             "crs": crs,
             "source_file": path,
+            "freq": freq_code,
+            "polarization": polarization
         }
     )
     return ds
 
 
-
-in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5'
-ds1 = load_gslc(in1)
-in2='NISAR/NISAR_L2_PR_GSLC_007_034_A_018_4005_DHDH_A_20251206T130751_20251206T130826_X05009_N_F_J_001.h5'
-ds2 = load_gslc(in2)
-
 '''
+in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5'
+ds1 = load_gslc(in1, freq_code = 'A')
+in2='NISAR_L2_PR_GSLC_007_034_A_018_4005_DHDH_A_20251206T130751_20251206T130826_X05009_N_F_J_001.h5'
+ds2 = load_gslc(in2, freq_code = 'A')
+
 # /science/LSAR/GSLC/metadata/sourceData/swaths/frequencyA/nearRangeIncidenceAngle
 # /science/LSAR/GSLC/metadata/sourceData/processingInformation/parameters/frequencyA/slantRange
 # /science/LSAR/GSLC/metadata/sourceData/processingInformation/parameters/slantRange
@@ -216,24 +226,107 @@ def get_ENU(path, chunks='auto'):
 
 
 
+def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5',
+                in2='NISAR_L2_PR_GSLC_007_034_A_018_4005_DHDH_A_20251206T130751_20251206T130826_X05009_N_F_J_001.h5',
+                freq_code = 'A', polarization = 'HH',
+                target_resolution_m = 110, outncfile = 'ifg.A.nc', create_wgs84_previews = True):
+    ''' Main code to create interferogram and coherence from two NISAR GSLC data
+    '''
+    if (not os.path.exists(in1)) or (not os.path.exists(in2)):
+        print('ERROR - some of the files do not exist')
+        return False
+    ds1 = load_gslc(in1, freq_code=freq_code, polarization = polarization)
+    ds2 = load_gslc(in2, freq_code=freq_code, polarization = polarization)
+    if not ds1[polarization].shape == ds2[polarization].shape:
+        print('ERROR - the dimensions do not fit - are these files from the same track and path??')
+        return False
+    # Lazy interferogram
+    ifg = ds1.HH * ds2.HH.conj()
 
-# Lazy interferogram
-ifg = ds1.HH * ds2.HH.conj()
+    ifg_da = xr.DataArray(
+        ifg,
+        coords=ds1.coords,
+        dims=ds1[polarization].dims,
+        attrs={"description": "Interferogram (S1 * conj(S2))"}
+    )
 
-ifg_da = xr.DataArray(
-    ifg,
-    coords=ds1.coords,
-    dims=ds1.HH.dims,
-    attrs={"description": "Interferogram (S1 * conj(S2))"}
-)
+    ifg_da.attrs.update({
+        "source1": ds1.attrs.get("source_file", os.path.basename(in1)),
+        "source2": ds2.attrs.get("source_file", os.path.basename(in2)),
+        "crs": ds1.attrs.get("crs"),
+        "epsg": ds1.attrs.get("epsg"),
+        "freq": ds1.attrs.get("freq"),
+        "polarization": ds1.attrs.get("polarization"),
+    })
 
-ifg_da.attrs.update({
-    "source1": ds1.attrs.get("source_file", os.path.basename(in1)),
-    "source2": ds2.attrs.get("source_file", os.path.basename(in2)),
-    "crs": ds1.attrs.get("crs"),
-    "epsg": ds1.attrs.get("epsg"),
-})
+    # now multilook
+    # target_res = 110 # [m] first instance, to get similar outputs to LiCSAR ifgs..
+    resx = float(ifg_da.x[1]-ifg_da.x[0])
+    resy = abs(float(ifg_da.y[1]-ifg_da.y[0]))
+    mlx=int(target_resolution_m/resx) # setting the floor here - may still be too large then?
+    mly=int(target_resolution_m/resy)
+    print(f'Using {mlx}x{mly} multilooking, i.e. coherence calculated based on {mlx*mly} pixels')
+    ifg_ml_da = ifg_da.coarsen({'x': mlx, 'y': mly}, boundary='trim')
+    
+    # then, create ~coherence estimate (see lics_unwrap.py)
+    amp = np.abs(ifg_da).coarsen({'x': mlx, 'y': mly}, boundary='trim')
+    coh = np.abs(ifg_ml_da.sum()) / amp.sum()  # quality of this coherence depends on multilook pixels!
 
+    # multilooked phase
+    ifg_ml = ifg_ml_da.sum()/ifg_ml_da.count()
+    phase = xr.apply_ufunc(
+        np.angle,
+        ifg_ml,
+        dask="parallelized",
+        output_dtypes=[np.float32],
+    )
+
+    # wrap it up to dataset
+    ds_out = xr.Dataset(
+        data_vars={
+            "phase": phase, #(ifg_ml.dims, phase.data),
+            "coherence": coh, # (ifg_da.dims, magnitude.data),
+        },
+        coords=ifg_ml.coords,
+        attrs={
+            "description": "Interferogram components from S1 * conj(S2)",
+            "source1": str(ifg_ml.attrs.get("source1", "-")),
+            "source2": str(ifg_ml.attrs.get("source2", "-")),
+            "crs": ifg_ml.attrs.get("crs", '-'),
+            "epsg": ifg_ml.attrs.get("epsg", '-'),
+            "freq": ifg_ml.attrs.get("freq", '-'),
+            "polarization": ifg_ml.attrs.get("polarization", '-'),
+        },
+    )
+
+    chunksizes = tuple(ch[0] for ch in phase.data.chunks)  # e.g. (1024, 1024)
+
+    encoding = {
+        "phase": {
+            "zlib": True, "complevel": 4,  # netCDF4/deflate compression
+            "dtype": "float32",
+            "chunksizes": chunksizes,       # ensure chunk-wise writing
+            "_FillValue": np.float32(np.nan),
+        },
+        "coherence": {
+            "zlib": True, "complevel": 4,
+            "dtype": "float32",
+            "chunksizes": chunksizes,
+            "_FillValue": np.float32(np.nan),
+        },
+    }
+    print('Computing and storing to '+outncfile)
+    # This will execute lazily by chunks, not loading everything into memory
+    ds_out.to_netcdf(outncfile, engine="netcdf4", encoding=encoding)
+    if create_wgs84_previews:
+        # this means first convert to WGS84 and then .. create some nice pngs
+        # just in case of rio issues, reloading:
+        xrds = xr.open_dataset(outncfile)
+        convert_to_wgs84(xrds, outbasename = outncfile[:-3])
+        # print('TODO - but see the code here..')
+        print('all done')
+
+'''
 # Lazily compute phase and magnitude (no .values!)
 phase = xr.apply_ufunc(
     np.angle,
@@ -287,9 +380,10 @@ encoding = {
 # This will execute lazily by chunks, not loading everything into memory
 ds_out.to_netcdf("ifg_components.nc", engine="netcdf4", encoding=encoding)
 
-
+'''
 
 # but the orig data is still large - downsample to 50x50 m:
+'''
 def multilook_ifg_phase_mag_to_netcdf(
     nc_in: str,
     nc_out: str,
@@ -435,32 +529,43 @@ multilook_ifg_phase_mag_to_netcdf(
     write_magnitude=True,
     coord_reduce="mean",            # or "center"
 )
-
+'''
 
 # now convert to wgs-84 geotiff:
-a=xr.open_dataset('ifg_components_ml_10x10.nc')
-p=a.phase_ml
-p=p.rio.write_crs(a.crs)
-p.rio.to_raster('ifg_pha.tif')
-m=a.magnitude_ml
-m=m.rio.write_crs(a.crs)
-m.rio.to_raster('ifg_mag.tif') # no need for compression as i will translate to wgs later
-cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 ifg_pha.tif ifg_pha.wgs84.tif"
-os.system(cmd)
-cmd = "gdalwarp -t_srs EPSG:4326 -r average -co COMPRESS=DEFLATE -co PREDICTOR=2 ifg_mag.tif ifg_mag.wgs84.tif"
-os.system(cmd)
+def convert_to_wgs84(xrds, outbasename = 'ifg', create_previews = True):
+    ''' This will convert the xr.Dataset containing phase and coherence to WGS-84 geotiffs
+    you can either parse the ds_out, or use e.g. xrds=xr.open_dataset('ifg.nc') 
+    '''
+    if 'coherence' not in xrds:
+        print('ERROR: coherence is not part of the input data (is this xr.Dataset?)')
+        return False
+    p=xrds.phase
+    p=p.rio.write_crs(xrds.crs)
+    p.rio.to_raster(outbasename+'_pha.tif')
+    m=xrds.coherence #magnitude_ml
+    m=m.rio.write_crs(xrds.crs)
+    m.rio.to_raster(outbasename+'_coh.tif') # no need for compression as i will translate to wgs later
+    cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 "+outbasename+"_pha.tif "+outbasename+"_pha.wgs84.tif"
+    os.system(cmd)
+    cmd = "gdalwarp -t_srs EPSG:4326 -r average -co COMPRESS=DEFLATE -co PREDICTOR=2 "+outbasename+"_coh.tif "+outbasename+"_coh.wgs84.tif"
+    os.system(cmd)
+    if create_previews:
+        # now you can create e.g. some nice previews
+        cmd = "create_preview_pygmt.py --grid "+outbasename+"_pha.wgs84.tif --title NISAR --label phase --photobg --lims -3.141593 3.141593"
+        os.system(cmd)
+        cmd = "create_preview_pygmt.py --grid "+outbasename+"_coh.wgs84.tif --title NISAR --cmap gray --label coherence --photobg --lims 0 1"
+        os.system(cmd)
 
-# now you can create e.g. some nice previews
-cmd = "create_preview_pygmt.py --grid ifg_pha.wgs84.tif --title 20251206_20251230 --label phase --photobg --lims -3.1416 3.1416"
-os.system(cmd)
-cmd = "create_preview_pygmt.py --grid ifg_mag.wgs84.tif --title 20251206_20251230 --cmap gray --label magnitude --photobg --lims 0 2"
-os.system(cmd)
 
+# this below is TODO for the unit vectors:
+'''
 z=a.unit_z
 z=z.rio.write_crs(a.crs)
 z.rio.to_raster('unitz.tif')
 cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 unitz.tif unitz.wgs84.tif"
 os.system(cmd)
+'''
+
 '''
 # then to convert to WGS-84:
 gdal_translate \
