@@ -16,7 +16,7 @@ import s1data as s1
 # import datetime as dt
 import subprocess as subp
 from glob import glob
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 import copy
 #LiCSAR global configuration
 import global_config as gc
@@ -151,7 +151,7 @@ def get_orb_dir( sat ):
 
 
 def get_orb_dir_old( sat ):
-    parser = SafeConfigParser()
+    parser = ConfigParser()
     try:
         parser.read( os.environ[ 'LiCSARconfig' ] )
         if sat == 'S1A':
