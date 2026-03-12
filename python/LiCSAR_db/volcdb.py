@@ -513,7 +513,7 @@ def get_volclips_gpd(vid=None):
 
 
 def sql2gdf(sql):
-    conn = Conn_db()\
+    conn = Conn_db()
     conn.connect()
     try:
         df = pd.read_sql(sql, conn)
