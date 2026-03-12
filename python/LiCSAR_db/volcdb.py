@@ -513,8 +513,13 @@ def get_volclips_gpd(vid=None):
 
 
 def sql2gdf(sql):
-    conn = Conn_db()
-    df = pd.read_sql(sql, conn)
+    conn = Conn_db()\
+    conn.connect()
+    try:
+        df = pd.read_sql(sql, conn)
+    except:
+        print('Some error reading from the database')
+    conn.close()
     df["geom"] = df["geom"].apply(lambda x: wkb.loads(x, hex=False))
     ''' earlier i used:
     engine=Conn_sqlalchemy()
