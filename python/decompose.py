@@ -44,6 +44,26 @@ cube['E']=cube.asc.copy()
 cube['U'].values, cube['E'].values = decompose_np(cube.asc, cube.desc, cube.asc_heading, cube.desc_heading, cube.asc_inc, cube.desc_inc)
 '''
 
+def calculate_dops_frames(framelist, lon, lat):
+    ''' will calculate dops from a set of frames - now only for given coordinate, can improve if needed
+    returns: PDOP, HDOP_E, HDOP_N, VDOP '''
+    from daz_lib import calculate_dops
+    # first, get inc and heading:
+    incs = []
+    heads = []
+    for fr in framelist:
+        inc, head = get_frame_inc_heading(fr)
+        incs.append(float(inc.sel(lon=lon, lat=lat, method='nearest')))
+        heads.append(float(head.sel(lon=lon, lat=lat, method='nearest')))
+    heads = np.array(heads)
+    incs = np.array(incs)
+    elevs = 90-incs
+    PDOP, HDOP_E, HDOP_N, VDOP  = calculate_dops(elevs, heads)
+    print("PDOP, HDOP_E, HDOP_N, VDOP = ")
+    print(PDOP, HDOP_E, HDOP_N, VDOP)
+    return PDOP, HDOP_E, HDOP_N, VDOP
+
+
 def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False,
                        annual_buffer_months = 0, selperiods = None, do_velUN=False, velname='vel', stdname = None):
     """ will decompose frame licsbas results
