@@ -21,7 +21,7 @@ def Conn_sqlalchemy(dbname='licsar_live'):
     parser = ConfigParser()
     parser.read(gc.configfile)
     sqlhost = parser.get('sqlinfo', 'host')
-    sqldb = parser.get('sqlinfo', 'dbname')
+    # sqldb = parser.get('sqlinfo', 'dbname')
     sqluser = parser.get('sqlinfo', 'dbuser')
     sqlpass = parser.get('sqlinfo', 'dbpass')
     
@@ -59,7 +59,10 @@ def Conn_db():
         conn = pymysql.connect(host=sqlhost,
                                user=sqluser,
                                password=sqlpass,
-                               db=sqldb)
+                               db=sqldb,
+                               #cursorclass=pymysql.cursors.DictCursor,
+                               #binary_prefix=True
+                               )
         cur = conn.cursor()
         rc = conn.ping(reconnect=True) 
         cur.execute('SELECT VERSION();')
