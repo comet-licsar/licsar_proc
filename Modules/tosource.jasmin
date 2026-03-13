@@ -5,7 +5,7 @@ export grouppath="/gws/ssde/j25a/nceo_geohazards/vol1"
 export LiCSAR_procdir="/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/proc/current"
 export softwarepath="/gws/smf/j04/nceo_geohazards/software"
 export nlapath="/gws/smf/j04/nceo_geohazards/software/nla"
-export ingestConfig=/gws/ssde/j25a/nceo_geohazards/vol1/config/LiCSAR/liveConfig.cnf
+export ingestConfig=/gws/smf/j04/nceo_geohazards/software/licsar_config/liveConfig.cnf
 export bkup_dir=/gws/ssde/j25a/nceo_geohazards/vol1/bkups
 export LiCSAR_GACOS="/work/scratch-pw4/licsar/GACOS"
 export LiCSAR_volc="/gws/pw/j07/comet_lics/LiCSAR_volc"
@@ -26,8 +26,8 @@ export GAMMA_RASTER="BMP"
 
 
 #keep the below
-export configpath=$grouppath"/config/licsar_proc"
-export LiCSAR_configpath=$configpath
+export configpath=/gws/smf/j04/nceo_geohazards/software/licsar_config
+export LiCSAR_configpath=/gws/smf/j04/nceo_geohazards/software/licsar_config
 
 if [ -z $BATCH_CACHE_DIR ]; then
   export BATCH_CACHE_DIR="/work/scratch-pw4/licsar/"$USER"/batchdir"
@@ -37,7 +37,7 @@ export LiCSAR_temp=$BATCH_CACHE_DIR/LiCSAR_temp #"/work/scratch-pw3/licsar/"$USE
 export ORB_DIR=$grouppath"/orbits/"
 export dems_dir=$grouppath"/DEMs/"
 
-export LiCSARconfig=$configpath"/liveConfig.cnf"
+export LiCSARconfig=/gws/smf/j04/nceo_geohazards/software/licsar_config/liveConfig.cnf
 export LiCSAR_public="/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products.public"
 export LiCSAR_web="/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products.future"
 export LiCSAR_SLC="/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC"

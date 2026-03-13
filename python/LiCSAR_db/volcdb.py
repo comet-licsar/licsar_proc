@@ -7,8 +7,8 @@ import pandas as pd
 import glob, os
 try:
     from LiCSquery import *
-    from dbfunctions import Conn_sqlalchemy
-    from sqlalchemy import text
+    from dbfunctions import Conn_db #sqlalchemy
+    # from sqlalchemy import text
 except:
     print('error loading LicsInfo tools - volcdb is quite useless then')
 
@@ -16,6 +16,8 @@ from shapely.geometry import Polygon
 import geopandas as gpd
 import framecare as fc
 import fiona
+from shapely import wkb
+
 try:
     gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
 except:
@@ -23,6 +25,8 @@ except:
     #print('error, export to kml not working (update geopandas)')
 
 fiona.drvsupport.supported_drivers['KML'] = 'rw'
+import warnings
+warnings.filterwarnings("ignore", message=".*DBAPI2 objects are not tested.*")
 
 try:
     subvolcpath = os.path.join(os.environ['LiCSAR_procdir'], 'subsets', 'volc') #/volc/267)
@@ -91,12 +95,7 @@ def get_volc_info(volcid=None):
     else:
         cond = ''
     sql = "select volc_id,name,lat,lon,alt,priority,vportal_area,vportal_name,ST_AsBinary(geometry) as geom from volcanoes"+cond+";"
-    engine=Conn_sqlalchemy()
-    with engine.connect() as conn:
-        a = gpd.GeoDataFrame.from_postgis(text(sql), conn, geom_col='geom')
-    #a = do_pd_query(sql)
-    #a['geometry'] = a.geometry.apply(wkt.loads)
-    return a
+    return sql2gdf(sql)
 
 
 
@@ -509,13 +508,25 @@ def get_volclips_gpd(vid=None):
         cond = " where vc.vid={}".format(str(vid))
     else:
         cond = ''
-    #sql = "SELECT ST_AsBinary(geometry) as geom from volclips {0};".format(cond)
     sql = "SELECT v.volc_id,v.name,vc.vid,ST_AsBinary(vc.geometry) as geom from volclips vc inner join volclip2volcs vf on vf.vid=vc.vid inner join volcanoes v on vf.volc_id=v.volc_id {0};".format(cond)
+    return sql2gdf(sql)
+
+
+def sql2gdf(sql):
+    conn = Conn_db()
+    conn.connect()
+    try:
+        df = pd.read_sql(sql, conn)
+    except:
+        print('Some error reading from the database')
+    conn.close()
+    df["geom"] = df["geom"].apply(lambda x: wkb.loads(x, hex=False))
+    ''' earlier i used:
     engine=Conn_sqlalchemy()
     with engine.connect() as conn:
         volclips = gpd.GeoDataFrame.from_postgis(text(sql), conn, geom_col='geom')
-    #volclips = gpd.GeoDataFrame.from_postgis(sql, engine, geom_col='geom' )
-    return volclips
+    '''
+    return gpd.GeoDataFrame(df, geometry="geom")
 
 
 def initialise_subsets_in_frame(frame):

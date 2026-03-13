@@ -260,7 +260,7 @@ def geocode_dem(masterslcdir,geodir,demdir,procdir,masterdate,outres = gc.outres
 def get_nomissing_rslcs(rslcCache, mstrDate, builtRslcs):
     if type(builtRslcs) == type([]):
         builtRslcs = pd.DataFrame(builtRslcs)
-    builtRslcs_nomissing = pd.DataFrame()
+    builtRslcs_nomissing = [] #pd.DataFrame()
     try:
         masterstr = mstrDate.strftime('%Y%m%d')
     except:
@@ -290,10 +290,11 @@ def get_nomissing_rslcs(rslcCache, mstrDate, builtRslcs):
             size_iwrslc = os.path.getsize(iwrslc)
             size_rslcs = size_rslcs + size_iwrslc
         if size_rslcs == size_master_rslcs:
-            builtRslcs_nomissing = builtRslcs_nomissing.append(rslcdate)
+            builtRslcs_nomissing.append(rslcdate.values[0]) # = builtRslcs_nomissing.append(rslcdate)
+            #builtRslcs_nomissing.loc[len(builtRslcs_nomissing)] = rslcdate # yes... updated pandas removed append. so doing append workaround..
     #else:
     #    print('ERROR - master RSLC mosaic does not exist!')
-    return builtRslcs_nomissing
+    return pd.DataFrame(builtRslcs_nomissing)
 
 
 ################################################################################
@@ -356,7 +357,7 @@ def rebuild_rslc(procdir,slavedate,masterdate,rglks,azlks):
     if masterIWRSLC and slaveIWRSLC:
         swathlist = list()
         for siwr in slaveIWRSLC:
-            mtch = re.search('.*(IW[1-3]).*',siwr)
+            mtch = re.search(r'.*(IW[1-3]).*',siwr)
             swathlist.append(mtch.groups()[0])
         swathlist.sort()
         if mosaic_rslc(procdir,slavedate,masterdate,rglks,azlks,swathlist):
