@@ -278,7 +278,7 @@ def getFilesFromPolygonMinMax(polyMinMax,track):
     brstIDs = [brst[0] for brst in lq.get_bursts_in_polygon(*polyMinMax)]
 
     for brstID in brstIDs:
-        curTrack = int(re.search('(\d+)_',brstID).groups()[0])
+        curTrack = int(re.search(r'(\d+)_',brstID).groups()[0])
         if not track:
             brstTracks.add(curTrack)
         brstFiles = [bf[1] for bf in lq.get_files_from_burst(brstID)]

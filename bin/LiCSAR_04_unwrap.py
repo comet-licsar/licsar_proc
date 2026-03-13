@@ -167,7 +167,7 @@ def main(argv=None):
         ifglist = list()
         with open(ifgListFile,'r') as f:
             for line in f:
-                mtch = re.search('\d{8}_\d{8}',line.strip())
+                mtch = re.search(r'\d{8}_\d{8}',line.strip())
                 if mtch:
                     ifglist.append(mtch.group())
     else:

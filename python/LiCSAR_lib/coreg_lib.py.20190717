@@ -296,7 +296,7 @@ def rebuild_rslc(procdir,slavedate,masterdate,rglks,azlks):
     if masterIWRSLC and slaveIWRSLC:
         swathlist = list()
         for siwr in slaveIWRSLC:
-            mtch = re.search('.*(IW[1-3]).*',siwr)
+            mtch = re.search(r'.*(IW[1-3]).*',siwr)
             swathlist.append(mtch.groups()[0])
         swathlist.sort()
         if mosaic_rslc(procdir,slavedate,masterdate,rglks,azlks,swathlist):

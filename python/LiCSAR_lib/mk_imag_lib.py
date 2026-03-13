@@ -782,7 +782,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 for zipFile in glob(imdir+'/*.zip'):
                     #Loop through zipfiles and get valis orbit file
                     print("Updating orbit for {0}".format(zipFile))
-                    mtch = re.search('.*(S1[ABCD]).*',zipFile)
+                    mtch = re.search(r'.*(S1[ABCD]).*',zipFile)
                     sat = mtch.groups()[0]
                     localOrbDir = get_orb_dir(sat)
                     try:
@@ -935,7 +935,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
                 for zipFile in glob(imdir+'/*.zip'):
                     #Loop through zipfiles and get valis orbit file
                     print("Updating orbit for {0}".format(zipFile))
-                    mtch = re.search('.*(S1[ABCD]).*',zipFile)
+                    mtch = re.search(r'.*(S1[ABCD]).*',zipFile)
                     sat = mtch.groups()[0]
                     localOrbDir = get_orb_dir(sat)
                     orbit = getValidOrbFile(localOrbDir,zipFile)
@@ -972,7 +972,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             for zipFile in glob(imdir+'/*.zip'):
                 #Loop through zipfiles and get valis orbit file
                 print("Updating orbit for {0}".format(zipFile))
-                mtch = re.search('.*(S1[ABCD]).*',zipFile)
+                mtch = re.search(r'.*(S1[ABCD]).*',zipFile)
                 sat = mtch.groups()[0]
                 localOrbDir = get_orb_dir(sat)
                 try:

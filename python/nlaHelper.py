@@ -15,7 +15,7 @@ def loadFileList(fileList):
     dates = []
     with open(fileList) as flf:
         for line in flf:
-            dateMatch = re.search('/20\d\d/\d+/\d+/',line)
+            dateMatch = re.search(r'/20\d\d/\d+/\d+/',line)
             dates.append(
                     dt.datetime.strptime(dateMatch.group(),'/%Y/%m/%d/')
                     )

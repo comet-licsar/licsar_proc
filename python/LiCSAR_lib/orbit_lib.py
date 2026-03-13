@@ -451,7 +451,7 @@ class orbUrlNotFnd(Exception):
 ################################################################################
 def strpSat(filename):
     """ Strips out the satalite from the file name"""
-    satPat = '.*(S1[ABCD])_.*'
+    satPat = r'.*(S1[ABCD])_.*'
 
     mtch = re.search(satPat,filename)
 
@@ -466,7 +466,7 @@ def strpSat(filename):
 ################################################################################
 def strpStrtEndTimes(filename):
     """ Strips out the measurement times from the file name"""
-    timePat = '.*(\d{8}T\d+)_(\d{8}T\d+).*'
+    timePat = r'.*(\d{8}T\d+)_(\d{8}T\d+).*'
     strpPat = '%Y%m%dT%H%M%S'
 
     mtch = re.search(timePat,filename)
@@ -749,7 +749,7 @@ def getOrbUrl(sat,prodType,startTime,endTime):
 ################################################################################
 def downloadOrbit(url,outDir):
     """ Tries to download the orbit in url into the output directory"""    
-    eofPat = '.*(S1.*\.EOF)'
+    eofPat = r'.*(S1.*\.EOF)'
 
     #Strip file name from the url
     mtch = re.search(eofPat,url)
@@ -781,7 +781,7 @@ def findValidOrbFile(baseDir,sat,startTime,endTime):
         startTime, endTime (dt.datetime)
     """
 
-    timesStrpPat = '.*V(\d{8}T\d*)_(\d{8}T\d*)\.EOF'
+    timesStrpPat = r'.*V(\d{8}T\d*)_(\d{8}T\d*)\.EOF'
     timeStrpPat = '%Y%m%dT%H%M%S'
 
     satDict = {'S1A':'S1A',
