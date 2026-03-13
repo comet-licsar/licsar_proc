@@ -48,6 +48,12 @@ def calculate_dops_frames(framelist, lon, lat):
     ''' will calculate dops from a set of frames - now only for given coordinate, can improve if needed
     returns: PDOP, HDOP_E, HDOP_N, VDOP '''
     from daz_lib import calculate_dops
+    ''' note, for nisar, we can do:
+    e='unitx.wgs84.tif'
+    u='unitz.wgs84.tif'
+    inc, head = extract_inc_heading(e, u, left_looking=True)
+    but note for azis you need +90!!
+    '''
     # first, get inc and heading:
     incs = []
     heads = []
@@ -58,7 +64,8 @@ def calculate_dops_frames(framelist, lon, lat):
     heads = np.array(heads)
     incs = np.array(incs)
     elevs = 90-incs
-    PDOP, HDOP_E, HDOP_N, VDOP  = calculate_dops(elevs, heads)
+    azis = heads-90
+    PDOP, HDOP_E, HDOP_N, VDOP  = calculate_dops(elevs, azis)
     print("PDOP, HDOP_E, HDOP_N, VDOP = ")
     print(PDOP, HDOP_E, HDOP_N, VDOP)
     return PDOP, HDOP_E, HDOP_N, VDOP
@@ -306,7 +313,7 @@ def get_frame_inc_heading(frame):
     return extract_inc_heading(e, u)
 
 
-def extract_inc_heading(efile, ufile):
+def extract_inc_heading(efile, ufile, left_looking=False):
     e = load_tif2xr(efile)
     e = e.where(e != 0)
     #n = load_tif2xr(n, cliparea_geo=cliparea)
@@ -315,7 +322,11 @@ def extract_inc_heading(efile, ufile):
     #
     theta=np.arcsin(u)
     phi=np.arccos(e/np.cos(theta))
-    heading = np.rad2deg(phi)-180
+    heading = np.rad2deg(phi)
+    if not left_looking:
+        heading = heading - 180
+    else:
+        heading = heading * (-1)
     inc = 90-np.rad2deg(theta)   #correct
     #inc.values.tofile(outinc)
     return inc, heading
