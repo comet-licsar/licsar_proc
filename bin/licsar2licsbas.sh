@@ -57,6 +57,7 @@ if [ -z $1 ]; then
  echo "-q ........ if sbovl-licsbas, will rerun again to check high residual in first inversion (LiCSBAS13)"
  echo "-x .......  if sbovl active, will use RANSAC to guide the daz values by incorporating the sbovl interferograms, allowing the LiCSBAS sbovl processing to continue using absolute values"
  echo "-Z .......  cumulative process - will generate the cumulative displacement (w.r.t. the first epoch) tif files, after the LiCSBAS processing. It is in progress, please contact the MN or ML if you want to use."
+ echo "-X .......  double-check batch_LiCSBAS.sh before submission (e.g., confirm LiCSBAS parameters). Can also submit job with -X, verify the setup, then run ./jasmin_run_cmd.sh"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
  echo "note: in case you combine -G and -u, the result will be in clip folder without GACOS! (still not smoothly combined reunw->licsbas, todo!)"  # updated on 2022-04-07
  echo "(note: if you do -M 1, it will go for reprocessing using the cascade/multiscale unwrap approach - in testing, please give feedback to Milan)"
@@ -529,9 +530,9 @@ for epochpath in `ls -d $epochdir/20*`; do
   if [ $epoch -ge $startdate ] && [ $epoch -le $enddate ]; then
     gacosfile=$epochdir/$epoch/$epoch.sltd.geo.tif
     if [ -s $gacosfile ]; then
-     if [ ! -f $epoch.sltd.geo.tif ]; then
-       cp $gacosfile $workdir/GACOS/$epoch.sltd.geo.tif . 2>/dev/null
-     fi
+      if [ ! -f $workdir/GACOS/$epoch.sltd.geo.tif ]; then
+        cp $gacosfile $workdir/GACOS/$epoch.sltd.geo.tif 2>/dev/null
+      fi
     fi
   fi
 done
@@ -807,12 +808,14 @@ if [ "$setides" -gt 0 ]; then
   fi
   for epochpath in `ls $epochdir/20?????? -d`; do
     epoch=`basename $epochpath`
-    if [ -f $epochpath/$epoch.$extfull ]; then
-      if [ ! -e $epoch/$epoch.$extfull ]; then
-          mkdir -p $epoch
-          cd $epoch
-          cp $epochpath/$epoch.$extfull .
-          cd $disdir
+    if [ $epoch -ge $startdate ] && [ $epoch -le $enddate ]; then
+      if [ -f $epochpath/$epoch.$extfull ]; then
+        if [ ! -e $epoch/$epoch.$extfull ]; then
+            mkdir -p $epoch
+            cd $epoch
+            cp $epochpath/$epoch.$extfull .
+            cd $disdir
+        fi
       fi
     fi
   done
@@ -938,110 +941,7 @@ if [ "$iono" -gt 0 ]; then
 	   cd $disdir
 	 done
 	 rm $tmpy
-
-  # ML: the condition below is never happening... TODO for MN - perhaps just delete the section?
-  elif [ "$sbovl" -gt 0 ] && [ "$reunw" -gt 0 ]; then ##Iono looks more complex so let's do it in another elif block ##TODO sbovl correction will be applied in in the cum, so I have put reunw condition to skip here.
-   echo "applying the ionospheric correction for SBOI"    
-   ######
-	 cd GEOC
-	 # using them to either pha or unw tifs (to GEOC)
-	 disdir=`pwd`
-	 #hgtfile=`ls *.geo.hgt.tif | head -n 1`
-	 tmpy=`pwd`/../tmp.py
-	 echo "from iono_correct import correct_iono_pair;" > $tmpy
-   outext=$extofproc.noiono    ##TODO set correction is applied in cum file so skip that.
-	#  if [ $setides -gt 0 ]; then
-	# 	 outext=$extofproc.notides.noiono
-	#  else
-	# 	 outext=$extofproc.noiono
-	#  fi
-   
-   ## Check if scaling factor file exists ##TODO as we pass the iono and SET correction before inversion here is skipped, so I need to put that earlier step.
-   if ls "$metadir"/*geo.sbovl_scaling.tif 1> /dev/null 2>&1; then
-     echo "Scaling factor exists."
-   else
-     echo "Scaling factor missing. Running Python script..."
-     scaling_factor_sbovl.py ## This script will create the scaling factor file
-   fi
-
-	 for pair in `ls -d 20??????_20??????`; do
-	   cd $pair
-	   # here use the linked
-	   infile="$(pwd)/$pair.geo.$extofproc.tif"
-     infile2="$(pwd)/$pair.geo.$extofproc2.tif" ##sbovl and bovl double check, if not sbovl exist, checking bovl
-
-	   if [ ! -L "$infile" ]; then
-      echo "Warning: $infile is not a symlink, checking alternative file (bovl)..."
-      infile="$infile2"
-		 fi
-
-     if [ ! -L "$infile" ]; then
-       echo "ERROR - inconsistency detected: $infile should be a symlink. Contact Milan for debugging."
-       exit
-     fi
-
-
-	   # as input, and then store as .iono.
-	   # and make the link back!
-	   date1=`echo $pair | cut -d '_' -f1`
-	   date2=`echo $pair | cut -d '_' -f2`
-	   #$epochdir
-	   outfile=`pwd`/$pair.geo.$outext.tif
-	   if [ ! -f $outfile ]; then
-		 ionod1A=$epochdir/$date1/$date1.geo.iono.code.sTECA.tif
-		 ionod1B=$epochdir/$date1/$date1.geo.iono.code.sTECB.tif   # should be A-B....
-     ionod2A=$epochdir/$date2/$date2.geo.iono.code.sTECA.tif
-		 ionod2B=$epochdir/$date2/$date2.geo.iono.code.sTECB.tif   # should be A-B....
-		 if [ -f $ionod1A ] && [ -f $ionod1B ] && [ -f $ionod2A ] && [ -f $ionod2B ]; then
-			echo "print('"$pair"')" >> $tmpy
-			echo "try:" >> $tmpy
-			echo "    correct_iono_pair(frame = '"$frame"', pair = '"$pair"', ifgtype = '"$extofproc"', infile = '"$infile"', source = 'code', fixed_f2_height_km = 450, outif='"$outfile"')" >> $tmpy
-			echo "except:" >> $tmpy
-			echo "    print('error correcting pair "$pair"')" >> $tmpy
-		 else
-		   echo "WARNING: iono estimates do not exist for pair "$pair" - perhaps one of epochs is not stored in LiCSAR_public - keeping this pair anyway"
-		 fi
-	   fi
-	   cd $disdir
-	 done
-	 pairstoproc=`grep frame $tmpy | wc -l`
-	 if [ $pairstoproc -gt 0 ]; then
-	  echo "Correcting the ionosphere for "`grep frame $tmpy | wc -l`" pairs"
-    # echo `pwd`
-	  python3 $tmpy
-	 fi
-	 disdir=`pwd`
-	 for pair in `ls -d 20??????_20??????`; do
-	   cd $pair
-	   outfile=$pair.geo.$outext.tif
-	   if [ -e ${outfile} ]; then
-      # link this one instead of this link
-      ifglink=$pair.geo.$extofproc.tif
-      ifglink2=$pair.geo.$extofproc2.tif #it is only active for sbovl situatuon
      
-     # Check if sbovl does not exist, but bovl exists → link bovl to sbovl ##it is not preferred senario.
-     if [ ! -e "$ifglink" ] && [ -e "$ifglink2" ] && [ "$sbovl" -gt 0 ]; then
-        #  echo "linking $ifglink2 to $ifglink"
-         ln -s "$ifglink2" "$ifglink"
-         ##cc's as well
-         cclink=${ifglink/mm/cc}
-         cclink2=${ifglink2/mm/cc}
-         ln -s "$cclink2" "$cclink"
-     fi
-
-		 if [ -L $ifglink ]; then
-			rm $ifglink
-			ln -s $outfile $ifglink
-		 else
-			echo "ERROR, the file "$ifglink" should be a link - not continuing"
-		#	exit
-		 fi
-	   fi
-	   cd $disdir
-	 done
-	 rm $tmpy
-
-######
   fi ## echo "WARNING: Without reunwrapping, the SET and iono corrs are only ready but not applied. Contact Milan - work in progress"
   
   #else
@@ -1062,19 +962,19 @@ if [ "$iono" -gt 0 ]; then
   # Loop through all epoch directories
   for epochpath in `ls $epochdir/20?????? -d`; do
     epoch=`basename $epochpath`
-    
-    # Iterate through all defined file extensions
-    for ext in "${extfull[@]}"; do
-      if [ -f "$epochpath/$epoch.$ext" ]; then
-        if [ ! -e "$epoch/$epoch.$ext" ]; then
-          mkdir -p "$epoch"
-          cd "$epoch"
-          cp "$epochpath/$epoch.$ext" .
-          cd "$disdir"
+    if [ $epoch -ge $startdate ] && [ $epoch -le $enddate ]; then
+      # Iterate through all defined file extensions
+      for ext in "${extfull[@]}"; do
+        if [ -f "$epochpath/$epoch.$ext" ]; then
+          if [ ! -e "$epoch/$epoch.$ext" ]; then
+            mkdir -p "$epoch"
+            cd "$epoch"
+            cp "$epochpath/$epoch.$ext" .
+            cd "$disdir"
+          fi
         fi
-      fi
-    done
-
+      done
+    fi
   done
    cd $disprocdir
   #fi
@@ -1426,7 +1326,8 @@ sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"1000/' batch_LiCSBAS.
 if [ $hgtcorrlicsbas -gt 0 ]; then
  sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
 fi
-
+echo $reunw $dogacos
+exit
 if [ $dogacos -gt 0 ]; then
  sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
 fi
