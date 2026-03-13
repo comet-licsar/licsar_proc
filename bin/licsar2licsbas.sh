@@ -425,9 +425,7 @@ cd GEOC
 need_to_generate_azi=0
 
 for meta in E N U hgt; do
-  # echo "Getting metafiles from metadir everytime!"  ## ML: Muhammet, please.. at least keep orig lines commented or ask.. no idea why you so much needed to remove this part
-  #
-  # echo "ML: whatever this means (Muhammet..) - note clips stopped working with this change, trying to find how to fix it"
+  # echo "Getting metafiles from metadir everytime!"
 if [ `ls *.geo.$meta.tif 2>/dev/null | wc -l` -lt 1 ]; then
  if [ -f lookangles/$master.geo.$meta.tif ]; then
   # echo "getting metafiles from GEOC/lookangles" # - might need updating in future"
