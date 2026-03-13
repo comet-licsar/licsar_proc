@@ -1163,7 +1163,7 @@ if [ $reunw -gt 0 ]; then
   extraparam=$extraparam", pairsetfile = '../pairset.txt'"
  fi
  if [ $dolocal == 1 ]; then
-#  echo "your dir contains GEOC folder. using local data - not from LiCSAR_public"
+ #echo "your dir contains GEOC folder. using local data - not from LiCSAR_public"
   extraparam=$extraparam",  dolocal = True"
   echo "ln -s ../GEOC" >> multirun.sh
  fi
@@ -1214,11 +1214,11 @@ if [ "$sbovl" -gt 0 ]; then
   sed -i 's/do04op_mask=\"n/do04op_mask=\"y/' batch_LiCSBAS.sh
   
   if [ "$setides" -gt 0 ]; then
-    sed -i 's/p131_sbovl_tide="n"/p131_sbovl_tide="y"/' batch_LiCSBAS.sh
+    sed -i 's/p131_tide="n"/p131_tide="y"/' batch_LiCSBAS.sh
   fi 
 
   if [ "$iono" -gt 0 ]; then
-    sed -i 's/p131_sbovl_iono="n"/p131_sbovl_iono="y"/' batch_LiCSBAS.sh
+    sed -i 's/p131_iono="n"/p131_iono="y"/' batch_LiCSBAS.sh
   fi
 
   if [ "$sbovl_resid_check" -gt 0 ]; then
@@ -1237,6 +1237,21 @@ if [ $reunw -gt 0 ]; then # && [ $clip == 1 ]; then
  sed -i 's/p11_s_param="n"/p11_s_param="y"/' batch_LiCSBAS.sh  #to check ionopsheric ramp removal
 else
  sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
+ 
+ #MN I shift the corrections here to save in cum.h5 file and apply in the LiCSBAS16 before the spatio-temporal filtering, which is more consistent with the way we apply corrections in the original LiCSAR processing.
+ ##tide correction
+ if [ "$setides" -gt 0 ]; then
+  sed -i 's/p131_tide="n"/p131_tide="y"/' batch_LiCSBAS.sh
+ fi 
+ ##iono correction
+ if [ "$iono" -gt 0 ]; then
+  sed -i 's/p131_iono="n"/p131_iono="y"/' batch_LiCSBAS.sh
+ fi
+ ##gacos correction
+ if [ "$dogacos" -gt 0 ]; then
+  sed -i 's/p131_gacos="n"/p131_gacos="y"/' batch_LiCSBAS.sh
+ fi
+
 fi
 
 if [ $eqminmag -gt 0 ]; then # && [ $clip == 1 ]; then
@@ -1326,8 +1341,7 @@ sed -i 's/p15_n_ifg_noloop_thre=\"/p15_n_ifg_noloop_thre=\"1000/' batch_LiCSBAS.
 if [ $hgtcorrlicsbas -gt 0 ]; then
  sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
 fi
-echo $reunw $dogacos
-exit
+
 if [ $dogacos -gt 0 ]; then
  sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
 fi
@@ -1362,73 +1376,73 @@ if [ $run_jasmin -eq 1 ]; then
  if [[ "$cohmask4" != 0 || "$sbovl" -gt 0 ]]; then clstr=$clstr'mask'; fi
  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
  tsdir=TS_$geocd
- if [ "$reunw" -eq 0 ]; then
-   lbreproc=0
-   lbreprocname=''
-  # so here we have already unwrapped data and we will just post-correct the ramps
-  if [ $setides -gt 0 ]; then
-    #echo "insert code to post-correct SET here"
-    if [ "$sbovl" -eq 0 ]; then
-      echo "Note: SET corrections will be applied to cum_filt"
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=False)\"" >> jasmin_run.sh
-    elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
-      echo "Note: SET corrections will be applied before step 16. skipping" #Why? We need to apply it in cum.h5 before the filtering? so it will be applied in batch_LiCSBAS.sh step before step16. #MN 
-      # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=True)\"" >> jasmin_run.sh
-    fi
-    lbreproc=1
-    lbreprocname=$lbreprocname'.noSET'
-    #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.code.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
-  fi
-  if [ "$iono" -gt 0 ]; then
-    #echo "insert code to post-correct iono here"
-    if [ "$sbovl" -eq 0 ]; then
-      echo "Note: iono corrections will be applied to cum_filt"
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
-    elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
-      echo "Note: iono corrections will be applied before step 16. skipping" # Same story MN
-      #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
-    fi
-    lbreproc=1
-    lbreprocname=$lbreprocname'.noiono'
-  fi
-  if [ "$lbreproc" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
-    echo "LiCSBAS_cum2vel.py -i "$tsdir"/cum_filt.h5 -o "$tsdir"/results/vel.filt"$lbreprocname".mskd --vstd --png --mask "$tsdir"/results/mask" >> jasmin_run.sh
-    echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt"$lbreprocname".mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt"$lbreprocname".mskd.geo.tif" >> jasmin_run.sh
-  fi
- fi
+#  if [ "$reunw" -eq 0 ]; then #MN, Apply corrections in batch_LiCSBAS.sh after LiCSBAS13 so they are saved in cum.h5, and ensure they are applied again before LiCSBAS16 (spatio-temporal filtering) to produce cum_filt.h5.
+#    lbreproc=0
+#    lbreprocname=''
+#   # so here we have already unwrapped data and we will just post-correct the ramps
+#   if [ $setides -gt 0 ]; then
+#     #echo "insert code to post-correct SET here"
+#     if [ "$sbovl" -eq 0 ]; then
+#       echo "Note: SET corrections will be applied to cum_filt"
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=False)\"" >> jasmin_run.sh
+#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#       echo "Note: SET corrections will be applied before step 16. skipping" #Why? We need to apply it in cum.h5 before the filtering? so it will be applied in batch_LiCSBAS.sh step before step16. #MN 
+#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=True)\"" >> jasmin_run.sh
+#     fi
+#     lbreproc=1
+#     lbreprocname=$lbreprocname'.noSET'
+#     #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.code.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
+#   fi
+#   if [ "$iono" -gt 0 ]; then
+#     #echo "insert code to post-correct iono here"
+#     if [ "$sbovl" -eq 0 ]; then
+#       echo "Note: iono corrections will be applied to cum_filt"
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
+#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#       echo "Note: iono corrections will be applied before step 16. skipping" # Same story MN
+#       #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
+#     fi
+#     lbreproc=1
+#     lbreprocname=$lbreprocname'.noiono'
+#   fi
+#   if [ "$lbreproc" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
+#     echo "LiCSBAS_cum2vel.py -i "$tsdir"/cum_filt.h5 -o "$tsdir"/results/vel.filt"$lbreprocname".mskd --vstd --png --mask "$tsdir"/results/mask" >> jasmin_run.sh
+#     echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt"$lbreprocname".mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt"$lbreprocname".mskd.geo.tif" >> jasmin_run.sh
+#   fi
+#  fi
 
-## Storing the corrections in cum.h5
-if [ $storeext2cube -gt 0 ]; then
-  # Include generation of outputs
-  if [ $setides -gt 0 ]; then
-    echo "Additionally, the corrections will be stored in cum.h5 as layer tide"
-    if [ "$sbovl" -eq 0 ]; then
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
-    elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
-      echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
-      # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
-    fi
-  fi
+# ## Storing the corrections in cum.h5 #MN: This all going to batch_LiCSBAS.sh
+# if [ $storeext2cube -gt 0 ]; then
+#   # Include generation of outputs
+#   if [ $setides -gt 0 ]; then
+#     echo "Additionally, the corrections will be stored in cum.h5 as layer tide"
+#     if [ "$sbovl" -eq 0 ]; then
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#       echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
+#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+#     fi
+#   fi
 
-  if [ $iono -gt 0 ]; then
-    echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
-    if [ "$sbovl" -eq 0 ]; then
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
-    elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
-      echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
-      # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
-    fi
-  fi
-  if [ $dogacos -gt 0 ]; then
-    echo "Additionally, the corrections will be stored in cum.h5 as layer gacos"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GACOS', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
-  fi
+#   if [ $iono -gt 0 ]; then
+#     echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
+#     if [ "$sbovl" -eq 0 ]; then
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#       echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
+#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+#     fi
+#   fi
+#   if [ $dogacos -gt 0 ]; then
+#     echo "Additionally, the corrections will be stored in cum.h5 as layer gacos"
+#     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GACOS', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+#   fi
 
-  if [ $icams -gt 0 ]; then
-    echo "Additionally, the corrections will be stored in cum.h5 as layer icams"
-    echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'icams.sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
-  fi
-fi
+#   if [ $icams -gt 0 ]; then
+#     echo "Additionally, the corrections will be stored in cum.h5 as layer icams"
+#     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'icams.sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+#   fi
+# fi
 
 
 if [ "$platemotion" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
