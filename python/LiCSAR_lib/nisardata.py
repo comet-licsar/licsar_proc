@@ -26,6 +26,9 @@ import xarray as xr
 import numpy as np
 from rasterio.crs import CRS  # optional but convenient
 
+from dask.diagnostics import ProgressBar
+ProgressBar().register()
+
 '''
 # need WG84->UTM transformer, so:
 from shapely.ops import transform
