@@ -102,12 +102,16 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
                 epoch1 = ifg[0].startTime.split('T')[0].replace('-','')
                 epoch2 = ifg[1].startTime.split('T')[0].replace('-', '')
                 if os.path.exists(in1) and os.path.exists(in2):
-                    outncfile = os.path.join(framedir, epoch1+'_'+epoch2+'.nc')
-                    generate_ifg(
-                        in1=in1,
-                        in2=in2,
-                        freq_code=freq_code, polarization='HH', clipping_bbox=bbox,
-                        target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
+                    pair = epoch1 + '_' + epoch2
+                    outncfile = os.path.join(framedir, pair+'.nc')
+                    try:
+                        generate_ifg(
+                            in1=in1,
+                            in2=in2,
+                            freq_code=freq_code, polarization='HH', clipping_bbox=bbox,
+                            target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
+                    except:
+                        print('Some error generating '+pair)
                 else:
                     print('ERROR, file '+in1+' does not exist')
 
