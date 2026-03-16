@@ -37,11 +37,12 @@ def wgs2utm(polygon, target_crs):
     ''' the bbox should be shapely polygon in WGS-84'''
     source_crs = "EPSG:4326"
     transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
-    poly_utm = transform(transformer.transform, bbox)
+    poly_utm = transform(transformer.transform, polygon)
     return poly_utm
 
 
-def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs', downloadit = True,
+def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
+              downloadit = False,
               clipit = True, processit = True):
     # will get automatically
     if not nisarslcpath:
