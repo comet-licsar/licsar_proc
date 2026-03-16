@@ -135,10 +135,10 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
             label.set_horizontalalignment('right')
     #
     #
-    ax.grid(True, which='major')
+    ax.grid(visible=True, which='major')
     ### Add bold line every 1yr
     ax.xaxis.set_minor_locator(mdates.YearLocator())
-    ax.grid(True, which='minor', linewidth=2)
+    ax.grid(visible=True, which='minor', linewidth=2)
     ax.set_xlim((firstdate, lastdate))
     #ax.set_xlim((imdates_dt_all[0]-dt.timedelta(days=10),
     #             imdates_dt_all[-1]+dt.timedelta(days=10)))
