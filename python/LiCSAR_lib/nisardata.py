@@ -114,6 +114,7 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
                             print('Some error generating '+pair)
                     else:
                         print('ERROR, file '+in1+' does not exist')
+    return nsrs
 
 
 def get_network(tmpsel, ntype='daisy'):
