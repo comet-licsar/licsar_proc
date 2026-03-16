@@ -108,7 +108,7 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
                         generate_ifg(
                             in1=in1,
                             in2=in2,
-                            freq_code=freq_code, polarization='HH', clipping_bbox=bbox,
+                            freq_code=freq_code, polarization='HH', clipping_bbox=polygon,
                             target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
                     except:
                         print('Some error generating '+pair)
