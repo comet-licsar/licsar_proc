@@ -312,6 +312,7 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
 
     clipping_bbox should be shapely.Polygon in WGS-84
     '''
+    print('Loading data')
     if (not os.path.exists(in1)) or (not os.path.exists(in2)):
         print('ERROR - some of the files do not exist')
         return False
