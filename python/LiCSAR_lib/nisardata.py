@@ -77,43 +77,43 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
             if not os.path.exists(fpath):
                 print('some error in '+fpath)
     if processit:
-        freq_code = 'B'
-        if clipit:
-            # need to reproject the bbox to given UTM.. will be done in load function
-            clipping_bbox = bbox
-        else:
-            clipping_bbox = None
-        nsrs=nsrs.sort_values('startTime')  # sort since the beginning
-        for i, sset in nsrsel.iterrows():
-            opass=sset['flightDirection']
-            pan = sset['pathNumber']
-            frn = sset['frameNumber']
-            frame = opass[0]+'.'+str(pan)+'.'+str(frn)
-            framedir = frame
-            if not os.path.exists(framedir):
-                os.mkdir(framedir)
-            print('processing frame '+frame)
-            tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
-            # now lets get network...
-            ifgs = get_network(tmpsel, ntype='daisy')
-            for ifg in ifgs:
-                in1 = os.path.join(nisarslcpath, ifg[0].sceneName+'.h5')
-                in2 = os.path.join(nisarslcpath, ifg[1].sceneName + '.h5')
-                epoch1 = ifg[0].startTime.split('T')[0].replace('-','')
-                epoch2 = ifg[1].startTime.split('T')[0].replace('-', '')
-                if os.path.exists(in1) and os.path.exists(in2):
-                    pair = epoch1 + '_' + epoch2
-                    outncfile = os.path.join(framedir, pair+'.nc')
-                    try:
-                        generate_ifg(
-                            in1=in1,
-                            in2=in2,
-                            freq_code=freq_code, polarization='HH', clipping_bbox=polygon,
-                            target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
-                    except:
-                        print('Some error generating '+pair)
-                else:
-                    print('ERROR, file '+in1+' does not exist')
+        for freq_code in ['A', 'B']:
+            if clipit:
+                # need to reproject the bbox to given UTM.. will be done in load function
+                clipping_bbox = polygon
+            else:
+                clipping_bbox = None
+            nsrs=nsrs.sort_values('startTime')  # sort since the beginning
+            for i, sset in nsrsel.iterrows():
+                opass=sset['flightDirection']
+                pan = sset['pathNumber']
+                frn = sset['frameNumber']
+                frame = opass[0]+'.'+str(pan)+'.'+str(frn)
+                framedir = frame
+                if not os.path.exists(framedir):
+                    os.mkdir(framedir)
+                print('processing frame '+frame)
+                tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
+                # now lets get network...
+                ifgs = get_network(tmpsel, ntype='daisy')
+                for ifg in ifgs:
+                    in1 = os.path.join(nisarslcpath, ifg[0].sceneName+'.h5')
+                    in2 = os.path.join(nisarslcpath, ifg[1].sceneName + '.h5')
+                    epoch1 = ifg[0].startTime.split('T')[0].replace('-','')
+                    epoch2 = ifg[1].startTime.split('T')[0].replace('-', '')
+                    if os.path.exists(in1) and os.path.exists(in2):
+                        pair = epoch1 + '_' + epoch2
+                        outncfile = os.path.join(framedir, pair+'.freq_'+freq_code+'.nc')
+                        try:
+                            generate_ifg(
+                                in1=in1,
+                                in2=in2,
+                                freq_code=freq_code, polarization='HH', clipping_bbox=clipping_bbox,
+                                target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
+                        except:
+                            print('Some error generating '+pair)
+                    else:
+                        print('ERROR, file '+in1+' does not exist')
 
 
 def get_network(tmpsel, ntype='daisy'):
