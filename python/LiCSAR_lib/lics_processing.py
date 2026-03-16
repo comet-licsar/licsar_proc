@@ -20,6 +20,7 @@ from affine import Affine
 import numpy as np
 from scipy import interpolate
 import statsmodels.api as sm
+from shapely.geometry import box
 
 def mm2rad_s1(inmm, rad2mm=False):
     """Converts from mm to radians (for Sentinel-1)
@@ -229,6 +230,10 @@ def cliparea_geo2coords(cliparea_geo, outputaswkt = False):
         return wkt_polygon
     else:
         return minclipx, maxclipx, minclipy, maxclipy
+
+
+def bbox_to_wkt(lon1, lat1, lon2, lat2):
+    return box(min(lon1, lon2), min(lat1, lat2), max(lon1, lon2), max(lat1, lat2)).wkt
 
 
 def runcmd(cmd, printcmd = True):

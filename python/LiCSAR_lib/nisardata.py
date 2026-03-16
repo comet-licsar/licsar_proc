@@ -20,6 +20,9 @@ import asf_search as asf
 import time
 import lics_processing as lp
 from shapely.geometry import shape
+from shapely import wkt
+from shapely.ops import transform
+from pyproj import Transformer
 import h5py
 import dask.array as da
 import xarray as xr
@@ -29,28 +32,95 @@ from rasterio.crs import CRS  # optional but convenient
 from dask.diagnostics import ProgressBar
 ProgressBar().register()
 
-'''
-# need WG84->UTM transformer, so:
-from shapely.ops import transform
-from pyproj import Transformer
 
-source_crs="EPSG:4326"
-target_crs = ....
-
-transformer = Transformer.from_crs(source_crs, target_crs, always_xy = True)
-
-polywgs84 = ...
-poly_utm = transform(transformer.transform, polywgs84)
+def wgs2utm(polygon, target_crs):
+    ''' the bbox should be shapely polygon in WGS-84'''
+    source_crs = "EPSG:4326"
+    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    poly_utm = transform(transformer.transform, bbox)
+    return poly_utm
 
 
+def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs', downloadit = True,
+              clipit = True, processit = True):
+    # will get automatically
+    if not nisarslcpath:
+        if 'XFCPATH' in os.environ:
+            nisarslcpath = os.path.join(os.environ['XFCPATH'], 'SLC')
+        elif 'LiCSAR_SLC' in os.environ:
+            nisarslcpath = os.environ['LiCSAR_SLC']
+        else:
+            nisarslcpath = os.getcwd()
+        print('expected input data into '+nisarslcpath)
+    #
+    bbox = lp.bbox_to_wkt(lon1, lat1, lon2, lat2)
+    nsrs = get_nisar_data(bbox, outAspd = True)
+    # filter a bit:
+    polygon = wkt.loads(bbox)
+    nsrs=nsrs[nsrs.intersects(polygon)]
+    # keep only data needed for whole bbox:
+    nsrsel=nsrs.groupby(['flightDirection','pathNumber', 'frameNumber']).head(1)[['flightDirection', 'pathNumber', 'frameNumber','geometry']]
+    for i, ln in nsrsel[nsrsel.contains(polygon)].iterrows():
+        todrop=nsrs[nsrs['flightDirection']==ln['flightDirection']][nsrs['pathNumber']==ln['pathNumber']][nsrs['frameNumber']!=ln['frameNumber']]
+        nsrs=nsrs.drop(todrop.index)
+    # update the selection
+    nsrsel = nsrs.groupby(['flightDirection', 'pathNumber', 'frameNumber']).head(1)[['flightDirection', 'pathNumber', 'frameNumber', 'geometry']]
+    # now can download them
+    print('data available from '+str(len(nsrsel.groupby(['flightDirection','pathNumber'])))+' orbital passes')
+    if downloadit:
+        print('Now we check and download ' + str(len(nsrs)) + ' files')
+        for i, ln in nsrs.iterrows():
+            print('downloading '+ln['sceneName']+'.h5')
+            url = ln['url']
+            fpath = download(url, nisarslcpath)  # using this way, because for some reason i cannot get ASF session established..
+            if not os.path.exists(fpath):
+                print('some error in '+fpath)
+    if processit:
+        freq_code = 'B'
+        if clipit:
+            # need to reproject the bbox to given UTM.. will be done in load function
+            clipping_bbox = bbox
+        else:
+            clipping_bbox = None
+        nsrs=nsrs.sort_values('startTime')  # sort since the beginning
+        for i, sset in nsrsel.iterrows():
+            opass=sset['flightDirection']
+            pan = sset['pathNumber']
+            frn = sset['frameNumber']
+            frame = opass[0]+'.'+str(pan)+'.'+str(frn)
+            framedir = frame
+            if not os.path.exists(framedir):
+                os.mkdir(framedir)
+            print('processing frame '+frame)
+            tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
+            # now lets get network...
+            ifgs = get_network(tmpsel, ntype='daisy')
+            for ifg in ifgs:
+                in1 = os.path.join(nisarslcpath, ifg[0].sceneName+'.h5')
+                in2 = os.path.join(nisarslcpath, ifg[1].sceneName + '.h5')
+                epoch1 = ifg[0].startTime.split('T')[0].replace('-','')
+                epoch2 = ifg[1].startTime.split('T')[0].replace('-', '')
+                if os.path.exists(in1) and os.path.exists(in2):
+                    outncfile = os.path.join(framedir, epoch1+'_'+epoch2+'.nc')
+                    generate_ifg(
+                        in1=in1,
+                        in2=in2,
+                        freq_code=freq_code, polarization='HH', clipping_bbox=bbox,
+                        target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
+                else:
+                    print('ERROR, file '+in1+' does not exist')
 
-if ascdesc == 'D': ascdesc = 'DESCENDING'
-    if ascdesc == 'A': ascdesc = 'ASCENDING'
-    r = asf.geo_search(relativeOrbit=tracks, beamMode=sensType,
-                   start = startdate, end = enddate,
-                   flightDirection=ascdesc, intersectsWith=footprint,
-                   platform='S1', processingLevel='SLC')
-'''
+
+def get_network(tmpsel, ntype='daisy'):
+    ifgs = []
+    if ntype == 'daisy':
+        for i in range(len(tmpsel)-1):
+            ifgs.append([tmpsel.iloc[i], tmpsel.iloc[i+1]])
+    else:
+        print('only daisy chain implemented for now')
+        return False
+    return ifgs
+
 
 # say we want to get NISAR data covering particular location, or region:
 def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('20250101','%Y%m%d').date(),
@@ -231,28 +301,43 @@ def get_ENU(path, chunks='auto'):
 
 def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5',
                 in2='NISAR_L2_PR_GSLC_007_034_A_018_4005_DHDH_A_20251206T130751_20251206T130826_X05009_N_F_J_001.h5',
-                freq_code = 'A', polarization = 'HH',
+                freq_code = 'A', polarization = 'HH', clipping_bbox = None,
                 target_resolution_m = 110, outncfile = 'ifg.A.nc', create_wgs84_previews = True):
     ''' Main code to create interferogram and coherence from two NISAR GSLC data
+
+    clipping_bbox should be shapely.Polygon in WGS-84
     '''
     if (not os.path.exists(in1)) or (not os.path.exists(in2)):
         print('ERROR - some of the files do not exist')
         return False
-    ds1 = load_gslc(in1, freq_code=freq_code, polarization = polarization)
+    try:
+        ds1 = load_gslc(in1, freq_code=freq_code, polarization = polarization)
+    except:
+        print('ERROR loading epoch1. maybe wrong polarization? trying VV')
+        polarization = 'VV'
+        ds1 = load_gslc(in1, freq_code=freq_code, polarization=polarization)
     ds2 = load_gslc(in2, freq_code=freq_code, polarization = polarization)
+    if type(clipping_bbox) != type(None):
+        utmcode = ds1.attrs.get("crs")
+        clipping_bbox_utm = wgs2utm(clipping_bbox, utmcode)
+        x1, y1, x2, y2 = clipping_bbox_utm.bounds
+        ds1 = ds1.sel(x=slice(x1,x2),
+                      y=slice(y2,y1))
+        ds2 = ds2.sel(x=slice(x1, x2),
+                      y=slice(y2, y1))
     if not ds1[polarization].shape == ds2[polarization].shape:
         print('ERROR - the dimensions do not fit - are these files from the same track and path??')
         return False
     # Lazy interferogram
     ifg = ds1.HH * ds2.HH.conj()
-
+    #
     ifg_da = xr.DataArray(
         ifg,
         coords=ds1.coords,
         dims=ds1[polarization].dims,
         attrs={"description": "Interferogram (S1 * conj(S2))"}
     )
-
+    #
     ifg_da.attrs.update({
         "source1": ds1.attrs.get("source_file", os.path.basename(in1)),
         "source2": ds2.attrs.get("source_file", os.path.basename(in2)),
@@ -261,7 +346,7 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
         "freq": ds1.attrs.get("freq"),
         "polarization": ds1.attrs.get("polarization"),
     })
-
+    #
     # now multilook
     # target_res = 110 # [m] first instance, to get similar outputs to LiCSAR ifgs..
     resx = float(ifg_da.x[1]-ifg_da.x[0])
@@ -588,12 +673,12 @@ gdalwarp \
 '''
 
 
-def download(filename, slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC', provider='alaska'):
+def download(url, slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC', provider='alaska'):
     '''wrapper to wget commands. the provider must be one of ['cdse', 'alaska']
     '''
     # slcdir = os.environ['LiCSAR_SLC']
-    wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_'+provider
-    cmd = 'cd {0}; {1} {2}'.format(slcdir, wgetpath, filename)
+    wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_asf_nisar'
+    cmd = 'cd {0}; {1} {2}'.format(slcdir, wgetpath, url)
     rc = os.system(cmd)
     filepath = os.path.join(slcdir,filename)
     return filepath
@@ -604,8 +689,8 @@ def get_asf_session():
     if not os.path.exists(credentials):
         credentials = os.path.join(os.environ["LiCSAR_configpath"],'asf_credentials')
     f = open(credentials,'r')
-    asf_user = re.sub('\W+','',f.readline().split('=')[1])
-    asf_pass = re.sub('\W+','',f.readline().split('=')[1])
+    asf_user = re.sub(r'\W+','',f.readline().split('=')[1])
+    asf_pass = re.sub(r'\W+','',f.readline().split('=')[1])
     f.close()
     return asf.ASFSession().auth_with_creds(asf_user, asf_pass)
 
