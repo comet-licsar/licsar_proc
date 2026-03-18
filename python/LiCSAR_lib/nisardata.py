@@ -41,7 +41,14 @@ def wgs2utm(polygon, target_crs):
     return poly_utm
 
 
-def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
+'''
+Example Palo Alto landslide:
+lon1, lon2 = -118.43839264855741, -118.26255663358891
+lat1, lat2 = 33.81550899014754, 33.70198918701689
+fullchain(lon1, lat1, lon2, lat2, downloadit = True)
+'''
+def fullchain(lon1, lat1, lon2, lat2, 
+              nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
               downloadit = False,
               clipit = True, processit = True):
     # will get automatically
@@ -71,7 +78,21 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
     if downloadit:
         print('Now we check and download ' + str(len(nsrs)) + ' files')
         for i, ln in nsrs.iterrows():
-            print('downloading '+ln['sceneName']+'.h5')
+            fname = ln['sceneName']+'.h5'
+            fullfname = os.path.join(nisarslcpath, fname)
+            # do_download = True
+            if os.path.exists(fullfname):
+                # check size .. or... just try load
+                try:
+                    f=h5py.File(fullfname, "r")
+                    rc=f['science/LSAR'].keys()
+                    f.close()
+                    # do_download = True
+                    print(' already downloaded.')
+                    continue
+                except:
+                    print('downloaded but wrongly - retrying')
+            print('downloading '+fname)
             url = ln['url']
             fpath = download(url, nisarslcpath)  # using this way, because for some reason i cannot get ASF session established..
             if not os.path.exists(fpath):
@@ -146,7 +167,7 @@ def get_network(tmpsel, ntype='triplet'):
 
 # say we want to get NISAR data covering particular location, or region:
 def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('20250101','%Y%m%d').date(),
-             enddate = dt.date.today(), outAspd = False):
+             enddate = dt.date.today(), outAspd = False, shortpd = False):
     ''' main search engine for NISAR
     you need to provide wkt as input - you can use lp.cliparea_geo2coords for this, or use e.g.
     lat=33.74; lon=-118.37
@@ -162,8 +183,9 @@ def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('202501
         if df.empty:
             print('ASF returned empty output')
             return df
-        cols = ['flightDirection','pathNumber','frameNumber','startTime','sceneName','url', 'geometry']
-        df = df[cols]
+        if shortpd:
+            cols = ['flightDirection','pathNumber','frameNumber','startTime','sceneName','url', 'geometry']
+            df = df[cols]
         df=gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
         # download size is in pd.DataFrame.from_dict(r.bytes)
         # the url CAN be used directly with wget_alaska approach...
@@ -248,6 +270,8 @@ def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
             "polarization": polarization
         }
     )
+    # try adding some more metadata here?
+    f.close()
     return ds
 
 
@@ -409,9 +433,9 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
             "polarization": ifg_ml.attrs.get("polarization", '-'),
         },
     )
-
+    #
     chunksizes = tuple(ch[0] for ch in phase.data.chunks)  # e.g. (1024, 1024)
-
+    #
     encoding = {
         "phase": {
             "zlib": True, "complevel": 4,  # netCDF4/deflate compression
