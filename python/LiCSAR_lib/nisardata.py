@@ -125,6 +125,10 @@ def fullchain(lon1, lat1, lon2, lat2,
                     if os.path.exists(in1) and os.path.exists(in2):
                         pair = epoch1 + '_' + epoch2
                         outncfile = os.path.join(framedir, pair+'.freq_'+freq_code+'.nc')
+                        outphatif = os.path.join(framedir, pair+'.freq_'+freq_code+'_pha.wgs84.tif')
+                        if os.path.exists(outphatif):
+                            print('Ifg '+pair+' already exists, skipping')
+                            continue
                         try:
                             generate_ifg(
                                 in1=in1,
