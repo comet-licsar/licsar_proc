@@ -379,8 +379,9 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
     if not ds1[polarization].shape == ds2[polarization].shape:
         print('ERROR - the dimensions do not fit - are these files from the same track and path??')
         return False
+    
     # Lazy interferogram
-    ifg = ds1.HH * ds2.HH.conj()
+    ifg = ds1[polarization] * ds2[polarization].conj()
     #
     ifg_da = xr.DataArray(
         ifg,
