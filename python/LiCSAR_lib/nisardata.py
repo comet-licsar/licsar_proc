@@ -275,7 +275,7 @@ def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
         }
     )
     # try adding some more metadata here?
-    f.close()
+    #f.close()
     return ds
 
 
