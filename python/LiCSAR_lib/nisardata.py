@@ -41,7 +41,14 @@ def wgs2utm(polygon, target_crs):
     return poly_utm
 
 
-def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
+'''
+Example Palo Alto landslide:
+lon1, lon2 = -118.43839264855741, -118.26255663358891
+lat1, lat2 = 33.81550899014754, 33.70198918701689
+fullchain(lon1, lat1, lon2, lat2, downloadit = True)
+'''
+def fullchain(lon1, lat1, lon2, lat2, 
+              nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
               downloadit = False,
               clipit = True, processit = True):
     # will get automatically
@@ -71,7 +78,21 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
     if downloadit:
         print('Now we check and download ' + str(len(nsrs)) + ' files')
         for i, ln in nsrs.iterrows():
-            print('downloading '+ln['sceneName']+'.h5')
+            fname = ln['sceneName']+'.h5'
+            fullfname = os.path.join(nisarslcpath, fname)
+            # do_download = True
+            if os.path.exists(fullfname):
+                # check size .. or... just try load
+                try:
+                    f=h5py.File(fullfname, "r")
+                    rc=f['science/LSAR'].keys()
+                    f.close()
+                    # do_download = True
+                    print(' already downloaded.')
+                    continue
+                except:
+                    print('downloaded but wrongly - retrying')
+            print('downloading '+fname)
             url = ln['url']
             fpath = download(url, nisarslcpath)  # using this way, because for some reason i cannot get ASF session established..
             if not os.path.exists(fpath):
@@ -95,7 +116,7 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
                 print('processing frame '+frame)
                 tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
                 # now lets get network...
-                ifgs = get_network(tmpsel, ntype='daisy')
+                ifgs = get_network(tmpsel, ntype='triplet')
                 for ifg in ifgs:
                     in1 = os.path.join(nisarslcpath, ifg[0].sceneName+'.h5')
                     in2 = os.path.join(nisarslcpath, ifg[1].sceneName + '.h5')
@@ -104,6 +125,10 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
                     if os.path.exists(in1) and os.path.exists(in2):
                         pair = epoch1 + '_' + epoch2
                         outncfile = os.path.join(framedir, pair+'.freq_'+freq_code+'.nc')
+                        outphatif = os.path.join(framedir, pair+'.freq_'+freq_code+'_pha.wgs84.tif')
+                        if os.path.exists(outphatif):
+                            print('Ifg '+pair+' already exists, skipping')
+                            continue
                         try:
                             generate_ifg(
                                 in1=in1,
@@ -117,20 +142,36 @@ def fullchain(lon1, lat1, lon2, lat2, nisarslcpath = '/gws/ssde/j25a/nceo_geohaz
     return nsrs
 
 
-def get_network(tmpsel, ntype='daisy'):
+def get_network(tmpsel, ntype='triplet'):
+    ''' this is to prepare ifg network
+    ntype - choose one of ['daisy', 'triplet']
+    '''
+    if 'startTime' in tmpsel:
+        tmpsel = tmpsel.sort_values('startTime')
+    if len(tmpsel)<2:
+        print('error, need more data')
+        return False
+    elif len(tmpsel)==2:
+        ntype = 'daisy' # cannot do triplet
     ifgs = []
     if ntype == 'daisy':
         for i in range(len(tmpsel)-1):
             ifgs.append([tmpsel.iloc[i], tmpsel.iloc[i+1]])
+    elif ntype == 'triplet':
+        for i in range(len(tmpsel)-2):
+            ifgs.append([tmpsel.iloc[i], tmpsel.iloc[i+1]])
+            ifgs.append([tmpsel.iloc[i], tmpsel.iloc[i + 2]])
+        # and add the last one:
+        ifgs.append([tmpsel.iloc[i+1], tmpsel.iloc[i + 2]])
     else:
-        print('only daisy chain implemented for now')
+        print('choose either daisy or triplet')
         return False
     return ifgs
 
 
 # say we want to get NISAR data covering particular location, or region:
 def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('20250101','%Y%m%d').date(),
-             enddate = dt.date.today(), outAspd = False):
+             enddate = dt.date.today(), outAspd = False, shortpd = False):
     ''' main search engine for NISAR
     you need to provide wkt as input - you can use lp.cliparea_geo2coords for this, or use e.g.
     lat=33.74; lon=-118.37
@@ -146,8 +187,9 @@ def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('202501
         if df.empty:
             print('ASF returned empty output')
             return df
-        cols = ['flightDirection','pathNumber','frameNumber','startTime','sceneName','url', 'geometry']
-        df = df[cols]
+        if shortpd:
+            cols = ['flightDirection','pathNumber','frameNumber','startTime','sceneName','url', 'geometry']
+            df = df[cols]
         df=gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
         # download size is in pd.DataFrame.from_dict(r.bytes)
         # the url CAN be used directly with wget_alaska approach...
@@ -232,6 +274,8 @@ def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
             "polarization": polarization
         }
     )
+    # try adding some more metadata here?
+    #f.close()
     return ds
 
 
@@ -335,8 +379,9 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
     if not ds1[polarization].shape == ds2[polarization].shape:
         print('ERROR - the dimensions do not fit - are these files from the same track and path??')
         return False
+    
     # Lazy interferogram
-    ifg = ds1.HH * ds2.HH.conj()
+    ifg = ds1[polarization] * ds2[polarization].conj()
     #
     ifg_da = xr.DataArray(
         ifg,
@@ -393,9 +438,9 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
             "polarization": ifg_ml.attrs.get("polarization", '-'),
         },
     )
-
+    #
     chunksizes = tuple(ch[0] for ch in phase.data.chunks)  # e.g. (1024, 1024)
-
+    #
     encoding = {
         "phase": {
             "zlib": True, "complevel": 4,  # netCDF4/deflate compression
@@ -421,210 +466,6 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
         # print('TODO - but see the code here..')
         print('all done')
 
-'''
-# Lazily compute phase and magnitude (no .values!)
-phase = xr.apply_ufunc(
-    np.angle,
-    ifg_da,
-    dask="parallelized",
-    output_dtypes=[np.float32],
-)
-
-magnitude = xr.apply_ufunc(
-    np.abs,
-    ifg_da,
-    dask="parallelized",
-    output_dtypes=[np.float32],
-)
-
-ds_out = xr.Dataset(
-    data_vars={
-        "phase": (ifg_da.dims, phase.data),
-        "magnitude": (ifg_da.dims, magnitude.data),
-    },
-    coords=ifg_da.coords,
-    attrs={
-        "description": "Interferogram components from S1 * conj(S2)",
-        #"source1": str(ifg_da.attrs.get("source1", "")),
-        #"source2": str(ifg_da.attrs.get("source2", "")),
-        "crs": ifg_da.attrs.get("crs", None),
-        "epsg": ifg_da.attrs.get("epsg", None),
-    },
-)
-
-# Choose compression + chunk sizes for NetCDF
-# Use the same chunking as in the dask graph to avoid rechunking during write
-# xarray expects chunk sizes per dimension as a tuple
-chunksizes = tuple(ch[0] for ch in phase.data.chunks)  # e.g. (1024, 1024)
-
-encoding = {
-    "phase": {
-        "zlib": True, "complevel": 4,  # netCDF4/deflate compression
-        "dtype": "float32",
-        "chunksizes": chunksizes,       # ensure chunk-wise writing
-        "_FillValue": np.float32(np.nan),
-    },
-    "magnitude": {
-        "zlib": True, "complevel": 4,
-        "dtype": "float32",
-        "chunksizes": chunksizes,
-        "_FillValue": np.float32(np.nan),
-    },
-}
-
-# This will execute lazily by chunks, not loading everything into memory
-ds_out.to_netcdf("ifg_components.nc", engine="netcdf4", encoding=encoding)
-
-'''
-
-# but the orig data is still large - downsample to 50x50 m:
-'''
-def multilook_ifg_phase_mag_to_netcdf(
-    nc_in: str,
-    nc_out: str,
-    phase_var: str = "phase",
-    magnitude_var: str = "magnitude",
-    looks_y: int = 10,
-    looks_x: int = 10,
-    chunks: dict | None = None,
-    write_magnitude: bool = True,
-    netcdf_engine: str = "netcdf4",
-    coord_reduce: str = "mean"):
-    """
-    Lazily multilook an interferogram stored as phase/magnitude in NetCDF and
-    write the multilooked phase (and optionally magnitude) to a new NetCDF.
-
-    Strategy:
-        1) Reconstruct complex: C = M * exp(i * phase)
-        2) Coarsen (mean) with factors (looks_y, looks_x), boundary='trim'
-        3) Phase_out = angle(mean(C)), Magnitude_out = abs(mean(C))
-        4) Coarsen 1D coords x, y to match new sizes (mean or window center)
-        5) Write to NetCDF with chunked encoding (out-of-core)
-
-    Notes:
-        - Assumes 2D variables with dims ("y", "x") or a permutation thereof.
-        - Coordinates 'x' and 'y' are assumed to be 1D monotonic vectors.
-    """
-    # 1) Open lazily
-    ds = xr.open_dataset(nc_in, engine=netcdf_engine, chunks=chunks)
-
-    # Identify dims of the phase variable (e.g., ('y','x') or ('x','y'))
-    pdims = ds[phase_var].dims
-    if len(pdims) != 2:
-        raise ValueError(f"{phase_var} must be 2D, got dims {pdims}")
-
-    # Make sure order is (y, x)
-    if pdims == ("y", "x"):
-        ydim, xdim = "y", "x"
-        phase = ds[phase_var]
-        mag   = ds[magnitude_var]
-    elif pdims == ("x", "y"):
-        ydim, xdim = "y", "x"
-        phase = ds[phase_var].transpose("y", "x")
-        mag   = ds[magnitude_var].transpose("y", "x")
-    else:
-        # Fall back: sort dims by name if not exact
-        dims_sorted = tuple(sorted(pdims))
-        raise ValueError(f"Unexpected dims {pdims}; expected ('y','x') or ('x','y').")
-
-    phase = phase.astype("float32")
-    mag   = mag.astype("float32")
-
-    # 2) Reconstruct complex interferogram lazily: C = M * exp(i * phase)
-    C = mag * xr.apply_ufunc(
-        lambda p: np.exp(1j * p),
-        phase,
-        dask="parallelized",
-        output_dtypes=[np.complex64],
-    ).astype("complex64")
-
-    # 3) Multilook via coarsen (mean), trimming edges that don't complete a window
-    C_ml = C.coarsen({ydim: looks_y, xdim: looks_x}, boundary="trim").mean()
-
-    # Convert back to phase and magnitude lazily
-    phase_ml = xr.apply_ufunc(np.angle, C_ml, dask="parallelized", output_dtypes=[np.float32]).astype("float32")
-    if write_magnitude:
-        magnitude_ml = xr.apply_ufunc(np.abs, C_ml, dask="parallelized", output_dtypes=[np.float32]).astype("float32")
-
-    # 4) Build coarsened coordinates that MATCH the multilooked sizes
-    coords_out = {}
-
-    # Coarsen y coordinate if present & 1D
-    if ydim in ds.coords and ds[ydim].ndim == 1:
-        if coord_reduce == "mean":
-            y_ml = ds[ydim].coarsen({ydim: looks_y}, boundary="trim").mean().astype("float32")
-        elif coord_reduce == "center":
-            n_y = ds.sizes[ydim]
-            n_y_trim = (n_y // looks_y) * looks_y
-            y_trim = ds[ydim].isel({ydim: slice(0, n_y_trim)})
-            y_ml = y_trim.coarsen({ydim: looks_y}).construct(f"{ydim}_win").isel({f"{ydim}_win": looks_y // 2})
-            y_ml = y_ml.astype("float32")
-        else:
-            raise ValueError("coord_reduce must be 'mean' or 'center'")
-        coords_out[ydim] = (ydim, y_ml.data)
-
-    # Coarsen x coordinate if present & 1D
-    if xdim in ds.coords and ds[xdim].ndim == 1:
-        if coord_reduce == "mean":
-            x_ml = ds[xdim].coarsen({xdim: looks_x}, boundary="trim").mean().astype("float32")
-        elif coord_reduce == "center":
-            n_x = ds.sizes[xdim]
-            n_x_trim = (n_x // looks_x) * looks_x
-            x_trim = ds[xdim].isel({xdim: slice(0, n_x_trim)})
-            x_ml = x_trim.coarsen({xdim: looks_x}).construct(f"{xdim}_win").isel({f"{xdim}_win": looks_x // 2})
-            x_ml = x_ml.astype("float32")
-        else:
-            raise ValueError("coord_reduce must be 'mean' or 'center'")
-        coords_out[xdim] = (xdim, x_ml.data)
-
-    # 5) Output dataset with matching dims & coords
-    data_vars = {"phase_ml": (phase_ml.dims, phase_ml.data)}
-    if write_magnitude:
-        data_vars["magnitude_ml"] = (phase_ml.dims, magnitude_ml.data)
-
-    # Safe attrs (avoid None)
-    attrs = {"description": f"Multilooked {looks_y}x{looks_x} from complex mean"}
-    for key in ("crs", "epsg", "source1", "source2"):
-        val = ds.attrs.get(key)
-        if val is not None:
-            attrs[key] = str(val)
-
-    ds_out = xr.Dataset(data_vars=data_vars, coords=coords_out, attrs=attrs)
-
-    # 6) Chunked encoding (use first chunk per dimension)
-    out_chunks = tuple(ch[0] for ch in phase_ml.data.chunks)  # e.g., (1024, 1024)
-    encoding = {
-        "phase_ml": {
-            "zlib": True, "complevel": 4,
-            "dtype": "float32",
-            "chunksizes": out_chunks,
-            "_FillValue": np.float32(np.nan),
-        }
-    }
-    if write_magnitude:
-        encoding["magnitude_ml"] = {
-            "zlib": True, "complevel": 4,
-            "dtype": "float32",
-            "chunksizes": out_chunks,
-            "_FillValue": np.float32(np.nan),
-        }
-
-    # 7) Write lazily, chunk-by-chunk (no full-RAM load)
-    ds_out.to_netcdf(nc_out, engine=netcdf_engine, encoding=encoding)
-    print('stored to '+nc_out)
-
-
-# Example: 10×10 multilook, chunks are multiples of 10 for efficiency
-multilook_ifg_phase_mag_to_netcdf(
-    nc_in="ifg_components.nc",
-    nc_out="ifg_components_ml_10x10.nc",
-    looks_y=10,
-    looks_x=10,
-    chunks={"y": 4000, "x": 4000},  # multiples of looks are efficient
-    write_magnitude=True,
-    coord_reduce="mean",            # or "center"
-)
-'''
 
 # now convert to wgs-84 geotiff:
 def convert_to_wgs84(xrds, outbasename = 'ifg', create_previews = True):
