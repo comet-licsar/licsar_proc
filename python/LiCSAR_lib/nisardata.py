@@ -98,6 +98,8 @@ def fullchain(lon1, lat1, lon2, lat2,
             if not os.path.exists(fpath):
                 print('some error in '+fpath)
     if processit:
+        # before proceeding, let's get ENUs (and potentially hgt)
+        
         for freq_code in ['A', 'B']:
             if clipit:
                 # need to reproject the bbox to given UTM.. will be done in load function
@@ -141,6 +143,23 @@ def fullchain(lon1, lat1, lon2, lat2,
                         print('ERROR, file '+in1+' does not exist')
     return nsrs
 
+'''
+# this below is a simple script for doing LB
+freqA=
+freqB=1221500000
+
+workdir=`pwd` # e.g. A.34.19
+for fr in freq_A freq_B; do
+ lbdir=`pwd`/LB_`basename $workdir`.$fr
+ mkdir -p $lbdir/GEOC
+ for pair in `ls *.$fr'_pha.wgs84.tif' | cut -d '.' -f 1`; do
+   mkdir -p $lbdir/GEOC/$pair
+   ln -s `pwd`/$pair.$fr'_pha.wgs84.tif' $lbdir/GEOC/$pair/$pair.geo.diff_unfiltered_pha.tif
+   ln -s `pwd`/$pair.$fr'_coh.wgs84.tif' $lbdir/GEOC/$pair/$pair.geo.cc.tif
+ done
+ # need to get ENUs and hgt as well...
+done
+'''
 
 def get_network(tmpsel, ntype='triplet'):
     ''' this is to prepare ifg network
@@ -167,6 +186,28 @@ def get_network(tmpsel, ntype='triplet'):
         print('choose either daisy or triplet')
         return False
     return ifgs
+
+
+def get_nisar_dem(wesn, outfile = 'nisar_dem.tif', tmpfolder = 'nisar_dem'):
+    ''' wesn means:
+    west, south, east, north  (float tuple or list both work), e.g.
+    wesn = (-3.7, 53.6, -1.1, 54.2)
+    '''
+    import earthaccess as ea
+    ea.login(strategy="netrc")  # or "interactive"
+    granules = ea.search_data(
+        short_name="NISAR_DEM",      # the collection short name
+        bounding_box=wesn,           # <-- keyword arg, not a method call
+        temporal=("2000-01-01", "2030-01-01")  # DEM is static; any wide window is fine
+    )
+    #
+    print(f"Found {len(granules)} tiles")
+    ea.download(granules, tmpfolder)
+    print('merging - TODO check')
+    cmd = "gdal_merge.py -o "+outfile+" "+tmpfolder+"/*.tif"
+    os.system(cmd)
+    print('now you need to load and clip and fit to the ifgs...')
+
 
 
 # say we want to get NISAR data covering particular location, or region:
@@ -234,6 +275,33 @@ def list_sizes(path = 'NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T13075
                 print(f"{name}: {size_mb:.3f} MB")
         f.visititems(visit)
 
+
+def read_metadata(group, max_elements=100000):
+    result = {}
+    # Read group attributes
+    result["_attrs"] = {k: v for k, v in group.attrs.items()}
+    # Traverse items
+    for name, item in group.items():
+        if isinstance(item, h5py.Dataset):
+            if item.size <= max_elements:
+                result[name] = item[()]     # load dataset
+            else:
+                result[name] = f"<LARGE DATASET {item.shape} {item.dtype}>"
+        elif isinstance(item, h5py.Group):
+            # recursively load the subgroup
+            result[name] = read_metadata(item, max_elements)
+    return result
+
+
+def load_metadata(h5file, group = "science/LSAR/GSLC/metadata"):
+    with h5py.File(h5file) as f:
+        metadata = read_metadata(f[group])
+    return metadata
+
+
+def print_metadata(metadata):
+    from pprint import pprint
+    pprint(metadata, width=100, compact=True)
 
 def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
     """
