@@ -21,7 +21,8 @@ if [ -z $2 ]; then
 
   Author: Jin Fang @ Uni Leeds.
 	  Thanks to Milan for optimisation!
-  Date: Nov, 2021
+
+  Updates: Automatic decision for nodata value (Mar 2026)
 
 End_of_Usage
   exit
@@ -103,31 +104,68 @@ done
 
 if [ ! -f $frame/GEOC/$frame.geo.mli.tif ]; then
 m1=`get_master $frame1`
-morefrom1=$LiCSAR_public/$track/$frame1/$m1/$m1.geo.mli.tif
+morefrom1=$LiCSAR_public/$track/$frame1/epochs/$m1/$m1.geo.mli.tif
 m2=`get_master $frame2`
-morefrom2=$LiCSAR_public/$track/$frame2/$m2/$m2.geo.mli.tif
+morefrom2=$LiCSAR_public/$track/$frame2/epochs/$m2/$m2.geo.mli.tif
 if [ -f $morefrom1 ] && [ -f $morefrom2 ]; then
  echo "merging mli"
  gdal_merge.py -n 0 -co COMPRESS=DEFLATE -o $frame/GEOC/$frame.geo.mli.tif $morefrom1 $morefrom2 
- mv $frame.geo.mli.tif $frame/GEOC/.
 fi
 fi
 
-for ext in geo.iono.code.tif  sltd.geo.tif  tide.geo.tif geo.mli.tif; do
+
+detect_nodata() {
+    local files=("$@")
+    local nodatas=()
+
+    for f in "${files[@]}"; do
+        # Try to extract nodata from GDAL metadata
+        nd=$(gdalinfo "$f" 2>/dev/null | grep "NoData Value=" | awk -F= '{print $2}')
+        
+        # Normalize empty or missing values
+        if [[ -z "$nd" ]]; then
+            continue
+        fi
+        
+        # Trim spaces
+        nd=$(echo "$nd" | xargs)
+
+        nodatas+=("$nd")
+    done
+
+    # If no nodata values detected, default to nan
+    if [[ ${#nodatas[@]} -eq 0 ]]; then
+        echo "nan"
+        return
+    fi
+
+    # Choose the most common nodata value
+    printf "%s\n" "${nodatas[@]}" \
+        | sort | uniq -c | sort -nr | head -n1 | awk '{print $2}'
+}
+
+
+for ext in geo.iono.code.tif sltd.geo.tif  tide.geo.tif geo.mli.tif; do
   echo "merging "$ext
-for epoch in `ls $LiCSAR_public/$track/$frame2/epochs | grep 20`; do 
+#for epoch in `ls $LiCSAR_public/$track/$frame2/epochs | grep 20`; do 
+for epoch in $(awk -F'[_.]' '{print $1; print $2}' $frame/ifg_merge_unwrap.list | sort -u); do
 if [ ! -f $frame/epochs/$epoch/$epoch.$ext ]; then
  morefrom1=$LiCSAR_public/$track/$frame2/epochs/$epoch/$epoch.$ext
  morefrom2=$LiCSAR_public/$track/$frame1/epochs/$epoch/$epoch.$ext
+ inputs=($morefrom1 $morefrom2)
+ # Automatically determine nodata
+ nd=$(detect_nodata "${inputs[@]}")
+ echo "Using nodata value: $nd"
  if [ -f $morefrom1 ] && [ -f $morefrom2 ]; then
    mkdir -p $frame/epochs/$epoch
    echo "  "$epoch
-   gdal_merge.py -n 0 -co COMPRESS=DEFLATE -o $frame/epochs/$epoch/$epoch.$ext $morefrom1 $morefrom2 # output file name containing path got error
-   #mv $epoch.sltd.geo.tif $frame/epochs/$epoch/.
+#   gdal_merge.py -n 0 -co COMPRESS=DEFLATE -o $frame/epochs/$epoch/$epoch.$ext $morefrom1 $morefrom2 # output file name containing path got error
+   gdal_merge.py -n "$nd" -co COMPRESS=DEFLATE -o "$frame/epochs/$epoch/$epoch.$ext" "${inputs[@]}"
  fi
 fi
 done
 done
+
 
 for ifg in `cat $frame/ifg_merge_unwrap.list`; do
 mkdir -p $frame/GEOC/$ifg
@@ -232,11 +270,25 @@ else
      gmt grdmath $undiff1 0 NAN $correction ADD WRAP = $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.grd
      gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -a_srs EPSG:4326 $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.grd $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif
      gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -a_srs EPSG:4326 $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.grd $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.tif
-     gdal_merge.py -n 0 -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif $diff2
-     gdal_merge.py -n 0 -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.tif $undiff2
+#??
+#     gdal_merge.py -n 0 -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif $diff2
+#     gdal_merge.py -n 0 -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.tif $undiff2
      # diff_unfiltered_pha
      #mv ${ifg}.geo.diff_pha.tif $frame/GEOC/$ifg/
- 
+
+#     gdal_merge.py -n nan -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif $diff2
+#     gdal_merge.py -n nan -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.tif $frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.tif $undiff2
+
+     inputs=($frame1/GEOC/$ifg/${ifg}.geo.diff_pha.corr.tif $diff2)
+     nd=$(detect_nodata "${inputs[@]}")
+     echo "Using nodata value: $nd"
+     gdal_merge.py -n "$nd" -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_pha.tif  "${inputs[@]}"
+
+     inputs=($frame1/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.corr.tif $undiff2)
+     nd=$(detect_nodata "${inputs[@]}")
+     echo "Using nodata value: $nd"
+     gdal_merge.py -n "$nd" -co PREDICTOR=3 -co COMPRESS=DEFLATE -o $frame/GEOC/$ifg/${ifg}.geo.diff_unfiltered_pha.tif  "${inputs[@]}"
+
      if [ $LOTUS -eq 1 ]; then 
       bsub2slurm.sh -o $frame'_'$ifg.out -e $frame'_'$ifg.err -J 'mergeunw_'$frame'_'$ifg -q comet -n 1 -W 00:50 -M 12288 jin_unwrap_geo.sh $frame $ifg
      else
