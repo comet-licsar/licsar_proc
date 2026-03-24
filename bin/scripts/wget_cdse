@@ -107,7 +107,8 @@ if [ $allok == 1 ]; then
 	#ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
 	#ID=`wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
 	# since 2025/03, only this works:
-	ID=$(wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?\$filter=Name eq '"$BN".SAFE'" 2>/dev/null |  jq -r '.value[0].Id')
+	if [ $eof == 0 ]; then BNN=$BN.SAFE; else BNN=$BN; fi
+	ID=$(wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?\$filter=Name eq '"$BNN"'" 2>/dev/null |  jq -r '.value[0].Id')
 	echo "got fileID="$ID
 	# download to given outdir:
 	#wget -O $outdir/$filename
