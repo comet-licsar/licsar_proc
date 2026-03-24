@@ -548,17 +548,25 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
     # that was... really tricky to find... CDSE documentation is really bad
     # https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=((Online%20eq%20true)%20and%20(((((((Attributes/OData.CSC.StringAttribute/any(i0:i0/Name%20eq%20%27productType%27%20and%20i0/Value%20eq%20%27AUX_POEORB%27))))%20and%20(Collection/Name%20eq%20%27SENTINEL-1%27))))))
     # https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_POEORB&completionDate=2023-10-03T00:00:00Z
+    ''' this below worked fine until 03/2026
     if type(startdate)==type(dt.datetime(2025, 3, 31, 17, 23, 39)):
         json = requests.get(
             "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}Z&completionDate={2}Z".format(
                 producttype, str(startdate).replace(' ','T'), str(enddate).replace(' ','T'))).json()
     else:
         json = requests.get("https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productType=AUX_{0}&startDate={1}T00:00:00Z&completionDate={2}T00:00:00Z".format(producttype, str(startdate), str(enddate))).json()
-    tmplist = str(json).split("'")
-    filenames = []
-    for tmpstr in tmplist:
-        if tmpstr.startswith('S1') and tmpstr.endswith('EOF'):
-            filenames.append(tmpstr)
+    # but since then we have to switch to another (even worse) regime:
+    '''
+    if type(startdate) == type(dt.datetime(2025, 3, 31, 17, 23, 39)):
+        sstr = str(startdate).replace(' ','T')
+        estr = str(enddate).replace(' ','T')
+    else:
+        sstr, estr = str(startdate), str(enddate)
+    hstr = f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=Collection/Name eq 'SENTINEL-1' and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productT\
+ype' and att/OData.CSC.StringAttribute/Value eq 'AUX_{producttype}') and ContentDate/Start gt {sstr}T00:00:00Z and ContentDate/Start lt {estr}T00:00:00Z"
+    json = requests.get(hstr).json()
+    result = pd.DataFrame.from_dict(json["value"])
+    filenames = result['Name'].values
     existing = []
     for filename in filenames:
     #for id, row in result.iterrows():
@@ -573,17 +581,20 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
             else:
                 f = open(lockfile, 'wb').close()
             #download it here....
-            cmd = "cd {0}; wget_cdse {1}".format(outdirr, filename)
+            cmd = "cd {0}; wget_cdse {1} {0} 0".format(outdirr, filename)  # third for trying asf first.. no need?
             rc = os.system(cmd)
             if not os.path.exists(outfile):
                 print('error downloading orbit file '+filename)
                 print('trying from ASF')
+                cmd = "cd {0}; wget_asf_eof {1}".format(outdirr, filename)
+                rc = os.system(cmd)
+            if not os.path.exists(outfile):
                 try:
                     parser = ConfigParser()
                     parser.read(gc.configfile)
                     asfuser = parser.get('asf', 'asfuser')
                     asfpass = parser.get('asf', 'asfpass')
-                    downurl = 'https://s1qc.asf.alaska.edu/aux_'+producttype.lower()+'/'+row.filename
+                    downurl = 'https://s1qc.asf.alaska.edu/aux_'+producttype.lower()+'/'+filename
                     command = 'wget --user '+ asfuser +' --password '+asfpass+' -O '+outfile+' '+downurl+' 2>/dev/null'
                     rc = os.system(command)
                     #r = requests.get(downurl, allow_redirects=True, auth=HTTPBasicAuth(asfuser, asfpassword))
@@ -640,6 +651,7 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
         if os.path.exists(outfile):
             existing.append(outfile)
     return existing
+
 
 # get orbit files using eof (they should update once it gets into the new Copernicus cloud... 03/2021)
 def updateOrbForZipfile(zipFile, orbdir = os.environ['ORB_DIR']):

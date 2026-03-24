@@ -1,6 +1,7 @@
 #!/bin/bash
 # ML 2023
 #this script will download a given file (zip file) from copernicus data space ecosystem (CDSE)
+# params: S1_filename [output_dir] [tryasf==1]
 
 #token=$LiCSAR_configpath/cdse_token
 #if [ ! -f $token ]; then token=~/.cdse_token; fi
@@ -34,7 +35,7 @@ if [ `echo $1 | grep -c zip` -eq 0 ]; then
  fi
 fi
 if [ -z $2 ]; then outdir=.; else outdir=$2; fi
-
+if [ ! -z $3 ]; then tryasf=$3; else tryasf=1; fi
 filename=$1
 BN=`basename $filename .zip`
 
