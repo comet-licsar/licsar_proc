@@ -77,11 +77,14 @@ function refresh_the_token() {
   echo $ACCESS_TOKEN
 }
 
+
 # Playing with tokens
 	if [ -f ~/.cdse_refresh_token ]; then
 	 # use refresh token to regenerate access token
+	 echo "Refreshing CDSE token"
 	 ACCESS_TOKEN=`refresh_the_token`
 	else
+	 echo "Generating new CDSE token"
 	 ACCESS_TOKEN=`generate_new_token`
 	fi
 
@@ -105,6 +108,7 @@ if [ $allok == 1 ]; then
 	#ID=`wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
 	# since 2025/03, only this works:
 	ID=$(wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?\$filter=Name eq '"$BN".SAFE'" 2>/dev/null |  jq -r '.value[0].Id')
+	echo "got fileID="$ID
 	# download to given outdir:
 	#wget -O $outdir/$filename
 	#sed -i 's/\r//' tmp_wget.txt 
@@ -116,6 +120,7 @@ if [ $allok == 1 ]; then
 	#URL="${HOST}/odata/v1/Products('$ID')/\$value"
 	#wget  --no-hsts --header "Authorization: Bearer $ACCESS_TOKEN" 'https://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
 	# since 03/2026, only this now works:
+	echo "downloading the file"
 	wget  --no-hsts --header "Authorization: Bearer $ACCESS_TOKEN" 'https://download.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
 fi
 
