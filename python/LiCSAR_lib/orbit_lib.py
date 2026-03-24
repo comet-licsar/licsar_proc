@@ -517,6 +517,15 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB', s1ab = Non
     return listfiles
 
 
+def etad_test(s1code = 'A'):
+    sdatestr='2022-05-03'
+    edatestr='2022-05-05'
+    qstr=f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=Collection/Name eq 'SENTINEL-1' and contains(Name,'S1{s1code}_IW_ETA__AX') and ContentDate/Start gt {sdatestr}T00:00:00.000Z and ContentDate/Start lt {edatestr}T00:00:00.000Z"
+    json = requests.get(qstr).json()
+    result = pd.DataFrame.from_dict(json["value"])
+    # change 'ETA' in contains(Name,'ETA') to IW_ETA__AX or e.g. S1A_IW_ETA__AX
+    return result
+
 def downloadOrbits_CopCloud(startdate, enddate, producttype):
     '''
     Downloads orbits between given dates from CDSE.
