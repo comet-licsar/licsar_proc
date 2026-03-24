@@ -24,10 +24,11 @@ source $credfile #$LiCSAR_configpath/cdse_cred
 
 
 eof=0
-if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
+if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip (or .EOF)";
+   echo "other (optional) parameters:  outdir tryasf==1"; exit; fi
 if [ `echo $1 | grep -c zip` -eq 0 ]; then
  if [ `echo $1 | grep -c EOF` -eq 0 ]; then
-  echo "Parameter is the file name, e.g. S1A....zip"; exit;
+  echo "Parameter is the file name, e.g. S1A....zip (or .EOF)"; exit;
  else
   #echo "input is EOF file, ok";
   echo "downloading "$1
@@ -39,6 +40,7 @@ if [ ! -z $3 ]; then tryasf=$3; else tryasf=1; fi
 filename=$1
 BN=`basename $filename .zip`
 
+if [ $tryasf -gt 0 ]; then
 # trying ASF first anyway
 cd $outdir; wget_alaska $filename;
 if [ -f $filename ]; then
@@ -48,6 +50,7 @@ if [ -f $filename ]; then
   else
    rm $filename # as broken
   fi
+fi
 fi
 
 allok=1
