@@ -124,10 +124,13 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
                    zorder=1, label='Gap', alpha=0.6, colors='k', linewidth=3)
     #
     #
-    ### Locater        
-    loc = ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ### Locater
+    locator = mdates.AutoDateLocator()
+    ax.xaxis.set_major_locator(locator)
     try:  # Only support from Matplotlib 3.1
-        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+        #     ax.xaxis.set_major_formatter(DateFormatter('%Y'))
+        #     loc = ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
     except:
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d'))
         for label in ax.get_xticklabels():
