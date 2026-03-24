@@ -526,6 +526,7 @@ def etad_test(s1code = 'A'):
     # change 'ETA' in contains(Name,'ETA') to IW_ETA__AX or e.g. S1A_IW_ETA__AX
     return result
 
+
 def downloadOrbits_CopCloud(startdate, enddate, producttype):
     '''
     Downloads orbits between given dates from CDSE.
