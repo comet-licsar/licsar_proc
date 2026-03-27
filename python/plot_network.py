@@ -359,7 +359,11 @@ try:
                     mbperp = 0
                 '''
         if stillmissing:
-            bperps = fc.estimate_bperps(frame, stillmissing, return_epochsdt=False)
+            try:
+                bperps = fc.estimate_bperps(frame, stillmissing, return_epochsdt=False)
+            except:
+                print('Some other error estimating bperps - possibly issue with reference epoch metadata (4 frames affected, not fixed, in Mar 2026) - setting zeroes')
+                bperps = np.zeros(len(stillmissing))
             bperps = np.array(bperps).astype(int)
             i = 0
             for m in stillmissing:
