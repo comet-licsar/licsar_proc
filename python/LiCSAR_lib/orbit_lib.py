@@ -576,6 +576,9 @@ def downloadOrbits_CopCloud(startdate, enddate, producttype):
 ype' and att/OData.CSC.StringAttribute/Value eq 'AUX_{producttype}') and ContentDate/Start gt {sstr}T00:00:00Z and ContentDate/Start lt {estr}T00:00:00Z"
     json = requests.get(hstr).json()
     result = pd.DataFrame.from_dict(json["value"])
+    if result.empty:
+        print('No '+producttype+' found for this time period')
+        return []
     filenames = result['Name'].values
     existing = []
     for filename in filenames:
