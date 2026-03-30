@@ -820,7 +820,7 @@ def process_frame_volcano(options):
                 fig.suptitle(titlename, y=0.8, size=10)
                 # save file
                 plt.savefig(
-                    output_png, format='png', dpi=val_dpi, bbox_inches='tight',
+                    output_png, format='png', dpi=val_dpi, # bbox_inches='tight',
                     pad_inches=0.02
                 )
                 plt.clf()
@@ -1005,7 +1005,7 @@ def process_frame_volcano(options):
                 fig.suptitle(titlename, y=0.8, size=10)
                 #
                 plt.savefig(
-                    output_png2, format='png', dpi=val_dpi, bbox_inches='tight',
+                    output_png2, format='png', dpi=val_dpi, # bbox_inches='tight',
                     pad_inches=0.02
                 )
                 plt.clf()

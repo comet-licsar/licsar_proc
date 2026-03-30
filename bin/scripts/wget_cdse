@@ -1,6 +1,7 @@
 #!/bin/bash
 # ML 2023
 #this script will download a given file (zip file) from copernicus data space ecosystem (CDSE)
+# params: S1_filename [output_dir] [tryasffirst==1]
 
 #token=$LiCSAR_configpath/cdse_token
 #if [ ! -f $token ]; then token=~/.cdse_token; fi
@@ -23,10 +24,11 @@ source $credfile #$LiCSAR_configpath/cdse_cred
 
 
 eof=0
-if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip"; exit; fi
+if [ -z $1 ]; then echo "Parameter is the file name, e.g. S1A....zip (or .EOF)";
+   echo "other (optional) parameters:  outdir tryasffirst==1"; exit; fi
 if [ `echo $1 | grep -c zip` -eq 0 ]; then
  if [ `echo $1 | grep -c EOF` -eq 0 ]; then
-  echo "Parameter is the file name, e.g. S1A....zip"; exit;
+  echo "Parameter is the file name, e.g. S1A....zip (or .EOF)"; exit;
  else
   #echo "input is EOF file, ok";
   echo "downloading "$1
@@ -34,10 +36,11 @@ if [ `echo $1 | grep -c zip` -eq 0 ]; then
  fi
 fi
 if [ -z $2 ]; then outdir=.; else outdir=$2; fi
-
+if [ ! -z $3 ]; then tryasffirst=$3; else tryasffirst=1; fi
 filename=$1
 BN=`basename $filename .zip`
 
+if [ $tryasffirst -gt 0 ]; then
 # trying ASF first anyway
 cd $outdir; wget_alaska $filename;
 if [ -f $filename ]; then
@@ -47,6 +50,7 @@ if [ -f $filename ]; then
   else
    rm $filename # as broken
   fi
+fi
 fi
 
 allok=1
@@ -73,11 +77,14 @@ function refresh_the_token() {
   echo $ACCESS_TOKEN
 }
 
+
 # Playing with tokens
 	if [ -f ~/.cdse_refresh_token ]; then
 	 # use refresh token to regenerate access token
+	 echo "Refreshing CDSE token"
 	 ACCESS_TOKEN=`refresh_the_token`
 	else
+	 echo "Generating new CDSE token"
 	 ACCESS_TOKEN=`generate_new_token`
 	fi
 
@@ -98,7 +105,11 @@ function refresh_the_token() {
 if [ $allok == 1 ]; then
 	#get file ID
 	#ID=`wget -O - "http://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.properties.id' | sed 's/\"//g'`
-	ID=`wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
+	#ID=`wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/resto/api/collections/Sentinel1/search.json?productIdentifier="$BN 2>/dev/null | jq '.features' | grep '"id"' | head -n 1 | cut -d '"' -f 4`
+	# since 2025/03, only this works:
+	if [ $eof == 0 ]; then BNN=$BN.SAFE; else BNN=$BN; fi
+	ID=$(wget --no-hsts -O - "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?\$filter=Name eq '"$BNN"'" 2>/dev/null |  jq -r '.value[0].Id')
+	echo "got fileID="$ID
 	# download to given outdir:
 	#wget -O $outdir/$filename
 	#sed -i 's/\r//' tmp_wget.txt 
@@ -108,7 +119,10 @@ if [ $allok == 1 ]; then
 	#exit 1
 	#fi
 	#URL="${HOST}/odata/v1/Products('$ID')/\$value"
-	wget  --no-hsts --header "Authorization: Bearer $ACCESS_TOKEN" 'https://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
+	#wget  --no-hsts --header "Authorization: Bearer $ACCESS_TOKEN" 'https://catalogue.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename 2>/dev/null
+	# since 03/2026, only this now works:
+	echo "downloading the file"
+	wget  --no-hsts --header "Authorization: Bearer $ACCESS_TOKEN" 'https://download.dataspace.copernicus.eu/odata/v1/Products('$ID')/$value' -O $outdir/$filename # 2>/dev/null
 fi
 
 if [ `ls -al $outdir/$filename | gawk {'print $5'}` -lt 10000 ]; then

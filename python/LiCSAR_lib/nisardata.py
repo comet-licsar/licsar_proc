@@ -20,38 +20,199 @@ import asf_search as asf
 import time
 import lics_processing as lp
 from shapely.geometry import shape
+from shapely import wkt
+from shapely.ops import transform
+from pyproj import Transformer
 import h5py
 import dask.array as da
 import xarray as xr
 import numpy as np
 from rasterio.crs import CRS  # optional but convenient
 
+from dask.diagnostics import ProgressBar
+ProgressBar().register()
+
+
+def wgs2utm(polygon, target_crs):
+    ''' the bbox should be shapely polygon in WGS-84'''
+    source_crs = "EPSG:4326"
+    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    poly_utm = transform(transformer.transform, polygon)
+    return poly_utm
+
+
 '''
-# need WG84->UTM transformer, so:
-from shapely.ops import transform
-from pyproj import Transformer
-
-source_crs="EPSG:4326"
-target_crs = ....
-
-transformer = Transformer.from_crs(source_crs, target_crs, always_xy = True)
-
-polywgs84 = ...
-poly_utm = transform(transformer.transform, polywgs84)
-
-
-
-if ascdesc == 'D': ascdesc = 'DESCENDING'
-    if ascdesc == 'A': ascdesc = 'ASCENDING'
-    r = asf.geo_search(relativeOrbit=tracks, beamMode=sensType,
-                   start = startdate, end = enddate,
-                   flightDirection=ascdesc, intersectsWith=footprint,
-                   platform='S1', processingLevel='SLC')
+Example Palo Alto landslide:
+lon1, lon2 = -118.43839264855741, -118.26255663358891
+lat1, lat2 = 33.81550899014754, 33.70198918701689
+fullchain(lon1, lat1, lon2, lat2, downloadit = True)
 '''
+def fullchain(lon1, lat1, lon2, lat2, 
+              nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
+              downloadit = False,
+              clipit = True, processit = True):
+    # will get automatically
+    if not nisarslcpath:
+        if 'XFCPATH' in os.environ:
+            nisarslcpath = os.path.join(os.environ['XFCPATH'], 'SLC')
+        elif 'LiCSAR_SLC' in os.environ:
+            nisarslcpath = os.environ['LiCSAR_SLC']
+        else:
+            nisarslcpath = os.getcwd()
+        print('expected input data into '+nisarslcpath)
+    #
+    bbox = lp.bbox_to_wkt(lon1, lat1, lon2, lat2)
+    nsrs = get_nisar_data(bbox, outAspd = True)
+    # filter a bit:
+    polygon = wkt.loads(bbox)
+    nsrs=nsrs[nsrs.intersects(polygon)]
+    # keep only data needed for whole bbox:
+    nsrsel=nsrs.groupby(['flightDirection','pathNumber', 'frameNumber']).head(1)[['flightDirection', 'pathNumber', 'frameNumber','geometry']]
+    for i, ln in nsrsel[nsrsel.contains(polygon)].iterrows():
+        todrop=nsrs[nsrs['flightDirection']==ln['flightDirection']][nsrs['pathNumber']==ln['pathNumber']][nsrs['frameNumber']!=ln['frameNumber']]
+        nsrs=nsrs.drop(todrop.index)
+    # update the selection
+    nsrsel = nsrs.groupby(['flightDirection', 'pathNumber', 'frameNumber']).head(1)[['flightDirection', 'pathNumber', 'frameNumber', 'geometry']]
+    # now can download them
+    print('data available from '+str(len(nsrsel.groupby(['flightDirection','pathNumber'])))+' orbital passes')
+    if downloadit:
+        print('Now we check and download ' + str(len(nsrs)) + ' files')
+        for i, ln in nsrs.iterrows():
+            fname = ln['sceneName']+'.h5'
+            fullfname = os.path.join(nisarslcpath, fname)
+            # do_download = True
+            if os.path.exists(fullfname):
+                # check size .. or... just try load
+                try:
+                    f=h5py.File(fullfname, "r")
+                    rc=f['science/LSAR'].keys()
+                    f.close()
+                    # do_download = True
+                    print(' already downloaded.')
+                    continue
+                except:
+                    print('downloaded but wrongly - retrying')
+            print('downloading '+fname)
+            url = ln['url']
+            fpath = download(url, nisarslcpath)  # using this way, because for some reason i cannot get ASF session established..
+            if not os.path.exists(fpath):
+                print('some error in '+fpath)
+    if processit:
+        # before proceeding, let's get ENUs (and potentially hgt)
+        
+        for freq_code in ['A', 'B']:
+            if clipit:
+                # need to reproject the bbox to given UTM.. will be done in load function
+                clipping_bbox = polygon
+            else:
+                clipping_bbox = None
+            nsrs=nsrs.sort_values('startTime')  # sort since the beginning
+            for i, sset in nsrsel.iterrows():
+                opass=sset['flightDirection']
+                pan = sset['pathNumber']
+                frn = sset['frameNumber']
+                frame = opass[0]+'.'+str(pan)+'.'+str(frn)
+                framedir = frame
+                if not os.path.exists(framedir):
+                    os.mkdir(framedir)
+                print('processing frame '+frame)
+                tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
+                # now lets get network...
+                ifgs = get_network(tmpsel, ntype='triplet')
+                for ifg in ifgs:
+                    in1 = os.path.join(nisarslcpath, ifg[0].sceneName+'.h5')
+                    in2 = os.path.join(nisarslcpath, ifg[1].sceneName + '.h5')
+                    epoch1 = ifg[0].startTime.split('T')[0].replace('-','')
+                    epoch2 = ifg[1].startTime.split('T')[0].replace('-', '')
+                    if os.path.exists(in1) and os.path.exists(in2):
+                        pair = epoch1 + '_' + epoch2
+                        outncfile = os.path.join(framedir, pair+'.freq_'+freq_code+'.nc')
+                        outphatif = os.path.join(framedir, pair+'.freq_'+freq_code+'_pha.wgs84.tif')
+                        if os.path.exists(outphatif):
+                            print('Ifg '+pair+' already exists, skipping')
+                            continue
+                        try:
+                            generate_ifg(
+                                in1=in1,
+                                in2=in2,
+                                freq_code=freq_code, polarization='HH', clipping_bbox=clipping_bbox,
+                                target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
+                        except:
+                            print('Some error generating '+pair)
+                    else:
+                        print('ERROR, file '+in1+' does not exist')
+    return nsrs
+
+'''
+# this below is a simple script for doing LB
+freqA=
+freqB=1221500000
+
+workdir=`pwd` # e.g. A.34.19
+for fr in freq_A freq_B; do
+ lbdir=`pwd`/LB_`basename $workdir`.$fr
+ mkdir -p $lbdir/GEOC
+ for pair in `ls *.$fr'_pha.wgs84.tif' | cut -d '.' -f 1`; do
+   mkdir -p $lbdir/GEOC/$pair
+   ln -s `pwd`/$pair.$fr'_pha.wgs84.tif' $lbdir/GEOC/$pair/$pair.geo.diff_unfiltered_pha.tif
+   ln -s `pwd`/$pair.$fr'_coh.wgs84.tif' $lbdir/GEOC/$pair/$pair.geo.cc.tif
+ done
+ # need to get ENUs and hgt as well...
+done
+'''
+
+def get_network(tmpsel, ntype='triplet'):
+    ''' this is to prepare ifg network
+    ntype - choose one of ['daisy', 'triplet']
+    '''
+    if 'startTime' in tmpsel:
+        tmpsel = tmpsel.sort_values('startTime')
+    if len(tmpsel)<2:
+        print('error, need more data')
+        return False
+    elif len(tmpsel)==2:
+        ntype = 'daisy' # cannot do triplet
+    ifgs = []
+    if ntype == 'daisy':
+        for i in range(len(tmpsel)-1):
+            ifgs.append([tmpsel.iloc[i], tmpsel.iloc[i+1]])
+    elif ntype == 'triplet':
+        for i in range(len(tmpsel)-2):
+            ifgs.append([tmpsel.iloc[i], tmpsel.iloc[i+1]])
+            ifgs.append([tmpsel.iloc[i], tmpsel.iloc[i + 2]])
+        # and add the last one:
+        ifgs.append([tmpsel.iloc[i+1], tmpsel.iloc[i + 2]])
+    else:
+        print('choose either daisy or triplet')
+        return False
+    return ifgs
+
+
+def get_nisar_dem(wesn, outfile = 'nisar_dem.tif', tmpfolder = 'nisar_dem'):
+    ''' wesn means:
+    west, south, east, north  (float tuple or list both work), e.g.
+    wesn = (-3.7, 53.6, -1.1, 54.2)
+    '''
+    import earthaccess as ea
+    ea.login(strategy="netrc")  # or "interactive"
+    granules = ea.search_data(
+        short_name="NISAR_DEM",      # the collection short name
+        bounding_box=wesn,           # <-- keyword arg, not a method call
+        temporal=("2000-01-01", "2030-01-01")  # DEM is static; any wide window is fine
+    )
+    #
+    print(f"Found {len(granules)} tiles")
+    ea.download(granules, tmpfolder)
+    print('merging - TODO check')
+    cmd = "gdal_merge.py -o "+outfile+" "+tmpfolder+"/*.tif"
+    os.system(cmd)
+    print('now you need to load and clip and fit to the ifgs...')
+
+
 
 # say we want to get NISAR data covering particular location, or region:
 def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('20250101','%Y%m%d').date(),
-             enddate = dt.date.today(), outAspd = False):
+             enddate = dt.date.today(), outAspd = False, shortpd = False):
     ''' main search engine for NISAR
     you need to provide wkt as input - you can use lp.cliparea_geo2coords for this, or use e.g.
     lat=33.74; lon=-118.37
@@ -67,8 +228,9 @@ def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('202501
         if df.empty:
             print('ASF returned empty output')
             return df
-        cols = ['flightDirection','pathNumber','frameNumber','startTime','sceneName','url', 'geometry']
-        df = df[cols]
+        if shortpd:
+            cols = ['flightDirection','pathNumber','frameNumber','startTime','sceneName','url', 'geometry']
+            df = df[cols]
         df=gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
         # download size is in pd.DataFrame.from_dict(r.bytes)
         # the url CAN be used directly with wget_alaska approach...
@@ -114,6 +276,33 @@ def list_sizes(path = 'NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T13075
         f.visititems(visit)
 
 
+def read_metadata(group, max_elements=100000):
+    result = {}
+    # Read group attributes
+    result["_attrs"] = {k: v for k, v in group.attrs.items()}
+    # Traverse items
+    for name, item in group.items():
+        if isinstance(item, h5py.Dataset):
+            if item.size <= max_elements:
+                result[name] = item[()]     # load dataset
+            else:
+                result[name] = f"<LARGE DATASET {item.shape} {item.dtype}>"
+        elif isinstance(item, h5py.Group):
+            # recursively load the subgroup
+            result[name] = read_metadata(item, max_elements)
+    return result
+
+
+def load_metadata(h5file, group = "science/LSAR/GSLC/metadata"):
+    with h5py.File(h5file) as f:
+        metadata = read_metadata(f[group])
+    return metadata
+
+
+def print_metadata(metadata):
+    from pprint import pprint
+    pprint(metadata, width=100, compact=True)
+
 def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
     """
     Lazily load OPERA/GSLC FrequencyA HH grid as xarray.Dataset with:
@@ -153,6 +342,8 @@ def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
             "polarization": polarization
         }
     )
+    # try adding some more metadata here?
+    #f.close()
     return ds
 
 
@@ -228,28 +419,45 @@ def get_ENU(path, chunks='auto'):
 
 def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5',
                 in2='NISAR_L2_PR_GSLC_007_034_A_018_4005_DHDH_A_20251206T130751_20251206T130826_X05009_N_F_J_001.h5',
-                freq_code = 'A', polarization = 'HH',
+                freq_code = 'A', polarization = 'HH', clipping_bbox = None,
                 target_resolution_m = 110, outncfile = 'ifg.A.nc', create_wgs84_previews = True):
     ''' Main code to create interferogram and coherence from two NISAR GSLC data
+
+    clipping_bbox should be shapely.Polygon in WGS-84
     '''
+    print('Loading data')
     if (not os.path.exists(in1)) or (not os.path.exists(in2)):
         print('ERROR - some of the files do not exist')
         return False
-    ds1 = load_gslc(in1, freq_code=freq_code, polarization = polarization)
+    try:
+        ds1 = load_gslc(in1, freq_code=freq_code, polarization = polarization)
+    except:
+        print('ERROR loading epoch1. maybe wrong polarization? trying VV')
+        polarization = 'VV'
+        ds1 = load_gslc(in1, freq_code=freq_code, polarization=polarization)
     ds2 = load_gslc(in2, freq_code=freq_code, polarization = polarization)
+    if type(clipping_bbox) != type(None):
+        utmcode = ds1.attrs.get("crs")
+        clipping_bbox_utm = wgs2utm(clipping_bbox, utmcode)
+        x1, y1, x2, y2 = clipping_bbox_utm.bounds
+        ds1 = ds1.sel(x=slice(x1,x2),
+                      y=slice(y2,y1))
+        ds2 = ds2.sel(x=slice(x1, x2),
+                      y=slice(y2, y1))
     if not ds1[polarization].shape == ds2[polarization].shape:
         print('ERROR - the dimensions do not fit - are these files from the same track and path??')
         return False
+    
     # Lazy interferogram
-    ifg = ds1.HH * ds2.HH.conj()
-
+    ifg = ds1[polarization] * ds2[polarization].conj()
+    #
     ifg_da = xr.DataArray(
         ifg,
         coords=ds1.coords,
         dims=ds1[polarization].dims,
         attrs={"description": "Interferogram (S1 * conj(S2))"}
     )
-
+    #
     ifg_da.attrs.update({
         "source1": ds1.attrs.get("source_file", os.path.basename(in1)),
         "source2": ds2.attrs.get("source_file", os.path.basename(in2)),
@@ -258,7 +466,7 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
         "freq": ds1.attrs.get("freq"),
         "polarization": ds1.attrs.get("polarization"),
     })
-
+    #
     # now multilook
     # target_res = 110 # [m] first instance, to get similar outputs to LiCSAR ifgs..
     resx = float(ifg_da.x[1]-ifg_da.x[0])
@@ -298,9 +506,9 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
             "polarization": ifg_ml.attrs.get("polarization", '-'),
         },
     )
-
+    #
     chunksizes = tuple(ch[0] for ch in phase.data.chunks)  # e.g. (1024, 1024)
-
+    #
     encoding = {
         "phase": {
             "zlib": True, "complevel": 4,  # netCDF4/deflate compression
@@ -326,210 +534,6 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
         # print('TODO - but see the code here..')
         print('all done')
 
-'''
-# Lazily compute phase and magnitude (no .values!)
-phase = xr.apply_ufunc(
-    np.angle,
-    ifg_da,
-    dask="parallelized",
-    output_dtypes=[np.float32],
-)
-
-magnitude = xr.apply_ufunc(
-    np.abs,
-    ifg_da,
-    dask="parallelized",
-    output_dtypes=[np.float32],
-)
-
-ds_out = xr.Dataset(
-    data_vars={
-        "phase": (ifg_da.dims, phase.data),
-        "magnitude": (ifg_da.dims, magnitude.data),
-    },
-    coords=ifg_da.coords,
-    attrs={
-        "description": "Interferogram components from S1 * conj(S2)",
-        #"source1": str(ifg_da.attrs.get("source1", "")),
-        #"source2": str(ifg_da.attrs.get("source2", "")),
-        "crs": ifg_da.attrs.get("crs", None),
-        "epsg": ifg_da.attrs.get("epsg", None),
-    },
-)
-
-# Choose compression + chunk sizes for NetCDF
-# Use the same chunking as in the dask graph to avoid rechunking during write
-# xarray expects chunk sizes per dimension as a tuple
-chunksizes = tuple(ch[0] for ch in phase.data.chunks)  # e.g. (1024, 1024)
-
-encoding = {
-    "phase": {
-        "zlib": True, "complevel": 4,  # netCDF4/deflate compression
-        "dtype": "float32",
-        "chunksizes": chunksizes,       # ensure chunk-wise writing
-        "_FillValue": np.float32(np.nan),
-    },
-    "magnitude": {
-        "zlib": True, "complevel": 4,
-        "dtype": "float32",
-        "chunksizes": chunksizes,
-        "_FillValue": np.float32(np.nan),
-    },
-}
-
-# This will execute lazily by chunks, not loading everything into memory
-ds_out.to_netcdf("ifg_components.nc", engine="netcdf4", encoding=encoding)
-
-'''
-
-# but the orig data is still large - downsample to 50x50 m:
-'''
-def multilook_ifg_phase_mag_to_netcdf(
-    nc_in: str,
-    nc_out: str,
-    phase_var: str = "phase",
-    magnitude_var: str = "magnitude",
-    looks_y: int = 10,
-    looks_x: int = 10,
-    chunks: dict | None = None,
-    write_magnitude: bool = True,
-    netcdf_engine: str = "netcdf4",
-    coord_reduce: str = "mean"):
-    """
-    Lazily multilook an interferogram stored as phase/magnitude in NetCDF and
-    write the multilooked phase (and optionally magnitude) to a new NetCDF.
-
-    Strategy:
-        1) Reconstruct complex: C = M * exp(i * phase)
-        2) Coarsen (mean) with factors (looks_y, looks_x), boundary='trim'
-        3) Phase_out = angle(mean(C)), Magnitude_out = abs(mean(C))
-        4) Coarsen 1D coords x, y to match new sizes (mean or window center)
-        5) Write to NetCDF with chunked encoding (out-of-core)
-
-    Notes:
-        - Assumes 2D variables with dims ("y", "x") or a permutation thereof.
-        - Coordinates 'x' and 'y' are assumed to be 1D monotonic vectors.
-    """
-    # 1) Open lazily
-    ds = xr.open_dataset(nc_in, engine=netcdf_engine, chunks=chunks)
-
-    # Identify dims of the phase variable (e.g., ('y','x') or ('x','y'))
-    pdims = ds[phase_var].dims
-    if len(pdims) != 2:
-        raise ValueError(f"{phase_var} must be 2D, got dims {pdims}")
-
-    # Make sure order is (y, x)
-    if pdims == ("y", "x"):
-        ydim, xdim = "y", "x"
-        phase = ds[phase_var]
-        mag   = ds[magnitude_var]
-    elif pdims == ("x", "y"):
-        ydim, xdim = "y", "x"
-        phase = ds[phase_var].transpose("y", "x")
-        mag   = ds[magnitude_var].transpose("y", "x")
-    else:
-        # Fall back: sort dims by name if not exact
-        dims_sorted = tuple(sorted(pdims))
-        raise ValueError(f"Unexpected dims {pdims}; expected ('y','x') or ('x','y').")
-
-    phase = phase.astype("float32")
-    mag   = mag.astype("float32")
-
-    # 2) Reconstruct complex interferogram lazily: C = M * exp(i * phase)
-    C = mag * xr.apply_ufunc(
-        lambda p: np.exp(1j * p),
-        phase,
-        dask="parallelized",
-        output_dtypes=[np.complex64],
-    ).astype("complex64")
-
-    # 3) Multilook via coarsen (mean), trimming edges that don't complete a window
-    C_ml = C.coarsen({ydim: looks_y, xdim: looks_x}, boundary="trim").mean()
-
-    # Convert back to phase and magnitude lazily
-    phase_ml = xr.apply_ufunc(np.angle, C_ml, dask="parallelized", output_dtypes=[np.float32]).astype("float32")
-    if write_magnitude:
-        magnitude_ml = xr.apply_ufunc(np.abs, C_ml, dask="parallelized", output_dtypes=[np.float32]).astype("float32")
-
-    # 4) Build coarsened coordinates that MATCH the multilooked sizes
-    coords_out = {}
-
-    # Coarsen y coordinate if present & 1D
-    if ydim in ds.coords and ds[ydim].ndim == 1:
-        if coord_reduce == "mean":
-            y_ml = ds[ydim].coarsen({ydim: looks_y}, boundary="trim").mean().astype("float32")
-        elif coord_reduce == "center":
-            n_y = ds.sizes[ydim]
-            n_y_trim = (n_y // looks_y) * looks_y
-            y_trim = ds[ydim].isel({ydim: slice(0, n_y_trim)})
-            y_ml = y_trim.coarsen({ydim: looks_y}).construct(f"{ydim}_win").isel({f"{ydim}_win": looks_y // 2})
-            y_ml = y_ml.astype("float32")
-        else:
-            raise ValueError("coord_reduce must be 'mean' or 'center'")
-        coords_out[ydim] = (ydim, y_ml.data)
-
-    # Coarsen x coordinate if present & 1D
-    if xdim in ds.coords and ds[xdim].ndim == 1:
-        if coord_reduce == "mean":
-            x_ml = ds[xdim].coarsen({xdim: looks_x}, boundary="trim").mean().astype("float32")
-        elif coord_reduce == "center":
-            n_x = ds.sizes[xdim]
-            n_x_trim = (n_x // looks_x) * looks_x
-            x_trim = ds[xdim].isel({xdim: slice(0, n_x_trim)})
-            x_ml = x_trim.coarsen({xdim: looks_x}).construct(f"{xdim}_win").isel({f"{xdim}_win": looks_x // 2})
-            x_ml = x_ml.astype("float32")
-        else:
-            raise ValueError("coord_reduce must be 'mean' or 'center'")
-        coords_out[xdim] = (xdim, x_ml.data)
-
-    # 5) Output dataset with matching dims & coords
-    data_vars = {"phase_ml": (phase_ml.dims, phase_ml.data)}
-    if write_magnitude:
-        data_vars["magnitude_ml"] = (phase_ml.dims, magnitude_ml.data)
-
-    # Safe attrs (avoid None)
-    attrs = {"description": f"Multilooked {looks_y}x{looks_x} from complex mean"}
-    for key in ("crs", "epsg", "source1", "source2"):
-        val = ds.attrs.get(key)
-        if val is not None:
-            attrs[key] = str(val)
-
-    ds_out = xr.Dataset(data_vars=data_vars, coords=coords_out, attrs=attrs)
-
-    # 6) Chunked encoding (use first chunk per dimension)
-    out_chunks = tuple(ch[0] for ch in phase_ml.data.chunks)  # e.g., (1024, 1024)
-    encoding = {
-        "phase_ml": {
-            "zlib": True, "complevel": 4,
-            "dtype": "float32",
-            "chunksizes": out_chunks,
-            "_FillValue": np.float32(np.nan),
-        }
-    }
-    if write_magnitude:
-        encoding["magnitude_ml"] = {
-            "zlib": True, "complevel": 4,
-            "dtype": "float32",
-            "chunksizes": out_chunks,
-            "_FillValue": np.float32(np.nan),
-        }
-
-    # 7) Write lazily, chunk-by-chunk (no full-RAM load)
-    ds_out.to_netcdf(nc_out, engine=netcdf_engine, encoding=encoding)
-    print('stored to '+nc_out)
-
-
-# Example: 10×10 multilook, chunks are multiples of 10 for efficiency
-multilook_ifg_phase_mag_to_netcdf(
-    nc_in="ifg_components.nc",
-    nc_out="ifg_components_ml_10x10.nc",
-    looks_y=10,
-    looks_x=10,
-    chunks={"y": 4000, "x": 4000},  # multiples of looks are efficient
-    write_magnitude=True,
-    coord_reduce="mean",            # or "center"
-)
-'''
 
 # now convert to wgs-84 geotiff:
 def convert_to_wgs84(xrds, outbasename = 'ifg', create_previews = True):
@@ -585,12 +589,12 @@ gdalwarp \
 '''
 
 
-def download(filename, slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC', provider='alaska'):
+def download(url, slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC', provider='alaska'):
     '''wrapper to wget commands. the provider must be one of ['cdse', 'alaska']
     '''
     # slcdir = os.environ['LiCSAR_SLC']
-    wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_'+provider
-    cmd = 'cd {0}; {1} {2}'.format(slcdir, wgetpath, filename)
+    wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_asf_nisar'
+    cmd = 'cd {0}; {1} {2}'.format(slcdir, wgetpath, url)
     rc = os.system(cmd)
     filepath = os.path.join(slcdir,filename)
     return filepath
@@ -601,8 +605,8 @@ def get_asf_session():
     if not os.path.exists(credentials):
         credentials = os.path.join(os.environ["LiCSAR_configpath"],'asf_credentials')
     f = open(credentials,'r')
-    asf_user = re.sub('\W+','',f.readline().split('=')[1])
-    asf_pass = re.sub('\W+','',f.readline().split('=')[1])
+    asf_user = re.sub(r'\W+','',f.readline().split('=')[1])
+    asf_pass = re.sub(r'\W+','',f.readline().split('=')[1])
     f.close()
     return asf.ASFSession().auth_with_creds(asf_user, asf_pass)
 

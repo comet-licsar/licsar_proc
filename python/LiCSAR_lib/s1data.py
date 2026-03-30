@@ -573,8 +573,8 @@ def get_scihub_creds():
     scihub_url = "https://scihub.copernicus.eu/dhus"
     credentials = os.path.join(os.environ["LiCSAR_configpath"],'scihub_credentials_wget')
     f = open(credentials,'r')
-    scihub_user = re.sub('\W+','',f.readline().split('=')[1])
-    scihub_pass = re.sub('\W+','',f.readline().split('=')[1])
+    scihub_user = re.sub(r'\W+','',f.readline().split('=')[1])
+    scihub_pass = re.sub(r'\W+','',f.readline().split('=')[1])
     f.close()
     return scihub_user, scihub_pass, scihub_url
 

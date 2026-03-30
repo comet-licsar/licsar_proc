@@ -69,7 +69,7 @@ def read_bperp_file(bperp_file, imdates, return_missflag = False):
 
 
 #%%
-def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(2014, 9, 25), lastdate = dt.datetime(2025, 12, 31)):
+def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(2014, 9, 25), lastdate = dt.datetime(2026, 12, 31)):
     """
     Plot network of interferometric pairs.
     bperp can be dummy (-1~1).
@@ -124,10 +124,13 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
                    zorder=1, label='Gap', alpha=0.6, colors='k', linewidth=3)
     #
     #
-    ### Locater        
-    loc = ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ### Locater
+    locator = mdates.AutoDateLocator()
+    ax.xaxis.set_major_locator(locator)
     try:  # Only support from Matplotlib 3.1
-        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+        #     ax.xaxis.set_major_formatter(DateFormatter('%Y'))
+        #     loc = ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
     except:
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d'))
         for label in ax.get_xticklabels():
@@ -135,10 +138,10 @@ def plot_network_upd(ifgdates, bperp, frame, pngfile, firstdate = dt.datetime(20
             label.set_horizontalalignment('right')
     #
     #
-    ax.grid(b=True, which='major')
+    ax.grid(visible=True, which='major')
     ### Add bold line every 1yr
     ax.xaxis.set_minor_locator(mdates.YearLocator())
-    ax.grid(b=True, which='minor', linewidth=2)
+    ax.grid(visible=True, which='minor', linewidth=2)
     ax.set_xlim((firstdate, lastdate))
     #ax.set_xlim((imdates_dt_all[0]-dt.timedelta(days=10),
     #             imdates_dt_all[-1]+dt.timedelta(days=10)))
@@ -284,7 +287,7 @@ if not os.path.exists(bperp_file):
 
 # else:
 # horrible fix but seems necessary...
-rc = os.system("sed -i 's/\.0//g' "+bperp_file)
+rc = os.system(r"sed -i 's/\.0//g' "+bperp_file)
 #    print('Make dummy bperp')
 #    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
 #    io_lib.make_dummy_bperp(bperp_file, imdates)
@@ -356,7 +359,11 @@ try:
                     mbperp = 0
                 '''
         if stillmissing:
-            bperps = fc.estimate_bperps(frame, stillmissing, return_epochsdt=False)
+            try:
+                bperps = fc.estimate_bperps(frame, stillmissing, return_epochsdt=False)
+            except:
+                print('Some other error estimating bperps - possibly issue with reference epoch metadata (4 frames affected, not fixed, in Mar 2026) - setting zeroes')
+                bperps = np.zeros(len(stillmissing))
             bperps = np.array(bperps).astype(int)
             i = 0
             for m in stillmissing:
@@ -390,7 +397,7 @@ frame = os.path.basename(framedir)
 plot_network_upd(ifgdates, bperp, frame, pngfile)
 os.system('chmod 777 '+pngfile+' 2>/dev/null')
 os.system('chmod 777 '+bperp_file+' 2>/dev/null')
-rc = os.system("sed -i 's/\.0//g' "+bperp_file)  # just in case...
+rc = os.system(r"sed -i 's/\.0//g' "+bperp_file)  # just in case...
 
 ## Identify gaps
 G = inv_lib.make_sb_matrix(ifgdates)
