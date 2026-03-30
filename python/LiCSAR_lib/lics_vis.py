@@ -334,7 +334,7 @@ def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims
     return ax1
 
 
-def plotdaz(dazes, frame, toshow = 'daz', lim = 4000, ylim = [-200,200]):
+def plotdaz(dazes, frame, toshow = 'daz', lim = 4000, ylim = [-200,200], outfile = None, showit = True):
     toplotA = dazes[dazes['AB']=='A'].set_index('epoch')[toshow]*14000
     toplotB = dazes[dazes['AB']=='B'].set_index('epoch')[toshow]*14000
     todelA = toplotA[np.abs(toplotA)>=lim]
@@ -350,10 +350,15 @@ def plotdaz(dazes, frame, toshow = 'daz', lim = 4000, ylim = [-200,200]):
         toplotA.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='blue', linestyle='')#-.')
     if not toplotB.empty:
         toplotB.plot(title=frame+' ('+toshow+')',  ylim=ylim, ylabel='$u_{az}$ [mm]', marker='o', color='orange', linestyle='')#-.')
-    plt.show()
+    if outfile:
+        print('saving figure as '+outfile)
+        plt.savefig(outfile)
+    if showit:
+        plt.show()
 
 
-def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
+def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000, outfile = None, showit = True):
+    ''' available: daz, cc_azi, cc_range - currently without corrections (can fix later) '''
     import daz_lib_licsar as dl
     ylim = [-1*ylim1, ylim1]
     dazes = dl.get_daz_frame(frame)
@@ -362,7 +367,7 @@ def plotframedaz(frame, toshow = 'cc_range', lim=4000, ylim1=2000):
     epochdates=dazes['epoch'].tolist()
     ABs = dl.flag_s1b(epochdates,mdatetime,msab,True)
     dazes['AB'] = ABs
-    plotdaz(dazes, frame, toshow = toshow, lim = lim, ylim=ylim)
+    plotdaz(dazes, frame, toshow = toshow, lim = lim, ylim=ylim, outfile = outfile, showit = showit)
 
 
 ## from COPILOT:
