@@ -33,7 +33,7 @@ tr = int(frame[:3])
 tif=f"{pair}.geo.bovldiff.adf.tif"
 # outtif=os.path.join('GEOC',pair,pair+'.geo.bovldiff.adf.mm.tif')
 outtif=f"{frame[0:4]}_{frame[5:8]}-{pair}.geo.bovldiff.adf.mm.tif"
-breakpoint()
+# breakpoint()
 if not os.path.exists(tif):
     print('the file does not exist here, trying to find it in batchdir')
     batch=os.environ['BATCH_CACHE_DIR']
