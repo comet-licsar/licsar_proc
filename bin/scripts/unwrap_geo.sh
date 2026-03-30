@@ -68,6 +68,12 @@ if [ -f $maskfile ]; then
  #gmt grdedit temp/mask.landmask.nc -T -R$ifg   #to pixel reg
  gmt grdcut -N1 temp/mask.nc -Gtemp/mask.landmask.nc -R$ifg
  gmt grdmath -N temp/mask.inarea.nc temp/mask.landmask.nc MUL = temp/mask.fullin.nc
+ if [ ! -f temp/mask.fullin.nc ]; then
+  echo "some error with mask - perhaps dimension mismatch, trying to solve"
+  gdalwarp2match.py temp/mask.landmask.nc temp/mask.inarea.nc temp/mask.reland.tif
+  gmt grdconvert temp/mask.reland.tif=gd:GTiff temp/mask.landmask.nc
+  gmt grdmath -N temp/mask.inarea.nc temp/mask.landmask.nc MUL = temp/mask.fullin.nc
+ fi
  #for final masking
  gmt grdmath -N temp/mask.outarea.nc temp/mask.fullin.nc MUL = temp/mask.nc
  #for snaphu only - as we get segmentation faults in decorrelated ('grainy masked') areas..
