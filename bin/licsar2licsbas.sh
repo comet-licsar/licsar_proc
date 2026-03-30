@@ -1344,9 +1344,10 @@ if [ $hgtcorrlicsbas -gt 0 ]; then
  sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
 fi
 
-if [ $dogacos -gt 0 ]; then
- sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
-fi
+#MN: I am applying epoch-wise corrections for checking, do03op_GACOS doing pair-wise way.
+# if [ $dogacos -gt 0 ]; then
+#  sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
+# fi
 
 if [ $clip -gt 0 ]; then
  # lon1/lon2/lat1/lat2
@@ -1376,7 +1377,12 @@ if [ $run_jasmin -eq 1 ]; then
  
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
  if [[ "$cohmask4" != 0 || "$sbovl" -gt 0 ]]; then clstr=$clstr'mask'; fi
- if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
+ 
+ if [ $reunw -gt 0 ]; then
+  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
+ else
+  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi$clstr; else geocd='GEOCml'$multi$clstr; fi
+ fi
  tsdir=TS_$geocd
 #  if [ "$reunw" -eq 0 ]; then #MN, Apply corrections in batch_LiCSBAS.sh after LiCSBAS13 so they are saved in cum.h5, and ensure they are applied again before LiCSBAS16 (spatio-temporal filtering) to produce cum_filt.h5.
 #    lbreproc=0
