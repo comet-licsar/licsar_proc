@@ -353,6 +353,7 @@ def plotdaz(dazes, frame, toshow = 'daz', lim = 4000, ylim = [-200,200], outfile
     if outfile:
         print('saving figure as '+outfile)
         plt.savefig(outfile)
+        plt.close()
     if showit:
         plt.show()
 
