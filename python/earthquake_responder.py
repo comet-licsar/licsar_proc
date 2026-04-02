@@ -678,8 +678,8 @@ def get_next_expected_images(frames, eventtime):
 
 def get_eq_events(minmag = 5.5, max_days = 30):
     try:
-        out = search(starttime=datetime.now()-timedelta(days=max_days),
-                           endtime=datetime.now(),
+        out = search(starttime=datetime.now(dt.timezone.utc)-timedelta(days=max_days),
+                           endtime=datetime.now(dt.timezone.utc),
                            minmagnitude=minmag)
     except:
         out = False
@@ -818,7 +818,7 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, i
                     continue
             print(event.id)
             #keep them active if these are some late eqs..
-            if event.time > dt.datetime.now()-timedelta(days=10):
+            if event.time > dt.datetime.now(dt.timezone.utc)-timedelta(days=10):
                 makeactive = True
             else:
                 makeactive = False
@@ -1046,7 +1046,7 @@ def main():
                         frame = frame[0]
                         track = str(int(frame[0:3]))
                         indate = event.time-timedelta(days=max_days)
-                        offdate = datetime.now()+timedelta(days=1)
+                        offdate = datetime.now(dt.timezone.utc)+timedelta(days=1)
                         if not os.path.exists(os.path.join(public_path,track,frame)):
                             print('Frame '+frame+' was (probably) not initiated, trying to do it automatically')
                             os.system('licsar_initiate_new_frame.sh {0} >/dev/null 2>/dev/null'.format(frame))
