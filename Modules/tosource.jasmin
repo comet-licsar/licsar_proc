@@ -10,9 +10,9 @@ export bkup_dir=/gws/ssde/j25a/nceo_geohazards/vol1/bkups
 export LiCSAR_GACOS="/work/scratch-pw4/licsar/GACOS"
 export LiCSAR_volc="/gws/pw/j07/comet_lics/LiCSAR_volc"
 
-# added 2023/08
-GAMMA_HOME="/gws/smf/j04/nceo_geohazards/software/GAMMA/20250625"
-export GAMMA_HOME="/gws/smf/j04/nceo_geohazards/software/GAMMA/20250625"
+# added 2023/08. updated 2026/04
+GAMMA_HOME="/gws/smf/j04/nceo_geohazards/software/GAMMA/latest"
+export GAMMA_HOME="/gws/smf/j04/nceo_geohazards/software/GAMMA/latest"
 export MSP_HOME="$GAMMA_HOME/MSP"
 export ISP_HOME="$GAMMA_HOME/ISP"
 export DIFF_HOME="$GAMMA_HOME/DIFF"
