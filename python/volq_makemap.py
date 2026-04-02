@@ -20,7 +20,7 @@ def get_web_volcanoes(url, return_sublinks = True):
         volcano_names = [a.text.strip() for a in soup.select("ul li a")]
         return volcano_names
 
-volclinks = get_web_volcanoes()
+volclinks = get_web_volcanoes(url)
 volcpd = v.get_volc_info()
 
 # get selection from the pd:
@@ -100,7 +100,118 @@ title_html = """
 
 m.get_root().html.add_child(folium.Element(title_html))
 
+# footer:
+from branca.element import Element
+
+footer_html = """
+<style>
+/** footer: **/
+
+.footer {
+  color: #ffffff;
+  background-color: #272727;
+  min-height: 2em;
+}
+
+.footer a {
+  color: #ffffff;
+  text-decoration: none;
+  outline: none;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.footer_text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-flow: row wrap;
+  justify-content: center;
+  text-align: center;
+  padding-top: 0.1em;
+  padding-bottom: 0em;
+  padding-left: 1.5em;
+  padding-right: 1.5em;
+  color: #dddddd;
+  background-color: #272727;
+}
+
+.footer_text a {
+  color: #ffffff;
+  outline: none;
+}
+
+.footer_logos {
+  display: flex;
+  flex: 1 1 auto;
+  flex-flow: row wrap;
+  justify-content: center;
+  background-color: #272727;
+}
+
+.footer_item {
+  display: inline-block;
+  padding-bottom: 0.1em;
+  background-color: #272727;
+}
+
+.footer_logo {
+  -webkit-filter: grayscale(100%);
+  filter: grayscale(100%);
+  max-height: 4em;
+  max-width: 270px;
+  margin: 0.5em;
+  background-color: #272727;
+}
+
+/* Make footer stick to bottom */
+#footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999;
+}
+
+/* Prevent footer covering parts of the map */
+.leaflet-container {
+    padding-bottom: 90px;
+}
+
+</style>
+
+<div id="footer" class="footer">
+    <div id="footer_text" class="footer_text">
+        <p>funded by DeepVolc, COMET, and ERC</p>
+    </div>
+
+    <div id="footer_logos" class="footer_logos">
+        <div id="footer_deepvolc_logo" class="footer_item">
+            <a href="https://environment.leeds.ac.uk/dir-record/research-projects/1801/forecasting-volcanic-activity-using-deep-learning-deepvolc/"
+               target="_blank">
+              <img class="footer_logo" src="https://comet-volcanodb.org/testing/licsbas/img/footer/deepvolc_logo.png">
+            </a>
+        </div>
+
+        <div id="footer_comet_logo" class="footer_item">
+            <a href="https://comet.nerc.ac.uk/"
+               target="_blank">
+              <img class="footer_logo" src="https://comet-volcanodb.org/testing/licsbas/img/footer/comet_logo.png">
+            </a>
+        </div>
+
+        <div id="footer_erc_logo" class="footer_item">
+            <a href="https://erc.europa.eu/"
+               target="_blank">
+              <img class="footer_logo" src="https://comet-volcanodb.org/testing/licsbas/img/footer/erc_logo.png">
+            </a>
+        </div>
+    </div>
+</div>
+"""
+
+m.get_root().html.add_child(Element(footer_html))
+
 # Save to HTML file
-m.save("volcano_map.html")
+m.save("volcano_map2.html")
 
 
