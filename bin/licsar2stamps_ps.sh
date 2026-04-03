@@ -311,10 +311,36 @@ a=load('ifgstd2.mat');setparm('scla_drop_i',find(a.ifg_std>55)'); setparm('unwra
 for u=1:2, u, stamps(6,7); end; \
 stamps(6,6); ps_plot('V-do',-1); \
 it4s1_stamps2csv; exit"
-it4s1_convert2okcsv.sh exported.csv 
-
+it4s1_convert2okcsv.sh exported_Vdo.csv
+matlab -nodesktop -nosplash -r "addpath('/nfs/a1/software/StaMPS_v4.1b_ML/matlab'); \
+ps_plot('V-dmos',-1); it4s1_stamps2csv; exit"
+it4s1_convert2okcsv.sh exported_Vdmos.csv
+if [ \`diff exported_Vdo.csv exported_Vdmos.csv | wc -l\` -lt 1 ]; then rm exported_Vdmos.csv; fi
 EOF
-chmod 777 INSAR_$master/stamps_proc.sh
+
+chmod 755 INSAR_$master/stamps_proc.sh
 echo "now copy the whole INSAR_ folder to Leeds Uni server and run:"
 ls INSAR_$master/stamps_proc.sh
 
+if [ $USER == 'earmla' ]; then
+  echo "setting for AIRE - you can run airetask.sh for sbatch"
+  sed -i 's/\/nfs\/a1\/software/\/users\/earmla\/sw/g' INSAR_$master/stamps_proc.sh
+cat << EOF > INSAR_$master/airetask.sh
+#!/bin/bash
+#SBATCH --job-name=stamps_job_$master
+#SBATCH --output=output_%j.out
+#SBATCH --error=error_%j.err
+#SBATCH --time=1-00:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=32G                     # Request 32GB of memory
+
+module load miniforge
+module load matlab
+conda activate lics
+
+./stamps_proc.sh
+EOF
+chmod 755 INSAR_$master/airetask.sh
+fi
