@@ -13,9 +13,10 @@ cat << __EOFHD
   based on Pablo Gonzalez code from 2015-11-12, but after major modification - this script allows exporting frame data for PS processing in stamps
     just run with any one parameter.
   
-  testing version. we assume you are in standard LiCSAR processing directory, i.e. with geo, DEM, RSLC folders.
+  testing version. we assume you are in standard LiCSAR processing directory, i.e. with geo and RSLC folders.
 
-  You can set custom reference epoch, second parameter..
+  You can set custom reference epoch using -m YYYYMMDD, otherwise the middle epoch is used.
+  You can also set -s startdate and -e enddate (e.g. -s 20250101 -e 20260101)
 
 __EOFHD
   exit 1
@@ -23,7 +24,7 @@ fi
 #maxdate=20180501
 
 # source $LiCSARpath/lib/LiCSAR_bash_lib.sh
-master=`get_master`
+#master=`get_master`
 startdate=19840126
 enddate=21000101
 
@@ -41,7 +42,20 @@ while getopts ":s:e:m:" option; do
 done
 shift $((OPTIND -1))
 
-
+if [ -z $master ]; then
+  rm tom.txt 2>/dev/null
+  echo "picking up central (modus) epoch as primary - only basic check for rslc consistence"
+  for x in `ls RSLC | grep ^[1-2]*`; do
+    if [ -f RSLC/$x/$x.rslc ]; then
+      if [ `ls RSLC/$x/$x.rslc -al | gawk {'print $5'}` == 0 ]; then echo $x".rslc is empty file"; else
+        if [ $x -ge $startdate ] && [ $x -le $enddate ]; then echo $x >> tom.txt; fi
+      fi
+    fi
+  done
+  let mo=`cat tom.txt | wc -l`/2
+  master=`sed -n "${mo}p" tom.txt`
+  echo "selected "$master" for primary epoch"
+fi
 master_date=$master
 
 # start by making new lt - and skip the 'fine' now
@@ -129,7 +143,7 @@ swap_bytes geo/${master_date}.lon INSAR_$master/geo/$master.lon 4 >/dev/null
 
 
 
-cat << EOF >checkthis_correct_lonlat_as_it_might_be_needed.py
+cat << EOF >fix_lonlat.py
 # print('If you run this from INSAR* folder, please avoid byteswapping below!')
 width=$width
 length=$length
@@ -172,7 +186,8 @@ EOF
 
 # ok, let's just run this..
 echo "updating lon/lat files"
-python3 checkthis_correct_lonlat_as_it_might_be_needed.py
+python3 fix_lonlat.py # checkthis_correct_lonlat_as_it_might_be_needed.py
+rm fix_lonlat.py
 
 # make 1-1 hgt
 hgt=geo/${master}_dem.rdc
@@ -187,9 +202,10 @@ swap_bytes $hgt INSAR_$master/geo/${master}_dem.rdc 4 >/dev/null
 echo "selecting dataset"
 rm slist.txt 2>/dev/null
 msize=`ls -al RSLC/$master/$master.rslc | gawk {'print $5'}`
-if [ -z $maxdate ]; then maxdate=999999999; fi
+if [ -z $enddate ]; then enddate=999999999; fi
+if [ -z $startdate ]; then startdate=0; fi
 for x in `ls RSLC`; do 
- if [ $x != $master ] && [ $x -lt $maxdate ] && [ -f RSLC/$x/$x.rslc ]; then
+ if [ $x != $master ] && [ $x -le $enddate ] && [ $x -ge $startdate ] && [ -f RSLC/$x/$x.rslc ]; then
   ssize=`ls -al RSLC/$x/$x.rslc | gawk {'print $5'}`
   if [ $msize -eq $ssize ]; then
    echo $x >> slist.txt
@@ -295,10 +311,36 @@ a=load('ifgstd2.mat');setparm('scla_drop_i',find(a.ifg_std>55)'); setparm('unwra
 for u=1:2, u, stamps(6,7); end; \
 stamps(6,6); ps_plot('V-do',-1); \
 it4s1_stamps2csv; exit"
-it4s1_convert2okcsv.sh exported.csv 
-
+it4s1_convert2okcsv.sh exported_Vdo.csv
+matlab -nodesktop -nosplash -r "addpath('/nfs/a1/software/StaMPS_v4.1b_ML/matlab'); \
+ps_plot('V-dmos',-1); it4s1_stamps2csv; exit"
+it4s1_convert2okcsv.sh exported_Vdmos.csv
+if [ \`diff exported_Vdo.csv exported_Vdmos.csv | wc -l\` -lt 1 ]; then rm exported_Vdmos.csv; fi
 EOF
-chmod 777 INSAR_$master/stamps_proc.sh
+
+chmod 755 INSAR_$master/stamps_proc.sh
 echo "now copy the whole INSAR_ folder to Leeds Uni server and run:"
 ls INSAR_$master/stamps_proc.sh
 
+if [ $USER == 'earmla' ]; then
+  echo "setting for AIRE - you can run airetask.sh for sbatch"
+  sed -i 's/\/nfs\/a1\/software/\/users\/earmla\/sw/g' INSAR_$master/stamps_proc.sh
+cat << EOF > INSAR_$master/airetask.sh
+#!/bin/bash
+#SBATCH --job-name=stamps_job_$master
+#SBATCH --output=output_%j.out
+#SBATCH --error=error_%j.err
+#SBATCH --time=1-00:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=32G                     # Request 32GB of memory
+
+module load miniforge
+module load matlab
+conda activate lics
+
+./stamps_proc.sh
+EOF
+chmod 755 INSAR_$master/airetask.sh
+fi
