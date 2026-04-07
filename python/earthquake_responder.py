@@ -244,7 +244,7 @@ def get_days_since_last_acq(frame, eventtime = dt.datetime.now(), metafile = Fal
     preepochs.sort()
     lastone = preepochs[-1]
     lastone = dt.datetime.strptime(lastone, '%Y%m%d')
-    return (eventtime - lastone).days
+    return misc.safe_datetime_diff(eventtime, lastone)
 
 
 def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv', metafile = False, delete = False):
@@ -388,13 +388,13 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
         if (doi_str > mas) and (doi_str < slv):
             is_coseismic = True
         if (doi_str == mas):
-            date = datetime.strptime(str(mas),'%Y%m%d').date()
+            date = datetime.strptime(str(mas),'%Y%m%d').astimezone(dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof < toi:
                 is_coseismic = True
         if (doi_str == slv):
-            date = datetime.strptime(str(slv),'%Y%m%d').date()
+            date = datetime.strptime(str(slv),'%Y%m%d').astimezone(dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             if filelist:
                 tof = lq.get_time_of_file(filelist[0][1])
@@ -475,7 +475,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
         if (doi_str > mas) and (doi_str > slv):
             is_preseismic = True
         if (doi_str == mas):
-            date = datetime.strptime(str(mas),'%Y%m%d').date()
+            date = datetime.strptime(str(mas),'%Y%m%d').astimezone(dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof < toi:
@@ -483,7 +483,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
             if tof > toi:
                 is_postseismic = True
         if (doi_str == slv):
-            date = datetime.strptime(str(slv),'%Y%m%d').date()
+            date = datetime.strptime(str(slv),'%Y%m%d').astimezone(dt.timezone.utc).date()
             #print('debug')
             #print(date)
             #print('file list is:')
@@ -582,7 +582,7 @@ def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6
         if s1ab == 'B':
             print('prim epoch was of S1B, shifting by 6 days')
             masterdate = masterdate-dt.timedelta(days=6)
-    daysdiff = (eventtime - masterdate).days
+    daysdiff = misc.safe_datetime_diff(eventtime, masterdate)  # (eventtime - masterdate).days
     noepochs = int(np.floor(daysdiff/revisit_days))
     lastepoch = masterdate+dt.timedelta(days=noepochs*revisit_days)
     expected_dt = lastepoch+dt.timedelta(days=revisit_days)
@@ -631,7 +631,7 @@ def get_next_expected_datetime(frame, eventtime, revisit_days = 6):
         #imgtime = eqi.split('T')[1].split('_')[0]
         #imgdatetime = imgdate+'T'+imgtime
         #imgtime = datetime.strptime(imgtime,'%H%M%S').time()
-        imgdate = datetime.strptime(imgdate,'%Y%m%d')
+        imgdate = datetime.strptime(imgdate,'%Y%m%d').astimezone(dt.timezone.utc)
         eqimgdates.add(imgdate)
     eqimgdates = sorted(eqimgdates) # list now
     
@@ -642,7 +642,7 @@ def get_next_expected_datetime(frame, eventtime, revisit_days = 6):
     nextposimage = nextposimage.replace(hour=expectedtime.hour, minute=expectedtime.minute, second=expectedtime.second)
     
     lag = 0
-    while nextposimage < eventtime:
+    while nextposimage < eventtime:  #.days
         lag = lag+1
         nextposimage = nextposimage+timedelta(days=revisit_days)
     if lag>0:
@@ -650,7 +650,7 @@ def get_next_expected_datetime(frame, eventtime, revisit_days = 6):
     
     imgdiffs = []
     for i in range(len(eqimgdates)-1):
-        imgdiffs.append((eqimgdates[i+1] - eqimgdates[i]).days)
+        imgdiffs.append(misc.safe_datetime_diff(eqimgdates[i+1], eqimgdates[i]))
     bestcasediff = min(imgdiffs)
     worstcasediff = max(imgdiffs)
     if not worstcasediff == bestcasediff:
