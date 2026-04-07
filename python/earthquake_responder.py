@@ -236,7 +236,7 @@ def reset_frame(frame, eventid='us7000ckx5'):
 
 
 def get_days_since_last_acq(frame, eventtime = dt.datetime.now(), metafile = False):
-    masterdate = fc.get_master(frame, asdate = True, metafile = metafile)
+    masterdate = fc.get_master(frame, asdatetime = True, metafile = metafile)
     if not masterdate:
         preepochs = s1.get_epochs_for_frame(frame, enddate = eventtime.date())
     else:
@@ -244,10 +244,16 @@ def get_days_since_last_acq(frame, eventtime = dt.datetime.now(), metafile = Fal
     preepochs.sort()
     lastone = preepochs[-1]
     lastone = dt.datetime.strptime(lastone, '%Y%m%d')
+    if lastone == masterdate.date():
+        # maybe this is after the event? just check it
+        if masterdate.time() > eventtime.time():
+            lastone = preepochs[-2]
+            lastone = dt.datetime.strptime(lastone, '%Y%m%d')
     return misc.safe_datetime_diff(eventtime, lastone)
 
 
-def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv', metafile = False, delete = False):
+def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv',
+                         metafile = False, delete = False):
     """
        eventid -- USGS ID of given event
        delete -- perform deletion of the given event from the csvfile, instead of adding it

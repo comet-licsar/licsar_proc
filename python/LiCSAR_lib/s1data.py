@@ -90,16 +90,30 @@ def download_asf(filename, slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/te
     return rc
 
 
-def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
+def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW', outaspd = False):
+    '''
+    Will search using ASF for data related to a frame. You need to provide also footprint as WKT (or perhaps also shapely object?)
+    for dates, use e.g. dt.datetime(2026,1,1).date()
+    frame can be real frame ID but we anyway use only first 4 digits, e.g. '018D' to derive relative orbit (18+-1) and direction (desc)
+    frame can also be None of False to not filter the results.
+
+    pd output is also useful..
+    '''
     print('performing data discovery using ASF server')
-    track = int(frame[0:3])
-    trackpre=abs(track-1)
-    trackpost=track+1
-    tracks = [trackpre, track, trackpost]
-    #strtrack = str(trackpre)+'-'+str(trackpost)
-    ascdesc = frame[3]
-    if ascdesc == 'D': ascdesc = 'DESCENDING'
-    if ascdesc == 'A': ascdesc = 'ASCENDING'
+    if frame:
+        try:
+            track = int(frame[0:3])
+            trackpre=abs(track-1)
+            trackpost=track+1
+            tracks = [trackpre, track, trackpost]
+            #strtrack = str(trackpre)+'-'+str(trackpost)
+            ascdesc = frame[3]
+            if ascdesc == 'D': ascdesc = 'DESCENDING'
+            if ascdesc == 'A': ascdesc = 'ASCENDING'
+        except:
+            print('error in provided frame ID - trying without frameID')
+            frame = None
+    #
     #url = 'https://api.daac.asf.alaska.edu/services/search/param?platform=S1&processingLevel=SLC&output=JSON'
     #url = url+'&relativeOrbit='+strtrack
     #url = url+'&beamMode='+sensType
@@ -108,10 +122,18 @@ def search_alaska(frame, footprint, startdate, enddate, sensType = 'IW'):
     #url = url + '&intersectsWith='+footprint
     #r = requests.get(url)
     # or using asf search:
-    r = asf.geo_search(relativeOrbit=tracks, beamMode=sensType,
+    if frame:
+        r = asf.geo_search(relativeOrbit=tracks, beamMode=sensType,
                    start = startdate, end = enddate,
                    flightDirection=ascdesc, intersectsWith=footprint,
                    platform='S1', processingLevel='SLC')
+    else:
+        r = asf.geo_search(beamMode=sensType,
+                           start=startdate, end=enddate,
+                           intersectsWith=footprint,
+                           platform='S1', processingLevel='SLC')
+    if outaspd:
+        return pd.DataFrame([{**p.properties} for p in r])
     images = []
     for gg in r:
         images.append(gg.properties['sceneName'])
