@@ -372,7 +372,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1
 def list_coseismic_ifgs(frame, toi, return_shortest=False):
     #this would list all ifgs in public directory that are coseismic (if there are such)
     #toi is datetime
-    doi = toi.date()
+    doi = toi.astimezone(dt.timezone.utc).date()
     track = str(int(frame[0:3]))
     global public_path
     products_path = os.path.join(public_path, track, frame, 'interferograms')
