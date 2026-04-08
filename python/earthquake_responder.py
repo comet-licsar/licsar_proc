@@ -961,7 +961,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                 for kml in new_kmls:
                     track = str(int(frame[0:3]))
                     if os.path.exists(os.path.join(public_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')):
-                        fullwebpath = os.path.join(web_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')
+                        fullwebpath = os.path.join(web_path+'.public', track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')
                         newline = '<a href="{0}">{1}: {2}.kmz</a> <br /> \n'.format(fullwebpath, frame, kml)
                         f.write(newline)
                     fullwebpath_metadata = os.path.join(web_path, track, frame, 'metadata')
