@@ -6,6 +6,7 @@ if [ -z $1 ]; then
  exit
 fi
 
+
 while getopts ":n:v:" option; do
  case "${option}" in
   n ) vid=`python3 -c "import volcdb; volcid=int(volcdb.find_volcano_by_name('"$OPTARG"').volc_id); print(volcdb.get_volclip_vids(volcid)[0])" | tail -n 1`;
