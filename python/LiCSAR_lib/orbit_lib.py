@@ -418,7 +418,7 @@ class invalidSatType(Exception):
         self.satType = satType
 
     def __str__(self):
-        return "Unregonised satalite type {0}, use either S1A, S1B or S1C".format(self.satType)
+        return "Unregonised satalite type {0}, use either S1A, S1B, S1C or S1D".format(self.satType)
 
 class invalidFileUrl(Exception):
     """This means your url is probably wrong... where did you get it?"""
@@ -725,7 +725,8 @@ def getOrbUrl(sat,prodType,startTime,endTime):
 
     satDict = {'S1A':'S1A',
             'S1B':'S1B',
-            'S1C':'S1C'}
+            'S1C':'S1C',
+            'S1D':'S1D'}
 
     prodDict = {'POEORB':'AUX_POEORB',
             'RESORB':'AUX_RESORB'}
@@ -811,7 +812,8 @@ def findValidOrbFile(baseDir,sat,startTime,endTime):
 
     satDict = {'S1A':'S1A',
             'S1B':'S1B',
-            'S1C':'S1C'}
+            'S1C':'S1C',
+            'S1D':'S1D'}
 
     try:
         satQry = satDict[sat]

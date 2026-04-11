@@ -560,9 +560,9 @@ def create_hires_subset(frame, usgs, framesdir = '/data/eq/frames'):
     os.system(clipcmd)
 
 
-def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6, only_s1a = True):
+def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6, only_s1a = False):
     """Gets earliest expected acquisition time of given frame for given event (time)
-       Includes check on S1AorB of the reference epoch
+       Includes check on S1AorB of the reference epoch. only_s1a is obsolete now, having more satellites. do not use
     """
     if metafile:
         masterdate = fc.get_master(frame, asdatetime = True, metafile = metafile)
@@ -585,8 +585,8 @@ def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6
         allimages=s1.get_images_for_frame(frame, startdate=(masterdate-dt.timedelta(days=1)).date(), enddate=(masterdate+dt.timedelta(days=1)).date(), outAspd=False)
         s1ab = allimages[0][2]
     if only_s1a:
-        if s1ab == 'B':
-            print('prim epoch was of S1B, shifting by 6 days')
+        if s1ab != 'A':
+            print('prim epoch was not S1A, shifting by 6 days')
             masterdate = masterdate-dt.timedelta(days=6)
     daysdiff = misc.safe_datetime_diff(eventtime, masterdate)  # (eventtime - masterdate).days
     noepochs = int(np.floor(daysdiff/revisit_days))
