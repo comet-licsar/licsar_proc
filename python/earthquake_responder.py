@@ -236,7 +236,7 @@ def reset_frame(frame, eventid='us7000ckx5'):
 
 
 def get_days_since_last_acq(frame, eventtime = dt.datetime.now(), metafile = False):
-    masterdate = fc.get_master(frame, asdate = True, metafile = metafile)
+    masterdate = fc.get_master(frame, asdatetime = True, metafile = metafile)
     if not masterdate:
         preepochs = s1.get_epochs_for_frame(frame, enddate = eventtime.date())
     else:
@@ -244,10 +244,16 @@ def get_days_since_last_acq(frame, eventtime = dt.datetime.now(), metafile = Fal
     preepochs.sort()
     lastone = preepochs[-1]
     lastone = dt.datetime.strptime(lastone, '%Y%m%d')
-    return (eventtime - lastone).days
+    if lastone == masterdate.date():
+        # maybe this is after the event? just check it
+        if masterdate.time() > eventtime.time():
+            lastone = preepochs[-2]
+            lastone = dt.datetime.strptime(lastone, '%Y%m%d')
+    return misc.safe_datetime_diff(eventtime, lastone)
 
 
-def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv', metafile = False, delete = False):
+def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv',
+                         metafile = False, delete = False):
     """
        eventid -- USGS ID of given event
        delete -- perform deletion of the given event from the csvfile, instead of adding it
@@ -366,7 +372,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1
 def list_coseismic_ifgs(frame, toi, return_shortest=False):
     #this would list all ifgs in public directory that are coseismic (if there are such)
     #toi is datetime
-    doi = toi.date()
+    doi = toi.astimezone(dt.timezone.utc).date()
     track = str(int(frame[0:3]))
     global public_path
     products_path = os.path.join(public_path, track, frame, 'interferograms')
@@ -388,13 +394,13 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
         if (doi_str > mas) and (doi_str < slv):
             is_coseismic = True
         if (doi_str == mas):
-            date = datetime.strptime(str(mas),'%Y%m%d').date()
+            date = datetime.strptime(str(mas),'%Y%m%d').astimezone(dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof < toi:
                 is_coseismic = True
         if (doi_str == slv):
-            date = datetime.strptime(str(slv),'%Y%m%d').date()
+            date = datetime.strptime(str(slv),'%Y%m%d').astimezone(dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             if filelist:
                 tof = lq.get_time_of_file(filelist[0][1])
@@ -475,7 +481,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
         if (doi_str > mas) and (doi_str > slv):
             is_preseismic = True
         if (doi_str == mas):
-            date = datetime.strptime(str(mas),'%Y%m%d').date()
+            date = datetime.strptime(str(mas),'%Y%m%d').astimezone(dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof < toi:
@@ -483,7 +489,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
             if tof > toi:
                 is_postseismic = True
         if (doi_str == slv):
-            date = datetime.strptime(str(slv),'%Y%m%d').date()
+            date = datetime.strptime(str(slv),'%Y%m%d').astimezone(dt.timezone.utc).date()
             #print('debug')
             #print(date)
             #print('file list is:')
@@ -554,9 +560,9 @@ def create_hires_subset(frame, usgs, framesdir = '/data/eq/frames'):
     os.system(clipcmd)
 
 
-def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6, only_s1a = True):
+def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6, only_s1a = False):
     """Gets earliest expected acquisition time of given frame for given event (time)
-       Includes check on S1AorB of the reference epoch
+       Includes check on S1AorB of the reference epoch. only_s1a is obsolete now, having more satellites. do not use
     """
     if metafile:
         masterdate = fc.get_master(frame, asdatetime = True, metafile = metafile)
@@ -579,10 +585,10 @@ def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6
         allimages=s1.get_images_for_frame(frame, startdate=(masterdate-dt.timedelta(days=1)).date(), enddate=(masterdate+dt.timedelta(days=1)).date(), outAspd=False)
         s1ab = allimages[0][2]
     if only_s1a:
-        if s1ab == 'B':
-            print('prim epoch was of S1B, shifting by 6 days')
+        if s1ab != 'A':
+            print('prim epoch was not S1A, shifting by 6 days')
             masterdate = masterdate-dt.timedelta(days=6)
-    daysdiff = (eventtime - masterdate).days
+    daysdiff = misc.safe_datetime_diff(eventtime, masterdate)  # (eventtime - masterdate).days
     noepochs = int(np.floor(daysdiff/revisit_days))
     lastepoch = masterdate+dt.timedelta(days=noepochs*revisit_days)
     expected_dt = lastepoch+dt.timedelta(days=revisit_days)
@@ -631,7 +637,7 @@ def get_next_expected_datetime(frame, eventtime, revisit_days = 6):
         #imgtime = eqi.split('T')[1].split('_')[0]
         #imgdatetime = imgdate+'T'+imgtime
         #imgtime = datetime.strptime(imgtime,'%H%M%S').time()
-        imgdate = datetime.strptime(imgdate,'%Y%m%d')
+        imgdate = datetime.strptime(imgdate,'%Y%m%d').astimezone(dt.timezone.utc)
         eqimgdates.add(imgdate)
     eqimgdates = sorted(eqimgdates) # list now
     
@@ -642,7 +648,7 @@ def get_next_expected_datetime(frame, eventtime, revisit_days = 6):
     nextposimage = nextposimage.replace(hour=expectedtime.hour, minute=expectedtime.minute, second=expectedtime.second)
     
     lag = 0
-    while nextposimage < eventtime:
+    while nextposimage < eventtime:  #.days
         lag = lag+1
         nextposimage = nextposimage+timedelta(days=revisit_days)
     if lag>0:
@@ -650,7 +656,7 @@ def get_next_expected_datetime(frame, eventtime, revisit_days = 6):
     
     imgdiffs = []
     for i in range(len(eqimgdates)-1):
-        imgdiffs.append((eqimgdates[i+1] - eqimgdates[i]).days)
+        imgdiffs.append(misc.safe_datetime_diff(eqimgdates[i+1], eqimgdates[i]))
     bestcasediff = min(imgdiffs)
     worstcasediff = max(imgdiffs)
     if not worstcasediff == bestcasediff:
@@ -955,7 +961,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                 for kml in new_kmls:
                     track = str(int(frame[0:3]))
                     if os.path.exists(os.path.join(public_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')):
-                        fullwebpath = os.path.join(web_path, track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')
+                        fullwebpath = os.path.join(web_path+'.public', track, frame, 'interferograms', kml, frame+'_'+kml + '.kmz')
                         newline = '<a href="{0}">{1}: {2}.kmz</a> <br /> \n'.format(fullwebpath, frame, kml)
                         f.write(newline)
                     fullwebpath_metadata = os.path.join(web_path, track, frame, 'metadata')

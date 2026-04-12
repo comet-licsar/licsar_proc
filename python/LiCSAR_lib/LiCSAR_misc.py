@@ -225,7 +225,7 @@ def datediff(epoch1, epoch2):
     return (date2-date1).days
 
 
-def reproject_to_match(src_filename, match_filename, dst_filename):
+def reproject_to_match(src_filename, match_filename, dst_filename, interp_alg = gdalconst.GRA_NearestNeighbour):
     src = gdal.Open(src_filename, gdalconst.GA_ReadOnly)
     src_proj = src.GetProjection()
     src_geotrans = src.GetGeoTransform()
@@ -248,7 +248,19 @@ def reproject_to_match(src_filename, match_filename, dst_filename):
     band.SetNoDataValue(nodatav)
     
     # Do the work
-    gdal.ReprojectImage(src, dst, src_proj, match_proj, gdalconst.GRA_NearestNeighbour)
+    gdal.ReprojectImage(src, dst, src_proj, match_proj, interp_alg)
     del dst # Flush
     return dst_filename
 
+
+def safe_datetime_diff(dt1, dt2, returnasdays = True):
+    """Returns difference in days, handling timezone mismatches."""
+    # Make both timezone-aware if one is naive
+    if dt1.tzinfo is None and dt2.tzinfo is not None:
+        dt1 = dt1.replace(tzinfo=dt.timezone.utc)
+    elif dt1.tzinfo is not None and dt2.tzinfo is None:
+        dt2 = dt2.replace(tzinfo=dt.timezone.utc)
+    if returnasdays:
+        return (dt1 - dt2).days
+    else:
+        return (dt1 - dt2)

@@ -19,6 +19,8 @@ elif [ $satellite == "S1B" ]; then
     satstr='SB'
 elif [ $satellite == "S1C" ]; then
     satstr='SC'
+elif [ $satellite == "S1D" ]; then
+    satstr='SD'
 fi
 
 wget -c --no-check-certificate --no-hsts $URL/$satstr/$line
