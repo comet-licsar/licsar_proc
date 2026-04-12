@@ -771,7 +771,7 @@ if [ "$setides" -gt 0 ]; then
           #   # now the output is in Gridline but it says pixel (or opposite, depending on $regt)
 			    #   # may work anyway...
           # fi
-
+          
           if [ -f "$outfile" ]; then
             rm "$infile" # only removing the link
             ln -s "$(basename "$outfile")" "$(basename "$infile")"
@@ -1213,7 +1213,7 @@ if [ "$sbovl" -gt 0 ]; then
   sed -i 's/p15_sbovl="n"/p15_sbovl="y"/' batch_LiCSBAS.sh
   sed -i 's/p16_sbovl="n"/p16_sbovl="y"/' batch_LiCSBAS.sh
   ##coherence threshold need to be
-  sed -i 's/do04op_mask=\"n/do04op_mask=\"y/' batch_LiCSBAS.sh
+  sed -i 's/do04op_mask="n"/do04op_mask="y"/' batch_LiCSBAS.sh
   
   if [ "$setides" -gt 0 ]; then
     sed -i 's/p131_tide="n"/p131_tide="y"/' batch_LiCSBAS.sh
@@ -1240,18 +1240,21 @@ if [ $reunw -gt 0 ]; then # && [ $clip == 1 ]; then
 else
  sed -i 's/start_step=\"01\"/start_step=\"02\"/' batch_LiCSBAS.sh
  
- #MN I shift the corrections here to save in cum.h5 file and apply in the LiCSBAS16 before the spatio-temporal filtering, which is more consistent with the way we apply corrections in the original LiCSAR processing.
- ##tide correction
- if [ "$setides" -gt 0 ]; then
-  sed -i 's/p131_tide="n"/p131_tide="y"/' batch_LiCSBAS.sh
- fi 
- ##iono correction
- if [ "$iono" -gt 0 ]; then
-  sed -i 's/p131_iono="n"/p131_iono="y"/' batch_LiCSBAS.sh
- fi
- ##gacos correction
- if [ "$dogacos" -gt 0 ]; then
-  sed -i 's/p131_gacos="n"/p131_gacos="y"/' batch_LiCSBAS.sh
+ #MN I shift the corrections here to save in cum.h5 file and apply in the LiCSBAS16 before the spatio-temporal filtering
+ ##this gives the oppurtinity to see the corrections effect on the raw time series seperately and alos make the process quicker.
+ if [ "$sbovl" -ne 1 ]; then
+  ##tide correction
+  if [ "$setides" -gt 0 ]; then
+    sed -i 's/p131_tide="n"/p131_tide="y"/' batch_LiCSBAS.sh
+  fi 
+  ##iono correction
+  if [ "$iono" -gt 0 ]; then
+    sed -i 's/p131_iono="n"/p131_iono="y"/' batch_LiCSBAS.sh
+  fi
+  ##gacos correction
+  if [ "$dogacos" -gt 0 ]; then
+    sed -i 's/p131_gacos="n"/p131_gacos="y"/' batch_LiCSBAS.sh
+  fi
  fi
 
 fi
@@ -1295,7 +1298,7 @@ else
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
  if [ $sbovl -gt 0 ]; then
    sed -i 's/p11_unw_thre=\"/p11_unw_thre=\"0.01/' batch_LiCSBAS.sh ##We need as much as BOI as possible #MN
-   sed -i 's/p11_maxbtemp=\"\"/p11_maxbtemp=\"60\"/' batch_LiCSBAS.sh ##
+  #  sed -i 's/p11_maxbtemp=\"\"/p11_maxbtemp=\"60\"/' batch_LiCSBAS.sh ##
    #  sed -i 's/p15_coh_thre=\"\"/p15_coh_thre=\"0.5\"/' batch_LiCSBAS.sh 
    sed -i 's/p15_resid_rms_thre=\"\"/p15_resid_rms_thre=\"12\"/' batch_LiCSBAS.sh   ##TODO: testing no filter right now, we can change them in the future  
    sed -i 's/p15_stc_thre=\"/p15_stc_thre=\"10/' batch_LiCSBAS.sh  ##TODO: testing no filter right now, we can change them in the future 
@@ -1344,7 +1347,7 @@ if [ $hgtcorrlicsbas -gt 0 ]; then
  sed -i 's/p16_hgt_linear=\"n\"/p16_hgt_linear=\"y\"/' batch_LiCSBAS.sh
 fi
 
-#MN: I am applying epoch-wise corrections for checking, do03op_GACOS doing pair-wise way.
+#MN: I am applying epoch-wise corrections in batch_LiCSBAS.sh, do03op_GACOS doing pair-wise way.
 # if [ $dogacos -gt 0 ]; then
 #  sed -i 's/do03op_GACOS=\"n\"/do03op_GACOS=\"y\"/' batch_LiCSBAS.sh
 # fi
@@ -1381,7 +1384,7 @@ if [ $run_jasmin -eq 1 ]; then
  if [ $reunw -gt 0 ]; then
   if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
  else
-  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi$clstr; else geocd='GEOCml'$multi$clstr; fi
+  if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi$clstr; else geocd='GEOCml'$multi$clstr; fi ###
  fi
  tsdir=TS_$geocd
 #  if [ "$reunw" -eq 0 ]; then #MN, Apply corrections in batch_LiCSBAS.sh after LiCSBAS13 so they are saved in cum.h5, and ensure they are applied again before LiCSBAS16 (spatio-temporal filtering) to produce cum_filt.h5.
@@ -1455,9 +1458,15 @@ if [ $run_jasmin -eq 1 ]; then
 
 if [ "$platemotion" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
  echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --vstd_fix" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
- echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N -p "$geocd"/EQA.dem_par -o "$frame".N.geo.tif" >> jasmin_run.sh
+ if [ "$reunw" -gt 0 ]; then #reunwrapper bring the ENU without .geo extension, while they are already in geocoded.
+  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
+  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
+  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N -p "$geocd"/EQA.dem_par -o "$frame".N.geo.tif" >> jasmin_run.sh
+ else
+  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U.geo -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
+  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E.geo -p "$geocd"/EQA.dem_par -o "$frame".E.geo.tif" >> jasmin_run.sh
+  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N.geo -p "$geocd"/EQA.dem_par -o "$frame".N.geo.tif" >> jasmin_run.sh
+ fi
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/hgt -p "$geocd"/EQA.dem_par -o "$frame".hgt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/coh_avg -p "$geocd"/EQA.dem_par -o "$frame".coh_avg.geo.tif" >> jasmin_run.sh
  echo "cp TS_"$geocd"/results/vstd_scaled.tif "$frame".vstd_scaled.geo.tif" >> jasmin_run.sh
@@ -1465,6 +1474,7 @@ if [ "$platemotion" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
  tail -n 7 jasmin_run.sh
  echo " "
 fi
+
 if [ "$sbovl" -eq 0 ]; then
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
@@ -1481,6 +1491,7 @@ elif [ "$sbovl" -eq 1 ]; then
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U.geo -p "$geocd"/EQA.dem_par -o "$frame".U.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E.geo -p "$geocd"/EQA.dem_par -o "$frame".E.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N.geo -p "$geocd"/EQA.dem_par -o "$frame".N.azi.geo.tif" >> jasmin_run.sh
+ echo "LiCSBAS_flt2geotiff.py -i "$geocd"/hgt   -p "$geocd"/EQA.dem_par -o "$frame".hgt.geo.tif" >> jasmin_run.sh
  if [ "$sbovl_model" -gt 0 ]; then
     if [ "$platemotion" -gt 0 ]; then
       echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt.mskd.eurasia.geo.tif --sbovl_abs --input vel_abs.filt.mskd --vstd_fix" >> jasmin_run.sh
