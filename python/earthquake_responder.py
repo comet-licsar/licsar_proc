@@ -372,7 +372,7 @@ def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1
 def list_coseismic_ifgs(frame, toi, return_shortest=False):
     #this would list all ifgs in public directory that are coseismic (if there are such)
     #toi is datetime
-    doi = toi.astimezone(dt.timezone.utc).date()
+    doi = toi.replace(tzinfo=dt.timezone.utc).date()
     track = str(int(frame[0:3]))
     global public_path
     products_path = os.path.join(public_path, track, frame, 'interferograms')
@@ -394,13 +394,13 @@ def list_coseismic_ifgs(frame, toi, return_shortest=False):
         if (doi_str > mas) and (doi_str < slv):
             is_coseismic = True
         if (doi_str == mas):
-            date = datetime.strptime(str(mas),'%Y%m%d').astimezone(dt.timezone.utc).date()
+            date = datetime.strptime(str(mas),'%Y%m%d').replace(tzinfo=dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof < toi:
                 is_coseismic = True
         if (doi_str == slv):
-            date = datetime.strptime(str(slv),'%Y%m%d').astimezone(dt.timezone.utc).date()
+            date = datetime.strptime(str(slv),'%Y%m%d').replace(tzinfo=dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             if filelist:
                 tof = lq.get_time_of_file(filelist[0][1])
@@ -481,7 +481,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
         if (doi_str > mas) and (doi_str > slv):
             is_preseismic = True
         if (doi_str == mas):
-            date = datetime.strptime(str(mas),'%Y%m%d').astimezone(dt.timezone.utc).date()
+            date = datetime.strptime(str(mas),'%Y%m%d').replace(tzinfo=dt.timezone.utc).date()
             filelist = lq.get_frame_files_date(frame, date)
             tof = lq.get_time_of_file(filelist[0][1])
             if tof < toi:
@@ -489,7 +489,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
             if tof > toi:
                 is_postseismic = True
         if (doi_str == slv):
-            date = datetime.strptime(str(slv),'%Y%m%d').astimezone(dt.timezone.utc).date()
+            date = datetime.strptime(str(slv),'%Y%m%d').replace(tzinfo=dt.timezone.utc).date()
             #print('debug')
             #print(date)
             #print('file list is:')
@@ -637,7 +637,7 @@ def get_next_expected_datetime(frame, eventtime, revisit_days = 6):
         #imgtime = eqi.split('T')[1].split('_')[0]
         #imgdatetime = imgdate+'T'+imgtime
         #imgtime = datetime.strptime(imgtime,'%H%M%S').time()
-        imgdate = datetime.strptime(imgdate,'%Y%m%d').astimezone(dt.timezone.utc)
+        imgdate = datetime.strptime(imgdate,'%Y%m%d').replace(tzinfo=dt.timezone.utc)
         eqimgdates.add(imgdate)
     eqimgdates = sorted(eqimgdates) # list now
     
