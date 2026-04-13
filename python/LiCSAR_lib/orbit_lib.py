@@ -107,7 +107,7 @@ def get_coords_in_time(orbxr, timesample, method='cubic', return_as_nv = False):
     Returns:
         xr.Dataset
     """
-    coords = orbxr.interp(time=timesample, method=method)
+    coords = orbxr.interp(time=np.datetime64(timesample), method=method)
     if return_as_nv:
         lonlath1 = ecef2lonlathei(float(coords['x']), float(coords['y']),
                                   float(coords['z']))  # refElp.xyz_to_llh(vec1.getPosition())
