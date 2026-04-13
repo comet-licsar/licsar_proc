@@ -507,7 +507,7 @@ def get_orbit_filenames_for_datetime(ddatetime, producttype='POEORB', s1ab = Non
         ff = os.path.basename(f)
         datein = ff.split('_')[6][1:]
         dateout = ff.split('_')[7].split('.')[0]
-        if pd.Timestamp(datein)<ddatetime and pd.Timestamp(dateout)>ddatetime:
+        if pd.Timestamp(datein, tz="UTC")<ddatetime and pd.Timestamp(dateout, tz="UTC")>ddatetime:
             listf2.append(f)
     listfiles = listf2
     if not listfiles:

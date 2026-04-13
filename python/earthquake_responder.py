@@ -517,7 +517,7 @@ def create_kmls(frame, toi, onlycoseismic = False, overwrite = False, event = No
                 if not os.path.exists(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz')):
                     os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
                 else:
-                    if dt.datetime.fromtimestamp(os.path.getctime(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz'))) <= pd.to_datetime('2020-11-01'):
+                    if dt.datetime.fromtimestamp(os.path.getctime(os.path.join(products_path,pifg,frame+'_'+pifg+'.kmz'))) <= pd.to_datetime('2020-11-01'):  #.tz_localize('UTC'):
                         print('detected old version of the kmz - overwriting it')
                         os.system('create_kmz.sh {0} {1}'.format(os.path.join(products_path,pifg), frame))
             else:
