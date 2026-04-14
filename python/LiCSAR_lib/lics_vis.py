@@ -102,7 +102,7 @@ def volcano_clip_plot(volcid, bevel = 0.1, outpng=None):
     # fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
     fig.coast(region=region, shorelines=True, frame=["af"] )  # , water="lightblue")
     fig.plot(volclip.geom, pen='4p,red')
-    fig.plot(volcrecord.geom, color='red')
+    fig.plot(volcrecord.geom, fill='red')
     if outpng:
         fig.savefig(outpng, dpi=150)
     # fig.plot(gpd_overlaps)
@@ -160,7 +160,7 @@ def volcano_clips_plot_frames(framelist, bevel=0.05, outpng = None):
     hlon1, hlon2, hlat1, hlat2 = framesgpd.bounds.minx.min(), framesgpd.bounds.maxx.max(), framesgpd.bounds.miny.min(), framesgpd.bounds.maxy.max()
     fig = prepare_pygmt_fig(hlon1, hlon2, hlat1, hlat2, bevel=bevel)
     fig.plot(framesgpd.geometry)
-    fig.plot(vset.geom, style='c2p', color='black')  # volcanoes as dots
+    fig.plot(vset.geom, style='c2p', fill='black')  # volcanoes as dots
     fig.plot(gglp.geom, pen='0.5p,green')  # lower prior
     fig.plot(gg.geom, pen='0.5p,blue')  # higher prior
     fig.text(text=vset.name.str[:3].values, x=vset.lon.values, y=vset.lat.values, justify="RT", offset='J/30p')
