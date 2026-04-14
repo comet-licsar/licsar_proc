@@ -1,9 +1,13 @@
+#!/usr/bin/env python
+
 import geopandas as gpd
 import folium
 import volcdb as v
 import requests
 from bs4 import BeautifulSoup
 import os
+from branca.element import Element
+
 
 print('see /gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map')
 url = "https://comet-volcanodb.org/testing/licsbas"
@@ -57,7 +61,6 @@ for vl in volclinks:
         volcgeom.append(vlpd['geom'].values[0])
 
 
-import geopandas as gpd
 #from shapely import wkt
 
 # Convert WKT strings → Shapely geometry objects
@@ -107,7 +110,7 @@ title_html = """
 m.get_root().html.add_child(folium.Element(title_html))
 
 # footer:
-from branca.element import Element
+
 
 footer_html = """
 <style>
