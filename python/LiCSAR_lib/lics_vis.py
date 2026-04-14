@@ -136,7 +136,8 @@ def volcano_clips_plot_frames(framelist, bevel=0.05, outpng = None):
             vset = vs.copy()
             frst = False
         else:
-            vset = vset.append(vs).drop_duplicates().reset_index(drop=True)
+            vset = pd.concat([vset, vs])
+            vset = vset.drop_duplicates().reset_index(drop=True)
     # ####### make A1-B2 show differently
     vids = []
     vidslp = []
