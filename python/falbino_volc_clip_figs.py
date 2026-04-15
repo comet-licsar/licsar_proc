@@ -365,7 +365,7 @@ def process_frame_volcano(options):
     Process data for volcano in frame
     """
     # ignore these warnings:
-    warnings.filterwarnings('ignore', category=matplotlib.cbook.mplDeprecation)
+    # warnings.filterwarnings('ignore', category=matplotlib.cbook.mplDeprecation)
     # register gdal drivers:
     gdal.AllRegister()
     # get options for this process:
