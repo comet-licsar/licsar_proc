@@ -1,12 +1,17 @@
+#!/usr/bin/env python
+
 import geopandas as gpd
 import folium
 import volcdb as v
 import requests
 from bs4 import BeautifulSoup
 import os
+from branca.element import Element
+
 
 print('see /gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map')
 url = "https://comet-volcanodb.org/testing/licsbas"
+outhtml = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map/volcano_map.html'
 
 # first, extract available volcanoes
 def get_web_volcanoes(url, return_sublinks = True):
@@ -19,6 +24,7 @@ def get_web_volcanoes(url, return_sublinks = True):
     else:
         volcano_names = [a.text.strip() for a in soup.select("ul li a")]
         return volcano_names
+
 
 volclinks = get_web_volcanoes(url)
 volcpd = v.get_volc_info()
@@ -38,8 +44,12 @@ for vl in volclinks:
             vlpd = v.find_volcano_by_name(vl.split('.')[0].split('_')[1])
         if len(vlpd)>1:
             print('more finds from '+vname)
-            print('skipping')
-            skip = True
+            if vl.split('.')[0].split('_')[1] == 'Nevada':
+                print('assuming Sierra Nevada - volcano ID 355123')
+                vlpd = vlpd[vlpd.volc_id == 355123]
+            else:
+                print('skipping')
+                skip = True
         elif vlpd.empty:
             print('not found - skipping')
             skip = True
@@ -51,7 +61,6 @@ for vl in volclinks:
         volcgeom.append(vlpd['geom'].values[0])
 
 
-import geopandas as gpd
 #from shapely import wkt
 
 # Convert WKT strings → Shapely geometry objects
@@ -101,7 +110,7 @@ title_html = """
 m.get_root().html.add_child(folium.Element(title_html))
 
 # footer:
-from branca.element import Element
+
 
 footer_html = """
 <style>
@@ -212,6 +221,6 @@ footer_html = """
 m.get_root().html.add_child(Element(footer_html))
 
 # Save to HTML file
-m.save("volcano_map2.html")
+m.save(outhtml)
 
 

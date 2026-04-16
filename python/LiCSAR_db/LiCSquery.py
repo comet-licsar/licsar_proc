@@ -847,7 +847,7 @@ def get_time_of_file(fileID):
     sql_q = "SELECT acq_date from files where name ='{0}';".format(fileID)
     try:
         out = do_query(sql_q)[0][0]  # returns as datetime
-        out = out.astimezone(dt.timezone.utc)
+        out = out.replace(tzinfo=dt.timezone.utc)
     except:
         out = None
     return out

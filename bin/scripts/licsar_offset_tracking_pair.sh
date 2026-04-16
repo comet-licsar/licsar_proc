@@ -198,10 +198,26 @@ lenoff=`grep azimuth_samples $outdir/tracking.off | awk '{print $2}'`
 cpx_to_real $outdir/disp_map $outdir/disp_map.rng $widthoff 0 >/dev/null
 cpx_to_real $outdir/disp_map $outdir/disp_map.azi $widthoff 1 >/dev/null
 # resample towards orig size
-python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.rng"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.rng"')" 
-python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.azi"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.azi"')" 
-python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/tracking.corr"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.offsettracking.corr"')" 
-python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/tracking.corrstd"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.offsettracking.corrstd"')" 
+#python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.rng"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.rng"')"
+#python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/disp_map.azi"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.azi"')"
+#python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/tracking.corr"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.offsettracking.corr"')"
+#python3 -c "import cv2; import numpy as np; a = np.fromfile('"$outdir/tracking.corrstd"', dtype=np.float32).byteswap().reshape(("$lenoff","$widthoff")); cv2.resize(a,dsize=("$mliwid","$mlilen"), interpolation=cv2.INTER_LINEAR).byteswap().tofile('"$outdir/$pair.offsettracking.corrstd"')"
+# avoiding cv2
+for infi in disp_map.rng disp_map.azi tracking.corr tracking.corrstd; do
+  ext=`echo $infi | cut -d '.' -f 2`
+  if [ `echo $ext | wc -m` -gt 4 ]; then
+    ext=offset$ext
+  fi
+  outfi=$pair.$ext
+  python3 -c "
+import numpy as np
+from scipy.ndimage import zoom
+a = np.fromfile('$outdir/$infi', dtype=np.float32).byteswap().reshape(($lenoff, $widthoff))
+zoom_factors = ($mlilen / $lenoff, $mliwid / $widthoff)
+b = zoom(a, zoom_factors, order=1)   # order=1 = bilinear
+b.byteswap().tofile('$outdir/$outfi')
+"
+done
 
 date
 #now geocode it

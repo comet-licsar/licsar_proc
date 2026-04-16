@@ -4,7 +4,7 @@ import scipy as sp
 import os
 import sys
 import getopt
-from configparser import SafeConfigParser
+# from configparser import RawConfigParser
 
 import global_config as gc
 import LiCSquery as lq
