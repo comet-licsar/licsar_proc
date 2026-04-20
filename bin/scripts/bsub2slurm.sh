@@ -51,6 +51,22 @@ interactive=0
 #fi
 memm=8192
 memm=16384
+
+if [ -z $1 ]; then
+  echo "bsub2slurm.sh [params] script.sh"
+  echo "params:"
+  echo "-i ..... interactive"
+  echo "-W 5 ... number of Walltime hours"
+  echo "-J jn .. job name"
+  echo "-o out . output file"
+  echo "-e err . error file"
+  echo "-n 4 ... number of CPUs"
+  echo "-M 8192  set memory limit"
+  echo "-v ..... verbose"
+  echo "-E, -Ep, -w ..other params "
+  echo "Note, you need to provide a script to run - in case of interactive mode, just add any string (does not have to exist)"
+  exit
+fi
 # 2025 - setting the account firmly
 cmd=$cmd' --account=nceo_geohazards'
 while true; do
