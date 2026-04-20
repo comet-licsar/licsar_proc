@@ -47,6 +47,7 @@ lotusversion=2
 #  lotusversion=2
 qos='standard'
 hours=0
+interactive=0
 #fi
 memm=8192
 memm=16384
@@ -54,6 +55,10 @@ memm=16384
 cmd=$cmd' --account=nceo_geohazards'
 while true; do
     case "$1" in
+        -i) echo "entering interactive mode"
+            interactive=1
+            shift
+            ;;
         -q) echo "skipping change of query account, keeping nceo_geohazards"
             #if [ $lotusversion -gt 1 ]; then
             #  if [ $2 == 'cpom-comet' ] || [ $2 == 'comet' ] || [ $2 == 'comet_lics' ] || [ $2 == 'comet_responder' ]; then
@@ -192,6 +197,19 @@ while true; do
             ;;
     esac
 done
+
+if [ $interactive == 1 ]; then
+  if [ $hours -le 1 ]; then
+    qostime='--qos=inter'
+  elif [ $hours -le 4 ]; then
+    qostime='--qos=inter4h --time=04:00:00'
+  else
+    qostime='--qos=inter6h --time=06:00:00'
+  fi
+  echo "please run manually"
+  echo salloc $qostime -pinteractive --mem=$memm --account=nceo_geohazards
+  exit
+fi
 cmd=$cmd' --mem='$memm
 #if [ $lotusversion -gt 1 ]; then
 if [ $qos == 'standard' ]; then
