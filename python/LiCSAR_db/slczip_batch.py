@@ -128,7 +128,7 @@ class SLCzip(object):
                                 relorb = natorb + 175
                             else:
                                 relorb = natorb
-        elif 'S1B' in name:
+        elif 'S1' in name:
             for el in metadatasection:
                 if el.attrib['ID'] == 'measurementOrbitReference':
                     for orbel in el[0][0][0].iter():
