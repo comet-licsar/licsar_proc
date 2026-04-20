@@ -690,6 +690,23 @@ def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, 
 
 def pygmt_plot_bursts(burstlist = None, framelist = None, title = '', background = True,
                       projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True):
+    '''
+    This will plot either bursts or frames. You may want to use
+    burstlist = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
+
+    Args:
+        burstlist: use bidtanx values - or None to skip (in such case please use framelist)
+        framelist: use list of frame IDs - or None to skip
+        title:
+        background: if True, it will add orthophotomap to the background
+        projection:
+        bevel:
+        label_nofiles: if True, will add number of files covering each burst, based on LiCSInfo
+        label_bids: if True (and if label_nofiles is False!), it will label burst IDs
+
+    Returns:
+        pygmt figure - best to use savefig() and only then plot..
+    '''
     sourcetiles = ctx.providers.Esri.WorldImagery
     if framelist:
         framesgpd = fc.get_frames_gpd(framelist)
