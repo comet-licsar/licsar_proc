@@ -533,11 +533,12 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False):
                     #m = m*np.sqrt(Qd)
                     #m = m[:,0]
                     # save to arrays
-                    vel_U[ii,jj] = m[0]
-                    vel_E[ii,jj] = m[1]
+                    vel_U[ii,jj] = m[0].item()
+                    vel_E[ii,jj] = m[1].item()
                     vel_Ustd[ii,jj] = np.sqrt(Qm[0,0])
                     vel_Estd[ii, jj] = np.sqrt(Qm[1,1])
-                except:
+                except ValueError as e:
+                    print(f"Error: {e}. Setting nan")
                     vel_U[ii,jj] = np.nan
                     vel_E[ii,jj] = np.nan
                     vel_Ustd[ii, jj] = np.nan
