@@ -688,6 +688,15 @@ def plot_ts_simple(cube, lon, lat, label = 'test', dvarname = 'cum', miny=None, 
     return fig
 
 
+def fig_add_faults(fig,
+                   faultsfile = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/proc/current/GIS/GEM/gem_active_faults.gmt',
+                   penstyle = '1p,black'):
+    ''' this will add faults to the pygmt figure'''
+    faults=gpd.read_file(faultsfile)
+    fig.plot(faults, pen=penstyle)
+    return fig
+
+
 def pygmt_plot_bursts(burstlist = None, framelist = None, title = '', background = True,
                       projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True):
     '''
