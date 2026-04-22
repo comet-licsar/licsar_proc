@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import os
 from branca.element import Element
 
-
+checknisar=True
 print('see /gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map')
 url = "https://comet-volcanodb.org/testing/licsbas"
 outhtml = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map/volcano_map.html'
@@ -24,6 +24,9 @@ def get_web_volcanoes(url, return_sublinks = True):
     else:
         volcano_names = [a.text.strip() for a in soup.select("ul li a")]
         return volcano_names
+
+if checknisar:
+    import nisardata as nd
 
 
 volclinks = get_web_volcanoes(url)
@@ -57,6 +60,12 @@ for vl in volclinks:
         volcnames.append(None)
         volcgeom.append(None)
     else:
+        if checknisar:
+            volcanoid = vlpd.volc_id.values[0]
+            nisars = nd.get_nisar_data_for_volcano(volcanoid)
+            nislen = len(nisars)
+            if nislen > 0:
+                print('GREAT NEWS - THERE ARE '+str(nislen)+' NISAR GSLCs for volcid '+str(volcanoid)+' - contact Milan')
         volcnames.append(vlpd['name'].values[0])
         volcgeom.append(vlpd['geom'].values[0])
 
