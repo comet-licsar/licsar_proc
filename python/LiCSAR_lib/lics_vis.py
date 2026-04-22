@@ -443,6 +443,11 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     Returns:
         pygmt.figure.Figure
     '''
+    # clean formatting
+    chars_to_escape = '[-~@^%_+=\'"]'
+    for char in chars_to_escape:
+        label = label.replace(char, f'\\{char}')
+        title = title.replace(char, f'\\{char}')
     try:
         grid = grid.load()
         grid = grid.where(grid != 0)
@@ -490,7 +495,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
         xshift = '1.5c'
         yshift = '2.5c'
         fig.shift_origin(xshift=xshift, yshift=yshift)
-    fig.basemap(region=region, projection=projection, frame=["af", '+t"{0}"'.format(title)])
+    fig.basemap(region=region, projection=projection, frame=["af", f'+t{title}'])
 
     if photobg:
         import contextily as ctx
@@ -558,7 +563,7 @@ def pygmt_plot(grid, title, label='deformation rate [mm/year]', lims=[-25, 10],
     if str(step).split('.')[-1] == '0':
         step=int(step)
     #fig.colorbar(frame='a10+l"{}"'.format(label))
-    fig.colorbar(frame='a{0}+l"{1}"'.format(str(step),label))
+    fig.colorbar(frame='a{0}+l{1}'.format(str(step),label))
     # fig.show()
     if interactive:
         return fig, region, projection, xshift, yshift
