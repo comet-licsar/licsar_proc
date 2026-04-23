@@ -42,7 +42,8 @@ U=$metadir/$frame.geo.U.tif
 if [ ! -f $U ]; then echo "ERROR, U file not exists, cancelling"; exit; fi
 
 wesn=`gmt grdinfo -Ir $hgt | cut -d 'R' -f2`
-resdeg=`gmt grdinfo -I $hgt | cut -d '/' -f2`
+# resdeg=`gmt grdinfo -I $hgt | cut -d '/' -f2`
+resdeg=`gmt grdinfo $hgt | grep x_inc | gawk {'print $7'}`
 resol=`echo $resdeg" * 111111" | bc | cut -d '.' -f1`
 
 ttime=`grep center_time $metadir/metadata.txt | cut -d '=' -f2 | cut -c -5`
