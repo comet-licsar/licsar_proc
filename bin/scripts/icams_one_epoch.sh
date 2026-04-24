@@ -50,7 +50,6 @@ ttime=`grep center_time $metadir/metadata.txt | cut -d '=' -f2 | cut -c -5`
 
 #ppwd=`pwd`
 #epoch=`basename $ppwd`
-echo 'tropo_icams_date.py $epoch --region " "$wesn" " --imaging-time $ttime --dem-tif $hgt --resolution $resol'
 tropo_icams_date.py $epoch --region " "$wesn" " --imaging-time $ttime --dem-tif $hgt --resolution $resol --out $icamsout
 # simple check to next day:
 if [ ! -f $icamsout ]; then
