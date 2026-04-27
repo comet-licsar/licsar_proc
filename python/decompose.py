@@ -72,7 +72,8 @@ def calculate_dops_frames(framelist, lon, lat):
 
 
 def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False,
-                       annual_buffer_months = 0, selperiods = None, do_velUN=False, velname='vel', stdname = None):
+                       annual_buffer_months = 0, selperiods = None, do_velUN=False,
+                       do_ENU = False, velname='vel', stdname = None):
     """ will decompose frame licsbas results
     the basenames in framencs should contain frame id, followed by '.', e.g.:
     framencs = ['062D_07629_131313.nc', '172A_07686_131012.nc']
@@ -84,6 +85,7 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
         annual_buffer_months (int): adds extra months for annual velocities
         selperiods (list or None):  used only if annual=True; override the selection by providing list as [[np.datetime64('2014-01-01'), np.datetime64('2024-01-01')]]
         do_velUN ... see decompose_np
+        do_ENU (bool): if True, it will try invert to ENU rather than fiddling with N (it will also set do_velUN to False)
         velname (str): name of the layer to decompose (usually 'vel')
         stdname (str): name of the 1-sigma layer to weight velname during decomposition (None means not use)
     Returns:
@@ -95,6 +97,13 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     firstrun = True
     # getting years in all ncs:
     yearsall = None
+    if do_ENU:
+        print('using do_ENU - experimental - annuals etc. not implemented yet')
+        annual=False
+        selperiods = None
+        if do_velUN:
+            print('WARNING - setting do_velUN to False because do_ENU is set to True')
+            do_velUN = False
     for nc in framencs:
         framenc = xr.open_dataset(nc)
         if 'time' in framenc:
@@ -146,11 +155,19 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     E = template.copy()
     Ustd = template.copy()
     Estd = template.copy()
-    U.values, E.values, Ustd.values, Estd.values = decompose_np_multi(framesetvel, do_velUN=do_velUN)
+    if do_ENU:
+        N = template.copy()
+        Nstd = template.copy()
+        U.values, E.values, N.values, Ustd.values, Estd.values, Nstd.values = decompose_np_multi(framesetvel, do_ENU=do_ENU)
+    else:
+        U.values, E.values, Ustd.values, Estd.values = decompose_np_multi(framesetvel, do_velUN=do_velUN)
     dec['U'] = U
     dec['E'] = E
     dec['Ustd'] = Ustd
     dec['Estd'] = Estd
+    if do_ENU:
+        dec['N'] = N
+        dec['Nstd'] = Nstd
     if annual:
         # if annual, then frameset is from nc.vel_annual, heading.values, inc.values
         years = None
@@ -454,13 +471,15 @@ decomposedxr.to_netcdf('decomposed_s1.nc')
 '''
 
 
-def decompose_np_multi(input_data, beta = 0, do_velUN=False):
+def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False):
     """Decompose 2 or more frames
     
     Args:
         input data (list of tuples) e.g. input_data = [(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
         ... in case there are 4, we will assume vstd (1-sigma) as:
         [(vel1, heading1, inc1, vstd1), (vel2, heading2, inc2, vstd2), ...]
+        do_velUN and do_ENU: see decompose_framencs
+        do_ENU: returns U, E, N (and Ustd, Estd, Nstd)
     Returns:
         4x np.ndarray of decomposed outputs U, E, and their 1-sigma Ustd, Estd
     Note: velX is np.array and headingX/incX is in degrees, either a number or np.array
@@ -474,6 +493,11 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False):
     #
     Us=list()
     Es=list()
+    if do_ENU:
+        vel_N = np.zeros(template.shape)
+        vel_Nstd = np.zeros(template.shape)
+        Ns=list()
+        do_velUN=False
     vels = []
     vstds = []
     for frame in input_data:
@@ -494,10 +518,15 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False):
         Es.append(-np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
         vels.append(vel)
         vstds.append(vstd)
-        # run for each pixel
+        if do_ENU:
+            #
+            Ns.append(np.sin(np.radians(incangle))*np.sin(np.radians(heading+beta)))
+    # run for each pixel
     numframes = len(vels)
     Us = np.array(Us)
     Es = np.array(Es)
+    if do_ENU:
+        Ns = np.array(Ns)
     for ii in np.arange(0,vel_E.shape[0]):
         for jj in np.arange(0,vel_E.shape[1]):
             # prepare template for d = G m
@@ -516,9 +545,15 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False):
             else:
                 # create the design matrix
                 if np.isscalar(Us[0]):  # in case of only values (i.e. one inc and heading per each frame)
-                    G = np.vstack([Us, Es]).T              
+                    if do_ENU:
+                        G = np.vstack([Us, Es, Ns]).T
+                    else:
+                        G = np.vstack([Us, Es]).T
                 else:  # in case this is array  # not tested!
-                    G = np.vstack([Us[:,ii,jj], Es[:,ii,jj]]).T
+                    if do_ENU:
+                        G = np.vstack([Us[:,ii,jj], Es[:,ii,jj], Ns[:,ii,jj]]).T
+                    else:
+                        G = np.vstack([Us[:,ii,jj], Es[:,ii,jj]]).T
                 # solve the linear system for the Up and East velocities
                 #m = np.linalg.solve(G, d)
                 try:
@@ -537,15 +572,25 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False):
                     vel_E[ii,jj] = m[1].item()
                     vel_Ustd[ii,jj] = np.sqrt(Qm[0,0])
                     vel_Estd[ii, jj] = np.sqrt(Qm[1,1])
+                    if do_ENU:
+                        vel_N[ii,jj] = m[2].item()
+                        vel_Nstd[ii,jj] = np.sqrt(Qm[2,2])
                 except ValueError as e:
                     print(f"Error: {e}. Setting nan")
                     vel_U[ii,jj] = np.nan
                     vel_E[ii,jj] = np.nan
                     vel_Ustd[ii, jj] = np.nan
                     vel_Estd[ii, jj] = np.nan
+                    if do_ENU:
+                        vel_N[ii,jj] = np.nan
+                        vel_Nstd[ii, jj] = np.nan
     vel_Ustd[vel_Ustd == 0] = np.nan
     vel_Estd[vel_Estd == 0] = np.nan
-    return vel_U, vel_E, vel_Ustd, vel_Estd
+    if do_ENU:
+        vel_Nstd[vel_Nstd == 0] = np.nan
+        return vel_U, vel_E, vel_N, vel_Ustd, vel_Estd, vel_Nstd
+    else:
+        return vel_U, vel_E, vel_Ustd, vel_Estd
 
 
 '''
