@@ -176,6 +176,50 @@ def get_images_for_burst(bidtanx, orbdir = 'A'):
     return get_images_for_footprint(relorb, footprint)
 
 
+def get_download_dir():
+    if 'XFCPATH' in os.environ:
+        slcdir = os.path.join(os.environ['XFCPATH'], 'SLC')
+        if os.path.exists(slcdir):
+            return slcdir
+    slcdir = os.environ['LiCSAR_SLC']
+    if not os.path.exists(slcdir):
+        print('WARNING: standard download dir not found. Will use current directory for download')
+        return '.'
+    else:
+        return slcdir
+
+
+def get_etad_for_filename(filename, download=False, dwnpath = None):
+    ''' Will return ETAD for given:
+     filename (str): S1 zip, SAFE or no extension at all
+     download (bool): if False, it will only return ETAD filename
+     dwnpath (str or None): if none, it will use standard autodownloader directory
+
+    '''
+    fileparts = filename.split('.')[0].split('_')
+    fileparts[2]='ETA'
+    fileparts[4]='AXDV'
+    filecore = ''
+    for fp in fileparts[:-1]:
+        filecore = filecore+fp+'_'
+    url=('https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=startswith(Name,%20%27'+filecore+'%27)')
+    json = requests.get(url).json()
+    dframe = pd.DataFrame.from_dict(json["value"])
+    if dframe.empty:
+        print('CDSE: empty output')
+        return False
+    etadname = dframe.Name.values[0]
+    etadname = etadname.replace('.SAFE','.zip')
+    print('Found: '+etadname)
+    if download:
+        if not dwnpath:
+            dwnpath = get_download_dir()
+        print('Downloading to '+dwnpath)
+        cmd = 'wget_cdse {0} {1}'.format(etadname, dwnpath)
+        rc = os.system(cmd)
+    return etadname
+
+
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
              enddate = dt.date.today(), sensType = 'IW', outAspd = False, asf = True):
     ''' Will get filenames from CDSE and ASF for the frame. Note this is based on frame polygon, overlapping bursts might cause issues!
