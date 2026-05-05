@@ -46,7 +46,7 @@ def load_tif2xr(tif, cliparea_geo=None, tolonlat=True):
     """
     xrpha = rioxarray.open_rasterio(tif)
     xrpha = xrpha.squeeze('band')
-    xrpha = xrpha.drop('band')
+    xrpha = xrpha.drop_vars('band')
     
     if cliparea_geo:
         minclipx, maxclipx, minclipy, maxclipy = cliparea_geo2coords(cliparea_geo)
@@ -74,7 +74,7 @@ def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True, refto =
         xrda = xrda.astype(np.float32)
         # reset original spatial_ref
         if 'spatial_ref' in xrda:
-            xrda = xrda.drop('spatial_ref')
+            xrda = xrda.drop_vars('spatial_ref')
         # remove attributes
         xrda.attrs = {}
     if lonlat:
@@ -111,81 +111,76 @@ def export_xr2tif(xrda, tif, lonlat = True, debug = True, dogdal = True, refto =
 
 def main():
     start_time = time.time()
-    
-    args = parse_args()
-    frame = args.frame
-    track = int(frame[0:3])
-    orientation=frame[3]
-    print(orientation)
-    homedir=os.getcwd()
-    LiCS_public=os.environ['LiCSAR_public']
-    GEOC_dir=os.path.join(homedir,frame,'GEOC')
-    print(f"Starting script for LiCSBAS frame: {os.path.join(homedir,frame)}")
-    
-    # Check if the frame directory exists
 
-    if not os.path.isdir(frame):
-        print(f"Frame directory '{frame}' does not exist, creating..")
-        os.makedirs(frame)
-    
-    if not os.path.isdir(GEOC_dir):
-        print(f"ERROR:'{GEOC_dir}'does not exist! The ENU will be taken from LiCS portal", file=sys.stderr)
-        E_tif=os.path.join(LiCS_public,str(track),frame,'metadata',frame+'.geo.E.tif')
-        N_tif=os.path.join(LiCS_public,str(track),frame,'metadata',frame+'.geo.N.tif')
-        U_tif=os.path.join(LiCS_public,str(track),frame,'metadata',frame+'.geo.U.tif')    
-        print(E_tif)
-        print(N_tif)
-        print(U_tif)
+    args = parse_args()
+    frame_id = args.frame
+    track = int(frame_id[0:3])
+    orientation = frame_id[3]
+
+    print(orientation)
+
+    homedir = os.getcwd()
+    LiCS_public = os.environ['LiCSAR_public']
+
+    frame_dir = os.path.join(homedir, frame_id)
+    geoc_dir = os.path.join(frame_dir, 'GEOC')
+
+    print(f"Starting script for LiCSBAS frame: {frame_dir}")
+
+    if not os.path.isdir(frame_dir):
+        print(f"Frame directory '{frame_dir}' does not exist, creating..")
+        os.makedirs(frame_dir, exist_ok=True)
+
+    if not os.path.isdir(geoc_dir):
+        print(f"ERROR: '{geoc_dir}' does not exist! The ENU will be taken from LiCS portal", file=sys.stderr)
+
+        E_tif = os.path.join(LiCS_public, str(track), frame_id, 'metadata', f'{frame_id}.geo.E.tif')
+        N_tif = os.path.join(LiCS_public, str(track), frame_id, 'metadata', f'{frame_id}.geo.N.tif')
+        U_tif = os.path.join(LiCS_public, str(track), frame_id, 'metadata', f'{frame_id}.geo.U.tif')
     else:
-        E_tif=os.path.join(frame,GEOC_dir,frame+'.geo.E.tif')
-        N_tif=os.path.join(frame,GEOC_dir,frame+'.geo.N.tif')
-        U_tif=os.path.join(frame,GEOC_dir,frame+'.geo.U.tif')
-        print(E_tif)
-        print(N_tif)
-        print(U_tif)
-        
-    ##Open geotiff
-    E= load_tif2xr(E_tif)
-    N= load_tif2xr(N_tif)
-    U= load_tif2xr(U_tif)
-    # Replace zeros with NaN
+        E_tif = os.path.join(geoc_dir, f'{frame_id}.geo.E.tif')
+        N_tif = os.path.join(geoc_dir, f'{frame_id}.geo.N.tif')
+        U_tif = os.path.join(geoc_dir, f'{frame_id}.geo.U.tif')
+
+    print(E_tif)
+    print(N_tif)
+    print(U_tif)
+
+    E = load_tif2xr(E_tif)
+    N = load_tif2xr(N_tif)
+    U = load_tif2xr(U_tif)
+
     E = xr.where(E == 0, np.nan, E)
     N = xr.where(N == 0, np.nan, N)
     U = xr.where(U == 0, np.nan, U)
 
-    ##Calculate heading and incidence angle
     if orientation == "A":
         inc_rad = np.arccos(U)
         head_rad = np.arcsin(N / np.sin(inc_rad))
-        heading=np.degrees(head_rad)
-        incidence=np.degrees(inc_rad)
     elif orientation == "D":
         inc_rad = np.arccos(U)
-        head_rad = np.arcsin(- N / np.sin(inc_rad)) - np.pi
-        heading=np.degrees(head_rad)
-        incidence=np.degrees(inc_rad)
+        head_rad = np.arcsin(-N / np.sin(inc_rad)) - np.pi
     else:
-        raise ValueError("The 4th character of frameID is neither A nor D, please check your frame name.")  
+        raise ValueError("The 4th character of frameID is neither A nor D, please check your frame name.")
 
-    ##Calculate teh azi ENU vector
     azi_N = np.cos(head_rad)
     azi_E = np.sin(head_rad)
     azi_U = xr.zeros_like(azi_E)
-    
 
-    # Export the azi ENU vector
-    export_xr2tif(azi_E, os.path.join(frame,GEOC_dir,frame+".geo.E.azi.tif"))
-    export_xr2tif(azi_N, os.path.join(frame,GEOC_dir,frame+".geo.N.azi.tif"))
-    export_xr2tif(azi_U, os.path.join(frame,GEOC_dir,frame+".geo.U.azi.tif"))
+    if not os.path.isdir(geoc_dir):
+        os.makedirs(geoc_dir, exist_ok=True)
 
-    #also save the metadata for future
-    if not os.path.exists(os.path.join(LiCS_public,str(track),frame,'metadata',frame+".geo.U.azi.tif")):
-        export_xr2tif(azi_E, os.path.join(LiCS_public,str(track),frame,'metadata',frame+".geo.E.azi.tif"))
-        export_xr2tif(azi_N, os.path.join(LiCS_public,str(track),frame,'metadata',frame+".geo.N.azi.tif"))
-        export_xr2tif(azi_U, os.path.join(LiCS_public,str(track),frame,'metadata',frame+".geo.U.azi.tif"))
+    export_xr2tif(azi_E, os.path.join(geoc_dir, f"{frame_id}.geo.E.azi.tif"))
+    export_xr2tif(azi_N, os.path.join(geoc_dir, f"{frame_id}.geo.N.azi.tif"))
+    export_xr2tif(azi_U, os.path.join(geoc_dir, f"{frame_id}.geo.U.azi.tif"))
 
-        
-    print("Procesing complete.")
+    meta_dir = os.path.join(LiCS_public, str(track), frame_id, 'metadata')
+    if not os.path.exists(os.path.join(meta_dir, f"{frame_id}.geo.U.azi.tif")):
+        export_xr2tif(azi_E, os.path.join(meta_dir, f"{frame_id}.geo.E.azi.tif"))
+        export_xr2tif(azi_N, os.path.join(meta_dir, f"{frame_id}.geo.N.azi.tif"))
+        export_xr2tif(azi_U, os.path.join(meta_dir, f"{frame_id}.geo.U.azi.tif"))
+
+    print("Processing complete.")
     print(f"Elapsed time: {time.time() - start_time:.2f} seconds")
     return 0
 

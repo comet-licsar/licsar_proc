@@ -44,6 +44,7 @@ fi
 
 movlfile=IFG/$pair/$m'_overlaps'
 sovlfile=IFG/$pair/$s'_overlaps'
+
 # 1. extract burst overlaps, output *fwd.slc, fwd.slc.par, bwd.slc, bwd.slc.par
 echo "extracting burst overlaps"
 ScanSAR_burst_overlap $mtab $movlfile 20 4 0 0 $mastertab >/dev/null
@@ -59,6 +60,9 @@ create_offset $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset
 echo "creating bwd and fwd ifgs"
 SLC_intf $movlfile.bwd.slc $sovlfile.bwd.slc $movlfile.bwd.slc.par $sovlfile.bwd.slc.par IFG/$pair/ovbwd.offset IFG/$pair/bwd.ifg 20 4 0 - 0 0 >/dev/null
 SLC_intf $movlfile.fwd.slc $sovlfile.fwd.slc $movlfile.fwd.slc.par $sovlfile.fwd.slc.par IFG/$pair/ovfwd.offset IFG/$pair/fwd.ifg 20 4 0 - 0 0 >/dev/null
+
+# clean (these are huge files!)
+rm $movlfile.?wd.slc $sovlfile.?wd.slc $movlfile.?wd.slc.par $sovlfile.?wd.slc.par
 
 #4.1 Make adf filtering to fwd adn bwd ifg
 width=`get_value IFG/$pair/ovbwd.offset interferogram_width`

@@ -451,8 +451,8 @@ def process_frame_volcano(options):
     if not os.path.isfile(output_dem):
         call([
             'gdalwarp', '-q', '-t_srs', 'EPSG:4326', '-te', str(xmin),
-            str(ymin), str(xmax), str(ymax), '-ts', str(DX * 1000),
-            str(DY * 1000), input_dem, output_dem
+            str(ymin), str(xmax), str(ymax), '-ts', str(int(DX * 1000)),
+            str(int(DY * 1000)), input_dem, output_dem
         ])
         _log_message('{0} :: DEM RESIZE {1} CREATED'.format(volc_label, demfile2))
         volc_out['tif'] += 1
@@ -465,8 +465,8 @@ def process_frame_volcano(options):
     if not os.path.isfile(output_mask2):
         call([
             'gdalwarp', '-q', '-t_srs', 'EPSG:4326', '-te', str(xmin),
-            str(ymin), str(xmax), str(ymax), '-ts', str(DX * 1000),
-            str(DY * 1000), input_mask, output_mask2
+            str(ymin), str(xmax), str(ymax), '-ts', str(int(DX * 1000)),
+            str(int(DY * 1000)), input_mask, output_mask2
         ])
         _log_message('{0} :: MASK {1} CREATED'.format(volc_label, maskfile2))
         volc_out['tif'] += 1
@@ -567,7 +567,7 @@ def process_frame_volcano(options):
                             call([
                                 'gdalwarp', '-q', '-t_srs', 'EPSG:4326', '-te',
                                 str(xmin), str(ymin), str(xmax), str(ymax),
-                                '-ts', str(DX * 1000), str(DY * 1000),
+                                '-ts', str(int(DX * 1000)), str(int(DY * 1000)),
                                 input_file, temp_file
                             ])
                             call([
@@ -580,14 +580,14 @@ def process_frame_volcano(options):
                             call([
                                 'gdalwarp', '-co', 'COMPRESS=Deflate', '-q', '-t_srs', 'EPSG:4326', '-te',
                                 str(xmin), str(ymin), str(xmax), str(ymax),
-                                '-ts', str(DX * 1000), str(DY * 1000), input_file,
+                                '-ts', str(int(DX * 1000)), str(int(DY * 1000)), input_file,
                                 output_file
                             ])
                     else:
                         call([
                             'gdalwarp', '-q', '-co', 'COMPRESS=Deflate', '-t_srs', 'EPSG:4326', '-te',
                             str(xmin), str(ymin), str(xmax), str(ymax), '-ts',
-                            str(DX * 1000), str(DY * 1000), input_file,
+                            str(int(DX * 1000)), str(int(DY * 1000)), input_file,
                             output_file
                         ])
                     _log_message(
