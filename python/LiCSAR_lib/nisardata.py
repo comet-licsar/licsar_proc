@@ -209,6 +209,15 @@ def get_nisar_dem(wesn, outfile = 'nisar_dem.tif', tmpfolder = 'nisar_dem'):
     print('now you need to load and clip and fit to the ifgs...')
 
 
+def get_nisar_data_for_volcano(volcanoid):
+    ''' find id using
+    vname='Etna'
+    volcanoid=int(v.find_volcano_by_name(vname).volc_id.values[0])
+    '''
+    import volcdb as v
+    wkt = v.get_volc_info(volcanoid).geom.values[0].wkt
+    return get_nisar_data(wkt, outAspd = True)
+
 
 # say we want to get NISAR data covering particular location, or region:
 def get_nisar_data(wkt, dtype = 'GSLC', startdate = dt.datetime.strptime('20250101','%Y%m%d').date(),
