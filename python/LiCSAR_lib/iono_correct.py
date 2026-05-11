@@ -209,13 +209,13 @@ def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height
             tecsA1 = load_tif2xr(tecsA1)
             tecsB1 = load_tif2xr(tecsB1)
         else:
-            tecsA1, tecsB1 = make_ionocorr_epoch(frame, epoch[0], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
+            tecsA1, tecsB1 = make_ionocorr_epoch(frame, epochs[0], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
         #epoch2
         if os.path.exists(tecsA2) and os.path.exists(tecsB2):
             tecsA2 = load_tif2xr(tecsA2)
             tecsB2 = load_tif2xr(tecsB2)
         else:
-            tecsA2, tecsB2 = make_ionocorr_epoch(frame, epoch[1], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
+            tecsA2, tecsB2 = make_ionocorr_epoch(frame, epochs[1], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
 
         ###parameter for TEC gradient
         azpix=14000
@@ -302,7 +302,7 @@ def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile
     return ifg
 
 
-def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 450, alpha = 0.85, return_phase = True, sbovl= False, outif=None):
+def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290, alpha = 0.85, return_phase = True, sbovl= False, outif=None):
     """
     Args:
         ...
