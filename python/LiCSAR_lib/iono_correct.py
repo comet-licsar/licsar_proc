@@ -152,7 +152,7 @@ def slant_ranges(frame, master, range2iono):
 
     return ds
 
-def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 450, alpha = 0.85, outif=None):
+def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 290, alpha = 0.85, outif=None):
     """ This will generate ionospheric correction for given frame-pair.
     It would optionally output the result to a geotiff.
     
