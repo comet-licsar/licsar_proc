@@ -226,6 +226,7 @@ def get_nisar_data_for_volcano(volcanoid):
 
 
 def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR'):
+    import volcdb as v
     os.chdir(workdir)
     if not os.path.exists(str(volcid)):
         os.mkdir(str(volcid))
