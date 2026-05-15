@@ -50,7 +50,7 @@ fullchain(lon1, lat1, lon2, lat2, downloadit = True)
 def fullchain(lon1, lat1, lon2, lat2, 
               nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
               downloadit = False,
-              clipit = True, processit = True):
+              clipit = True, processit = True, processit_target_resolution_m=110):
     # will get automatically
     if not nisarslcpath:
         if 'XFCPATH' in os.environ:
@@ -99,48 +99,54 @@ def fullchain(lon1, lat1, lon2, lat2,
                 print('some error in '+fpath)
     if processit:
         # before proceeding, let's get ENUs (and potentially hgt)
-        
-        for freq_code in ['A', 'B']:
-            if clipit:
-                # need to reproject the bbox to given UTM.. will be done in load function
-                clipping_bbox = polygon
-            else:
-                clipping_bbox = None
-            nsrs=nsrs.sort_values('startTime')  # sort since the beginning
-            for i, sset in nsrsel.iterrows():
-                opass=sset['flightDirection']
-                pan = sset['pathNumber']
-                frn = sset['frameNumber']
-                frame = opass[0]+'.'+str(pan)+'.'+str(frn)
-                framedir = frame
-                if not os.path.exists(framedir):
-                    os.mkdir(framedir)
-                print('processing frame '+frame)
-                tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
-                # now lets get network...
-                ifgs = get_network(tmpsel, ntype='triplet')
-                for ifg in ifgs:
-                    in1 = os.path.join(nisarslcpath, ifg[0].sceneName+'.h5')
-                    in2 = os.path.join(nisarslcpath, ifg[1].sceneName + '.h5')
-                    epoch1 = ifg[0].startTime.split('T')[0].replace('-','')
-                    epoch2 = ifg[1].startTime.split('T')[0].replace('-', '')
-                    if os.path.exists(in1) and os.path.exists(in2):
-                        pair = epoch1 + '_' + epoch2
-                        outncfile = os.path.join(framedir, pair+'.freq_'+freq_code+'.nc')
-                        outphatif = os.path.join(framedir, pair+'.freq_'+freq_code+'_pha.wgs84.tif')
-                        if os.path.exists(outphatif):
-                            print('Ifg '+pair+' already exists, skipping')
-                            continue
-                        try:
-                            generate_ifg(
-                                in1=in1,
-                                in2=in2,
-                                freq_code=freq_code, polarization='HH', clipping_bbox=clipping_bbox,
-                                target_resolution_m=110, outncfile=outncfile, create_wgs84_previews=True)
-                        except:
-                            print('Some error generating '+pair)
-                    else:
-                        print('ERROR, file '+in1+' does not exist')
+        for polarization in ['HH', 'VV']:
+            for freq_code in ['A', 'B']:
+                if clipit:
+                    # need to reproject the bbox to given UTM.. will be done in load function
+                    clipping_bbox = polygon
+                else:
+                    clipping_bbox = None
+                nsrs=nsrs.sort_values('startTime')  # sort since the beginning
+                for i, sset in nsrsel.iterrows():
+                    opass=sset['flightDirection']
+                    pan = sset['pathNumber']
+                    frn = sset['frameNumber']
+                    frame = 'NISAR.'+opass[0]+'.'+str(pan)+'.'+str(frn)+'.'+polarization
+                    framedir = frame
+                    if not os.path.exists(framedir):
+                        os.mkdir(framedir)
+                    print('processing frame '+frame)
+                    tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
+                    # sadly, ASF returns polarization==None, so need to use this forceful approach
+                    # now lets get network...
+                    ifgs = get_network(tmpsel, ntype='triplet')
+                    for ifg in ifgs:
+                        in1 = os.path.join(nisarslcpath, ifg[0].sceneName+'.h5')
+                        in2 = os.path.join(nisarslcpath, ifg[1].sceneName + '.h5')
+                        epoch1 = ifg[0].startTime.split('T')[0].replace('-','')
+                        epoch2 = ifg[1].startTime.split('T')[0].replace('-', '')
+                        if os.path.exists(in1) and os.path.exists(in2):
+                            pair = epoch1 + '_' + epoch2
+                            outncfile = os.path.join(framedir, pair+'.freq_'+freq_code+'.nc')
+                            outphatif = os.path.join(framedir, pair+'.freq_'+freq_code+'_pha.wgs84.tif')
+                            if os.path.exists(outphatif):
+                                print('Ifg '+pair+' already exists, skipping')
+                                continue
+                            try:
+                                generate_ifg(
+                                    in1=in1,
+                                    in2=in2,
+                                    freq_code=freq_code, polarization=polarization, clipping_bbox=clipping_bbox,
+                                    target_resolution_m=processit_target_resolution_m, outncfile=outncfile, create_wgs84_previews=True)
+                            except:
+                                print('Some error generating '+pair)
+                        else:
+                            print('ERROR, file '+in1+' does not exist')
+                    try:
+                        os.rmdir(framedir)
+                    except:
+                        # probably something got in there..
+                        pass
     return nsrs
 
 '''
@@ -217,6 +223,22 @@ def get_nisar_data_for_volcano(volcanoid):
     import volcdb as v
     wkt = v.get_volc_info(volcanoid).geom.values[0].wkt
     return get_nisar_data(wkt, outAspd = True)
+
+
+def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR'):
+    import volcdb as v
+    os.chdir(workdir)
+    if not os.path.exists(str(volcid)):
+        os.mkdir(str(volcid))
+    os.chdir(str(volcid))
+    volclip=v.get_volclip_vids(volcid)[0] # assumming only one
+    vpoly = v.get_volclips_gpd(volclip).loc[0]['geom']
+    lon1, lat1, lon2, lat2 = vpoly.bounds
+    return fullchain(lon1, lat1, lon2, lat2,
+              nisarslcpath='/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/NISAR',
+              downloadit=True,
+              clipit=True, processit=True,
+              processit_target_resolution_m=30)
 
 
 # say we want to get NISAR data covering particular location, or region:
@@ -425,6 +447,9 @@ def get_ENU(path, chunks='auto'):
     return ds
 
 
+#def clip_gslc(in='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5',
+#              out='20251230.h5'):
+
 
 def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5',
                 in2='NISAR_L2_PR_GSLC_007_034_A_018_4005_DHDH_A_20251206T130751_20251206T130826_X05009_N_F_J_001.h5',
@@ -442,8 +467,9 @@ def generate_ifg(in1='NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752
         ds1 = load_gslc(in1, freq_code=freq_code, polarization = polarization)
     except:
         print('ERROR loading epoch1. maybe wrong polarization? trying VV')
-        polarization = 'VV'
-        ds1 = load_gslc(in1, freq_code=freq_code, polarization=polarization)
+        return False
+        # polarization = 'VV'
+        # ds1 = load_gslc(in1, freq_code=freq_code, polarization=polarization)
     ds2 = load_gslc(in2, freq_code=freq_code, polarization = polarization)
     if type(clipping_bbox) != type(None):
         utmcode = ds1.attrs.get("crs")
