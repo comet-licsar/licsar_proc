@@ -959,6 +959,8 @@ def get_sf_array(path_to_slcdir, f0=5405000500, burst_interval = 2.758277):
     far_range_dict={}
     near_range_dict={}
     ctr_range_dict={}
+    dfDC=[]
+    kas=[]
     #print('This is a proper solution but applied to primary SLC image. originally it is applied by GAMMA on the RSLC...')
     for n in [1,2,3]:
         key=f'SW{n}'
