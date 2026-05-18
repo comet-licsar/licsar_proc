@@ -53,9 +53,9 @@ if [ -z $1 ]; then
  echo "-E 6 ...... will also estimate eqs with given minimum magnitude"
  echo "(-E offsets.txt ... instead of auto-find eqs, use existing eqoffsets.txt file)"
  echo "-p ........ finalise by correcting plate motion velocity w.r.t. Eurasia (plus correct ref effect in vstd)"
- echo "-b ........ would start sbovls-licsbas (use dev version here..)"
- echo "-q ........ if sbovl-licsbas, will rerun again to check high residual in first inversion (LiCSBAS13)"
- echo "-x .......  if sbovl active, will use RANSAC to guide the daz values by incorporating the sbovl interferograms, allowing the LiCSBAS sbovl processing to continue using absolute values"
+ echo "-b ........ would start sboi-licsbas (use dev version here..)"
+ echo "-q ........ if sboi-licsbas, will rerun again to check high residual in first inversion (LiCSBAS13)"
+ echo "-x .......  if sboi active, will use RANSAC to guide the daz values by incorporating the sboi interferograms, allowing the LiCSBAS sboi processing to continue using absolute values"
  echo "-Z .......  cumulative process - will generate the cumulative displacement (w.r.t. the first epoch) tif files, after the LiCSBAS processing. It is in progress, please contact the MN or ML if you want to use."
  echo "-X .......  double-check batch_LiCSBAS.sh before submission (e.g., confirm LiCSBAS parameters). Can also submit job with -X, verify the setup, then run ./jasmin_run_cmd.sh"
  echo "Note: you may want to check https://comet-licsar.github.io/licsar_proc/index.html#reunwrapping-existing-interferograms"
@@ -97,9 +97,9 @@ que='short-serial'
 #LB_version=LiCSBAS  # orig Yu Morishita's version
 LB_version=licsbas_comet  # COMET LiCSBAS (main branch)
 #LB_version=LiCSBAS_testing
-sbovl=0
-sbovl_model=0 ##daz values is guided via RANSAC and added SBOI to absolute values
-sbovl_resid_check=0
+sboi=0
+sboi_model=0 ##daz values is guided via RANSAC and added SBOI to absolute values
+sboi_resid_check=0
 setides=0
 iono=0
 deramp=0
@@ -131,13 +131,13 @@ while getopts ":M:h:HucTsdbSlWgmaNAiIeFfOBPpRrLwkXxC:G:E:t:n:QZq" option; do
   M) multi=${OPTARG};
      #shift
      ;;
-  b) sbovl=1;
-     echo "setting to process sbovl data, default mode is referenced along-track displacement."
+  b) sboi=1;
+     echo "setting to process sboi (Subswath and Burst Overlap Interferometry) data, default mode is referenced along-track displacement."
      ;;
-  x) sbovl_model=1;
-     echo "sbovl will be guided via RANSAC of daz values for absolute values"
+  x) sboi_model=1;
+     echo "sboi will be guided via RANSAC of daz values for absolute values"
      ;;
-  q) sbovl_resid_check=1;
+  q) sboi_resid_check=1;
      echo "LiCSBAS13 rerun again to check high residual in first inversion"
      ;;
   Q) l2l2q=1;
@@ -322,9 +322,9 @@ if [ $nproc -gt 1 ]; then
  fi 
 fi
 
-##if sbovl is open these should be closed automatically!
-if [ $sbovl -gt 0 ]; then
- echo "using sbovls - disabling -u -g etc (if set)"
+##if sboi is open these should be closed automatically!
+if [ $sboi -gt 0 ]; then
+ echo "using sboi - disabling -u -g etc (if set)"
  reunw=0
  dogacos=0
  deramp=0 #not sure yet?
@@ -340,16 +340,16 @@ if [ $reunw -gt 0 ]; then
   else
     extofproc='diff_unfiltered_pha'
   fi
-elif [ $sbovl -gt 0 ]; then
+elif [ $sboi -gt 0 ]; then
   echo "You are running LiCSBAS time-series for SBOI dataset."
   # echo "Example: licsar2licsbas.sh -M 10 -n 4 -W -b -i -e  021D_05266_252525 20240101 20240301"
   extofproc='sbovldiff.adf.mm'
   extofproc2='bovldiff.adf.mm'
   if [ $setides -gt 0 ]; then
-    echo "set correction will be applied to sbovl data."
+    echo "set correction will be applied to sboi data."
   fi
   if [ $iono -gt 0 ]; then
-    echo "Ionospheric correction will be applied to sbovl data."
+    echo "Ionospheric correction will be applied to sboi data."
   fi
 else
   extofproc='unw'
@@ -438,7 +438,7 @@ if [ `ls *.geo.$meta.tif 2>/dev/null | wc -l` -lt 1 ]; then
  fi
  # ln -sf "$metadir/$frame.geo.$meta.tif" "$frame.geo.$meta.tif"
 fi
-  if [ "$sbovl" -gt 0 ] && [ "$meta" != "hgt" ]; then
+  if [ "$sboi" -gt 0 ] && [ "$meta" != "hgt" ]; then
     if [ -s "$metadir/$frame.geo.$meta.azi.tif" ]; then  # Check the file and ensure it's not empty
       cp "$metadir/$frame.geo.$meta.azi.tif" "$frame.geo.$meta.azi.tif"
     else
@@ -448,7 +448,7 @@ fi
 done
 
 # Run rangeENU2aziENU.py only once if required
-if [ "$sbovl" -gt 0 ] && [ "$need_to_generate_azi" -eq 1 ]; then
+if [ "$sboi" -gt 0 ] && [ "$need_to_generate_azi" -eq 1 ]; then
   echo "Running rangeENU2aziENU.py for frame: $frame"
   
   # Store the current working directory
@@ -619,7 +619,7 @@ if [ $prelb_backup -gt 0 ]; then
     cd "$pair" || continue
 
     toback1="$pair.geo.$extofproc.tif"
-    toback2="$pair.geo.$extofproc2.tif" # This handles missing sbovl while bovl is available
+    toback2="$pair.geo.$extofproc2.tif" # This handles missing sboi while bovl is available
 
     # Determine which file to back up
     if [ -f "$toback1" ]; then
@@ -679,9 +679,9 @@ if [ $icams -gt 0 ]; then
 fi
 
 if [ "$setides" -gt 0 ]; then
-  if [ "$sbovl" -gt 0 ]; then
+  if [ "$sboi" -gt 0 ]; then
     echo "checking/generating solid earth tides data in azimuth"
-    create_LOS_tide_frame_allepochs "$frame" "$startdate" "$enddate" --sbovl
+    create_LOS_tide_frame_allepochs "$frame" "$startdate" "$enddate" --sboi
   else
     echo "checking/generating solid earth tides data in range"
     create_LOS_tide_frame_allepochs "$frame" "$startdate" "$enddate"
@@ -689,8 +689,8 @@ if [ "$setides" -gt 0 ]; then
 
   disprocdir=$(pwd)
 
-  if [ "$reunw" -gt 0 ]; then  # in such case we correct before unwrapping || [ "$sbovl" -gt 0 ]
-    # if [ "$sbovl" -gt 0 ]; then
+  if [ "$reunw" -gt 0 ]; then  # in such case we correct before unwrapping || [ "$sboi" -gt 0 ]
+    # if [ "$sboi" -gt 0 ]; then
     #  echo "applying the SET correction in azimuth"
     #  mkdir -p GEOC.corr ##this is to store the corrections
     #else
@@ -714,13 +714,13 @@ if [ "$setides" -gt 0 ]; then
       echo "$pair"
       cd "$pair"
       infile="$(pwd)/$pair.geo.$extofproc.tif"
-      infile2="$(pwd)/$pair.geo.$extofproc2.tif" ##sbovl and bovl double check, if not sbovl exist, checking bovl
+      infile2="$(pwd)/$pair.geo.$extofproc2.tif" ##sboi and bovl double check, if not sboi exist, checking bovl
 
       echo "Checking file: $infile"
 
       # First, check if infile is a symlink
       #if [ ! -L "$infile" ]; then
-      #  if [ "$sbovl" -gt 0 ]; then
+      #  if [ "$sboi" -gt 0 ]; then
       #    echo "Warning: $infile is not a symlink, checking alternative file (bovl)..."
       #    infile="$infile2"
       #  fi
@@ -734,10 +734,10 @@ if [ "$setides" -gt 0 ]; then
 
       date1=$(echo "$pair" | cut -d '_' -f1)
       date2=$(echo "$pair" | cut -d '_' -f2)
-      outfile="$(pwd)/$pair.geo.$extofproc.notides.tif" ##after that one sbovl and bovl is called as sbovl?
+      outfile="$(pwd)/$pair.geo.$extofproc.notides.tif" ##after that one sboi and bovl is called as sboi?
       tobad=0
       if [ ! -f "$outfile" ]; then
-        #if [ "$sbovl" -gt 0 ]; then
+        #if [ "$sboi" -gt 0 ]; then
         #  tided1="$epochdir/$date1/$date1.tide.geo.azi.tif"
         #  tided2="$epochdir/$date2/$date2.tide.geo.azi.tif"
         #  outcorfile="$disprocdir/GEOC.corr/$pair.geo.$extofproc.tides_correction.tif"
@@ -751,7 +751,7 @@ if [ "$setides" -gt 0 ]; then
           ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
           # #echo $pair
           # if [ "$(gmt grdinfo "$infile" | grep registration | awk '{print $2}')" == "$regt" ]; then #Pixel ]; then ## (either "Pixel" or "Gridline")
-          #   if [ "$sbovl" -le 0 ]; then
+          #   if [ "$sboi" -le 0 ]; then
           #     gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 226.56 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff ##226=(4*np.pi)/(0.055465) for m2rad
           #   else
           #     gmt grdmath -N "$infile"=gd:Gtiff+n0 0 NAN "$tided1" "$tided2" SUB 1000 MUL SUB "$grdmextra" = "$outfile"=gd:Gtiff  ##1000 for m2mm
@@ -761,7 +761,7 @@ if [ "$setides" -gt 0 ]; then
           #   # half pixel issue in older frames! but ok for tides, so:
           #   # echo "print('"$pair"')" >> $tmpy
           #   echo "Warning, the pair $pair is in pixel registration. Slower workaround"
-          #   if [ "$sbovl" -le 0 ]; then
+          #   if [ "$sboi" -le 0 ]; then
           #     ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile"
           #   else
           #     ifg_remove_tides.py "$hgtfile" "$infile" "$tided1" "$tided2" "$outfile" "$outcorfile"
@@ -801,7 +801,7 @@ if [ "$setides" -gt 0 ]; then
   echo "Copying solid earth tide corrections per epoch"
   cd $disprocdir
   mkdir -p GEOC.EPOCHS; cd GEOC.EPOCHS; disdir=`pwd`;
-  if [ $sbovl -gt 0 ]; then
+  if [ $sboi -gt 0 ]; then
     extfull=tide.geo.azi.tif
     tide_ext=tide.geo.azi.tif
     else
@@ -827,9 +827,9 @@ fi
 
 ####ionocorrection
 if [ "$iono" -gt 0 ]; then    
-  if [ "$sbovl" -gt 0 ]; then
+  if [ "$sboi" -gt 0 ]; then
     echo "checking/generating ionospheric correction data in azimuth"
-    python3 -c "from iono_correct import *; make_all_frame_epochs('$frame', startdate='$startdate', enddate='$enddate', sbovl=True)"
+    python3 -c "from iono_correct import *; make_all_frame_epochs('$frame', startdate='$startdate', enddate='$enddate', sboi=True)"
     ## Check if scaling factor file exists
     if ls "$metadir"/*geo.sbovl_scaling.tif 1> /dev/null 2>&1; then
       echo "Scaling factor exists."
@@ -954,9 +954,9 @@ if [ "$iono" -gt 0 ]; then
   cd GEOC.EPOCHS
   disdir=`pwd`
 
-  # Define file extensions based on sbovl flag
-  if [ "$sbovl" -gt 0 ]; then
-    extfull=("geo.iono.code.sTECA.tif" "geo.iono.code.sTECB.tif")  # sTECA & sTECB for sbovl
+  # Define file extensions based on sboi flag
+  if [ "$sboi" -gt 0 ]; then
+    extfull=("geo.iono.code.sTECA.tif" "geo.iono.code.sTECB.tif")  # sTECA & sTECB for sboi
   else
     extfull=("geo.iono.code.tif")  # Standard iono correction
   fi
@@ -1196,22 +1196,22 @@ fi
 rm -f batch_LiCSBAS.sh 2>/dev/null
 copy_batch_LiCSBAS.sh >/dev/null
 
-#echo $sbovl $sbovl_model $tide
-if [ "$sbovl" -gt 0 ]; then
-  if [ "$sbovl_model" -gt 0 ]; then
-    sed -i 's/sbovl_abs="n"/sbovl_abs="y"/' batch_LiCSBAS.sh
-    sed -i 's/p131_sbovl_model="n"/p131_sbovl_model="y"/' batch_LiCSBAS.sh
+#echo $sboi $sboi_model $tide
+if [ "$sboi" -gt 0 ]; then
+  if [ "$sboi_model" -gt 0 ]; then
+    sed -i 's/sboi_abs="n"/sboi_abs="y"/' batch_LiCSBAS.sh
+    sed -i 's/p131_sboi_model="n"/p131_sboi_model="y"/' batch_LiCSBAS.sh
   fi
-  sed -i 's/p01_sbovl="n"/p01_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p02_sbovl="n"/p02_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p02_sbovl="n"/p02_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p04_sbovl="n"/p04_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p11_sbovl="n"/p11_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p120_sbovl="n"/p120_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p13_sbovl="n"/p13_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p14_sbovl="n"/p14_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p15_sbovl="n"/p15_sbovl="y"/' batch_LiCSBAS.sh
-  sed -i 's/p16_sbovl="n"/p16_sbovl="y"/' batch_LiCSBAS.sh
+  sed -i 's/p01_sboi="n"/p01_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p02_sboi="n"/p02_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p02_sboi="n"/p02_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p04_sboi="n"/p04_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p11_sboi="n"/p11_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p120_sboi="n"/p120_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p13_sboi="n"/p13_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p14_sboi="n"/p14_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p15_sboi="n"/p15_sboi="y"/' batch_LiCSBAS.sh
+  sed -i 's/p16_sboi="n"/p16_sboi="y"/' batch_LiCSBAS.sh
   ##coherence threshold need to be
   sed -i 's/do04op_mask="n"/do04op_mask="y"/' batch_LiCSBAS.sh
   
@@ -1223,7 +1223,7 @@ if [ "$sbovl" -gt 0 ]; then
     sed -i 's/p131_iono="n"/p131_iono="y"/' batch_LiCSBAS.sh
   fi
 
-  if [ "$sbovl_resid_check" -gt 0 ]; then
+  if [ "$sboi_resid_check" -gt 0 ]; then
     sed -i 's/p13resid_rerun="n"/p13resid_rerun="y"/' batch_LiCSBAS.sh
   fi
 
@@ -1242,7 +1242,7 @@ else
  
  #MN I shift the corrections here to save in cum.h5 file and apply in the LiCSBAS16 before the spatio-temporal filtering
  ##this gives the oppurtinity to see the corrections effect on the raw time series seperately and alos make the process quicker.
- if [ "$sbovl" -ne 1 ]; then
+ if [ "$sboi" -ne 1 ]; then
   ##tide correction
   if [ "$setides" -gt 0 ]; then
     sed -i 's/p131_tide="n"/p131_tide="y"/' batch_LiCSBAS.sh
@@ -1296,7 +1296,7 @@ else
  fi
  sed -i 's/p12_loop_thre=\"\"/p12_loop_thre=\"10\"/' batch_LiCSBAS.sh
  sed -i 's/p15_n_gap_thre=\"\"/p15_n_gap_thre=\"50\"/' batch_LiCSBAS.sh
- if [ $sbovl -gt 0 ]; then
+ if [ $sboi -gt 0 ]; then
    sed -i 's/p11_unw_thre=\"/p11_unw_thre=\"0.01/' batch_LiCSBAS.sh ##We need as much as BOI as possible #MN
   #  sed -i 's/p11_maxbtemp=\"\"/p11_maxbtemp=\"60\"/' batch_LiCSBAS.sh ##
    #  sed -i 's/p15_coh_thre=\"\"/p15_coh_thre=\"0.5\"/' batch_LiCSBAS.sh 
@@ -1379,7 +1379,7 @@ if [ $run_jasmin -eq 1 ]; then
  echo "./batch_LiCSBAS.sh" >> jasmin_run.sh
  
  if [ $clip -eq 1 ]; then clstr='clip'; else clstr=''; fi
- if [[ "$cohmask4" != 0 || "$sbovl" -gt 0 ]]; then clstr=$clstr'mask'; fi
+ if [[ "$cohmask4" != 0 || "$sboi" -gt 0 ]]; then clstr=$clstr'mask'; fi
  
  if [ $reunw -gt 0 ]; then
   if [ $dogacos -eq 1 ]; then geocd='GEOCml'$multi"GACOS"$clstr; else geocd='GEOCml'$multi$clstr; fi
@@ -1393,12 +1393,12 @@ if [ $run_jasmin -eq 1 ]; then
 #   # so here we have already unwrapped data and we will just post-correct the ramps
 #   if [ $setides -gt 0 ]; then
 #     #echo "insert code to post-correct SET here"
-#     if [ "$sbovl" -eq 0 ]; then
+#     if [ "$sboi" -eq 0 ]; then
 #       echo "Note: SET corrections will be applied to cum_filt"
-#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=False)\"" >> jasmin_run.sh
-#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sboi=False)\"" >> jasmin_run.sh
+#     elif [ "$sboi" -eq 1 ] && [ "$sboi_model" -eq 0 ]; then
 #       echo "Note: SET corrections will be applied before step 16. skipping" #Why? We need to apply it in cum.h5 before the filtering? so it will be applied in batch_LiCSBAS.sh step before step16. #MN 
-#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sbovl=True)\"" >> jasmin_run.sh
+#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, sboi=True)\"" >> jasmin_run.sh
 #     fi
 #     lbreproc=1
 #     lbreprocname=$lbreprocname'.noSET'
@@ -1406,17 +1406,17 @@ if [ $run_jasmin -eq 1 ]; then
 #   fi
 #   if [ "$iono" -gt 0 ]; then
 #     #echo "insert code to post-correct iono here"
-#     if [ "$sbovl" -eq 0 ]; then
+#     if [ "$sboi" -eq 0 ]; then
 #       echo "Note: iono corrections will be applied to cum_filt"
-#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
-#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sboi=False)\"" >> jasmin_run.sh
+#     elif [ "$sboi" -eq 1 ] && [ "$sboi_model" -eq 0 ]; then
 #       echo "Note: iono corrections will be applied before step 16. skipping" # Same story MN
-#       #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
+#       #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sboi=True)\"" >> jasmin_run.sh
 #     fi
 #     lbreproc=1
 #     lbreprocname=$lbreprocname'.noiono'
 #   fi
-#   if [ "$lbreproc" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
+#   if [ "$lbreproc" -gt 0 ] && [ "$sboi" -eq 0 ]; then
 #     echo "LiCSBAS_cum2vel.py -i "$tsdir"/cum_filt.h5 -o "$tsdir"/results/vel.filt"$lbreprocname".mskd --vstd --png --mask "$tsdir"/results/mask" >> jasmin_run.sh
 #     echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt"$lbreprocname".mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt"$lbreprocname".mskd.geo.tif" >> jasmin_run.sh
 #   fi
@@ -1427,36 +1427,36 @@ if [ $run_jasmin -eq 1 ]; then
 #   # Include generation of outputs
 #   if [ $setides -gt 0 ]; then
 #     echo "Additionally, the corrections will be stored in cum.h5 as layer tide"
-#     if [ "$sbovl" -eq 0 ]; then
-#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
-#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#     if [ "$sboi" -eq 0 ]; then
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sboi=False)\"" >> jasmin_run.sh
+#     elif [ "$sboi" -eq 1 ] && [ "$sboi_model" -eq 0 ]; then
 #       echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
-#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', '"$tide_ext"', 1000, directcorrect = False, sboi=True)\"" >> jasmin_run.sh
 #     fi
 #   fi
 
 #   if [ $iono -gt 0 ]; then
 #     echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
-#     if [ "$sbovl" -eq 0 ]; then
-#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
-#     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
+#     if [ "$sboi" -eq 0 ]; then
+#       echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sboi=False)\"" >> jasmin_run.sh
+#     elif [ "$sboi" -eq 1 ] && [ "$sboi_model" -eq 0 ]; then
 #       echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
-#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+#       # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sboi=True)\"" >> jasmin_run.sh
 #     fi
 #   fi
 #   if [ $dogacos -gt 0 ]; then
 #     echo "Additionally, the corrections will be stored in cum.h5 as layer gacos"
-#     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GACOS', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+#     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GACOS', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sboi=False)\"" >> jasmin_run.sh
 #   fi
 
 #   if [ $icams -gt 0 ]; then
 #     echo "Additionally, the corrections will be stored in cum.h5 as layer icams"
-#     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'icams.sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+#     echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'icams.sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, sboi=False)\"" >> jasmin_run.sh
 #   fi
 # fi
 
 
-if [ "$platemotion" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
+if [ "$platemotion" -gt 0 ] && [ "$sboi" -eq 0 ]; then
  echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --vstd_fix" >> jasmin_run.sh
  if [ "$reunw" -gt 0 ]; then #reunwrapper bring the ENU without .geo extension, while they are already in geocoded.
   echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U -p "$geocd"/EQA.dem_par -o "$frame".U.geo.tif" >> jasmin_run.sh
@@ -1475,7 +1475,7 @@ if [ "$platemotion" -gt 0 ] && [ "$sbovl" -eq 0 ]; then
  echo " "
 fi
 
-if [ "$sbovl" -eq 0 ]; then
+if [ "$sboi" -eq 0 ]; then
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.mskd.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.filt -p "$geocd"/EQA.dem_par -o "$frame".vel_filt.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel.mskd.geo.tif" >> jasmin_run.sh
@@ -1487,14 +1487,14 @@ if [ "$sbovl" -eq 0 ]; then
  echo "LiCSBAS_out2nc.py -i TS_"$geocd"/cum.h5 -o "$frame".nc" >> jasmin_run.sh
  echo "LiCSBAS_disp_img.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -c SCM.roma_r --cmin -20 --cmax 20 --kmz "$frame".vel.mskd.kmz" >> jasmin_run.sh
  echo "LiCSBAS_disp_img.py -i TS_"$geocd"/results/vel.filt.mskd -p "$geocd"/EQA.dem_par -c SCM.roma_r --cmin -20 --cmax 20 --title "$frame"_vel_filt_mskd --png "$frame".vel.mskd.png" >> jasmin_run.sh
-elif [ "$sbovl" -eq 1 ]; then
+elif [ "$sboi" -eq 1 ]; then
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/U.geo -p "$geocd"/EQA.dem_par -o "$frame".U.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/E.geo -p "$geocd"/EQA.dem_par -o "$frame".E.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/N.geo -p "$geocd"/EQA.dem_par -o "$frame".N.azi.geo.tif" >> jasmin_run.sh
  echo "LiCSBAS_flt2geotiff.py -i "$geocd"/hgt   -p "$geocd"/EQA.dem_par -o "$frame".hgt.geo.tif" >> jasmin_run.sh
- if [ "$sbovl_model" -gt 0 ]; then
+ if [ "$sboi_model" -gt 0 ]; then
     if [ "$platemotion" -gt 0 ]; then
-      echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt.mskd.eurasia.geo.tif --sbovl_abs --input vel_abs.filt.mskd --vstd_fix" >> jasmin_run.sh
+      echo "LiCSBAS_vel_plate_motion.py -t TS_$geocd -f $frame -o $frame.vel_abs_filt.mskd.eurasia.geo.tif --sboi_abs --input vel_abs.filt.mskd --vstd_fix" >> jasmin_run.sh
       echo "cp TS_"$geocd"/results/vstd_scaled.tif "$frame".vstd_scaled.geo.tif" >> jasmin_run.sh
     fi
     echo "LiCSBAS_flt2geotiff.py -i TS_"$geocd"/results/vel_abs.filt.mskd -p "$geocd"/EQA.dem_par -o "$frame".vel_abs.filt.mskd.geo.tif" >> jasmin_run.sh
@@ -1502,7 +1502,7 @@ elif [ "$sbovl" -eq 1 ]; then
     
  else
     if [ "$platemotion" -gt 0 ]; then
-      echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --sbovl --vstd_fix" >> jasmin_run.sh
+      echo "LiCSBAS_vel_plate_motion.py -t TS_"$geocd" -f "$frame" -o "$frame".vel_filt.mskd.eurasia.geo.tif --sboi --vstd_fix" >> jasmin_run.sh
       echo "LiCSBAS_flt2geotiff.py -i "$geocd"/coh_avg -p "$geocd"/EQA.dem_par -o "$frame".coh_avg.geo.tif" >> jasmin_run.sh
       echo "cp TS_"$geocd"/results/vstd_scaled.tif "$frame".vstd_scaled.geo.tif" >> jasmin_run.sh
     fi
@@ -1522,8 +1522,8 @@ fi
 
 if [ $cumulative_process -eq 1 ]; then
   echo "LiCSBAS_cum_interpolate.py -t TS_"$geocd" --csv "$cum_gps_file"" >> jasmin_run.sh
-  if [ "$sbovl" -gt 0 ]; then
-    echo "LiCSBAS_cum2tif.py -t TS_"$geocd" -i cum_filt_interpolate.h5 --plate_motion --interseismic_motion --sbovl" >> jasmin_run.sh
+  if [ "$sboi" -gt 0 ]; then
+    echo "LiCSBAS_cum2tif.py -t TS_"$geocd" -i cum_filt_interpolate.h5 --plate_motion --interseismic_motion --sboi" >> jasmin_run.sh
   else
     echo "LiCSBAS_cum2tif.py -t TS_"$geocd" -i cum_filt_interpolate.h5 --plate_motion --interseismic_motion" >> jasmin_run.sh
   fi
