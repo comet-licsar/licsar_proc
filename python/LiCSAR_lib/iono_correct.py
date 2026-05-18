@@ -553,11 +553,11 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290,
                     # these two points are the ones where we should get TEC
                     PippA = path_ipp.intersect(path_scene_satgA).to_geo_point()
                     PippB = path_ipp.intersect(path_scene_satgB).to_geo_point()
-                                
+                    # breakpoint()
                     if source=='code':
                         # print('code selected')
-                        ionoijA = get_vtec_from_tecxr(tecxr, acqtime, PippA.latitude_deg, PippA.longitude_deg, method='cubic')  ##cubic in space, linear in time
-                        ionoijB = get_vtec_from_tecxr(tecxr, acqtime, PippB.latitude_deg, PippB.longitude_deg, method='cubic')
+                        ionoijA = get_vtec_from_tecxr(tecxr, acqtime, PippA.latitude_deg, PippA.longitude_deg, method='linear')  #15/05/2026 need to back linear https://github.com/pydata/xarray/issues/11342 ##cubic in space, linear in time
+                        ionoijB = get_vtec_from_tecxr(tecxr, acqtime, PippB.latitude_deg, PippB.longitude_deg, method='linear')
                     else:
                         # print('iri selected')
                         ionoijA = get_tecs(PippA.latitude_deg, PippA.longitude_deg, sat_alt_km, [acqtime], False, source=source)[0]  ##TODO ask Milan why we set the sat_alt_km rather than ipp_alt when we apply IRI model? it select IPP itself?
@@ -569,6 +569,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290,
                     ionoxrA.values[i, j] = ionoijA / np.sqrt(1 - sin_thetaiono ** 2)
                     ionoxrB.values[i, j] = ionoijB / np.sqrt(1 - sin_thetaiono ** 2)
 
+        # breakpoint()
         # Let's make it a bit more robust 
         ionoxr_dict = {'A': ionoxrA, 'B': ionoxrB}
         outputxr_dict = {}
