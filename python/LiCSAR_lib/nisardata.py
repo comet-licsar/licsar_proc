@@ -200,16 +200,16 @@ def get_network(tmpsel, ntype='triplet'):
     return ifgs
 
 
-def get_nisar_dem(wesn, outfile = 'nisar_dem.tif', tmpfolder = 'nisar_dem'):
+def get_nisar_dem(wsen, outfile = 'nisar_dem.tif', tmpfolder = 'nisar_dem'):
     ''' wesn means:
     west, south, east, north  (float tuple or list both work), e.g.
-    wesn = (-3.7, 53.6, -1.1, 54.2)
+    wsen = (-3.7, 53.6, -1.1, 54.2)
     '''
     import earthaccess as ea
     ea.login(strategy="netrc")  # or "interactive"
     granules = ea.search_data(
         short_name="NISAR_DEM",      # the collection short name
-        bounding_box=wesn,           # <-- keyword arg, not a method call
+        bounding_box=wsen,           # <-- keyword arg, not a method call
         temporal=("2000-01-01", "2030-01-01")  # DEM is static; any wide window is fine
     )
     #
@@ -242,8 +242,10 @@ def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/
     volclip=v.get_volclip_vids(volcid)[0] # assumming only one
     vpoly = v.get_volclips_gpd(volclip).loc[0]['geom']
     lon1, lat1, lon2, lat2 = vpoly.bounds
-    print('try following:')
-    print("get_nisar_dem((lon1, lon2, lat1, lat2), 'hgt.tif')")
+    hgtfile = 'hgt.tif'
+    if not os.path.exists(hgtfile):
+        print('Getting DEM for the volcano (unclipped for now!):')
+        get_nisar_dem((lon1, lat1, lon2, lat2), hgtfile)
     return fullchain(lon1, lat1, lon2, lat2,
               nisarslcpath=nisar_slcdir,
               downloadit=True,
