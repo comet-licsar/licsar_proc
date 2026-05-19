@@ -112,11 +112,17 @@ def fullchain(lon1, lat1, lon2, lat2,
                     pan = sset['pathNumber']
                     frn = sset['frameNumber']
                     frame = 'NISAR.'+opass[0]+'.'+str(pan)+'.'+str(frn)+'.'+polarization
+                    print('processing frame '+frame)
+                    tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
+                    if len(tmpsel)<2:
+                        print('only one possible epoch, skipping')
+                        continue
                     framedir = frame
                     if not os.path.exists(framedir):
                         os.mkdir(framedir)
-                    print('processing frame '+frame)
-                    tmpsel = nsrs[nsrs['flightDirection'] == opass][nsrs['pathNumber'] == pan][nsrs['frameNumber'] == frn]
+                    # prepare ENUS (and hgt):
+                    inh5 = os.path.join(nisarslcpath, tmpsel.iloc[0].sceneName + '.h5')
+                    print('todo: extract ENUs (and hgt) from '+inh5)
                     # sadly, ASF returns polarization==None, so need to use this forceful approach
                     # now lets get network...
                     ifgs = get_network(tmpsel, ntype='triplet')
@@ -141,7 +147,7 @@ def fullchain(lon1, lat1, lon2, lat2,
                             except:
                                 print('Some error generating '+pair)
                         else:
-                            print('ERROR, file '+in1+' does not exist')
+                            print('ERROR, file '+in1+' or '+in2+' does not exist')
                     try:
                         os.rmdir(framedir)
                     except:
@@ -151,10 +157,10 @@ def fullchain(lon1, lat1, lon2, lat2,
 
 '''
 # this below is a simple script for doing LB
-freqA=
+freqA=1270000000
 freqB=1221500000
 
-workdir=`pwd` # e.g. A.34.19
+workdir=`pwd` # e.g. NISAR.A.34.19.HH
 for fr in freq_A freq_B; do
  lbdir=`pwd`/LB_`basename $workdir`.$fr
  mkdir -p $lbdir/GEOC
@@ -225,7 +231,9 @@ def get_nisar_data_for_volcano(volcanoid):
     return get_nisar_data(wkt, outAspd = True)
 
 
-def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR'):
+def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR',
+                      nisar_slcdir = '/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR/download',
+                      target_resolution_m=111):
     import volcdb as v
     os.chdir(workdir)
     if not os.path.exists(str(volcid)):
@@ -234,11 +242,13 @@ def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/
     volclip=v.get_volclip_vids(volcid)[0] # assumming only one
     vpoly = v.get_volclips_gpd(volclip).loc[0]['geom']
     lon1, lat1, lon2, lat2 = vpoly.bounds
+    print('try following:')
+    print("get_nisar_dem((lon1, lon2, lat1, lat2), 'hgt.tif')")
     return fullchain(lon1, lat1, lon2, lat2,
-              nisarslcpath='/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/NISAR',
+              nisarslcpath=nisar_slcdir,
               downloadit=True,
               clipit=True, processit=True,
-              processit_target_resolution_m=30)
+              processit_target_resolution_m=target_resolution_m)
 
 
 # say we want to get NISAR data covering particular location, or region:
@@ -631,6 +641,7 @@ def download(url, slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC', 
     wgetpath = os.environ['LiCSARpath']+'/bin/scripts/wget_asf_nisar'
     cmd = 'cd {0}; {1} {2}'.format(slcdir, wgetpath, url)
     rc = os.system(cmd)
+    filename = url.split('/')[-1]
     filepath = os.path.join(slcdir,filename)
     return filepath
 
