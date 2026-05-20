@@ -29,10 +29,6 @@ times = [ref + timedelta(seconds=float(x)) for x in t]
 
 i = len(t)//2
 
-print("sensing_position_1:", *pos[i])
-print("sensing_velocity_1:", *vel[i])
-
-
 
 burst_date = times[0]
 burst_start_time = t[0]
@@ -46,6 +42,8 @@ print(f"burst_start_time_1:    {burst_start_time:12.6f}  s")
 print(f"sensing_date_1:        {sensing_date.isoformat()}")
 print(f"sensing_start_time_1:  {sensing_start_time:12.6f}  s")
 
+print("sensing_position_1:", *pos[i])
+print("sensing_velocity_1:", *vel[i])
 
 dop_t = f["/meta/doppler/centroid/utc"][:]
 dop_units = f["/meta/doppler/centroid/utc"].attrs["units"].decode()
