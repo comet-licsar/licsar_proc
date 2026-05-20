@@ -161,7 +161,9 @@ freqA=1270000000
 freqB=1221500000
 
 workdir=`pwd` # e.g. NISAR.A.34.19.HH
+hgtfile=../hgt.tif
 for fr in freq_A freq_B; do
+ if [ $fr == 'freq_A' ]; then freq=$freqA; else freq=$freqB; fi
  lbdir=`pwd`/LB_`basename $workdir`.$fr
  mkdir -p $lbdir/GEOC
  for pair in `ls *.$fr'_pha.wgs84.tif' | cut -d '.' -f 1`; do
@@ -170,6 +172,17 @@ for fr in freq_A freq_B; do
    ln -s `pwd`/$pair.$fr'_coh.wgs84.tif' $lbdir/GEOC/$pair/$pair.geo.cc.tif
  done
  # need to get ENUs and hgt as well...
+ template=`ls *.$fr'_pha.wgs84.tif' | head -n 1`
+ gdalwarp2match.py $hgtfile $template $lbdir/GEOC/foo.geo.hgt.tif
+ # now the commands:
+ LiCSBAS02to05_unwrap.py -i $lbdir -M 1 --freq $freq --n_para 1
+ LiCSBAS11_check_unw.py  -d GEOCml1 -u 0.2 -c 0.05 -s
+ LiCSBAS12_loop_closure.py  -d GEOCml1 -l 10 --multi_prime --nullify --n_para 1
+ LiCSBAS13_sb_inv.py   -d GEOCml1 --inv_alg LS --mem_size 8192 --n_para 1
+ LiCSBAS14_vel_std.py   -t TS_GEOCml1 --mem_size 8192
+ LiCSBAS15_mask_ts.py  -t TS_GEOCml1 -u 0.5 -T 1 -s 10 -i 1000 -L 0.5 --avg_phase_bias 0.4 -r 12 --n_gap_use_merged
+ LiCSBAS16_filt_ts.py   -t TS_GEOCml1 --n_para 1 --interpolate_nans
+ # this all works ok ...
 done
 '''
 
