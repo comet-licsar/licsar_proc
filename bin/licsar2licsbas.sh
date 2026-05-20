@@ -54,7 +54,7 @@ if [ -z $1 ]; then
  echo "(-E offsets.txt ... instead of auto-find eqs, use existing eqoffsets.txt file)"
  echo "-p ........ finalise by correcting plate motion velocity w.r.t. Eurasia (plus correct ref effect in vstd)"
  echo "-b ........ would start sboi-licsbas (use dev version here..)"
- echo "-q ........ if sboi-licsbas, will rerun again to check high residual in first inversion (LiCSBAS13)"
+ echo "-q ........ if sboi-licsbas, will rerun again to check high residual in first inversion (LiCSBAS13)" it is really usefull especially mid-coherent region like Turkiye frames.
  echo "-x .......  if sboi active, will use RANSAC to guide the daz values by incorporating the sboi interferograms, allowing the LiCSBAS sboi processing to continue using absolute values"
  echo "-Z .......  cumulative process - will generate the cumulative displacement (w.r.t. the first epoch) tif files, after the LiCSBAS processing. It is in progress, please contact the MN or ML if you want to use."
  echo "-X .......  double-check batch_LiCSBAS.sh before submission (e.g., confirm LiCSBAS parameters). Can also submit job with -X, verify the setup, then run ./jasmin_run_cmd.sh"
