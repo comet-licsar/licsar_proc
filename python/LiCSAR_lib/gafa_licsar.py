@@ -2,35 +2,37 @@
 
 import h5py
 from datetime import datetime,timedelta
+import numpy as np
+import sys
 
-inh5 = 'S1C_SLC_066-0655-IW1-VV_20251123T052759.nc'
+#inh5 = 'S1C_SLC_066-0655-IW1-VV_20251123T052759.nc'
 
+try:
+    inh5 = sys.argv[1]
+except:
+    print('Usage: gafa_licsar.py S1C_SLC_066-0655-IW1-VV_20251123T052759.nc')
+    exit()
 
-with h5py.File(inh5, "r") as f:
-
-    pos = f["/meta/grid/refsys/trajectory/pos"][:]
-    vel = f["/meta/grid/refsys/trajectory/vel"][:]
-    t   = f["/meta/grid/refsys/trajectory/utc"][:]
-
-    units = f["/meta/grid/refsys/trajectory/utc"].attrs["units"].decode()
-    ref = datetime.strptime(units.split("since")[1].strip(),
-                            "%Y-%m-%d %H:%M:%S")
-
-    times = [ref + timedelta(seconds=float(x)) for x in t]
-
-    i = len(t)//2
-
-    print(f"sensing_date_1: {times[i].isoformat()}")
-    print(f"sensing_start_time_1: {t[i]:.6f} s")
-
-    print("sensing_position_1:", *pos[i])
-    print("sensing_velocity_1:", *vel[i])
+    
+f = h5py.File(inh5, "r")
 
 
+pos = f["/meta/grid/refsys/trajectory/pos"][:]
+vel = f["/meta/grid/refsys/trajectory/vel"][:]
+t   = f["/meta/grid/refsys/trajectory/utc"][:]
+
+units = f["/meta/grid/refsys/trajectory/utc"].attrs["units"].decode()
+ref = datetime.strptime(units.split("since")[1].strip(),
+                        "%Y-%m-%d %H:%M:%S")
+
+times = [ref + timedelta(seconds=float(x)) for x in t]
+
+i = len(t)//2
+
+print("sensing_position_1:", *pos[i])
+print("sensing_velocity_1:", *vel[i])
 
 
-
-# use h5py to open the file as f. and then:
 
 burst_date = times[0]
 burst_start_time = t[0]
@@ -43,6 +45,7 @@ print(f"burst_start_time_1:    {burst_start_time:12.6f}  s")
 
 print(f"sensing_date_1:        {sensing_date.isoformat()}")
 print(f"sensing_start_time_1:  {sensing_start_time:12.6f}  s")
+
 
 dop_t = f["/meta/doppler/centroid/utc"][:]
 dop_units = f["/meta/doppler/centroid/utc"].attrs["units"].decode()
@@ -136,3 +139,7 @@ print(" - true TOPS burst segmentation")
 print(" - precise azimuth FM rates")
 print(" - exact azimuth timing grid")
 print(" - correct burst synchronization")
+
+
+f.close()
+
