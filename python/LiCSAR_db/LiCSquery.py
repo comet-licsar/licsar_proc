@@ -16,7 +16,7 @@ from shapely.geometry import Polygon
 from shapely import wkt, wkb
 import pandas as pd
 import unicodedata
-from framecare import get_master
+import LiCSAR_misc as misc
 
 # Local imports
 import global_config as gc
@@ -654,19 +654,34 @@ def get_frame_files_date(frame,date):
         date = date.date()
     
     #this is to fix for the around-midnight data:
-    masterdt = get_master(frame, asdatetime=True)
-    if not masterdt:
+    track=str(int(frame[0:3]))
+    metafile = os.path.join(os.environ['LiCSAR_public'],track,frame,'metadata','metadata.txt')
+    master = misc.grep1line('master',metafile)
+    if not master:
         print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
         date2 = date + dt.timedelta(days=1)
         date = date - dt.timedelta(days=1)
     else:
-        # Note - works for close-to-midnight but would disallow Btemp=1 day for such frames
-        if (masterdt + dt.timedelta(hours=0.5)).date() > masterdt.date():
+        centime = misc.grep1line('center_time',metafile)
+        if not centime:
+            print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
             date2 = date + dt.timedelta(days=1)
-        elif (masterdt - dt.timedelta(hours=0.5)).date() < masterdt.date():
-            date2 = date - dt.timedelta(days=1)
+            date = date - dt.timedelta(days=1)
         else:
-            date2 = date
+            centime = centime.split('=')[1].split('.')[0]
+            a = master.split('=')[1]
+            masterdt = dt.datetime(int(a[:4]),int(a[4:6]),int(a[6:8]),
+                        int(centime.split(':')[0]),
+                        int(centime.split(':')[1]),
+                        int(centime.split(':')[2]))
+            masterdt = masterdt.replace(tzinfo=dt.timezone.utc)
+            # Note - works for close-to-midnight but would disallow Btemp=1 day for such frames
+            if (masterdt + dt.timedelta(hours=0.5)).date() > masterdt.date():
+                date2 = date + dt.timedelta(days=1)
+            elif (masterdt - dt.timedelta(hours=0.5)).date() < masterdt.date():
+                date2 = date - dt.timedelta(days=1)
+            else:
+                date2 = date
     sql_q = "select distinct polygs.polyid_name, " \
         "files.name, files.abs_path from files " \
         "inner join files2bursts on files.fid=files2bursts.fid " \
