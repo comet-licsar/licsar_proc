@@ -16,6 +16,7 @@ from shapely.geometry import Polygon
 from shapely import wkt, wkb
 import pandas as pd
 import unicodedata
+from framecare import get_master
 
 # Local imports
 import global_config as gc
