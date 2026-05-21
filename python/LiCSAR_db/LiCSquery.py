@@ -653,7 +653,19 @@ def get_frame_files_date(frame,date):
         date = date.date()
     
     #this is to fix for the around-midnight data:
-    date2 = date + dt.timedelta(days=1)
+    masterdt = get_master(frame, asdatetime=True)
+    if not masterdt:
+        print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
+        date2 = date + dt.timedelta(days=1)
+        date = date - dt.timedelta(days=1)
+    else:
+        # Note - works for close-to-midnight but would disallow Btemp=1 day for such frames
+        if (masterdt + dt.timedelta(hours=0.5)).date() > masterdt.date():
+            date2 = date + dt.timedelta(days=1)
+        elif (masterdt - dt.timedelta(hours=0.5)).date() < masterdt.date():
+            date2 = date - dt.timedelta(days=1)
+        else:
+            date2 = date
     sql_q = "select distinct polygs.polyid_name, " \
         "files.name, files.abs_path from files " \
         "inner join files2bursts on files.fid=files2bursts.fid " \
