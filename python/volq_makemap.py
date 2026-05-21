@@ -27,7 +27,9 @@ def get_web_volcanoes(url, return_sublinks = True):
 
 if checknisar:
     import nisardata as nd
-
+    outnisarcsv = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map/volcanoes_nisar.csv'
+    cmd = "echo 'volcano_id,volcano_name,no_of_nisar_gslcs' > "+ outnisarcsv
+    os.system(cmd)
 
 volclinks = get_web_volcanoes(url)
 volcpd = v.get_volc_info()
@@ -65,7 +67,9 @@ for vl in volclinks:
             nisars = nd.get_nisar_data_for_volcano(volcanoid)
             nislen = len(nisars)
             if nislen > 0:
-                print('GREAT NEWS - THERE ARE '+str(nislen)+' NISAR GSLCs for volcid '+str(volcanoid)+' - contact Milan')
+                print('GREAT NEWS - THERE ARE '+str(nislen)+' NISAR GSLCs for '+str(vlpd['name'].values[0]))
+                cmd = "echo '"+str(volcanoid)+","+vlpd['name'].values[0]+","+str(nislen)+"' >> "+outnisarcsv
+                os.system(cmd)
         volcnames.append(vlpd['name'].values[0])
         volcgeom.append(vlpd['geom'].values[0])
 
