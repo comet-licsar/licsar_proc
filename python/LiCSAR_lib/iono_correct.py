@@ -152,14 +152,14 @@ def slant_ranges(frame, master, range2iono):
 
     return ds
 
-def make_ionocorr_pair(frame, pair, sboi=False,source = 'code', fixed_f2_height_km = 290, alpha = 0.85, outif=None):
+def make_ionocorr_pair(frame, pair, sbovl=False,source = 'code', fixed_f2_height_km = 290, alpha = 0.85, outif=None):
     """ This will generate ionospheric correction for given frame-pair.
     It would optionally output the result to a geotiff.
     
     Args:
         frame (str):    frame ID
         pair (str):     pair (e.g. '20180930_20181012')
-        sboi (bool):   if the sboi true, ionospheric gradient calculated
+        sbovl (bool):   if the sbovl true, ionospheric gradient calculated
         source (str):   source model for TEC values. Either 'iri' or 'code'.
         fixed_f2_height_km (int):  if 'auto', it will estimate this using IRI
         alpha (float):  if 'auto', it will estimate this using IRI
@@ -168,7 +168,7 @@ def make_ionocorr_pair(frame, pair, sboi=False,source = 'code', fixed_f2_height_
         xr.DataArray:   estimated ionospheric phase screen
     """
     # TODO - this below will mean we cannot use local ifgs. But can/must be (easily) improved!
-    if not sboi:
+    if not sbovl:
         ifg = load_ifg(frame, pair, unw = False, mag = False, prefer_unfiltered = False, stdout = False) # just to get mask etc.
         epochs = pair.split('_')
         tecphase1 = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'epochs',epochs[0],epochs[0]+'.geo.iono.'+source+'.tif')
@@ -197,7 +197,7 @@ def make_ionocorr_pair(frame, pair, sboi=False,source = 'code', fixed_f2_height_
         return tecdiff
 
     else:
-        # print('sboi iono correction')
+        # print('sbovl iono correction')
         epochs = pair.split('_')
         tecsA1 = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'epochs',epochs[0],epochs[0]+'.geo.iono.'+source+'.sTECA.tif') #A,B=backward,forward lookings in azimuth; 1,2=prime,second epoch.
         tecsB1 = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'epochs',epochs[0],epochs[0]+'.geo.iono.'+source+'.sTECB.tif')
@@ -209,13 +209,13 @@ def make_ionocorr_pair(frame, pair, sboi=False,source = 'code', fixed_f2_height_
             tecsA1 = load_tif2xr(tecsA1)
             tecsB1 = load_tif2xr(tecsB1)
         else:
-            tecsA1, tecsB1 = make_ionocorr_epoch(frame, epochs[0], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sboi = sboi)
+            tecsA1, tecsB1 = make_ionocorr_epoch(frame, epochs[0], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
         #epoch2
         if os.path.exists(tecsA2) and os.path.exists(tecsB2):
             tecsA2 = load_tif2xr(tecsA2)
             tecsB2 = load_tif2xr(tecsB2)
         else:
-            tecsA2, tecsB2 = make_ionocorr_epoch(frame, epochs[1], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sboi = sboi)
+            tecsA2, tecsB2 = make_ionocorr_epoch(frame, epochs[1], source = source, fixed_f2_height_km = fixed_f2_height_km, alpha = alpha, sbovl = sbovl)
 
         ###parameter for TEC gradient
         azpix=14000
@@ -269,12 +269,12 @@ def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile
     Returns:
         xr.DataArray:  corrected ifg
     """
-    sboi=False
+    sbovl=False
     
     if ifgtype == 'unw' or ifgtype == 'sbovldiff.adf.mm' or ifgtype == 'bovldiff.adf.mm':
         unw = True
         if ifgtype == 'sbovldiff.adf.mm' or ifgtype == 'bovldiff.adf.mm':
-            sboi=True
+            sbovl=True
     else:
         unw = False
     if not infile:
@@ -293,7 +293,7 @@ def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile
     else:
         ifg = load_tif2xr(infile)
     ifg = ifg.where(ifg != 0)
-    tecdiff = make_ionocorr_pair(frame, pair, sboi=sboi, source=source, fixed_f2_height_km=fixed_f2_height_km, outif=None)
+    tecdiff = make_ionocorr_pair(frame, pair, sbovl=sbovl, source=source, fixed_f2_height_km=fixed_f2_height_km, outif=None)
     ifg.values = ifg.values - tecdiff.values # AREA_OR_POINT might clash. Assuming same it may differ by 1/2 pixel (ok for ionosphere..)
     if not unw:
         ifg.values = wrap2phase(ifg.values)
@@ -302,14 +302,14 @@ def correct_iono_pair(frame, pair, ifgtype = 'diff_pha', dolocal = False, infile
     return ifg
 
 
-def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290, alpha = 0.85, return_phase = True, sboi= False, outif=None):
+def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290, alpha = 0.85, return_phase = True, sbovl= False, outif=None):
     """
     Args:
         ...
         fixed_f2_height_km (int or 'auto'): CODE/JPL is valid for h=450 but ~280 km should be better guess. If 'auto', it will use IRI to estimate the height (at mid point between scene centre and satellite)
         alpha (float): used only for GIM (CODE or JPL) - standard value is 0.85; but can use 'auto' (since 11/2025)
         return_phase (bool): if not, it will return TEC, otherwise returns phase
-        sboi (bool): if True, it will calculate TEC values for BOI's different piercing points #TODO can be more precise for subswath overlap. 
+        sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points #TODO can be more precise for subswath overlap. 
         outif (str or None): output tif filename - if None, it will continue without saving
 
     Returns:
@@ -436,7 +436,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290,
     earth_radius = 6378160  # m
     
     ##define the output xr
-    if sboi:
+    if sbovl:
         ionoxrA = incml.copy(deep=True)
         ionoxrB = incml.copy(deep=True)
         # slantRanges=slant_ranges(frame, master, range2iono)
@@ -459,7 +459,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290,
         tecxr = alpha * tecxr
     print('getting TEC values sampled by {} km.'.format(str(round(ionosampling / 1000))))
     
-    if not sboi:  ##I could put the condition in the for loop but it's better to keep it clean.
+    if not sbovl:  ##I could put the condition in the for loop but it's better to keep it clean.
         
         for i in range(len(range2iono.lat.values)):
             # print(str(i) + '/' + str(len(range2iono.lat.values)))
@@ -512,7 +512,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290,
             export_xr2tif(outputxr, outif)
         return outputxr           
                     
-    elif sboi:
+    elif sbovl:
         for i in range(len(range2iono.lat.values)):
             # print(str(i) + '/' + str(len(range2iono.lat.values)))
             for j in range(len(range2iono.lon.values)):
@@ -588,7 +588,7 @@ def make_ionocorr_epoch(frame, epoch, source = 'code', fixed_f2_height_km = 290,
                                     
                     
 # test frame: 144A_04689_111111
-def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height_km=290, alpha=0.85, sboi=False,
+def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height_km=290, alpha=0.85, sbovl=False,
                           startdate='20141001', enddate=None, localstore=False):
     ''' use either 'code' or 'iri' as the source model for the correction - note 'code' would actually try getting JPL GIM by default - will change the name
     This function will generate ionosphere phase screens (LOS) [rad] per epoch.
@@ -599,7 +599,7 @@ def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height
         epochslist (list): e.g. ['20180930', '20181012'] - if given, only IPS for only those epochs are created, otherwise for all epochs
         fixed_f2_height_km (num): for CODE only. CODE is valid for 450 km. if 'auto', it will use IRI to estimate ionospheric height. Probably 290 km is better estimation..
         alpha (float): for GIM only - can use 'auto' (0.85 was a common guess during calm ionosphere. it might dynamically change - ongoing investigation)
-        sboi (bool): if True, it will calculate TEC values for BOI's different piercing points
+        sbovl (bool): if True, it will calculate TEC values for BOI's different piercing points
         startdate (str): Start date for filtering epochs, format "YYYYMMDD".
         enddate (str): End date for filtering epochs, format "YYYYMMDD".
         localstore (bool): if False, it will check/store in LiCSAR_public, otherwise in a directory
@@ -629,7 +629,7 @@ def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height
         epoch_date = pd.to_datetime(epoch, format="%Y%m%d")
 
         if (epoch_date < startdate or epoch_date > enddate):  ##just to scale between given time
-            continue  # Skip epochs outside the selected date range if sboi is True
+            continue  # Skip epochs outside the selected date range if sbovl is True
 
         if not localstore:
             epochdir = os.path.join(framepubdir, 'epochs', epoch)
@@ -637,23 +637,23 @@ def make_all_frame_epochs(frame, source='code', epochslist=None, fixed_f2_height
         if not os.path.exists(epochdir):
             os.mkdir(epochdir)
 
-        if not sboi:
+        if not sbovl:
             tif = os.path.join(epochdir, epoch + '.geo.iono.' + source + '.tif')
             if not os.path.exists(tif):
                 print(epoch)
                 xrda = make_ionocorr_epoch(frame, epoch, source=source, fixed_f2_height_km=fixed_f2_height_km,
-                                           alpha=alpha, sboi=sboi)
+                                           alpha=alpha, sbovl=sbovl)
                 xrda = xrda.where(mask)
                 export_xr2tif(xrda, tif)  # , refto=hgtfile)
                 os.system('chmod 777 ' + tif)
                 # but it still does not really fit - ok, because the xarray outputs here are gridline-registered while our ifgs are pixel registered...hmmm..
-        elif sboi:
+        elif sbovl:
             tif1 = os.path.join(epochdir, epoch + '.geo.iono.' + source + '.sTECA.tif')
             tif2 = os.path.join(epochdir, epoch + '.geo.iono.' + source + '.sTECB.tif')
             if not os.path.exists(tif1) or not os.path.exists(tif2):
                 print(epoch)
                 xrdaA, xrdaB = make_ionocorr_epoch(frame, epoch, source=source, fixed_f2_height_km=fixed_f2_height_km,
-                                                   alpha=alpha, sboi=sboi)
+                                                   alpha=alpha, sbovl=sbovl)
                 # mask
                 xrdaA = xrdaA.where(mask)
                 xrdaB = xrdaB.where(mask)
