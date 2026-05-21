@@ -16,6 +16,7 @@ from shapely.geometry import Polygon
 from shapely import wkt, wkb
 import pandas as pd
 import unicodedata
+import LiCSAR_misc as misc
 
 # Local imports
 import global_config as gc
@@ -642,10 +643,12 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
     return do_query(sql_q)
 
 
-def get_frame_files_date(frame,date):
-    # takes frame and one datetime.date object and returns
-    # polygon name, file name and file path for all files 
-    # in frame on the given date
+def get_frame_files_date(frame, date, only_file_title = False):
+    """ takes frame and one datetime.date object and returns
+     polygon name, file name and file path for all files
+     in frame on the given date
+     (or only filenames if only_file_title == True)
+    """
     
     #in this mess, some scripts use date, and some timestamp or datetime..
     #let's convert it to date type only
@@ -653,7 +656,34 @@ def get_frame_files_date(frame,date):
         date = date.date()
     
     #this is to fix for the around-midnight data:
-    date2 = date + dt.timedelta(days=1)
+    track=str(int(frame[0:3]))
+    metafile = os.path.join(os.environ['LiCSAR_public'],track,frame,'metadata','metadata.txt')
+    master = misc.grep1line('master',metafile)
+    if not master:
+        print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
+        date2 = date + dt.timedelta(days=1)
+        date = date - dt.timedelta(days=1)
+    else:
+        centime = misc.grep1line('center_time',metafile)
+        if not centime:
+            print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
+            date2 = date + dt.timedelta(days=1)
+            date = date - dt.timedelta(days=1)
+        else:
+            centime = centime.split('=')[1].split('.')[0]
+            a = master.split('=')[1]
+            masterdt = dt.datetime(int(a[:4]),int(a[4:6]),int(a[6:8]),
+                        int(centime.split(':')[0]),
+                        int(centime.split(':')[1]),
+                        int(centime.split(':')[2]))
+            masterdt = masterdt.replace(tzinfo=dt.timezone.utc)
+            # Note - works for close-to-midnight but would disallow Btemp=1 day for such frames
+            if (masterdt + dt.timedelta(hours=0.5)).date() > masterdt.date():
+                date2 = date + dt.timedelta(days=1)
+            elif (masterdt - dt.timedelta(hours=0.5)).date() < masterdt.date():
+                date2 = date - dt.timedelta(days=1)
+            else:
+                date2 = date
     sql_q = "select distinct polygs.polyid_name, " \
         "files.name, files.abs_path from files " \
         "inner join files2bursts on files.fid=files2bursts.fid " \
@@ -663,7 +693,14 @@ def get_frame_files_date(frame,date):
         "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
         "and (pol='VV' or pol='HH');".format(frame,date,date2)  #
         #"order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
-    return do_query(sql_q)
+    out = do_query(sql_q)
+    if not only_file_title:
+        return out
+    else:
+        out2 = []
+        for o in out:
+            out2.append(o[1])
+        return out2
 
 
 def get_frame_polyid(frame):
