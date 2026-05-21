@@ -643,10 +643,12 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
     return do_query(sql_q)
 
 
-def get_frame_files_date(frame,date):
-    # takes frame and one datetime.date object and returns
-    # polygon name, file name and file path for all files 
-    # in frame on the given date
+def get_frame_files_date(frame, date, only_file_title = False):
+    """ takes frame and one datetime.date object and returns
+     polygon name, file name and file path for all files
+     in frame on the given date
+     (or only filenames if only_file_title == True)
+    """
     
     #in this mess, some scripts use date, and some timestamp or datetime..
     #let's convert it to date type only
@@ -691,7 +693,14 @@ def get_frame_files_date(frame,date):
         "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
         "and (pol='VV' or pol='HH');".format(frame,date,date2)  #
         #"order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
-    return do_query(sql_q)
+    out = do_query(sql_q)
+    if not only_file_title:
+        return out
+    else:
+        out2 = []
+        for o in out:
+            out2.append(o[1])
+        return out2
 
 
 def get_frame_polyid(frame):
