@@ -524,6 +524,16 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             else:
                 tousefl.append(filelist[i])
         filelist = tousefl
+    else:
+        # additional check for data existence before running processing:
+        flfinal = []
+        for f in filelist:
+            if os.path.exists(f[2]):
+                flfinal.append(f)
+        filelist = flfinal
+    if not flfinal:
+        print('No zip file exists for '+str(date_date)+' - skipping this date')
+        return 1
 ############################################################ Build Frame
     if read_files( filelist, slcdir, date, procdir, licsQuery, job_id, acqMode, test_crosspol ):
         # Only do if read_files does not return False, i.e. hits
