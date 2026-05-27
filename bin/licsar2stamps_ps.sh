@@ -27,8 +27,9 @@ fi
 #master=`get_master`
 startdate=19840126
 enddate=21000101
+gacos=0
 
-while getopts ":s:e:m:" option; do
+while getopts ":s:e:gm:" option; do
  case "${option}" in
   s) startdate=${OPTARG};
      ;;
@@ -38,9 +39,20 @@ while getopts ":s:e:m:" option; do
      if [ ! -d RSLC/$master ]; then echo "no such RSLC: "$master; exit; fi
      echo "setting reference epoch to "$master
      ;;
+  g) gacos=1;
+     echo "correcting atmo using GACOS data";
+     ;;
  esac
 done
 shift $((OPTIND -1))
+
+
+if [ $gacos -gt 0 ]; then
+  if [ ! -d GACOS ]; then
+    echo "No GACOS directory - make sure it exists and that it contains files in the expected form of e.g. 20240420.sltd.geo.tif "
+    exit
+  fi
+fi
 
 if [ -z $master ]; then
   rm tom.txt 2>/dev/null
@@ -62,7 +74,6 @@ master_date=$master
 
 #dem_par_file=geo/EQA.dem_par        # e.g., geo/EQA.dem_par
 #input_lookuptable=geo/$master.lt_fine   # e.g., geo/$masterdate.lt_fine
-
 
 
 #if [ ! -f geo/EQA.dem_par ]; then
@@ -116,7 +127,6 @@ swap_bytes geo.raw geolon.raw 4 >/dev/null # set lons to 4-byte floats
 #rashgt geolon.raw - $width_dem - - - 5 5 0.05 - - - lon_dem.ras # To check results
 echo "geocode ${input_lookuptable} geolon.raw ${width_dem} geo/${master_date}.lon ${width} ${length} 0 0 "
 geocode ${input_lookuptable} geolon.raw ${width_dem} geo/${master_date}.lon ${width} ${length} 0 0 >/dev/null
-
 
 
 #swap_bytes geo/${master_date}.lon geo/${master_date}.lon.raw 4 >/dev/null
@@ -213,6 +223,60 @@ for x in `ls RSLC`; do
  fi
 done
 
+
+
+# Now prepare the gacos, eventually
+if [ $gacos -gt 0 ]; then
+ echo "preparing GACOS corrections"
+ cat << EOF >gacos_fillgaps.py
+#!/usr/bin/env python
+import sys
+disfile=sys.argv[1]
+
+width=$width
+length=$length
+
+import numpy as np
+import matplotlib.pyplot as plt
+import xarray as xr
+
+dis=np.fromfile(disfile, dtype=np.float32)
+
+dis=dis.reshape((length,width))
+dis[dis==0] = np.nan
+
+disxr=xr.DataArray(dis)
+disxr=disxr.interpolate_na('dim_0','linear')
+disxr=disxr.interpolate_na('dim_1','linear')
+disxr=disxr.interpolate_na('dim_0','nearest')
+disxr=disxr.interpolate_na('dim_1','nearest')
+
+del dis
+disxr.values.tofile(disfile)
+
+exit()
+EOF
+ chmod 777 gacos_fillgaps.py
+ gacosrdir=INSAR_$master/GACOS_RD
+ mkdir -p $gacosrdir
+ cp slist.txt slist.g.txt
+ echo $master >> slist.g.txt
+ create_diff_par RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $ifg'_diffpar'
+ for ep in `cat slist.g.txt`; do
+   echo $ep
+   gdalwarp2match.py GACOS/$ep.sltd.geo.tif geo.grd $gacosrdir/$ep.geo.tif
+   gmt grdconvert $gacosrdir/$ep.geo.tif $gacosrdir/$ep.geo.grd
+   gmt grd2xyz $gacosrdir/$ep.geo.grd -ZTLf > $gacosrdir/$ep.geo.raw
+   swap_bytes $gacosrdir/$ep.geo.raw $gacosrdir/$ep.geo.BE.raw 4 >/dev/null
+   geocode ${input_lookuptable} $gacosrdir/$ep.geo.BE.raw ${width_dem} $gacosrdir/$ep.BE.raw ${width} ${length} 0 0 >/dev/null
+   swap_bytes $gacosrdir/$ep.BE.raw $gacosrdir/$ep.le.raw 4  >/dev/null
+   ./gacos_fillgaps.py $gacosrdir/$ep.le.raw
+   swap_bytes $gacosrdir/$ep.le.raw $gacosrdir/$ep.BE.raw 4  >/dev/null
+   # subtract the phase from RSLC using:
+   create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 2>/dev/null
+   sub_phase RSLC/$ep/$ep.rslc $gacosrdir/$ep.BE.raw RSLC/$ep/$ep'_diffpar' RSLC/$ep/$ep.rslc.gacosed 2 0 0 2>/dev/null
+ done
+fi
 ###
 
 #master=`ls geo/*rdc | cut -d '/' -f2 | cut -d '_' -f1`
@@ -237,7 +301,22 @@ for x in `cat slist.txt`; do
  create_offset RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off 1 1 1 0 >/dev/null # for PS - keep no multilooking
  phase_sim_orb RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $hgt $pair.simorb >/dev/null
  #SLC_diff_intf RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $pair.simorb $ifg 1 1 0 0 >/dev/null
- SLC_intf2 RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb
+ #SLC_intf2 RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb
+ extragacos=''
+ if [ $gacos -gt 0 ]; then
+   if [ -f RSLC/$master/$master.rslc.gacosed ]; then
+     if [ -f RSLC/$x/$x.rslc.gacosed ]; then
+       extragacos='.gacos'
+     fi
+   else
+     echo "ERROR - no GACOS correction for "$master". Cancelling GACOS correction"
+     gacos=0
+   fi  
+   if [ -z $extragacos ]; then
+     echo "WARNING - GACOS corrections do not exist for "$master'_'$x". Not using the correction."
+   fi
+ fi
+ SLC_intf2 RSLC/$master/$master.rslc$extragacos RSLC/$x/$x.rslc$extragacos RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb
  #cc_wave $ifg
  base_init RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $ifg INSAR_$master/diff0/$pair.base 0 >/dev/null
  if [ `ls -al INSAR_$master/diff0/$pair.base | gawk {'print $5'}` -eq 0 ]; then

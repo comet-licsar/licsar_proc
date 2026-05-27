@@ -1,0 +1,16 @@
+#!/bin/bash
+extra="--account=nceo_geohazards "
+if [ ! -z $1 ]; then
+  if [ $1 == 3 ]; then
+    inter --account=nceo_geohazards
+  elif [ $1 == 4 ]; then
+    inter4 --account=nceo_geohazards
+  elif [ $1 == 6 ]; then
+    inter6 --account=nceo_geohazards
+  else
+    echo "wrong number - setting to 3h"
+    inter --account=nceo_geohazards
+  fi
+else
+ inter --account=nceo_geohazards
+fi
