@@ -272,8 +272,8 @@ EOF
    ./gacos_fillgaps.py $gacosrdir/$ep.le.raw
    swap_bytes $gacosrdir/$ep.le.raw $gacosrdir/$ep.BE.raw 4  >/dev/null
    # subtract the phase from RSLC using:
-   create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 1 0 2>/dev/null
-   sub_phase RSLC/$ep/$ep.rslc $gacosrdir/$ep.BE.raw RSLC/$ep/$ep'_diffpar' RSLC/$ep/$ep.rslc.gacosed 2 0 0 2>/dev/null
+   create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 1 0 >/dev/null
+   sub_phase RSLC/$ep/$ep.rslc $gacosrdir/$ep.BE.raw RSLC/$ep/$ep'_diffpar' RSLC/$ep/$ep.rslc.gacosed 2 0 0 >/dev/null
  done
 fi
 ###
@@ -305,7 +305,7 @@ for x in `cat slist.txt`; do
  if [ $gacos -gt 0 ]; then
    if [ -s RSLC/$master/$master.rslc.gacosed ]; then
      if [ -s RSLC/$x/$x.rslc.gacosed ]; then
-       extragacos='.gacos'
+       extragacos='.gacosed'
      fi
    else
      echo "ERROR - no GACOS correction for "$master". Cancelling GACOS correction"
@@ -315,7 +315,7 @@ for x in `cat slist.txt`; do
      echo "WARNING - GACOS corrections do not exist for "$master'_'$x". Not using the correction."
    fi
  fi
- SLC_intf2 RSLC/$master/$master.rslc$extragacos RSLC/$x/$x.rslc$extragacos RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb
+ SLC_intf2 RSLC/$master/$master.rslc$extragacos RSLC/$x/$x.rslc$extragacos RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb >/dev/null
  #cc_wave $ifg
  base_init RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $ifg INSAR_$master/diff0/$pair.base 0 >/dev/null
  if [ `ls -al INSAR_$master/diff0/$pair.base | gawk {'print $5'}` -eq 0 ]; then

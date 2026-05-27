@@ -178,3 +178,33 @@ def create_TOPS_par_slab(inh5):
     print(" - correct burst synchronization")
     f.close()
 
+
+import glob
+import xarray as xr
+
+def merge_full(ncpath = os.getcwd()):
+    ''' This will merge all nc burst files per each swath into merged.IWx.slc files, in FCOMPLEX format (2x float32)
+    It now assumes all have the same number of samples, otherwise this will fail.
+    '''
+    curpth = os.getcwd()
+    os.chdir(ncpath)
+    ncs = glob.glob('S1?_SLC_*.nc')
+    for iw in ['IW1','IW2','IW3']:
+        nclist = glob.glob('S1?_SLC_*-'+iw+'-*.nc')
+        if nclist:
+            nclist.sort()
+            merge_ncs(nclist, outfile = 'merged.'+iw+'.slc')
+    os.chdir(curpth)
+
+
+def merge_ncs(nclist, outfile = 'output.slc'):
+    if os.path.exists(outfile):
+        os.system('rm '+outfile)
+    for nc in nclist:
+        print(nc)
+        a=xr.open_dataset(nc)
+        arr=a.raster.values
+        cpx = (arr['r'] + 1j * arr['i']).astype(np.complex64)
+        cpx = cpx.byteswap()
+        with open(outfile, 'ab') as f:
+            cpx.tofile(f)
