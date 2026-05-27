@@ -659,7 +659,10 @@ def get_frame_files_date(frame, date, only_file_title = False):
     #this is to fix for the around-midnight data:
     track=str(int(frame[0:3]))
     metafile = os.path.join(os.environ['LiCSAR_public'],track,frame,'metadata','metadata.txt')
-    master = misc.grep1line('master',metafile)
+    if os.path.exists(metafile):
+        master = misc.grep1line('master',metafile)
+    else:
+        master = None
     if not master:
         print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
         date2 = date + dt.timedelta(days=1)

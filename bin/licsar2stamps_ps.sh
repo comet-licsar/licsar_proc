@@ -261,10 +261,9 @@ EOF
  mkdir -p $gacosrdir
  cp slist.txt slist.g.txt
  echo $master >> slist.g.txt
- create_diff_par RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $ifg'_diffpar'
  for ep in `cat slist.g.txt`; do
    echo $ep
-   gdalwarp2match.py GACOS/$ep.sltd.geo.tif geo.grd $gacosrdir/$ep.geo.tif
+   gdalwarp2match.py GACOS/$ep.sltd.geo.tif geo.grd $gacosrdir/$ep.geo.tif >/dev/null 2>/dev/null
    gmt grdconvert $gacosrdir/$ep.geo.tif $gacosrdir/$ep.geo.grd
    gmt grd2xyz $gacosrdir/$ep.geo.grd -ZTLf > $gacosrdir/$ep.geo.raw
    swap_bytes $gacosrdir/$ep.geo.raw $gacosrdir/$ep.geo.BE.raw 4 >/dev/null
@@ -273,7 +272,7 @@ EOF
    ./gacos_fillgaps.py $gacosrdir/$ep.le.raw
    swap_bytes $gacosrdir/$ep.le.raw $gacosrdir/$ep.BE.raw 4  >/dev/null
    # subtract the phase from RSLC using:
-   create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 2>/dev/null
+   create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 1 0 2>/dev/null
    sub_phase RSLC/$ep/$ep.rslc $gacosrdir/$ep.BE.raw RSLC/$ep/$ep'_diffpar' RSLC/$ep/$ep.rslc.gacosed 2 0 0 2>/dev/null
  done
 fi
@@ -304,8 +303,8 @@ for x in `cat slist.txt`; do
  #SLC_intf2 RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb
  extragacos=''
  if [ $gacos -gt 0 ]; then
-   if [ -f RSLC/$master/$master.rslc.gacosed ]; then
-     if [ -f RSLC/$x/$x.rslc.gacosed ]; then
+   if [ -s RSLC/$master/$master.rslc.gacosed ]; then
+     if [ -s RSLC/$x/$x.rslc.gacosed ]; then
        extragacos='.gacos'
      fi
    else

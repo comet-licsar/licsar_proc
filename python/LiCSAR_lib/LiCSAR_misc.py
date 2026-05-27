@@ -90,6 +90,9 @@ def grep_full(arg,filename):
 
 
 def grep1line(arg,filename):
+    if not os.path.exists(filename):
+        print('ERROR: '+filename+' does not exist')
+        return None
     file = open(filename, "r")
     res=''
     for line in file:
