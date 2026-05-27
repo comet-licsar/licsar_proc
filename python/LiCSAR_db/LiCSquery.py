@@ -643,6 +643,7 @@ def get_frame_files_period(frame,t1,t2, only_file_title = False):
     return do_query(sql_q)
 
 
+
 def get_frame_files_date(frame, date, only_file_title = False):
     """ takes frame and one datetime.date object and returns
      polygon name, file name and file path for all files
