@@ -531,7 +531,7 @@ def make_frame_image( date, framename, burstlist, procdir, licsQuery,
             if os.path.exists(f[2]):
                 flfinal.append(f)
         filelist = flfinal
-    if not flfinal:
+    if not filelist:
         print('No zip file exists for '+str(date_date)+' - skipping this date')
         return 1
 ############################################################ Build Frame
