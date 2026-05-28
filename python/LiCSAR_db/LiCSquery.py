@@ -664,13 +664,13 @@ def get_frame_files_date(frame, date, only_file_title = False):
     else:
         master = None
     if not master:
-        print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
+        # print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
         date2 = date + dt.timedelta(days=1)
         date = date - dt.timedelta(days=1)
     else:
         centime = misc.grep1line('center_time',metafile)
         if not centime:
-            print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
+            # print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
             date2 = date + dt.timedelta(days=1)
             date = date - dt.timedelta(days=1)
         else:
@@ -694,7 +694,7 @@ def get_frame_files_date(frame, date, only_file_title = False):
         "inner join polygs2bursts on files2bursts.bid=polygs2bursts.bid " \
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
-        "and (date(files.acq_date)='{1}' or date(files.acq_date)='{2}')" \
+        "and (date(files.acq_date)>='{1}' or date(files.acq_date)<='{2}') " \
         "and (pol='VV' or pol='HH');".format(frame,date,date2)  #
         #"order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
     out = do_query(sql_q)
