@@ -4,7 +4,7 @@ import h5py
 import datetime as dt
 from datetime import datetime,timedelta
 import numpy as np
-import sys
+import sys, os
 
 #Usage:
 #inh5 = 'S1C_SLC_066-0655-IW1-VV_20251123T052759.nc'
@@ -32,8 +32,8 @@ slctab=$epoch.tab
 mergetab=$epoch.merged.tab
 createSLCtab $epoch merged.slc > $mergetab
 createSLCtab $epoch slc > $slctab
-for fld in GAFA_1 GAFA_2; do
- createSLCtab GAFA_1/$epoch slc > $fld.tab
+for fld in GAFA_*; do
+ createSLCtab $fld/$epoch slc > $fld.tab
  if [ ! -z $prevtab ]; then
    SLC_cat_ScanSAR $prevtab $fld.tab $mergetab
    for x in `ls $epoch.IW?.merged.slc*`; do mv $x `echo $x | sed 's/\.merged//'`; done
@@ -44,6 +44,15 @@ for fld in GAFA_1 GAFA_2; do
 done
 rm $mergetab
 '''
+
+'''
+import LiCSquery as lq
+
+lq.get_frame_files_date(frame, dt.datetime(2025,3,24), True
+
+this will return list of SLC files registered within the frame (i.e. having frame bursts
+'''
+
 
 def identify_raw_covering_slc(slcfile, rawfiles):
     ''' Helper function to identify which of the raw files cover given slc file
@@ -215,11 +224,16 @@ def merge_full(ncpath = os.getcwd()):
     curpth = os.getcwd()
     os.chdir(ncpath)
     ncs = glob.glob('S1?_SLC_*.nc')
+    if not ncs:
+        print('no slc files found')
+        return False
+    nc=ncs[0]
+    datestr=nc.split('_')[-1].split('T')[0]
     for iw in ['IW1','IW2','IW3']:
         nclist = glob.glob('S1?_SLC_*-'+iw+'-*.nc')
         if nclist:
             nclist.sort()
-            merge_ncs(nclist, outfile = 'merged.'+iw+'.slc')
+            merge_ncs(nclist, outfile = datestr + '.'+iw+'.slc')
     os.chdir(curpth)
 
 
