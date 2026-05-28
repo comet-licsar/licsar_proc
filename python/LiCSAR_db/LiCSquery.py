@@ -685,7 +685,8 @@ def get_frame_files_date(frame, date, only_file_title = False):
             if (masterdt + dt.timedelta(hours=0.5)).date() > masterdt.date():
                 date2 = date + dt.timedelta(days=1)
             elif (masterdt - dt.timedelta(hours=0.5)).date() < masterdt.date():
-                date2 = date - dt.timedelta(days=1)
+                date2 = date
+                date = date - dt.timedelta(days=1)
             else:
                 date2 = date
     sql_q = "select distinct polygs.polyid_name, " \
