@@ -45,40 +45,6 @@ done
 rm $mergetab
 '''
 
-def merge2frameslc(rawfilenames):
-
-if len(rawfilenames) > 1:  # there are more files containing bursts
-    for filethis in rawfilenames[1:]:  # loop through the remaining slc files
-        filetab = os.path.join(tabdir,
-                               '{0}_tab'.format(filethis)
-                               )
-        tempfile = slcname + '_merged'
-        rc, msg = make_SLC_tab(temptab, tempfile + '.slc',
-                               [sw])
-        if rc > 0:
-            print('\nProblem creating SLC ' \
-                  'tab{0} for date {1}. Error ' \
-                  'message:' \
-                  '\n {2}' \
-                  '\nContinuing with next ' \
-                  'date.'.format(temptab, date,
-                                 msg), file=sys.stderr)
-            return 2
-        logfile = os.path.join(procdir, 'log',
-                               'SLC_cat_S1_TOPS_{0}_{1}.log'.format(sw,
-                                                                    filetab.split('/')[-1])
-                               )
-        if not SLC_cat_S1_TOPS(slctab, filetab, temptab,
-                               logfile):  # concat our swath slc file
-            # with this slc file -> merged
-            print('\nProblem concatenating ' \
-                  'bursts in subswath {0}. Log ' \
-                  'file {1}. Continuing with ' \
-                  'next acquisition ' \
-                  'date.'.format(sw, logfile), file=sys.stderr)
-            return 2
-        rename_slc(temptab, slctab)  # replace our swathe slc file
-
 def identify_raw_covering_slc(slcfile, rawfiles):
     ''' Helper function to identify which of the raw files cover given slc file
 
