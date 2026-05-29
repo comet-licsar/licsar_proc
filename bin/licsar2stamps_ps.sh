@@ -237,7 +237,7 @@ width=$width
 length=$length
 
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import xarray as xr
 
 dis=np.fromfile(disfile, dtype=np.float32)
@@ -272,9 +272,9 @@ EOF
    swap_bytes $gacosrdir/$ep.BE.raw $gacosrdir/$ep.le.raw 4  >/dev/null
    ./gacos_fillgaps.py $gacosrdir/$ep.le.raw
    swap_bytes $gacosrdir/$ep.le.raw $gacosrdir/$ep.BE.raw 4  >/dev/null
-   # subtract the phase from RSLC using:
-   create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 1 0 >/dev/null
-   sub_phase RSLC/$ep/$ep.rslc $gacosrdir/$ep.BE.raw RSLC/$ep/$ep'_diffpar' RSLC/$ep/$ep.rslc.gacosed 2 0 0 >/dev/null
+   # subtract the phase from RSLC using:  // does not work, maybe due to S1 ramp? will do this at the ifg stage
+   # create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 1 0 >/dev/null
+   # sub_phase RSLC/$ep/$ep.rslc $gacosrdir/$ep.BE.raw RSLC/$ep/$ep'_diffpar' RSLC/$ep/$ep.rslc.gacosed 2 0 0 >/dev/null
    # but this seems not doing best job (at all!) tried le or diffpar for ifg. not working.
  done
 fi
@@ -303,21 +303,28 @@ for x in `cat slist.txt`; do
  phase_sim_orb RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $hgt $pair.simorb >/dev/null
  #SLC_diff_intf RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $pair.simorb $ifg 1 1 0 0 >/dev/null
  #SLC_intf2 RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb
- extragacos=''
+ SLC_intf2 RSLC/$master/$master.rslc RSLC/$x/$x.rslc RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb >/dev/null
  if [ $gacos -gt 0 ]; then
-   if [ -s RSLC/$master/$master.rslc.gacosed ]; then
-     if [ -s RSLC/$x/$x.rslc.gacosed ]; then
-       extragacos='.gacosed'
-     fi
-   else
-     echo "ERROR - no GACOS correction for "$master". Cancelling GACOS correction"
-     gacos=0
-   fi  
-   if [ -z $extragacos ]; then
-     echo "WARNING - GACOS corrections do not exist for "$master'_'$x". Not using the correction."
-   fi
+    # now create the gacos aps ---- empirically checked... the sign is 100% correct now
+    python3 -c "
+m='$gacosrdir/$master.le.raw'
+s='$gacosrdir/$x.le.raw'
+width=$width
+length=$length
+import numpy as np
+m=np.fromfile(m, dtype=np.float32)
+s=np.fromfile(s, dtype=np.float32)
+delay=m-s
+delay=delay - np.mean(delay)
+delay.byteswap().tofile('stampsifgtemp/$pair.aps')
+    "
+    create_diff_par RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par stampsifgtemp/$x'_diffpar' 1 0 >/dev/null
+    # create_diff_par RSLC/${mdate}/${mdate}.rslc.mli.par RSLC/${sdate}/${sdate}.rslc.mli.par IFG/${mdate}_${sdate}/${mdate}_${sdate}.diff_par 1 0
+    mv $ifg $ifg.orig
+    sub_phase $ifg.orig stampsifgtemp/$pair.aps stampsifgtemp/$x'_diffpar' $ifg 1 0 0  >/dev/null
+     # geocode_back stampsifgtemp/20241003_20241015.diff $width $input_lookuptable GEOC/$pair/$pair.geo.diff $width_dem $length_dem - -
+     # data2geotiff $dem_par_file GEOC/$pair/$pair.geo.diff 2 GEOC/$pair/$pair.geo.diff.tif 0.0
  fi
- SLC_intf2 RSLC/$master/$master.rslc$extragacos RSLC/$x/$x.rslc$extragacos RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par - - - - $ifg stampsifgtemp/$pair.cc 1 1 - - - - $pair.simorb >/dev/null
  #cc_wave $ifg
  base_init RSLC/$master/$master.rslc.par RSLC/$x/$x.rslc.par $pair.off $ifg INSAR_$master/diff0/$pair.base 0 >/dev/null
  if [ `ls -al INSAR_$master/diff0/$pair.base | gawk {'print $5'}` -eq 0 ]; then
