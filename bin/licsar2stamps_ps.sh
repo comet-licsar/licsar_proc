@@ -250,6 +250,7 @@ disxr=disxr.interpolate_na('dim_0','linear')
 disxr=disxr.interpolate_na('dim_1','linear')
 disxr=disxr.interpolate_na('dim_0','nearest')
 disxr=disxr.interpolate_na('dim_1','nearest')
+disxr=disxr.fillna(float(disxr.median()))
 
 del dis
 disxr.values.tofile(disfile)
@@ -274,6 +275,7 @@ EOF
    # subtract the phase from RSLC using:
    create_diff_par RSLC/$ep/$ep.rslc.par - RSLC/$ep/$ep'_diffpar' 1 0 >/dev/null
    sub_phase RSLC/$ep/$ep.rslc $gacosrdir/$ep.BE.raw RSLC/$ep/$ep'_diffpar' RSLC/$ep/$ep.rslc.gacosed 2 0 0 >/dev/null
+   # but this seems not doing best job (at all!) tried le or diffpar for ifg. not working.
  done
 fi
 ###
