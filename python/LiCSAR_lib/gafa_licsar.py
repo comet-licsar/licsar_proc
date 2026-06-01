@@ -257,6 +257,7 @@ def merge_ncs(nclist, outfile = 'output.slc'):
     print('Creating '+outfile+' in FCOMPLEX and dimensions of')
     print('samples: '+str(dimrg))
     print('lines: '+str(int(dimaz*len(nclist))))
+    print('(this means '+str(dimrg)+' samples x '+str(dimaz)+' lines per burst)')
     for nc in nclist:
         print(nc)
         a=xr.open_dataset(nc)
