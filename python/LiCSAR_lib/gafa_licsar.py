@@ -237,14 +237,32 @@ def merge_full(ncpath = os.getcwd()):
     os.chdir(curpth)
 
 
+def _fix_shape(cpx, dimaz, dimrg):
+    a,r = cpx.shape
+    if (a==dimaz) and (r==dimrg):
+        return cpx
+    return np.pad(cpx, ((0, dimaz-a), (0, dimrg-r)),
+                    mode='constant', constant_values = 0)
+
+
 def merge_ncs(nclist, outfile = 'output.slc'):
     if os.path.exists(outfile):
         os.system('rm '+outfile)
+    dimaz, dimrg = 0, 0
+    for nc in nclist:
+        a=xr.open_dataset(nc)
+        dimaznc, dimrgnc = a.raster.shape
+        dimaz = max(dimaz,dimaznc)
+        dimrg = max(dimrg,dimrgnc)
+    print('Creating '+outfile+' in FCOMPLEX and dimensions of')
+    print('samples: '+str(dimrg))
+    print('lines: '+str(int(dimaz*len(nclist))))
     for nc in nclist:
         print(nc)
         a=xr.open_dataset(nc)
         arr=a.raster.values
         cpx = (arr['r'] + 1j * arr['i']).astype(np.complex64)
+        cpx = _fix_shape(cpx, dimaz, dimrg)
         cpx = cpx.byteswap()
         with open(outfile, 'ab') as f:
             cpx.tofile(f)
