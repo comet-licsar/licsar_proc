@@ -384,25 +384,25 @@ mt_prep_gamma $master \`pwd\` 0.4 $RP $AP 100 50
 # matlab -nodesktop -nosplash -r "addpath('/nfs/a1/software/StaMPS_v4.1b_ML/matlab'); addpath('/nfs/a1/software/StaMPS_bjmarfito/matlab'); \
 # setparm('ref_radius',300);setparm('ref_centre_lonlat',[18.55752423, 49.84894293]); \
 
+# TODO: should add setparm('scn_deramp_ifg',[all ifgs]); somehow..
+
 matlab -nodesktop -nosplash -r "addpath('/nfs/a1/software/StaMPS_v4.1b_ML/matlab'); \
-getparm; setparm('max_topo_err',50); setparm('gamma_change_convergence',0.01); setparm('gamma_max_iterations',3); \
+getparm; setparm('max_topo_err',20); setparm('gamma_change_convergence',0.01); setparm('gamma_max_iterations',3); \
 setparm('weed_time_win',365); setparm('weed_standard_dev',1.3); \
-setparm('clap_win',32); setparm('small_baseline_flag','n'); \
+setparm('clap_win',32); \
 setparm('merge_resample_size',0); setparm('small_baseline_flag','n');  \
-setparm('unwrap_time',365); setparm('unwrap_gold_alpha',0.8); setparm('unwrap_gold_n_win',16); setparm('unwrap_grid',200); \
-stamps(1,6); setparm('unwrap_spatial_cost_func_flag','n'); setparm('subtr_tropo','n'); stamps(7,7); \
+setparm('unwrap_time',365); setparm('unwrap_gold_alpha',0.8); setparm('unwrap_gold_n_win',16); setparm('unwrap_grid',400); \
+stamps(1,6); setparm('unwrap_spatial_cost_func_flag','n'); setparm('subtr_tropo','n'); setparm('scla_deramp','y'); stamps(7,7); \
 ps_calc_ifg_std;a=load('ifgstd2.mat');setparm('scla_drop_i',find(a.ifg_std>50)'); \
 stamps(6,6); setparm('unwrap_spatial_cost_func_flag','y'); stamps(7,7); \
 setparm('unwrap_spatial_cost_func_flag','n'); stamps(6,7); \
 a=load('ifgstd2.mat');setparm('scla_drop_i',find(a.ifg_std>55)'); setparm('unwrap_hold_good_values','y'); \
 for u=1:2, u, stamps(6,7); end; \
-stamps(6,6); ps_plot('V-do',-1); \
-it4s1_stamps2csv; exit"
-it4s1_convert2okcsv.sh exported_Vdo.csv
-matlab -nodesktop -nosplash -r "addpath('/nfs/a1/software/StaMPS_v4.1b_ML/matlab'); \
-ps_plot('V-dmos',-1); it4s1_stamps2csv; exit"
-it4s1_convert2okcsv.sh exported_Vdmos.csv
-if [ \`diff exported_Vdo.csv exported_Vdmos.csv | wc -l\` -lt 1 ]; then rm exported_Vdmos.csv; fi
+stamps(6,6); ps_plot('v-do',-1); \
+it4s1_stamps2csv; \
+setparm('scn_time_win',180); setparm('scn_wavelength',500); \
+stamps(8,8); ps_plot('v-ds',-1); \
+exit"
 EOF
 
 chmod 755 INSAR_$master/stamps_proc.sh
