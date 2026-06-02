@@ -175,6 +175,7 @@ for fr in freq_A freq_B; do
  template=`ls *.$fr'_pha.wgs84.tif' | head -n 1`
  gdalwarp2match.py $hgtfile $template $lbdir/GEOC/foo.geo.hgt.tif
  # now the commands:
+ cd $lbdir
  LiCSBAS02to05_unwrap.py -i $lbdir -M 1 --freq $freq --n_para 1
  LiCSBAS11_check_unw.py  -d GEOCml1 -u 0.2 -c 0.05 -s
  LiCSBAS12_loop_closure.py  -d GEOCml1 -l 10 --multi_prime --nullify --n_para 1
@@ -183,7 +184,9 @@ for fr in freq_A freq_B; do
  LiCSBAS15_mask_ts.py  -t TS_GEOCml1 -u 0.5 -T 1 -s 10 -i 1000 -L 0.5 --avg_phase_bias 0.4 -r 12 --n_gap_use_merged
  LiCSBAS16_filt_ts.py   -t TS_GEOCml1 --n_para 1 --interpolate_nans
  # this all works ok ...
+ cd -
 done
+mkdir /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB; cp -r LB_NISAR.A.75.HH.freq_A/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA/.; cp -r LB_NISAR.A.75.HH.freq_B/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB/.
 '''
 
 def get_network(tmpsel, ntype='triplet'):
