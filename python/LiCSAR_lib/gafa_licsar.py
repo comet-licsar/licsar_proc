@@ -237,11 +237,11 @@ def merge_full(ncpath = os.getcwd()):
     os.chdir(curpth)
 
 
-def _fix_shape(cpx, dimaz, dimrg):
+def _fix_shape_rg(cpx, dimrg):
     a,r = cpx.shape
-    if (a==dimaz) and (r==dimrg):
+    if r==dimrg:
         return cpx
-    return np.pad(cpx, ((0, dimaz-a), (0, dimrg-r)),
+    return np.pad(cpx, ((0, 0), (0, dimrg-r)),
                     mode='constant', constant_values = 0)
 
 
@@ -252,18 +252,38 @@ def merge_ncs(nclist, outfile = 'output.slc'):
     for nc in nclist:
         a=xr.open_dataset(nc)
         dimaznc, dimrgnc = a.raster.shape
-        dimaz = max(dimaz,dimaznc)
+        #dimaz = max(dimaz,dimaznc)
         dimrg = max(dimrg,dimrgnc)
     print('Creating '+outfile+' in FCOMPLEX and dimensions of')
     print('samples: '+str(dimrg))
-    print('lines: '+str(int(dimaz*len(nclist))))
-    print('(this means '+str(dimrg)+' samples x '+str(dimaz)+' lines per burst)')
+    # print('lines: '+str(int(dimaz*len(nclist))))
+    # print('(this means '+str(dimrg)+' samples x '+str(dimaz)+' lines per burst)')
     for nc in nclist:
         print(nc)
         a=xr.open_dataset(nc)
         arr=a.raster.values
         cpx = (arr['r'] + 1j * arr['i']).astype(np.complex64)
-        cpx = _fix_shape(cpx, dimaz, dimrg)
+        # cpx = _fix_shape(cpx, dimaz, dimrg)
+        cpx = _fix_shape_rg(cpx, dimrg)
         cpx = cpx.byteswap()
         with open(outfile, 'ab') as f:
             cpx.tofile(f)
+
+
+'''
+# 1. merge the files (this will pad only in range)
+cd 20250324; python3 -c "from gafa_licsar import *; merge_full()"
+cd ../20250405; python3 -c "from gafa_licsar import *; merge_full()"
+# 2. move the slcs and par files to some new directory
+# 3. coregister them
+createSLCtab 20250324 slc > 20250324.tab
+createSLCtab 20250405 slc > 20250405.tab
+createSLCtab 20250405 rslc > 20250405R.tab
+# the previous commands i tried:
+# SLC_mosaic_ScanSAR 20250324.tab 20250324.slc 20250324.slc.par 20 4 - - # to use existing burst windows
+# SLC_mosaic_ScanSAR 20250324.tab 20250324.gamma.slc 20250324.gamma.slc.par 20 4 1 - # to have gamma recalc burst windows
+# multi_look 20250324.slc 20250324.slc.par 20250324.mli 20250324.mli.par 20 4
+# but the idea is to coregister per swath... and then use existing routines to create bovl. so:
+ScanSAR_coreg.py 20250324.tab 20250324 20250405.tab 20250405 20250405R_tab - 20 4 --r_only --no_cleaning # the following params might be useful to check/test: --no_check or --burst_check
+# 4. check the interferograms in the temp folder, or create the bovls
+'''
