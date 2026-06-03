@@ -156,6 +156,29 @@ def fullchain(lon1, lat1, lon2, lat2,
     return nsrs
 
 '''
+# need to merge them first:
+lbdir=`pwd`/LB; mkdir -p $lbdir
+for polar in HH VV; do
+for ad in A D; do
+  for trk in `ls NISAR.$ad.*.$polar -d | cut -d '.' -f 3 | uniq`; do
+    outdir=$lbdir/NISAR.$ad.$trk.$polar
+    if [ `ls NISAR.$ad.$trk.*.$polar -d | wc -l` -gt 1 ]; then
+      echo "merging"
+      for tif in `ls NISAR.$ad.$trk.*.$polar | grep .wgs84.tif | sort -u`; do
+         if [ `ls NISAR.$ad.$trk.*.$polar/$tif | wc -l` -lt 2 ]; then
+           echo "warning, copying the only one "$tif
+           cp NISAR.$ad.$trk.*.$polar/$tif $outdir/.
+         else
+           gdal_merge.py -o $outdir/$tif -of GTiff NISAR.$ad.$trk.*.$polar/$tif
+         fi
+      done
+    else
+      mv NISAR.$ad.$trk.*.$polar $outdir
+    fi
+  done
+done
+done
+
 # this below is a simple script for doing LB
 freqA=1270000000
 freqB=1221500000
@@ -362,7 +385,7 @@ def print_metadata(metadata):
     from pprint import pprint
     pprint(metadata, width=100, compact=True)
 
-def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
+def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto", clipping_box = None):
     """
     Lazily load OPERA/GSLC FrequencyA HH grid as xarray.Dataset with:
     - complex data
@@ -403,6 +426,12 @@ def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto"):
     )
     # try adding some more metadata here?
     #f.close()
+    if type(clipping_bbox) != type(None):
+        utmcode = ds.attrs.get("crs")
+        clipping_bbox_utm = wgs2utm(clipping_bbox, utmcode)
+        x1, y1, x2, y2 = clipping_bbox_utm.bounds
+        ds = ds.sel(x=slice(x1,x2),
+                      y=slice(y2,y1))
     return ds
 
 
