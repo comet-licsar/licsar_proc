@@ -156,12 +156,17 @@ def fullchain(lon1, lat1, lon2, lat2,
     return nsrs
 
 '''
+# this is to run LiCSBAS
+cd /work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR
+subsetsdir=`pwd`
+for vid in [1-9]*; do
+cd $vid
 # need to merge them first:
 lbdir=`pwd`/LB; mkdir -p $lbdir
 for polar in HH VV; do
 for ad in A D; do
   for trk in `ls NISAR.$ad.*.$polar -d | cut -d '.' -f 3 | uniq`; do
-    outdir=$lbdir/NISAR.$ad.$trk.$polar
+    outdir=$lbdir/NISAR.$ad.$trk.$polar; mkdir -p $outdir
     if [ `ls NISAR.$ad.$trk.*.$polar -d | wc -l` -gt 1 ]; then
       echo "merging"
       for tif in `ls NISAR.$ad.$trk.*.$polar | grep .wgs84.tif | sort -u`; do
@@ -173,18 +178,21 @@ for ad in A D; do
          fi
       done
     else
-      mv NISAR.$ad.$trk.*.$polar $outdir
+      mv NISAR.$ad.$trk.*.$polar/* $outdir/.
     fi
   done
 done
 done
 
 # this below is a simple script for doing LB
+cd $lbdir
 freqA=1270000000
 freqB=1221500000
 
-workdir=`pwd` # e.g. NISAR.A.34.19.HH
-hgtfile=../hgt.tif
+for workdir in NISAR*; do
+# workdir=`pwd` # e.g. NISAR.A.34.19.HH
+cd $workdir
+hgtfile=$subsetsdir/$vid/hgt.tif
 for fr in freq_A freq_B; do
  if [ $fr == 'freq_A' ]; then freq=$freqA; else freq=$freqB; fi
  lbdir=`pwd`/LB_`basename $workdir`.$fr
@@ -209,7 +217,16 @@ for fr in freq_A freq_B; do
  # this all works ok ...
  cd -
 done
-mkdir /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB; cp -r LB_NISAR.A.75.HH.freq_A/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA/.; cp -r LB_NISAR.A.75.HH.freq_B/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB/.
+cd $subsetsdir/$vid
+done
+
+cd $subsetsdir;
+done
+
+# copy to Pedros folder, e.g.:
+mkdir /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB; 
+cp -r LB_NISAR.A.75.HH.freq_A/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA/.
+cp -r LB_NISAR.A.75.HH.freq_B/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB/.
 '''
 
 def get_network(tmpsel, ntype='triplet'):
