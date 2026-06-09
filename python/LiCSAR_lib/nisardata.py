@@ -224,9 +224,44 @@ cd $subsetsdir;
 done
 
 # copy to Pedros folder, e.g.:
-mkdir /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB; 
-cp -r LB_NISAR.A.75.HH.freq_A/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA/.
-cp -r LB_NISAR.A.75.HH.freq_B/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB/.
+# mkdir /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB; 
+# cp -r LB_NISAR.A.75.HH.freq_A/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA/.
+# cp -r LB_NISAR.A.75.HH.freq_B/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB/.
+
+cd $subsetsdir
+for x in `ls -d */LB | cut -d '/' -f 1`; do
+  v=`grep ^$x /gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map/volcanoes_nisar.csv | cut -d ',' -f 2 | cut -d ' ' -f 1 | cut -d '-' -f 1 | cut -d '.' -f 1`; 
+  if [ ! -d /work/scratch-pw4/licsar/alejobea/batchdir/$v ]; then
+    vv=`ls  /work/scratch-pw4/licsar/alejobea/batchdir/$v* -d | rev | cut -d '/' -f 1 | rev`
+    if [ -z $vv ]; then
+      vv=`ls  /work/scratch-pw4/licsar/alejobea/batchdir/*$v* -d | rev | cut -d '/' -f 1 | rev`
+    fi
+    if [ ! -z $vv ]; then
+      v=$vv
+    fi
+  fi
+  if [ -d /work/scratch-pw4/licsar/alejobea/batchdir/$v ]; then
+    for xx in `ls $x/LB/LB* -d`; do
+      if [ -f $xx/TS_GEOCml1/cum_filt.h5 ]; then
+         echo $xx
+         lbdir=`basename $xx`
+         ad=`echo $lbdir | cut -d '.' -f 2`
+         tr=`echo $lbdir | cut -d '.' -f 3`
+         polar=`echo $lbdir | cut -d '.' -f 4`
+         freq=`echo $lbdir | cut -d '.' -f 5 | cut -d '_' -f 2`
+         if [ $tr -lt 100 ]; then tr=0$tr; fi
+         outdir=/work/scratch-pw4/licsar/alejobea/batchdir/$v/NISAR.$tr$ad.f$freq
+         echo $outdir
+         if [ ! -d $outdir ]; then
+           mkdir $outdir
+           cp -r $xx/TS_GEOCml1 $outdir/.
+         fi
+      fi 
+    done
+  else
+    echo "not found: "$x" i.e. "$v
+  fi
+done
 '''
 
 def get_network(tmpsel, ntype='triplet'):
