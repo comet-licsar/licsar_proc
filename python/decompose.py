@@ -5,6 +5,9 @@ import subprocess as subp
 import numpy as np
 from scipy import interpolate
 from lics_unwrap import *
+
+from python.LiCSAR_lib.unwrp_multiscale_debug import load_tif2xr
+
 try:
     import dask.array as da
 except:
@@ -469,6 +472,64 @@ decomposedxr['vU'] = vUxr
 decomposedxr['vE'] = vExr
 decomposedxr.to_netcdf('decomposed_s1.nc')
 '''
+
+def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = None, do_ENU = False, do_velUN = False):
+    """ Decompose set of geotiffs
+
+    inputs are list of respective geotiffs.
+    vstdtifs and leftlooking can be None to skip
+    if used, leftlooking must be list, e.g. [False, False, True] meaning the third set is NISAR.
+    """
+    input_data = [] #(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
+    firstrun = True
+    for i in range(len(veltifs)):
+        vel = load_tif2xr(veltifs[i])
+        if firstrun:
+            template = vel.copy()
+        else:
+            vel = vel.interp_like(template, method='nearest')
+            firstrun = False
+        if leftlooking:
+            left = leftlooking[i]
+        else:
+            left = False
+        inc, head = extract_inc_heading(Etifs[i], Utifs[i], left_looking=left)
+        inc = inc.interp_like(template, method='nearest')
+        head = head.interp_like(template, method='nearest')
+        if vstdtifs:
+            vstd = load_tif2xr(vstdtifs[i])
+            vstd = vstd.interp_like(template, method='nearest')
+            input_data.append((vel, head, inc, vstd))
+        else:
+            input_data.append((vel, head, inc))
+    #
+    velouts = decompose_np_multi(input_data, do_velUN=do_velUN, do_ENU = do_ENU)
+    if do_ENU:
+        vel_U, vel_E, vel_N, vel_Ustd, vel_Estd, vel_Nstd = velouts
+    else:
+        vel_U, vel_E, vel_Ustd, vel_Estd = velouts
+    # get it back as netcdf:
+    dec = xr.Dataset()
+    U = template.copy()
+    E = template.copy()
+    if vstdtifs:
+        Ustd = template.copy()
+        Estd = template.copy()
+    if do_ENU:
+        N = template.copy()
+        if vstdtifs:
+            Nstd = template.copy()
+    #
+    dec['U'] = vel_U
+    dec['E'] = vel_E
+    if vstdtifs:
+        dec['Ustd'] = vel_Ustd
+        dec['Estd'] = vel_Estd
+    if do_ENU:
+        dec['N'] = vel_N
+        if vstdtifs:
+            dec['Nstd'] = vel_Nstd
+    return dec
 
 
 def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False):
