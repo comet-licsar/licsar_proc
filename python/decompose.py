@@ -337,6 +337,8 @@ def extract_inc_heading(efile, ufile, left_looking=False):
     #n = load_tif2xr(n, cliparea_geo=cliparea)
     u = load_tif2xr(ufile)
     u = u.where(u != 0)
+    if np.isnan(u.mean()):
+        u = e*0
     #
     theta=np.arcsin(u)
     phi=np.arccos(e/np.cos(theta))
