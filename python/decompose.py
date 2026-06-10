@@ -484,9 +484,9 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = Non
         vel = load_tif2xr(veltifs[i])
         if firstrun:
             template = vel.copy()
+            firstrun = False
         else:
             vel = vel.interp_like(template, method='nearest')
-            firstrun = False
         if leftlooking:
             left = leftlooking[i]
         else:
@@ -497,9 +497,9 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = Non
         if vstdtifs:
             vstd = load_tif2xr(vstdtifs[i])
             vstd = vstd.interp_like(template, method='nearest')
-            input_data.append((vel, head, inc, vstd))
+            input_data.append((vel.values, head.values, inc.values, vstd.values))
         else:
-            input_data.append((vel, head, inc))
+            input_data.append((vel.values, head.values, inc.values))
     #
     velouts = decompose_np_multi(input_data, do_velUN=do_velUN, do_ENU = do_ENU)
     if do_ENU:
@@ -508,25 +508,25 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = Non
         vel_U, vel_E, vel_Ustd, vel_Estd = velouts
     # get it back as netcdf:
     dec = xr.Dataset()
-    U = template.copy()
-    E = template.copy()
+    dec['U'] = template.copy()
+    dec['E'] = template.copy()
     if vstdtifs:
-        Ustd = template.copy()
-        Estd = template.copy()
+        dec['Ustd'] = template.copy()
+        dec['Estd'] = template.copy()
     if do_ENU:
-        N = template.copy()
+        dec['N'] = template.copy()
         if vstdtifs:
-            Nstd = template.copy()
+            dec['Nstd'] = template.copy()
     #
-    dec['U'] = vel_U
-    dec['E'] = vel_E
+    dec['U'].values = vel_U
+    dec['E'].values = vel_E
     if vstdtifs:
-        dec['Ustd'] = vel_Ustd
-        dec['Estd'] = vel_Estd
+        dec['Ustd'].values = vel_Ustd
+        dec['Estd'].values = vel_Estd
     if do_ENU:
-        dec['N'] = vel_N
+        dec['N'].values = vel_N
         if vstdtifs:
-            dec['Nstd'] = vel_Nstd
+            dec['Nstd'].values = vel_Nstd
     return dec
 
 
