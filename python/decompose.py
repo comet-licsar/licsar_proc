@@ -6,8 +6,6 @@ import numpy as np
 from scipy import interpolate
 from lics_unwrap import *
 
-from python.LiCSAR_lib.unwrp_multiscale_debug import load_tif2xr
-
 try:
     import dask.array as da
 except:
