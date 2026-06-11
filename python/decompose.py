@@ -331,14 +331,21 @@ def get_frame_inc_heading(frame):
     return extract_inc_heading(e, u)
 
 
-def extract_inc_heading(efile, ufile, left_looking=False):
+def extract_inc_heading(efile, ufile, left_looking=False, aziflag = False):
+    '''
+    aziflag must be either 'D' or 'A' if to be used...
+    '''
     e = load_tif2xr(efile)
     e = e.where(e != 0)
     #n = load_tif2xr(n, cliparea_geo=cliparea)
     u = load_tif2xr(ufile)
     u = u.where(u != 0)
     if np.isnan(u.mean()):
-        u = e*0
+        if not aziflag:
+            print('ERROR: U is zeros - if this is in azi, provide aziflag')
+            return False
+    else:
+        aziflag = False  # not azi..
     #
     theta=np.arcsin(u)
     phi=np.arccos(e/np.cos(theta))
@@ -347,6 +354,13 @@ def extract_inc_heading(efile, ufile, left_looking=False):
         heading = heading - 180
     else:
         heading = heading * (-1)
+    if aziflag == 'D':
+        heading = heading - 90
+    elif aziflag == 'A':
+        heading = (-1) * (heading + 90)
+    else:
+        print('ERROR: wrong aziflag')
+        return False
     inc = 90-np.rad2deg(theta)   #correct
     #inc.values.tofile(outinc)
     return inc, heading
@@ -473,12 +487,14 @@ decomposedxr['vE'] = vExr
 decomposedxr.to_netcdf('decomposed_s1.nc')
 '''
 
-def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = None, do_ENU = False, do_velUN = False):
+def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = None, aziflags = None,
+                       do_ENU = False, do_velUN = False):
     """ Decompose set of geotiffs
 
     inputs are list of respective geotiffs.
     vstdtifs and leftlooking can be None to skip
     if used, leftlooking must be list, e.g. [False, False, True] meaning the third set is NISAR.
+    if bovls are included, you need to provide aziflags such as [None, 'D', 'A', None] meaning second tifs are azimuth (bovls) of descending track
     """
     input_data = [] #(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
     firstrun = True
@@ -493,7 +509,11 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = Non
             left = leftlooking[i]
         else:
             left = False
-        inc, head = extract_inc_heading(Etifs[i], Utifs[i], left_looking=left)
+        if aziflags:
+            azi = aziflags[i]
+        else:
+            azi = None
+        inc, head = extract_inc_heading(Etifs[i], Utifs[i], left_looking=left, aziflag=azi)
         inc = inc.interp_like(template, method='nearest')
         head = head.interp_like(template, method='nearest')
         if vstdtifs:
