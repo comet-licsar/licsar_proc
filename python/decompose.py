@@ -344,6 +344,8 @@ def extract_inc_heading(efile, ufile, left_looking=False, aziflag = False):
         if not aziflag:
             print('ERROR: U is zeros - if this is in azi, provide aziflag')
             return False
+        else:
+            u = e*0
     else:
         aziflag = False  # not azi..
     #
@@ -492,6 +494,7 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = Non
     vstdtifs and leftlooking can be None to skip
     if used, leftlooking must be list, e.g. [False, False, True] meaning the third set is NISAR.
     if bovls are included, you need to provide aziflags such as [None, 'D', 'A', None] meaning second tifs are azimuth (bovls) of descending track
+    (full flags are also accepted, i.e. ['D','D','A','A'] would work ok even if first and last are not azimuth)
     """
     input_data = [] #(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
     firstrun = True
