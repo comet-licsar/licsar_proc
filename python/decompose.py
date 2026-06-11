@@ -358,9 +358,6 @@ def extract_inc_heading(efile, ufile, left_looking=False, aziflag = False):
         heading = heading - 90
     elif aziflag == 'A':
         heading = (-1) * (heading + 90)
-    else:
-        print('ERROR: wrong aziflag')
-        return False
     inc = 90-np.rad2deg(theta)   #correct
     #inc.values.tofile(outinc)
     return inc, heading
