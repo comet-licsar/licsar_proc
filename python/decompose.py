@@ -358,12 +358,12 @@ def extract_inc_heading(efile, ufile, left_looking=False, aziflag = False):
         heading = heading * (-1)
     if aziflag == 'D':
         heading = heading - 90 # -169
-        print('warning - setting azi heading minus 90')
-        heading = heading - 90
+        #print('warning - setting azi heading minus 90')
+        #heading = heading - 90
     elif aziflag == 'A':
         heading = (-1) * (heading + 90)  # -10
-        print('warning - setting azi heading minus 90')
-        heading = heading - 90
+        #print('warning - setting azi heading minus 90')  # that was to allow decomposition... not good idea
+        #heading = heading - 90
     inc = 90-np.rad2deg(theta)   #correct
     #inc.values.tofile(outinc)
     return inc, heading
@@ -490,18 +490,25 @@ decomposedxr['vE'] = vExr
 decomposedxr.to_netcdf('decomposed_s1.nc')
 '''
 
-def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = None, aziflags = None,
+def decompose_geotiffs(veltifs, Etifs, Utifs, Ntifs = None, vstdtifs = None, leftlooking = None, # aziflags = None,
                        do_ENU = False, do_velUN = False):
     """ Decompose set of geotiffs
 
     inputs are list of respective geotiffs.
-    vstdtifs and leftlooking can be None to skip
-    if used, leftlooking must be list, e.g. [False, False, True] meaning the third set is NISAR.
+    vstdtifs and leftlooking can be None to skip.
+    Similarly, N tifs are not required - but they are necessary if bovls are used! In case of not providing Ns, it will use old approach to estimate from heading/inc. angle
+
+    if used, leftlooking must be list, e.g. [False, False, True] meaning the third set is NISAR. Note, leftlooking is used only for method with only E, U to decompose..
+
+    Note: aziflags do not work in this scope, so they are skipped:
     if bovls are included, you need to provide aziflags such as [None, 'D', 'A', None] meaning second tifs are azimuth (bovls) of descending track
     (full flags are also accepted, i.e. ['D','D','A','A'] would work ok even if first and last are not azimuth)
     """
     input_data = [] #(vel1, heading1, inc1), (vel2, heading2, inc2), (vel3, heading3, inc3)]
     firstrun = True
+    use_enu_vectors = False
+    if Ntifs:
+        use_enu_vectors = True
     for i in range(len(veltifs)):
         vel = load_tif2xr(veltifs[i])
         if firstrun:
@@ -513,21 +520,37 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = Non
             left = leftlooking[i]
         else:
             left = False
-        if aziflags:
-            azi = aziflags[i]
+        #if aziflags:
+        #    azi = aziflags[i]
+        #else:
+        #   azi = None
+        if not Ntifs:
+            inc, head = extract_inc_heading(Etifs[i], Utifs[i], left_looking=left) #, aziflag=azi)
+            inc = inc.interp_like(template, method='nearest')
+            head = head.interp_like(template, method='nearest')
+            if vstdtifs:
+                vstd = load_tif2xr(vstdtifs[i])
+                vstd = vstd.interp_like(template, method='nearest')
+                input_data.append((vel.values, head.values, inc.values, vstd.values))
+            else:
+                input_data.append((vel.values, head.values, inc.values))
         else:
-            azi = None
-        inc, head = extract_inc_heading(Etifs[i], Utifs[i], left_looking=left, aziflag=azi)
-        inc = inc.interp_like(template, method='nearest')
-        head = head.interp_like(template, method='nearest')
-        if vstdtifs:
-            vstd = load_tif2xr(vstdtifs[i])
-            vstd = vstd.interp_like(template, method='nearest')
-            input_data.append((vel.values, head.values, inc.values, vstd.values))
-        else:
-            input_data.append((vel.values, head.values, inc.values))
+            u = load_tif2xr(Utifs[i])
+            e = load_tif2xr(Etifs[i])
+            n = load_tif2xr(Ntifs[i])
+            u = u.interp_like(template, method='nearest')
+            e = e.interp_like(template, method='nearest')
+            n = n.interp_like(template, method='nearest')
+            if np.isnan(u.mean()):
+                u = e * 0  # just in case... althoug probably not needed
+            if vstdtifs:
+                vstd = load_tif2xr(vstdtifs[i])
+                vstd = vstd.interp_like(template, method='nearest')
+                input_data.append((vel.values, e.values, n.values, u.values, vstd.values))
+            else:
+                input_data.append((vel.values, e.values, n.values, u.values))
     #
-    velouts = decompose_np_multi(input_data, do_velUN=do_velUN, do_ENU = do_ENU)
+    velouts = decompose_np_multi(input_data, do_velUN=do_velUN, do_ENU = do_ENU, input_is_enu_vectors = use_enu_vectors)
     if do_ENU:
         vel_U, vel_E, vel_N, vel_Ustd, vel_Estd, vel_Nstd = velouts
     else:
@@ -556,7 +579,7 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, vstdtifs = None, leftlooking = Non
     return dec
 
 
-def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False):
+def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False, input_is_enu_vectors = False):
     """Decompose 2 or more frames
     
     Args:
@@ -565,6 +588,7 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False):
         [(vel1, heading1, inc1, vstd1), (vel2, heading2, inc2, vstd2), ...]
         do_velUN and do_ENU: see decompose_framencs
         do_ENU: returns U, E, N (and Ustd, Estd, Nstd)
+        input_is_enu_vectors (bool):  if True, the input_data is actually expected to be in the form of [(vel1, E1, N1, U1), ...] .. or with vstd, sure
     Returns:
         4x np.ndarray of decomposed outputs U, E, and their 1-sigma Ustd, Estd
     Note: velX is np.array and headingX/incX is in degrees, either a number or np.array
@@ -583,29 +607,47 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False):
         vel_Nstd = np.zeros(template.shape)
         Ns=list()
         do_velUN=False
+    if input_is_enu_vectors and do_velUN:
+        print('ERROR: velUN approach starts from heading and inc data to recalc UN. While simple to rearrange, simpler for you to just... use extract_inc_heading or get_frame_inc_heading')
+        return False
     vels = []
     vstds = []
     for frame in input_data:
         vel = frame[0]
-        heading = frame[1]
-        incangle = frame[2]
-        if len(frame)>3:
-            vstd = frame[3]
+        if input_is_enu_vectors:
+            E = frame[1]
+            N = frame[2]
+            U = frame[3]
+            if len(frame) > 4:
+                vstd = frame[4]
+            else:
+                vstd = vel * 0 + 1
+            Us.append(U)
+            Es.append(E)
+            if do_ENU:
+                Ns.append(N)
+            vels.append(vel)
+            vstds.append(vstd)
         else:
-            vstd = vel*0+1
-        if do_velUN:
-            U = np.sqrt(1 - (np.sin(np.radians(incangle)) ** 2) * (np.cos(np.radians(incangle)) ** 2))
-        else:
-            U = np.cos(np.radians(incangle))
-        #Us = np.append(Us, np.cos(np.radians(incangle)))
-        Us.append(U)
-        #Es = np.append(Es, -np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
-        Es.append(-np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
-        vels.append(vel)
-        vstds.append(vstd)
-        if do_ENU:
-            #
-            Ns.append(np.sin(np.radians(incangle))*np.sin(np.radians(heading+beta)))
+            heading = frame[1]
+            incangle = frame[2]
+            if len(frame)>3:
+                vstd = frame[3]
+            else:
+                vstd = vel*0+1
+            if do_velUN:
+                U = np.sqrt(1 - (np.sin(np.radians(incangle)) ** 2) * (np.cos(np.radians(incangle)) ** 2))
+            else:
+                U = np.cos(np.radians(incangle))
+            #Us = np.append(Us, np.cos(np.radians(incangle)))
+            Us.append(U)
+            #Es = np.append(Es, -np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
+            Es.append(-np.sin(np.radians(incangle))*np.cos(np.radians(heading+beta)))
+            vels.append(vel)
+            vstds.append(vstd)
+            if do_ENU:
+                #
+                Ns.append(np.sin(np.radians(incangle))*np.sin(np.radians(heading+beta)))
     # run for each pixel
     numframes = len(vels)
     Us = np.array(Us)
