@@ -669,6 +669,8 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False, inp
                 #if np.isnan(np.max(d)):
                 vel_U[ii,jj] = np.nan
                 vel_E[ii,jj] = np.nan
+                if do_ENU:
+                    vel_N[ii, jj] = np.nan
             else:
                 # create the design matrix
                 if np.isscalar(Us[0]):  # in case of only values (i.e. one inc and heading per each frame)
