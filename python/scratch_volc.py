@@ -2,6 +2,7 @@ import volcdb as v
 from shapely.geometry import Polygon, box
 import geopandas as gpd
 import lics_vis as lv
+import os
 
 def enlarge_rectangle(polygon, distance, cstr='RLUD'):
     minx, miny, maxx, maxy = polygon.bounds
@@ -47,8 +48,10 @@ def merge_gpds(vidclip_geom, vtomerge_geom):
 vid = 241070
 # vname = 'Taupo'
 # Pedro's clip
-largeclip = False
-new_minx, new_maxx, new_miny, new_maxy = 175.498, 176.315, -39.055, -38.536
+largeclip = True #False
+new_minx, new_maxx, new_miny, new_maxy = 119.9528, 120.5624, 15.3599, 14.954
+#    175.498, 176.315, -39.055, -38.536
+vtomerge = None
 
 #### 1, and 2,
 # get clip poly
@@ -58,21 +61,28 @@ origpoly=v.get_volclips_gpd(vclipid).geom.values[0]
 distorig = (origpoly.bounds[2] - origpoly.bounds[0])*111.111
 bufferdistance = (50 - distorig)/2/111.111
 newpoly=enlarge_rectangle(origpoly, bufferdistance)
+#newpoly = enlarge_rectangle(newpoly, -4 / 111.111, cstr='D')
+#newpoly = enlarge_rectangle(newpoly, 4 / 111.111, cstr='L')
 gg=gpd.GeoDataFrame({'geom': [newpoly]})
 gg=gg.set_geometry('geom') #.values
 # transform Pedro's clip
 if largeclip:
     largepoly = Polygon([(new_minx, new_miny), (new_minx, new_maxy), (new_maxx, new_maxy), (new_maxx, new_miny)])
+    #largepoly = enlarge_rectangle(largepoly, -20 / 111.111, cstr='LR')
+    largepoly = enlarge_rectangle(largepoly, -7 / 111.111, cstr='L')
+    #largepoly = enlarge_rectangle(largepoly, -8 / 111.111, cstr='UD')
     largepoly = gpd.GeoDataFrame({'geom': [largepoly]}) #, crs=largerpr.crs)
     largepoly=largepoly.set_geometry('geom')
 
 # or if merging:
-newpoly = merge_volclips_of_volcanoes(vid, vtomerge)
-#gg = enlarge_rectangle(newpoly.geom.values[0], 8/111.111, cstr='D') # UDLR
-gg = enlarge_rectangle(newpoly.geom.values[0], 5/111.111, cstr='DR')
-gg = enlarge_rectangle(gg, 2/111.111, cstr='U')
-gg=gpd.GeoDataFrame({'geom': [gg]})
-gg=gg.set_geometry('geom') #.values
+if vtomerge:
+    newpoly = merge_volclips_of_volcanoes(vid, vtomerge)
+    #gg = enlarge_rectangle(newpoly.geom.values[0], 8/111.111, cstr='D') # UDLR
+    gg = enlarge_rectangle(newpoly.geom.values[0], 5/111.111, cstr='DR')
+    gg = enlarge_rectangle(gg, 2/111.111, cstr='U')
+    gg=gpd.GeoDataFrame({'geom': [gg]})
+    gg=gg.set_geometry('geom') #.values
+
 # plot the overview
 fig=lv.volcano_clip_plot_with_frames(vid)
 fig.plot(gg.geom, pen='0.5p,orange')
@@ -122,7 +132,8 @@ for secvolc in volcidstoreplace:
         oldvclip = v.get_volclip_vids(secvolc)[0]
         oldpath = os.path.join(os.environ['LiCSAR_volc'], str(oldvclip))
         if os.path.exists(oldpath):
-            cmd = 'rm -rf '+oldpath
+            #cmd = 'rm -rf '+oldpath
+            cmd = "mv $LiCSAR_volc/{0} $LiCSAR_volc/../volc_subsets.backup/{1}".format(str(oldvclip), str(secvolc))
             if oldvclip > 2700:
                 print('Not doing :'+str(cmd))
             else:
@@ -139,11 +150,14 @@ if cmds:
 
 for secvolc in volcidstoreplace:
     if not secvolc == primvolc:
-        oldvclip = v.get_volclip_vids(secvolc)[0]
-        if oldvclip > 2700:
-            print('Not removing old vclip for volcano '+str(secvolc))
-        else:
-            v.delete_volclip(oldvclip)
+        try:
+            oldvclip = v.get_volclip_vids(secvolc)[0]
+            if oldvclip > 2700:
+                print('Not removing old vclip for volcano '+str(secvolc))
+            else:
+                v.delete_volclip(oldvclip)
+        except:
+            print('no old clip for volcano id '+str(secvolc))
         v.add_volcano_to_volclip(secvolc, newclip)
 
 
@@ -154,3 +168,14 @@ print('import volcdb as v')
 for chfr in checkfrs:
     print('v.initialise_subset_volclip(vid = '+str(newclip)+', frame = "'+chfr+'")')
     # v.initialise_subset_volclip(vid=newclip, frame=chfr)
+
+
+
+
+v.initialise_subset_volclip(vid = 2830, frame = "060A_00001_030604")
+v.initialise_subset_volclip(vid = 2830, frame = "169D_00001_020800")
+
+v.initialise_subset_volclip(vid = 2833, frame = "013D_04281_131313")
+v.initialise_subset_volclip(vid = 2833, frame = "064A_04218_131313")
+v.initialise_subset_volclip(vid = 2833, frame = "115D_04405_121313")
+v.initialise_subset_volclip(vid = 2833, frame = "137A_04234_141413")
