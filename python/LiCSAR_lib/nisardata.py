@@ -250,7 +250,7 @@ for x in `ls -d */LB | cut -d '/' -f 1`; do
          polar=`echo $lbdir | cut -d '.' -f 4`
          freq=`echo $lbdir | cut -d '.' -f 5 | cut -d '_' -f 2`
          if [ $tr -lt 100 ]; then tr=0$tr; fi
-         outdir=/work/scratch-pw4/licsar/alejobea/batchdir/$v/NISAR.$tr$ad.f$freq
+         outdir=/work/scratch-pw4/licsar/alejobea/batchdir/$v/NISAR_$tr$ad'_'f$freq
          echo $outdir
          if [ ! -d $outdir ]; then
            mkdir $outdir
