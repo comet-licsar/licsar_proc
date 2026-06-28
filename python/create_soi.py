@@ -304,6 +304,7 @@ if os.path.exists(mli1_mod1_name + '.par'):
     mli_mosaic_nr = mli_mosaic_par.get_value('range_samples', dtype=int, index=0)
 else:
     print(f"{mli1_mod1_name + '.par'} does not exist.")
+    exit()
 
 # calculation of differential interferograms
 # checking off_par exits!
