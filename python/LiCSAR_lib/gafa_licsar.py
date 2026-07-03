@@ -270,6 +270,103 @@ def merge_ncs(nclist, outfile = 'output.slc'):
             cpx.tofile(f)
 
 
+from pathlib import Path
+import struct
+import numpy as np
+
+
+def load_gdr(fname):
+    """ by Copilot
+    Load a GDR raster and return. ifgs work ok, sigma is todo (not yet)
+
+        array, metadata
+
+    Supports complex64 and float32 rasters.
+
+    e.g.
+ifg, meta = load_gdr(
+    "ifgm_2025-03-27_2025-04-02_143-0095-IW1-VV.gdr"
+)
+# MAG:
+plt.imshow(np.log1p(np.abs(ifg)), cmap="gray")
+plt.show()
+# PHA:
+plt.imshow(np.angle(ifg), cmap="hsv")
+plt.colorbar()
+plt.show()
+
+    """
+    fname = Path(fname)
+    with open(fname, "rb") as f:
+        # ---- file header ----
+        magic = f.read(4)
+        if magic[1:] != b"GDR":
+            raise ValueError("Not a GDR file")
+        version = struct.unpack("<I", f.read(4))[0]
+        schema_len = struct.unpack("<Q", f.read(8))[0]
+        # ---- schema text ----
+        schema = f.read(schema_len).decode(
+            "latin1",
+            errors="ignore"
+        )
+        # infer raster dtype
+        if "dtype:complex64" in schema:
+            dtype = np.complex64
+        elif "dtype:float32" in schema:
+            dtype = np.float32
+        elif "dtype:float64" in schema:
+            dtype = np.float64
+        else:
+            raise ValueError("Unsupported raster dtype")
+        # ---- beginning of metadata values ----
+        meta_start = 16 + schema_len
+        f.seek(meta_start)
+        meta = f.read(512)
+    # ------------------------------------------------------------------
+    # Heuristic extraction of image shape
+    #
+    # We observed that the first grid.shape values appear early
+    # within the metadata as two int64 values.
+    # ------------------------------------------------------------------
+
+    shape = None
+    ints = np.frombuffer(meta, dtype="<i8")
+    for i in range(len(ints) - 1):
+        a = ints[i]
+        b = ints[i + 1]
+        if (
+            1 < a < 100000
+            and 1 < b < 100000
+        ):
+            pixels = a * b
+            filesize = fname.stat().st_size
+            data_bytes = pixels * np.dtype(dtype).itemsize
+            if filesize > data_bytes:
+                diff = filesize - data_bytes
+                # metadata size should be plausible
+                if 1000 < diff < 1000000:
+                    shape = (int(a), int(b))
+                    break
+    if shape is None:
+        raise RuntimeError("Could not determine raster shape")
+    # ---- locate raster from end of file ----
+    filesize = fname.stat().st_size
+    nbytes = np.prod(shape) * np.dtype(dtype).itemsize
+    data_offset = filesize - nbytes
+    arr = np.fromfile(
+        fname,
+        dtype=dtype,
+        offset=data_offset
+    ).reshape(shape)
+    metadata = {
+        "version": version,
+        "shape": shape,
+        "dtype": dtype,
+        "schema": schema,
+        "data_offset": data_offset,
+    }
+    return arr, metadata
+
 '''
 # 1. merge the files (this will pad only in range)
 cd 20250324; python3 -c "from gafa_licsar import *; merge_full()"
