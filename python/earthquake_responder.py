@@ -569,9 +569,9 @@ def get_earliest_expected_dt(frame, eventtime, metafile = None, revisit_days = 6
     else:
         masterdate = fc.get_master(frame, asdatetime = True)
     if not masterdate:
-        print('error getting masterdate, trying to derive next one just using search in last few months')
+        print('error getting masterdate, trying to derive next one just using search in the last month')
         try:
-            allimages=s1.get_images_for_frame(frame, enddate=(eventtime-dt.timedelta(days=1)).date(), outAspd=True)
+            allimages=s1.get_images_for_frame(frame, startdate=(eventtime-dt.timedelta(days=40)).date(), enddate=(eventtime-dt.timedelta(days=1)).date(), outAspd=True)
             latest = allimages.sort_values('missiondatatakeid').tail(1)
             # fake masterdate from latest ones...
             masterdate = latest['beginposition'].values[0]
