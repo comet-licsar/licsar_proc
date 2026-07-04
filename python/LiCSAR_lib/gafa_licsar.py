@@ -277,7 +277,7 @@ import numpy as np
 
 def load_gdr(fname):
     """ by Copilot
-    Load a GDR raster and return. ifgs work ok, sigma is todo (not yet)
+    Load a GDR raster (ifg or sigma) and return
 
         array, metadata
 
@@ -296,20 +296,33 @@ plt.colorbar()
 plt.show()
 
     """
+
     fname = Path(fname)
+
     with open(fname, "rb") as f:
-        # ---- file header ----
+
+        # --------------------------------------------------
+        # file header
+        # --------------------------------------------------
+
         magic = f.read(4)
         if magic[1:] != b"GDR":
             raise ValueError("Not a GDR file")
+
         version = struct.unpack("<I", f.read(4))[0]
         schema_len = struct.unpack("<Q", f.read(8))[0]
-        # ---- schema text ----
+
         schema = f.read(schema_len).decode(
             "latin1",
             errors="ignore"
         )
-        # infer raster dtype
+
+        meta_start = 16 + schema_len
+
+        # --------------------------------------------------
+        # raster dtype
+        # --------------------------------------------------
+
         if "dtype:complex64" in schema:
             dtype = np.complex64
         elif "dtype:float32" in schema:
@@ -317,55 +330,74 @@ plt.show()
         elif "dtype:float64" in schema:
             dtype = np.float64
         else:
-            raise ValueError("Unsupported raster dtype")
-        # ---- beginning of metadata values ----
-        meta_start = 16 + schema_len
-        f.seek(meta_start)
-        meta = f.read(512)
-    # ------------------------------------------------------------------
-    # Heuristic extraction of image shape
-    #
-    # We observed that the first grid.shape values appear early
-    # within the metadata as two int64 values.
-    # ------------------------------------------------------------------
+            raise ValueError("Unsupported dtype in schema")
 
-    shape = None
-    ints = np.frombuffer(meta, dtype="<i8")
-    for i in range(len(ints) - 1):
-        a = ints[i]
-        b = ints[i + 1]
-        if (
-            1 < a < 100000
-            and 1 < b < 100000
-        ):
-            pixels = a * b
-            filesize = fname.stat().st_size
-            data_bytes = pixels * np.dtype(dtype).itemsize
-            if filesize > data_bytes:
-                diff = filesize - data_bytes
-                # metadata size should be plausible
-                if 1000 < diff < 1000000:
-                    shape = (int(a), int(b))
-                    break
-    if shape is None:
-        raise RuntimeError("Could not determine raster shape")
-    # ---- locate raster from end of file ----
+        # --------------------------------------------------
+        # scan metadata for shape
+        # --------------------------------------------------
+
+        f.seek(meta_start)
+        meta_bytes = f.read(2048)
+
+        shape = None
+
+        for offset in range(len(meta_bytes) - 16):
+
+            try:
+                a = struct.unpack_from("<q", meta_bytes, offset)[0]
+                b = struct.unpack_from("<q", meta_bytes, offset + 8)[0]
+
+                # plausible raster dimensions
+                if (
+                        100 <= a <= 50000
+                        and 100 <= b <= 50000
+                ):
+                    pixels = a * b
+                    data_bytes = pixels * np.dtype(dtype).itemsize
+
+                    filesize = fname.stat().st_size
+
+                    if filesize > data_bytes:
+                        shape = (int(a), int(b))
+                        shape_offset = offset
+                        break
+
+            except Exception:
+                pass
+
+        if shape is None:
+            raise RuntimeError("Could not determine raster shape")
+
+    # ------------------------------------------------------
+    # raster starts at end-of-file
+    # ------------------------------------------------------
+
     filesize = fname.stat().st_size
-    nbytes = np.prod(shape) * np.dtype(dtype).itemsize
-    data_offset = filesize - nbytes
+
+    data_bytes = (
+            shape[0]
+            * shape[1]
+            * np.dtype(dtype).itemsize
+    )
+
+    data_offset = filesize - data_bytes
+
     arr = np.fromfile(
         fname,
         dtype=dtype,
-        offset=data_offset
+        offset=data_offset,
     ).reshape(shape)
-    metadata = {
+
+    meta = {
         "version": version,
+        "dtype": np.dtype(dtype).name,
         "shape": shape,
-        "dtype": dtype,
-        "schema": schema,
+        "shape_offset": shape_offset,
         "data_offset": data_offset,
+        "schema": schema,
     }
-    return arr, metadata
+
+    return arr, meta
 
 '''
 # 1. merge the files (this will pad only in range)
