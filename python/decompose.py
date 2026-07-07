@@ -542,7 +542,7 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, Ntifs = None, vstdtifs = None, lef
             e = e.interp_like(template, method='nearest')
             n = n.interp_like(template, method='nearest')
             if np.isnan(u.mean()):
-                u = e * 0  # just in case... althoug probably not needed
+                u = e * 0  # just in case... although probably not needed
             if vstdtifs:
                 vstd = load_tif2xr(vstdtifs[i])
                 vstd = vstd.interp_like(template, method='nearest')

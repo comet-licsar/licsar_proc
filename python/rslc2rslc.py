@@ -49,9 +49,9 @@ except:
 
 # Read the slave image to be moved into the master geometry
 if (dtype1 == 'SCOMPLEX'):
-  data = LICSARio.read_fast_slc_gamma_scomplex(RSLCslavefile)
+  data = LICSARio.read_fast_slc_gamma_scomplex(rslc)
 elif (dtype1 == 'FCOMPLEX'):
-  data = LICSARio.read_fast_slc_gamma_fcomplex(RSLCslavefile)
+  data = LICSARio.read_fast_slc_gamma_fcomplex(rslc)
 else:
   print(" rslc2rslc.py encountered during reading an unsupported data type: ", dtype1)
   #print "Size Slave of complex file after reading: ", data.shape
