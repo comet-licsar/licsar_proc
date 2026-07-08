@@ -7,10 +7,12 @@ create_preview_coh() {
      extracmd_convert='-resize 30%'
     fi
     outfile=`echo $cohfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
-    gmt grdimage $cohfile -C$LiCSARpath/misc/cc.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
+    # 2026/07: GMT 6.6 changed strategy, causing (compressed) Byte tif files problematic..
+    gmt grdconvert $cohfile $cohfile.nc
+    gmt grdimage $cohfile.nc -C$LiCSARpath/misc/cc.cpt -JM1 -nn+t0.1 -Q -A$outfile.temp.png
     #to flatten it (and fix transparency...sometimes needed..):
     convert $outfile.temp.png -transparent black $extracmd_convert PNG8:$outfile
-    rm $outfile.temp.png
+    rm $outfile.temp.png $cohfile.nc
   else
     echo "Usage: create_preview_coh cohfile [hires?]"
     echo "(can be either geotiff or nc/grd; if hires=1, it will keep hires)"
