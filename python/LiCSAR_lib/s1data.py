@@ -220,6 +220,39 @@ def get_etad_for_filename(filename, download=False, dwnpath = None):
     return etadname
 
 
+def get_from_cdse(footprint, startdate, enddate, sensType = 'IW', prodType = 'SLC'):
+    ''' use cdse only - footprint can be wkt, e.g. wkt = f"POINT({lon} {lat})"
+    '''
+    topp = 200
+    cdsequery = f"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?$filter=Collection/Name eq 'SENTINEL-1' and " \
+                "OData.CSC.Intersects(area=geography'SRID=4326;{0}') and ContentDate/Start gt {1}T00:00:00.000Z and ContentDate/Start lt {2}T00:00:00.000Z " \
+                "and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'productType' and att/OData.CSC.StringAttribute/Value eq '{3}') " \
+                "and Attributes/OData.CSC.StringAttribute/any(att:att/Name eq 'operationalMode' and att/OData.CSC.StringAttribute/Value eq '{4}')" \
+                "&$top={5}".format(footprint, str(startdate), str(enddate), prodType,
+                                   sensType,
+                                   str(topp)
+                                   )
+    json = requests.get(cdsequery).json()
+    # for list of params in the new CDSE (THEY ARE NOT PUBLISHED!!!!!!!!!!!!!!!!! in NOV 2023 when SciHub is deactivated!!!!! this is not nice approach from ESA)
+    # can be found after 'expanding the metadata', e.g. here:
+    # https://catalogue.dataspace.copernicus.eu/odata/v1/Products?%24filter=contains(Name,%27S1A_EW_GRD%27)%20and%20ContentDate/Start%20gt%202022-05-03T00:00:00.000Z%20and%20ContentDate/Start%20lt%202022-05-03T12:00:00.000Z&%24expand=Attributes
+    #
+    dframe = pd.DataFrame.from_dict(json["value"])
+    if dframe.empty:
+        print('CDSE: empty output')
+        return False
+    i = 0
+    dframefull = dframe.copy()
+    while not dframe.empty:
+        i = i + 1
+        json = requests.get(cdsequery + "&$skip=" + str(i * topp)).json()
+        dframe = pd.DataFrame.from_dict(json["value"])
+        dframefull = pd.concat([dframefull, dframe], ignore_index=True)
+    #
+    dframefull['title'] = dframefull['Name'].apply(lambda x: x.split('.')[0])
+    return dframefull
+
+
 def get_images_for_frame(frameName, startdate = dt.datetime.strptime('20141001','%Y%m%d').date(),
              enddate = dt.date.today(), sensType = 'IW', outAspd = False, asf = True, prodType = 'SLC'):
     ''' Will get filenames from CDSE and ASF for the frame. Note this is based on frame polygon, overlapping bursts might cause issues!

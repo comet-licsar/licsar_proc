@@ -666,13 +666,13 @@ def get_frame_files_date(frame, date, only_file_title = False):
     if not master:
         # print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
         date2 = date + dt.timedelta(days=1)
-        date = date - dt.timedelta(days=1)
+        date1 = date - dt.timedelta(days=1)
     else:
         centime = misc.grep1line('center_time',metafile)
         if not centime:
             # print('No ref epoch datetime identified - assuming close-to-midnight (disallowing Btemp=1day)')
             date2 = date + dt.timedelta(days=1)
-            date = date - dt.timedelta(days=1)
+            date1 = date - dt.timedelta(days=1)
         else:
             centime = centime.split('=')[1].split('.')[0]
             a = master.split('=')[1]
@@ -684,11 +684,13 @@ def get_frame_files_date(frame, date, only_file_title = False):
             # Note - works for close-to-midnight but would disallow Btemp=1 day for such frames
             if (masterdt + dt.timedelta(hours=0.5)).date() > masterdt.date():
                 date2 = date + dt.timedelta(days=1)
+                date1 = date
             elif (masterdt - dt.timedelta(hours=0.5)).date() < masterdt.date():
                 date2 = date
-                date = date - dt.timedelta(days=1)
+                date1 = date - dt.timedelta(days=1)
             else:
                 date2 = date
+                date1 = date
     sql_q = "select distinct polygs.polyid_name, " \
         "files.name, files.abs_path from files " \
         "inner join files2bursts on files.fid=files2bursts.fid " \
@@ -696,9 +698,21 @@ def get_frame_files_date(frame, date, only_file_title = False):
         "inner join polygs on polygs2bursts.polyid=polygs.polyid " \
         "where polygs.polyid_name='{0}' " \
         "and (date(files.acq_date)>='{1}' and date(files.acq_date)<='{2}') " \
-        "and (pol='VV' or pol='HH');".format(frame,date,date2)  #
+        "and (pol='VV' or pol='HH');".format(frame,date1,date2)  #
         #"order by files.acq_date ASC, files.date_added DESC;".format(frame,date,date2)
     out = do_query(sql_q)
+    osat = None
+    dtstr = date.strftime('%Y%m%d')
+    for o in out:
+        if o[1].find(dtstr) > -1:
+            osat = o[1][:3]
+            continue
+    if osat:
+        outx = []
+        for o in out:
+            if o[1][:3] == osat:
+                outx.append(o)
+        out = outx
     if not only_file_title:
         return out
     else:
