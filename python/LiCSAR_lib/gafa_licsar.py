@@ -388,6 +388,8 @@ plt.show()
         offset=data_offset,
     ).reshape(shape)
 
+    arr[arr==0] = np.nan
+
     meta = {
         "version": version,
         "dtype": np.dtype(dtype).name,
