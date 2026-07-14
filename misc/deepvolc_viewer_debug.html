@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Velocity and Timeseries Viewer</title>
+
+<link rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+html,body,#map{
+    height:100%;
+    margin:0;
+}
+
+.ts-control {
+    background:white;
+    padding:8px;
+    border-radius:4px;
+}
+
+.active {
+    background:#1976d2;
+    color:white;
+}
+
+.chart-popup{
+    width:500px;
+    height:300px;
+}
+</style>
+
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+
+const NCWMS_URL = "http://130.246.213.180/ncwms/ncWMS2/wms";
+
+const DATASET = "test_083D";
+
+// Known dataset bounds from Godiva
+const datasetBounds = [
+    [-40.7390, -72.4485],   // SW
+    [-40.2881, -71.8849]    // NE
+];
+
+const map = L.map('map');
+
+map.fitBounds(datasetBounds);
+
+//
+// Background
+//
+L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+        attribution:'© OpenStreetMap'
+    }
+).addTo(map);
+
+//
+// Velocity layer
+//
+const velLayer = L.tileLayer.wms(NCWMS_URL,{
+    layers:'test_083D/vel',
+    format:'image/png',
+    transparent:true,
+    version:'1.1.1',
+
+    styles:'default',
+
+    colorscalerange:'-50,50',
+    palette:'x-RdBu'
+});
+
+velLayer.addTo(map);
+
+//
+// Timeseries button
+//
+let timeseriesMode = false;
+
+const TsControl = L.Control.extend({
+
+    options:{
+        position:'topright'
+    },
+
+    onAdd:function(){
+
+        const div = L.DomUtil.create('div','ts-control');
+
+        const btn = L.DomUtil.create('button','',div);
+
+        btn.innerHTML='Time Series';
+
+        btn.onclick=function(){
+
+            timeseriesMode = !timeseriesMode;
+
+            if(timeseriesMode){
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        };
+
+        return div;
+    }
+});
+
+map.addControl(new TsControl());
+
+//
+// Click for timeseries
+//
+map.on('click', async function(e){
+
+    if(!timeseriesMode) return;
+
+    const bounds = map.getBounds();
+
+    const bbox =
+        bounds.getWest() + ',' +
+        bounds.getSouth() + ',' +
+        bounds.getEast() + ',' +
+        bounds.getNorth();
+
+    const size = map.getSize();
+
+    const point =
+        map.latLngToContainerPoint(e.latlng);
+
+    const url =
+        NCWMS_URL +
+        '?REQUEST=GetTimeseries' +
+        '&LAYERS=test_083D/cum' +
+        '&QUERY_LAYERS=test_083D/cum' +
+        '&BBOX=' + bbox +
+        '&SRS=CRS:84' +
+        '&FEATURE_COUNT=5' +
+        '&HEIGHT=' + size.y +
+        '&WIDTH=' + size.x +
+        '&X=' + Math.round(point.x) +
+        '&Y=' + Math.round(point.y) +
+        '&STYLES=default/default' +
+        '&VERSION=1.1.1' +
+        '&TIME=2014-10-23T00:00:00.000Z/2021-12-03T00:00:00.000Z' +
+        '&INFO_FORMAT=image/png';
+
+    console.log(url);
+
+    try {
+
+        const response = await fetch(url);
+
+        const text = await response.text();
+
+        console.log(text);
+
+        L.popup()
+        .setLatLng(e.latlng)
+        .setContent(
+            '<pre style="max-height:300px;overflow:auto;">'
+            + text +
+            '</pre>'
+        )
+        .openOn(map);
+
+    }
+    catch(err){
+
+        console.error(err);
+
+        L.popup()
+        .setLatLng(e.latlng)
+        .setContent('Timeseries request failed')
+        .openOn(map);
+    }
+
+});
+
+</script>
+
+</body>
+</html>

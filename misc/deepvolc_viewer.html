@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>ncWMS2 Velocity Viewer</title>
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .leaflet-control-timeseries {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .chart-popup {
+            width: 500px;
+            height: 300px;
+        }
+
+        .query-active {
+            background: #1976d2;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+
+const NCWMS_URL = "http://130.246.213.180/ncwms/ncWMS2/wms";
+
+
+///////////////////////////////////////////////////////////////////////////
+// MAP
+///////////////////////////////////////////////////////////////////////////
+
+const map = L.map('map').setView([54.5, -2], 6);
+
+///////////////////////////////////////////////////////////////////////////
+// HILLSHADE BACKGROUND
+///////////////////////////////////////////////////////////////////////////
+
+
+L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+        attribution: '&copy; OpenStreetMap'
+    }
+).addTo(map);
+
+// L.tileLayer(
+//    'https://tiles.wmflabs.org/hillshading/{z}/{x}/{y}.png',
+//    {
+//        attribution: 'Hillshade'
+//    }
+// ).addTo(map);
+
+
+///////////////////////////////////////////////////////////////////////////
+// ncWMS2 VELOCITY LAYER
+///////////////////////////////////////////////////////////////////////////
+
+const velLayer = L.tileLayer.wms(NCWMS_URL, {
+    layers: 'test_083D/vel',
+    format: 'image/png',
+    transparent: true,
+    version: '1.3.0',
+    styles: 'default-scalar',  // boxfill/rainbow',
+    opacity: 0.8,
+    colorscalerange: '-20,50',
+    palette: 'div-BuRd'
+});
+
+velLayer.addTo(map);
+
+///////////////////////////////////////////////////////////////////////////
+// TIME SERIES CONTROL
+///////////////////////////////////////////////////////////////////////////
+
+let queryMode = false;
+
+const TimeSeriesControl = L.Control.extend({
+    options: {
+        position: 'topright'
+    },
+
+    onAdd: function(map) {
+
+        const container = L.DomUtil.create(
+            'div',
+            'leaflet-control-timeseries'
+        );
+
+        const btn = L.DomUtil.create(
+            'button',
+            '',
+            container
+        );
+
+        btn.innerHTML = 'Time Series';
+
+        btn.onclick = function() {
+
+            queryMode = !queryMode;
+
+            if(queryMode) {
+                btn.classList.add('query-active');
+            }
+            else {
+                btn.classList.remove('query-active');
+            }
+        };
+
+        L.DomEvent.disableClickPropagation(container);
+
+        return container;
+    }
+});
+
+map.addControl(new TimeSeriesControl());
+
+///////////////////////////////////////////////////////////////////////////
+// MAP CLICK
+///////////////////////////////////////////////////////////////////////////
+
+map.on('click', async function(e) {
+
+    if (!queryMode) return;
+
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+
+    try {
+
+        const url =
+            NCWMS_URL +
+            '?service=WMS' +
+            '&version=1.3.0' +
+            '&request=GetTimeseries' +
+            '&layers=test_083D/cum' +
+            '&query_layers=test_083D/cum' +
+            '&info_format=application/json' +
+            '&crs=EPSG:4326' +
+            '&x=' + lon +
+            '&y=' + lat;
+
+        const response = await fetch(url);
+
+        const data = await response.json();
+
+        showChart(lat, lon, data);
+
+    }
+    catch(err) {
+
+        console.error(err);
+
+        L.popup()
+            .setLatLng(e.latlng)
+            .setContent('Failed to retrieve time series')
+            .openOn(map);
+    }
+});
+
+///////////////////////////////////////////////////////////////////////////
+// CHART DISPLAY
+///////////////////////////////////////////////////////////////////////////
+
+function showChart(lat, lon, data) {
+
+    const popupDiv = document.createElement('div');
+    popupDiv.className = 'chart-popup';
+
+    const canvas = document.createElement('canvas');
+
+    popupDiv.appendChild(canvas);
+
+    L.popup({
+        maxWidth: 600
+    })
+    .setLatLng([lat, lon])
+    .setContent(popupDiv)
+    .openOn(map);
+
+    //
+    // ncWMS2 JSON format varies slightly by version.
+    // Adjust parsing if required.
+    //
+
+    let times = [];
+    let values = [];
+
+    if (data.data) {
+
+        times = data.data.map(d => d.time);
+        values = data.data.map(d => d.value);
+    }
+    else if (Array.isArray(data)) {
+
+        times = data.map(d => d.time);
+        values = data.map(d => d.value);
+    }
+
+    new Chart(canvas, {
+        type: 'line',
+
+        data: {
+            labels: times,
+
+            datasets: [{
+                label: 'cum',
+                data: values,
+                borderColor: '#1976d2',
+                fill: false,
+                tension: 0.1
+            }]
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+
+                y: {
+                    title: {
+                        display: true,
+                        text: 'cum'
+                    }
+                }
+            }
+        }
+    });
+}
+
+///////////////////////////////////////////////////////////////////////////
+// OPTIONAL LAYER CONTROL
+///////////////////////////////////////////////////////////////////////////
+
+L.control.layers(
+    {},
+    {
+        Velocity: velLayer
+    }
+).addTo(map);
+
+</script>
+
+</body>
+</html>
