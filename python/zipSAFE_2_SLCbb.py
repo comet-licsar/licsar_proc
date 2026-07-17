@@ -30,11 +30,12 @@ def pyC_zip2slc(zipfilepath):
       if re.search(annfile, fnames):
         isvv = True
         continue
-    if not isvv:
-      list2 = []
-      for annfile in list_annfile:
-        list2.append(annfile.replace('-slc-vv','-slc-hh'))
-      list_annfile = list2
+  if not isvv:
+    list2 = []
+    for annfile in list_annfile:
+      list2.append(annfile.replace('-slc-vv','-slc-hh'))
+    list_annfile = list2
+  for fnames in zfile.namelist(): # Loop over all fileanames within the zip file
     # Reset the lo and la lists 
     lo=[];  la=[];
     for annfile in list_annfile: # Loop through list_annfile filenames
