@@ -228,19 +228,20 @@ done
 # cp -r LB_NISAR.A.75.HH.freq_A/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fA/.
 # cp -r LB_NISAR.A.75.HH.freq_B/TS* /work/scratch-pw4/licsar/alejobea/batchdir/Maule/NISAR.075A.fB/.
 
-cd $subsetsdir
+cd $subsetsdir  # i.e.  /work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR
+pedrodir=/gws/ssde/j25a/nceo_geohazards/vol1/projects/COMET/DEEPVolc_test_page/LiCSBAS
 for x in `ls -d */LB | cut -d '/' -f 1`; do
   v=`grep ^$x /gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map/volcanoes_nisar.csv | cut -d ',' -f 2 | cut -d ' ' -f 1 | cut -d '-' -f 1 | cut -d '.' -f 1`; 
-  if [ ! -d /work/scratch-pw4/licsar/alejobea/batchdir/$v ]; then
-    vv=`ls  /work/scratch-pw4/licsar/alejobea/batchdir/$v* -d | rev | cut -d '/' -f 1 | rev`
+  if [ ! -d $pedrodir/$v ]; then
+    vv=`ls  $pedrodir/$v* -d | rev | cut -d '/' -f 1 | rev`
     if [ -z $vv ]; then
-      vv=`ls  /work/scratch-pw4/licsar/alejobea/batchdir/*$v* -d | rev | cut -d '/' -f 1 | rev`
+      vv=`ls $pedrodir/*$v* -d | rev | cut -d '/' -f 1 | rev`
     fi
     if [ ! -z $vv ]; then
       v=$vv
     fi
   fi
-  if [ -d /work/scratch-pw4/licsar/alejobea/batchdir/$v ]; then
+  if [ -d $pedrodir/$v ]; then
     for xx in `ls $x/LB/LB* -d`; do
       if [ -f $xx/TS_GEOCml1/cum_filt.h5 ]; then
          echo $xx
@@ -250,7 +251,7 @@ for x in `ls -d */LB | cut -d '/' -f 1`; do
          polar=`echo $lbdir | cut -d '.' -f 4`
          freq=`echo $lbdir | cut -d '.' -f 5 | cut -d '_' -f 2`
          if [ $tr -lt 100 ]; then tr=0$tr; fi
-         outdir=/work/scratch-pw4/licsar/alejobea/batchdir/$v/NISAR_$tr$ad'_'f$freq
+         outdir=$pedrodir/$v/NISAR_$tr$ad'_'f$freq
          echo $outdir
          if [ ! -d $outdir ]; then
            mkdir $outdir
