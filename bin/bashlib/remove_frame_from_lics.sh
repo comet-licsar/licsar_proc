@@ -3,6 +3,11 @@
 frame=$1
 tr=`track_from_frame $frame`
 
+if [ ! -d $LiCSAR_procdir/$tr/$frame ]; then
+  echo "error - this frame has no directory in LiCSAR_procdir..."
+  exit
+fi
+
 for s in `ls $LiCSAR_procdir/$tr/$frame/subsets -alh 2>/dev/null | grep subsets | gawk {'print $11'}`; do
   mv $s $s.backup
 done

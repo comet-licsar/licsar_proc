@@ -9,9 +9,13 @@ import os
 from branca.element import Element
 
 checknisar=True
+use_html_scraper = False # 2026/07/20: changing to Pedro's folder
+
 print('see /gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map')
 url = "https://comet-volcanodb.org/testing/licsbas"
 outhtml = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/temp/earmla/volcano_map/volcano_map.html'
+xcubeurl = 'http://130.246.213.180/xcube/viewer/index.html'
+pedrofld = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/COMET/DEEPVolc_test_page/LiCSBAS'
 
 # first, extract available volcanoes
 def get_web_volcanoes(url, return_sublinks = True):
@@ -31,49 +35,66 @@ if checknisar:
     cmd = "echo 'volcano_id,volcano_name,no_of_nisar_gslcs' > "+ outnisarcsv
     os.system(cmd)
 
-volclinks = get_web_volcanoes(url)
-volcpd = v.get_volc_info()
 
-# get selection from the pd:
+volcpd = v.get_volc_info() # all volc info
+
 volcnames= []
 volcgeom = []
-for vl in volclinks:
-    vlpd = volcpd[volcpd['vportal_name']==vl.lower().split('.')[0]]
-    skip = False
-    if vlpd.empty:
-        # try find:
-        vname = vl.split('.')[0].split('_')[0]
-        vlpd = v.find_volcano_by_name(vname)
-        if len(vlpd)>1:
-            #print('more finds from '+vname)
-            vlpd = v.find_volcano_by_name(vl.split('.')[0].split('_')[1])
-        if len(vlpd)>1:
-            print('more finds from '+vname)
-            if vl.split('.')[0].split('_')[1] == 'Nevada':
-                print('assuming Sierra Nevada - volcano ID 355123')
-                vlpd = vlpd[vlpd.volc_id == 355123]
-            else:
-                print('skipping')
+volcids = []
+if use_html_scraper:
+    volclinks = get_web_volcanoes(url)
+    # get selection from the pd:
+    for vl in volclinks:
+        vlpd = volcpd[volcpd['vportal_name']==vl.lower().split('.')[0]]
+        skip = False
+        if vlpd.empty:
+            # try find:
+            vname = vl.split('.')[0].split('_')[0]
+            vlpd = v.find_volcano_by_name(vname)
+            if len(vlpd)>1:
+                #print('more finds from '+vname)
+                vlpd = v.find_volcano_by_name(vl.split('.')[0].split('_')[1])
+            if len(vlpd)>1:
+                print('more finds from '+vname)
+                if vl.split('.')[0].split('_')[1] == 'Nevada':
+                    print('assuming Sierra Nevada - volcano ID 355123')
+                    vlpd = vlpd[vlpd.volc_id == 355123]
+                else:
+                    print('skipping')
+                    skip = True
+            elif vlpd.empty:
+                print('not found - skipping')
                 skip = True
-        elif vlpd.empty:
-            print('not found - skipping')
-            skip = True
-    if skip:
-        volcnames.append(None)
-        volcgeom.append(None)
-    else:
-        if checknisar:
-            volcanoid = vlpd.volc_id.values[0]
-            nisars = nd.get_nisar_data_for_volcano(volcanoid)
-            nislen = len(nisars)
-            if nislen > 0:
-                print('GREAT NEWS - THERE ARE '+str(nislen)+' NISAR GSLCs for '+str(vlpd['name'].values[0]))
-                cmd = "echo '"+str(volcanoid)+","+vlpd['name'].values[0]+","+str(nislen)+"' >> "+outnisarcsv
-                os.system(cmd)
-        volcnames.append(vlpd['name'].values[0])
-        volcgeom.append(vlpd['geom'].values[0])
-
-
+        if skip:
+            volcnames.append(None)
+            volcgeom.append(None)
+        else:
+            if checknisar:
+                volcanoid = vlpd.volc_id.values[0]
+                nisars = nd.get_nisar_data_for_volcano(volcanoid)
+                nislen = len(nisars)
+                if nislen > 0:
+                    print('GREAT NEWS - THERE ARE '+str(nislen)+' NISAR GSLCs for '+str(vlpd['name'].values[0]))
+                    cmd = "echo '"+str(volcanoid)+","+vlpd['name'].values[0]+","+str(nislen)+"' >> "+outnisarcsv
+                    os.system(cmd)
+            volcnames.append(vlpd['name'].values[0])
+            volcgeom.append(vlpd['geom'].values[0])
+            volcids.append(vlpd['volc_id'].values[0])
+else:
+    volclinks = []
+    for fldname in os.listdir(pedrofld):
+        volcidtxt = os.path.join(pedrofld, fldname, 'volc_id.txt')
+        if os.path.exists(volcidtxt):
+            # load the ID, add as name, get geom
+            volcid = pd.read_csv(volcidtxt, header=None)[0].values[0]
+            vlpd = volcpd[volcpd['volc_id'] == volcid]
+            if vlpd.empty:
+                print('could not find volc id '+str(volcid))
+                continue
+            volcnames.append(foldname.replace('_', ' '))
+            volcgeom.append(vlpd['geom'].values[0])
+            volclinks.append(foldname+'.html')
+            volcids.append(volcid)
 #from shapely import wkt
 
 # Convert WKT strings → Shapely geometry objects
@@ -83,7 +104,8 @@ for vl in volclinks:
 gdf = gpd.GeoDataFrame(
     {
         "name": volcnames,
-        "link": [os.path.join(url, a) for a in volclinks]
+        "link": [os.path.join(url, a) for a in volclinks],
+        "volcid": volcids
     },
     geometry=volcgeom,
     crs="EPSG:4326"   # assume WGS84; change if needed
@@ -103,9 +125,14 @@ for _, row in gdf.iterrows():
     lat = row.geometry.y
     lon = row.geometry.x
     name = row["name"]
+    volcid = row["volcid"]
     licsbasurl = row['link']  # f"https://web.page/{name}"
+    licsbas_xcube_url = xcubeurl+"?volcid="+str(volcid)
     licsalerturl = licsbasurl.replace('/licsbas/', '/licsalert/')
-    popup_html = f"{name}:<br /><a href='{licsbasurl}' target='_blank'>LiCSBAS</a><br /><a href='{licsalerturl}' target='_blank'>LiCSAlert</a>"
+    popup_html = f"{name}:<br /><br />" \
+                 f"<a href='{licsbasurl}' target='_blank'>LiCSBAS</a><br />" \
+                 f"<a href='{licsbas_xcube_url}' target='_blank'>LiCSBAS-X</a><br />" \
+                 f"<a href='{licsalerturl}' target='_blank'>LiCSAlert</a>"
 
     folium.Marker(
         location=[lat, lon],
