@@ -3,6 +3,9 @@
 
 import subprocess as subp
 import numpy as np
+import xarray as xr
+from pathlib import Path
+import glob
 from scipy import interpolate
 from lics_unwrap import *
 
@@ -72,6 +75,8 @@ def calculate_dops_frames(framelist, lon, lat):
     return PDOP, HDOP_E, HDOP_N, VDOP
 
 
+
+
 def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual = False,
                        annual_buffer_months = 0, selperiods = None, do_velUN=False,
                        do_ENU = False, velname='vel', stdname = None):
@@ -98,6 +103,8 @@ def decompose_framencs(framencs, extract_cum = False, medianfix = False, annual 
     firstrun = True
     # getting years in all ncs:
     yearsall = None
+    if selperiods:
+        annual = True # just a workaround..
     if do_ENU:
         print('using do_ENU - experimental - annuals etc. not implemented yet')
         annual=False
@@ -331,15 +338,38 @@ def get_frame_inc_heading(frame):
     return extract_inc_heading(e, u)
 
 
-def extract_inc_heading(efile, ufile, left_looking=False, aziflag = False):
+def get_frame_enu(frame, template = None):
+    geoframedir = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])), frame)
+    # look angle (inc) / heading - probably ok, but needs check:
+    e = os.path.join(geoframedir, 'metadata', frame + '.geo.E.tif')
+    n = os.path.join(geoframedir,'metadata',frame+'.geo.N.tif') #no need for N ?
+    u = os.path.join(geoframedir, 'metadata', frame + '.geo.U.tif')
+    u = load_tif2xr(u)
+    e = load_tif2xr(e)
+    n = load_tif2xr(n)
+    if type(template) != type(None):
+        u = u.interp_like(template, method='nearest')
+        e = e.interp_like(template, method='nearest')
+        n = n.interp_like(template, method='nearest')
+    if np.isnan(u.mean()):
+        u = e * 0  # just in case... for bovls.. although probably not needed
+    return e, n, u
+
+
+def extract_inc_heading(efile, ufile, left_looking=False, aziflag = False, eu_are_files = True):
     '''
     aziflag must be either 'D' or 'A' if to be used...
     '''
-    e = load_tif2xr(efile)
-    e = e.where(e != 0)
-    #n = load_tif2xr(n, cliparea_geo=cliparea)
-    u = load_tif2xr(ufile)
-    u = u.where(u != 0)
+    if eu_are_files:
+        e = load_tif2xr(efile)
+        e = e.where(e != 0)
+        #n = load_tif2xr(n, cliparea_geo=cliparea)
+        u = load_tif2xr(ufile)
+        u = u.where(u != 0)
+    else:
+        e = efile
+        u = ufile
+
     if np.isnan(u.mean()):
         if not aziflag:
             print('ERROR: U is zeros - if this is in azi, provide aziflag')
@@ -579,6 +609,7 @@ def decompose_geotiffs(veltifs, Etifs, Utifs, Ntifs = None, vstdtifs = None, lef
     return dec
 
 
+
 def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False, input_is_enu_vectors = False):
     """Decompose 2 or more frames
     
@@ -622,6 +653,8 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False, inp
                 vstd = frame[4]
             else:
                 vstd = vel * 0 + 1
+            if do_velUN:
+
             Us.append(U)
             Es.append(E)
             if do_ENU:
@@ -720,6 +753,374 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False, inp
         return vel_U, vel_E, vel_N, vel_Ustd, vel_Estd, vel_Nstd
     else:
         return vel_U, vel_E, vel_Ustd, vel_Estd
+
+
+
+
+
+
+
+'''
+files = [
+    "022D.nc",
+    "146A.nc",
+    "095D.nc",
+]
+# or
+import glob
+# files = glob.glob('*.nc')
+'''
+
+def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=False):
+    ds_out = regrid_netcdf_collection(
+        framencs,
+        var="cum",
+        time_step_days=time_step_days,
+        time_method="nearest",
+        time_tolerance_days=21,
+    )
+
+    print(ds_out)
+    # ds_out.to_netcdf('regridded_cum.nc')
+
+
+    # now, load ENU files:
+    template = ds_out['cum'][0][0]
+
+    enu = {
+        frame: get_frame_enu(frame, template)
+        for frame in ds_out.frame.values
+    }
+
+    ds_out["E"] = xr.concat(
+        [enu[f][0].expand_dims(frame=[f]) for f in ds_out.frame.values],
+        dim="frame",
+    )
+    ds_out["N"] = xr.concat(
+        [enu[f][1].expand_dims(frame=[f]) for f in ds_out.frame.values],
+        dim="frame",
+    )
+    ds_out["U"] = xr.concat(
+        [enu[f][2].expand_dims(frame=[f]) for f in ds_out.frame.values],
+        dim="frame",
+    )
+
+
+    nt = ds_out.sizes["time"]
+    ny = ds_out.sizes["lat"]
+    nx = ds_out.sizes["lon"]
+
+    cum_U = np.full((nt, ny, nx), np.nan, dtype=np.float32)
+    cum_E = np.full((nt, ny, nx), np.nan, dtype=np.float32)
+    cum_U_std = np.full((nt, ny, nx), np.nan, dtype=np.float32)
+    cum_E_std = np.full((nt, ny, nx), np.nan, dtype=np.float32)
+
+
+    E = ds_out.E.values
+    N = ds_out.N.values
+    U = ds_out.U.values
+    if do_velUN:
+        inc, head = zip(*[
+            extract_inc_heading(
+                E[i], U[i],
+                left_looking=False,
+                eu_are_files=False
+            )
+            for i in range(E.shape[0])
+        ])
+        inc = np.stack(inc)
+        head = np.stack(head)
+
+    for t in range(nt):
+        print('Decomposing '+str(t+1)+'/'+str(nt))
+        cum_t = ds_out.cum.isel(time=t).values  # (frame, lat, lon)
+        if do_velUN:
+            input_data = [
+                (cum_t[f], inc[f], head[f])
+                for f in range(cum_t.shape[0])
+            ]
+        else:
+            input_data = [
+                (cum_t[f], E[f], N[f], U[f])
+                for f in range(cum_t.shape[0])
+            ]
+
+        (
+            cum_U[t],
+            cum_E[t],
+            cum_U_std[t],
+            cum_E_std[t],
+        ) = decompose_np_multi(input_data,
+                            do_velUN=do_velUN,
+                            do_ENU=do_ENU,   # ... this will be great...
+                            input_is_enu_vectors = not do_velUN)
+
+
+    coords = {
+        "time": ds_out.time,
+        "lat": ds_out.lat,
+        "lon": ds_out.lon,
+    }
+
+    ds_out["cum_U"] = xr.DataArray(
+        cum_U,
+        coords=coords,
+        dims=("time", "lat", "lon"),
+    )
+
+    ds_out["cum_E"] = xr.DataArray(
+        cum_E,
+        coords=coords,
+        dims=("time", "lat", "lon"),
+    )
+
+    ds_out["cum_U_std"] = xr.DataArray(
+        cum_U_std,
+        coords=coords,
+        dims=("time", "lat", "lon"),
+    )
+
+    ds_out["cum_E_std"] = xr.DataArray(
+        cum_E_std,
+        coords=coords,
+        dims=("time", "lat", "lon"),
+    )
+
+    return ds_out
+
+
+def regrid_netcdf_collection(
+    files,
+    var="cum",
+    time_step_days=14,
+    spatial_ref=None,
+    time_method="nearest",
+    time_tolerance_days=None,
+):
+    """
+    Parameters
+    ----------
+    files : list[str]
+        List of NetCDF files.
+    var : str
+        Data variable name.
+    time_step_days : int
+        Output timestep.
+    spatial_ref : str | None
+        File defining output lat/lon grid.
+        If None, first file is used.
+    time_method : str
+        'nearest' or 'linear'.
+    time_tolerance_days : float | None
+        Maximum temporal distance allowed for nearest interpolation.
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset containing:
+
+            cum(frame,time,lat,lon)
+
+        and coordinate:
+
+            frame = ['022D','146A',...]
+    """
+
+    # ----------------------------
+    # open datasets
+    # ----------------------------
+    dsets = [xr.open_dataset(f) for f in files]
+
+    frame_names = [
+        Path(f).stem
+        for f in files
+    ]
+
+    # ----------------------------
+    # common temporal overlap
+    # ----------------------------
+    overlap_start = max(
+        pd.Timestamp(ds.time.min().values)
+        for ds in dsets
+    )
+
+    overlap_end = min(
+        pd.Timestamp(ds.time.max().values)
+        for ds in dsets
+    )
+
+    if overlap_end <= overlap_start:
+        raise ValueError(
+            "No common temporal overlap between datasets."
+        )
+
+    common_time = pd.date_range(
+        overlap_start,
+        overlap_end,
+        freq=f"{time_step_days}D"
+    )
+    print('Output min dt: '+str(overlap_start))
+    print('Output max dt: ' + str(overlap_end))
+    # ----------------------------
+    # reference spatial grid
+    # ----------------------------
+    if spatial_ref is None:
+        ref_ds = dsets[0]
+    else:
+        ref_ds = xr.open_dataset(spatial_ref)
+
+    target_grid = xr.Dataset(
+        coords={
+            "lat": ref_ds.lat,
+            "lon": ref_ds.lon,
+        }
+    )
+
+    frames = []
+
+    for ds, frame in zip(dsets, frame_names):
+        print('Processing frame '+frame)
+        da = ds[var]
+
+        # ---------------------------------
+        # spatial nearest-neighbour regrid
+        # ---------------------------------
+        print('...regridding in space')
+        da = da.interp(
+            lat=target_grid.lat,
+            lon=target_grid.lon,
+            method="nearest",
+        )
+
+        # ---------------------------------
+        # temporal interpolation
+        # ---------------------------------
+        # remove completely-empty timesteps
+        valid = ~da.isnull().all(dim=("lat", "lon"))
+        da = da.sel(time=valid)
+
+        print('...interpolating in time - using method '+time_method)
+        if time_method == "nearest":
+
+            if time_tolerance_days is None:
+                da = da.reindex(
+                    time=common_time,
+                    method="nearest",
+                )
+            else:
+                da = da.reindex(
+                    time=common_time,
+                    method="nearest",
+                    tolerance=np.timedelta64(
+                        time_tolerance_days, "D"
+                    ),
+                )
+
+        elif time_method == "linear":
+
+            da = da.interp(
+                time=common_time,
+                method="linear",
+            )
+
+
+        else:
+            raise ValueError(
+                "time_method must be 'nearest' or 'linear'"
+            )
+
+        da = da.expand_dims(frame=[frame])
+
+        frames.append(da)
+
+    out = xr.concat(frames, dim="frame")
+
+    return xr.Dataset(
+        {
+            var: out
+        }
+    )
+
+''' plotting decomposed cum:
+import numpy as np
+import matplotlib.pyplot as plt
+lat0, lon0 = 50.127958, 14.020140
+
+ts = ds_out["cum_U"].sel(lat=lat0, lon=lon0, method="nearest")
+ts_std = ds_out["cum_U_std"].sel(lat=lat0, lon=lon0, method="nearest")
+
+
+# or
+lat_min, lat_max = 50.123377, 50.131593
+lon_min, lon_max = 14.010899, 14.026722
+
+roi = ds_out.sel(
+    lat=slice(lat_min, lat_max),
+    lon=slice(lon_min, lon_max)
+)
+
+ts = roi.cum_U.mean(("lat", "lon"), skipna=True)
+
+ts_std = roi.cum_U.std(
+    ("lat", "lon"),
+    skipna=True
+)
+
+
+
+t = (
+    (ts.time.values - ts.time.values[0])
+    / np.timedelta64(1, "D")
+) / 365.25
+
+G = np.column_stack([
+    np.ones_like(t),
+    t,
+    np.sin(2*np.pi*t),
+    np.cos(2*np.pi*t),
+])
+
+W = np.diag(1/ts_std.values**2)
+
+mask = np.isfinite(ts.values) & np.isfinite(ts_std.values)
+
+Gm = G[mask]
+ym = ts.values[mask]
+Wm = np.diag(1/ts_std.values[mask]**2)
+
+m = np.linalg.solve(
+    Gm.T @ Wm @ Gm,
+    Gm.T @ Wm @ ym
+)
+
+model = G @ m
+
+
+
+
+plt.figure(figsize=(10,5))
+
+plt.plot(ts.time, ts, "ko", ms=4, label="cum_U")
+
+plt.fill_between(
+    ts.time.values,
+    ts.values - ts_std.values,
+    ts.values + ts_std.values,
+    alpha=0.3,
+    color="C0",
+    label="±1σ",
+)
+
+plt.plot(ts.time, model, "r-", lw=2, label="model")
+plt.ylim(-5,5)
+plt.ylabel('mm')
+plt.title(str(lon0)+', '+str(lat0))
+plt.legend()
+plt.grid()
+plt.show()
+'''
+
+
 
 
 '''
