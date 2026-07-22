@@ -3,10 +3,12 @@
 import geopandas as gpd
 import folium
 import volcdb as v
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import os
 from branca.element import Element
+import glob
 
 checknisar=True
 use_html_scraper = False # 2026/07/20: changing to Pedro's folder
@@ -83,6 +85,10 @@ if use_html_scraper:
 else:
     volclinks = []
     for fldname in os.listdir(pedrofld):
+        cums = glob.glob(os.path.join(pedrofld, fldname, '*/TS*/cum_filt.h5'))
+        if len(cums) == 0:
+            print('no cum_filt.h5 file for '+fldname)
+            continue
         volcidtxt = os.path.join(pedrofld, fldname, 'volc_id.txt')
         if os.path.exists(volcidtxt):
             # load the ID, add as name, get geom
@@ -91,9 +97,9 @@ else:
             if vlpd.empty:
                 print('could not find volc id '+str(volcid))
                 continue
-            volcnames.append(foldname.replace('_', ' '))
+            volcnames.append(fldname.replace('_', ' '))
             volcgeom.append(vlpd['geom'].values[0])
-            volclinks.append(foldname+'.html')
+            volclinks.append(fldname+'.html')
             volcids.append(volcid)
 #from shapely import wkt
 
@@ -130,9 +136,9 @@ for _, row in gdf.iterrows():
     licsbas_xcube_url = xcubeurl+"?volcid="+str(volcid)
     licsalerturl = licsbasurl.replace('/licsbas/', '/licsalert/')
     popup_html = f"{name}:<br /><br />" \
-                 f"<a href='{licsbasurl}' target='_blank'>LiCSBAS</a><br />" \
-                 f"<a href='{licsbas_xcube_url}' target='_blank'>LiCSBAS-X</a><br />" \
-                 f"<a href='{licsalerturl}' target='_blank'>LiCSAlert</a>"
+                 f"<a href='{licsbasurl}' target='_blank'>LiCSBAS Viewer</a><br /><br />" \
+                 f"<a href='{licsbas_xcube_url}' target='_blank'>DEEPVOLC Viewer</a><br /><br />" \
+                 f"<a href='{licsalerturl}' target='_blank'>LiCSAlert Viewer</a>"
 
     folium.Marker(
         location=[lat, lon],
