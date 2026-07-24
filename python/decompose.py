@@ -654,7 +654,8 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False, inp
             else:
                 vstd = vel * 0 + 1
             if do_velUN:
-
+                incangle, heading = extract_inc_heading(E, U, eu_are_files=False)
+                U = np.sqrt(1 - (np.sin(np.radians(incangle)) ** 2) * (np.cos(np.radians(incangle)) ** 2))
             Us.append(U)
             Es.append(E)
             if do_ENU:
@@ -772,6 +773,9 @@ import glob
 '''
 
 def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=False):
+    ''' This will decompose cum values into given time steps.
+    Note, framencs must be the frame IDs, e.g. ['022D_03989_131313.nc', '044A_03932_131313.nc', ...]
+    '''
     ds_out = regrid_netcdf_collection(
         framencs,
         var="cum",
