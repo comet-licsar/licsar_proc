@@ -776,8 +776,18 @@ import glob
 
 def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=False):
     ''' This will decompose cum values into given time steps.
-    Note, framencs must be the frame IDs, e.g. ['022D_03989_131313.nc', '044A_03932_131313.nc', ...]
+    Args:
+        framencs (list):      list of input nc files - note, naming must be the frame IDs, e.g. ['022D_03989_131313.nc', '044A_03932_131313.nc', ...]
+        time_step_days (int): output time step of decomposed components
+        do_velUN (bool):      if True, it will merge U+N into returned 'pseudovertical' - use only with standard LOS data from right-looking sats (i.e. not NISAR-ready)
+        do_ENU (bool):        if True, will perform full decomposition
+    Returns:
+        xr.Dataset
     '''
+    if do_velUN and do_ENU:
+        print('ERROR - please use only one of the options')
+        return False
+
     ds_out = regrid_netcdf_collection(
         framencs,
         var="cum",
@@ -820,7 +830,9 @@ def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=F
     cum_E = np.full((nt, ny, nx), np.nan, dtype=np.float32)
     cum_U_std = np.full((nt, ny, nx), np.nan, dtype=np.float32)
     cum_E_std = np.full((nt, ny, nx), np.nan, dtype=np.float32)
-
+    if do_ENU:
+        cum_N = np.full((nt, ny, nx), np.nan, dtype=np.float32)
+        cum_N_std = np.full((nt, ny, nx), np.nan, dtype=np.float32)
 
     E = ds_out.E.values
     N = ds_out.N.values
@@ -842,7 +854,7 @@ def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=F
         cum_t = ds_out.cum.isel(time=t).values  # (frame, lat, lon)
         if do_velUN:
             input_data = [
-                (cum_t[f], inc[f], head[f])
+                (cum_t[f], head[f], inc[f])
                 for f in range(cum_t.shape[0])
             ]
         else:
@@ -851,15 +863,15 @@ def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=F
                 for f in range(cum_t.shape[0])
             ]
 
-        (
-            cum_U[t],
-            cum_E[t],
-            cum_U_std[t],
-            cum_E_std[t],
-        ) = decompose_np_multi(input_data,
+        outdec = decompose_np_multi(input_data,
                             do_velUN=do_velUN,
                             do_ENU=do_ENU,   # ... this will be great...
                             input_is_enu_vectors = not do_velUN)
+
+        if do_ENU:
+            cum_U[t], cum_E[t], cum_N[t], cum_U_std[t], cum_E_std[t], cum_N_std[t] = outdec
+        else:
+            cum_U[t], cum_E[t], cum_U_std[t], cum_E_std[t] = outdec
 
 
     coords = {
@@ -867,8 +879,11 @@ def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=F
         "lat": ds_out.lat,
         "lon": ds_out.lon,
     }
-
-    ds_out["cum_U"] = xr.DataArray(
+    if do_velUN:
+        outcumu = 'cum_UN'
+    else:
+        outcumu = 'cum_U'
+    ds_out[outcumu] = xr.DataArray(
         cum_U,
         coords=coords,
         dims=("time", "lat", "lon"),
@@ -880,7 +895,7 @@ def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=F
         dims=("time", "lat", "lon"),
     )
 
-    ds_out["cum_U_std"] = xr.DataArray(
+    ds_out[outcumu+"_std"] = xr.DataArray(
         cum_U_std,
         coords=coords,
         dims=("time", "lat", "lon"),
@@ -891,6 +906,19 @@ def decompose_cum_framencs(framencs, time_step_days=14, do_velUN=False, do_ENU=F
         coords=coords,
         dims=("time", "lat", "lon"),
     )
+
+    if do_ENU:
+        ds_out["cum_N"] = xr.DataArray(
+            cum_E,
+            coords=coords,
+            dims=("time", "lat", "lon"),
+        )
+
+        ds_out["cum_N_std"] = xr.DataArray(
+            cum_U_std,
+            coords=coords,
+            dims=("time", "lat", "lon"),
+        )
 
     return ds_out
 
