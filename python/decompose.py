@@ -643,6 +643,8 @@ def decompose_np_multi(input_data, beta = 0, do_velUN=False, do_ENU = False, inp
         return False
     vels = []
     vstds = []
+    if do_velUN and input_is_enu_vectors:
+        print('WARNING - this setting works ok only if all your inputs are from right-looking satellite (e.g. S1, but not NISAR)')
     for frame in input_data:
         vel = frame[0]
         if input_is_enu_vectors:
