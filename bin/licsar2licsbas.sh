@@ -35,7 +35,7 @@ if [ -z $1 ]; then
  echo "-r ....... perform deramping (degree 1)"
  echo "-L ....... use linear hgt correlation slope correction"
  echo "-N ....... perform nullification"
- echo "-B ...... add phase bias estimation/removal (by yma, use of default an values) - may work but probably will not"
+ echo "-B ...... add phase bias estimation/removal (by yma, use of default an values) - 2026/08: should work now but will need testing/optimization "
  # echo "-p ...... plate motion correction (wrt Eurasia)"
  echo "-- Processing tweaks --"
  echo "-h 14 .... set your own number of processing hours (14 by default)"
@@ -423,7 +423,7 @@ cd GEOC
 # Set a flag to track if we need to run rangeENU2aziENU.py
 need_to_generate_azi=0
 
-for meta in E N U hgt; do
+for meta in E N U hgt landmask; do   # adding landmask due to mandatority for phase bias corrector
   # echo "Getting metafiles from metadir everytime!"  ## ML: Muhammet, please.. at least keep orig lines commented or ask.. no idea why you so much needed to remove this part
   #
   # echo "ML: whatever this means (Muhammet..) - note clips stopped working with this change, trying to find how to fix it"
@@ -1155,14 +1155,21 @@ if [ $phbias -gt 0 ]; then
   echo "output_path = phbias" >> config.txt
   echo "LiCSAR_data = no" >> config.txt
   echo "frame = "$frame  >> config.txt  # it's ok - frame is used only if LiCSAR_data is set to 'yes'
-  echo "start = "$startdate  >> config.txt
-  echo "end = "$enddate >> config.txt
+  # echo "start = "$startdate  >> config.txt
+  # echo "end = "$enddate >> config.txt  # must use REAL dates, so...:
+  realstart=`ls GEOC | grep ^20 | grep '_' | grep [0-9]\$ | head -n 1 | cut -d '_' -f 1`
+  realend=`ls GEOC | grep ^20 | grep '_' | grep [0-9]\$ | tail -n 1 | cut -d '_' -f 2`
+  echo "start = "$realstart  >> config.txt
+  echo "end = "$realend >> config.txt
   echo "interval = "$numdays  >> config.txt
   echo "nlook = "$multi  >> config.txt
   echo "num_a=2"  >> config.txt
-  echo "estimate_an_values=no" >> config.txt # Currently there is some bug in step 3, so skipping the estimation - ask yma to fix this
+  # echo "estimate_an_values=no" >> config.txt # Currently there is some bug in step 3, so skipping the estimation - ask yma to fix this. 2026/08 -  and this option was removed
+  echo "estimate_an_mode=config" >> config.txt # should be global if we want to estimate, but then... what is selected_baseline... donno
   echo "filtered_ifgs=no" >> config.txt  # this was HARDCODED in the original phase bias scripts...
-  echo "landmask=0" >> config.txt
+  # echo "landmask=0" >> config.txt
+  echo "landmask=1" >> config.txt  # maybe?
+  # echo "selected_baseline=" >> config.txt  # no idea what this is for
   echo "a1_6_day=0.50" >> config.txt
   echo "a2_6_day=0.36" >> config.txt
   echo "a3_6_day=0.299" >> config.txt
@@ -1172,16 +1179,27 @@ if [ $phbias -gt 0 ]; then
   echo "a3_12_day=0.24" >> config.txt
   echo "a4_12_day=0.22" >> config.txt
 
-  #ln -s GEOC interferograms
-  ln -s GEOC metadata  # to find the hgt file
+  ln -s GEOC interferograms  # to find the interferograms
+  ln -s GEOC metadata  # to find the hgt file and landmask
   mkdir phbias phbias_before
   # now we should just run on steps 1-5 BUT... it fails... the hardcoded things... the step 3 gives errors already
   # even if setting manually the 'long ifg' from 216 (hardcoded) to 210, it fails trying loop_360_6 ... nonsense. garbage. not use.
   # therefore skipping step 3 and just using the default values..
   echo "cd "`pwd` > multirun.sh
-  echo "PhaseBias_01_Read_Data.py; PhaseBias_02_Loop_Closures.py; PhaseBias_04_Inversion.py; PhaseBias_05_Correction.py" >> multirun.sh
-  echo "mv GEOC phbias_before/.; mv phbias/GEOC .; rm metadata" >> multirun.sh  # already multilooked
-  ml=1
+  echo "PhaseBias_01_Read_Data.py; PhaseBias_02_Loop_Closures.py" >> multirun.sh
+  # echo "PhaseBias_03_calibration_pars.py " >> multirun.sh # only for estimating the a_ns
+  echo "PhaseBias_04_Inversion.py --coh_thresh 0.15 --n_workers "$nproc >> multirun.sh   # 2026/08 - does not seem the n_workers does anything....
+  echo "PhaseBias_05_Correction.py --n_workers "$nproc" --n_write_workers "$nproc >> multirun.sh
+  echo "mv GEOC phbias_before/.; mv phbias/GEOC .; rm metadata interferograms; cp phbias_before/GEOC/baselines GEOC/." >> multirun.sh  # already multilooked
+  if [ $multi -gt 1 ]; then
+    echo "WARNING - multilooking will be performed via phase bias corrector - everything is ok, but your multilooked outputs will be in TS_GEOCml1 - sorry it is confusing for now"
+    # but because it was multilooked already, we need to fix also the meta files to the same dims
+    echo "template=\$(ls GEOC/*/*.cc.tif | head -n 1)" >> multirun.sh
+    echo "for tf in phbias_before/GEOC/*.tif; do outf=\$(basename \$tf); gdalwarp2match.py \$tf \$template GEOC/\$outf; done" >> multirun.sh
+    multi=1
+  else
+    echo "cp phbias_before/GEOC/*.tif GEOC/." >> multirun.sh
+  fi
 fi
 
 
