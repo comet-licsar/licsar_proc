@@ -169,6 +169,18 @@ python3 unw2nc.py
 gmt grdedit -T -R$ifg unw1.nc # to get same extents in geo coordinates
 gmt grdconvert -G$outunw=gd:GTiff -R$ifg unw1.nc # to convert to geotiff (ye, the -R is perhaps not necessary)
 create_preview_unwrapped $outunw $frame
+if [ ! -f $outunw ]; then
+  if [ ! -f $outunw.tmp.tif ]; then
+    echo "something wrong with unwrapping"
+    exit
+  fi
+  echo "error during create_preview_unwrapped - just moving tmp.tif to unw.tif"
+  which gmt > $outunw.err
+  echo $LD_LIBRARY_PATH >> $outunw.err
+  which gdalinfo > $outunw.err
+  mv $outunw.tmp.tif $outunw
+fi
+
 # just to make sure the geotiff has correct coord system information..
 gdal_edit.py -a_srs EPSG:4326 $outunw
 

@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [ -z $1 ]; then
+  echo "Usage: provide frame id"
+  echo "this script would move existing frame folders in LiCSAR_public, LiCSAR_procdir and LiCSAR_web to frame.backup dirs"
+  echo "it also will backup (volc) subsets of this frame"
+  exit
+fi
+
 frame=$1
 tr=`track_from_frame $frame`
 
