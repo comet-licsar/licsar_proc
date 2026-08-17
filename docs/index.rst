@@ -212,6 +212,10 @@ For example, to generate NISAR InSAR outputs for Manda Hararo volcano, you can d
   import volcdb as v
   import nisardata as nd
   vid = int(v.find_volcano_by_name('Hararo').volc_id)
+  # to get only existing GUNW files:
+  nd.get_nisar_data_for_volcano(vid, dtype = 'GUNW', startdate = nd.dt.date(2026,7,1), enddate = nd.dt.date(2026,7,31),
+                               downloadit = True)
+  # to perform full processing starting from GSLC data:
   nd.fullchain_volcano(vid, target_resolution_m=50, startdate = nd.dt.date(2026,7,1), enddate = nd.dt.date(2026,7,31))
 
 

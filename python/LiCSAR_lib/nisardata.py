@@ -41,6 +41,36 @@ def wgs2utm(polygon, target_crs):
     return poly_utm
 
 
+def download_nisar_datapd(nsrs, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC'):
+    numd=0
+    outfiles = []
+    for i, ln in nsrs.iterrows():
+        fname = ln['sceneName'] + '.h5'
+        fullfname = os.path.join(nisarslcpath, fname)
+        outfiles.append(fullfname)
+        # do_download = True
+        if os.path.exists(fullfname):
+            # check size .. or... just try load
+            try:
+                f = h5py.File(fullfname, "r")
+                rc = f['science/LSAR'].keys()
+                f.close()
+                # do_download = True
+                print(' already downloaded.')
+                continue
+            except:
+                print('downloaded but wrongly - retrying')
+        print('downloading ' + fname)
+        url = ln['url']
+        fpath = download(url,
+                         nisarslcpath)  # using this way, because for some reason i cannot get ASF session established..
+        if not os.path.exists(fpath):
+            print('some error in ' + fpath)
+        else:
+            numd=numd+1
+    return numd, outfiles
+
+
 '''
 Example Palo Alto landslide:
 lon1, lon2 = -118.43839264855741, -118.26255663358891
@@ -78,26 +108,7 @@ def fullchain(lon1, lat1, lon2, lat2,
     print('data available from '+str(len(nsrsel.groupby(['flightDirection','pathNumber'])))+' orbital passes')
     if downloadit:
         print('Now we check and download ' + str(len(nsrs)) + ' files')
-        for i, ln in nsrs.iterrows():
-            fname = ln['sceneName']+'.h5'
-            fullfname = os.path.join(nisarslcpath, fname)
-            # do_download = True
-            if os.path.exists(fullfname):
-                # check size .. or... just try load
-                try:
-                    f=h5py.File(fullfname, "r")
-                    rc=f['science/LSAR'].keys()
-                    f.close()
-                    # do_download = True
-                    print(' already downloaded.')
-                    continue
-                except:
-                    print('downloaded but wrongly - retrying')
-            print('downloading '+fname)
-            url = ln['url']
-            fpath = download(url, nisarslcpath)  # using this way, because for some reason i cannot get ASF session established..
-            if not os.path.exists(fpath):
-                print('some error in '+fpath)
+        notused = download_nisar_datapd(nsrs, nisarslcpath)
     if processit:
         # before proceeding, let's get ENUs (and potentially hgt)
         for polarization in ['HH', 'VV']:
@@ -314,14 +325,35 @@ def get_nisar_dem(wsen, outfile = 'nisar_dem.tif', tmpfolder = 'nisar_dem'):
     print('now you need to load and clip and fit to the ifgs...')
 
 
-def get_nisar_data_for_volcano(volcanoid, startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date()):
+def get_nisar_data_for_volcano(volcanoid, dtype = 'GSLC', startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date(),
+                               downloadit = False):
     ''' find id using
     vname='Etna'
     volcanoid=int(v.find_volcano_by_name(vname).volc_id.values[0])
     '''
     import volcdb as v
     wkt = v.get_volc_info(volcanoid).geom.values[0].wkt
-    return get_nisar_data(wkt, outAspd = True)
+    datapd = get_nisar_data(wkt, dtype = dtype, startdate = startdate, enddate = enddate, outAspd = True)
+    if downloadit:
+        downdir = os.environ('LiCSAR_SLC')  # '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC'
+        print('Using LiCSAR_SLC download directory')
+        numifgs, filepaths = download_nisar_datapd(datapd, downdir)
+        print('downloaded '+str(numifgs)+' new data')
+        if dtype == 'GUNW':
+            print('Converting existing GUNW data into geotiffs - now only unw data, will add coh and pha later if needed')
+            for f in filepaths:
+                print(f)
+                unw = load_gunw(f) # , freq_code = 'A', clipping_box = None)
+                unw = unw.rio.write_crs(unw.crs)
+                outif = os.path.basename(f).replace('.h5', '.geo.unw.tif')
+                outif_wgs = os.path.basename(f).replace('.h5', '.geo.unw.wgs84.tif')
+                unw.rio.to_raster(outif)  # no need for compression as i will translate to wgs later
+                cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + " " + outif_wgs
+                rc = os.system(cmd)
+                # preview
+                cmd = "create_preview_pygmt.py --grid " + outif_wgs + " --title NISAR --photobg --label unw"
+                rc = os.system(cmd)
+    return datapd
 
 
 # startdate = , enddate = 20260703, 20260731):
@@ -445,6 +477,43 @@ def print_metadata(metadata):
     from pprint import pprint
     pprint(metadata, width=100, compact=True)
 
+
+def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):
+    f = h5py.File(path, "r")
+    basestr = '/science/LSAR/GSLC/grids/frequency' + freq_code
+    try:
+        dset = f[basestr + '/' + 'unwrappedInterferogram/HH/unwrappedPhase']
+        polar = 'HH'
+    except:
+        dset = f[basestr + '/' + 'unwrappedInterferogram/VV/unwrappedPhase']
+        polar = 'VV'
+    unw = da.from_array(dset, chunks=chunks)
+    x = da.from_array(f[basestr+ '/' + 'unwrappedInterferogram/xCoordinates'], chunks=chunks)
+    y = da.from_array(f[basestr + '/' + 'unwrappedInterferogram/yCoordinates'], chunks=chunks)
+    proj_group = f[basestr + "/unwrappedInterferogram/projection"]
+    epsg = proj_group.attrs.get("epsg_code", None)
+    crs = CRS.from_epsg(int(epsg)).to_string() if epsg is not None else None
+    # --- Build xarray Dataset ---
+    ds = xr.Dataset(
+        data_vars={ 'unw': (("y", "x"), unw) },
+        coords={"x": ("x", x),"y": ("y", y) },
+        attrs={
+            "epsg": epsg,
+            "crs": crs,
+            "source_file": path,
+            "freq": freq_code,
+            "polarization": polar
+        }
+    )
+    if type(clipping_box) != type(None):
+        utmcode = ds.attrs.get("crs")
+        clipping_box_utm = wgs2utm(clipping_box, utmcode)
+        x1, y1, x2, y2 = clipping_box_utm.bounds
+        ds = ds.sel(x=slice(x1,x2),
+                      y=slice(y2,y1))
+    return ds
+
+
 def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto", clipping_box = None):
     """
     Lazily load OPERA/GSLC FrequencyA HH grid as xarray.Dataset with:
@@ -486,10 +555,10 @@ def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto", clippin
     )
     # try adding some more metadata here?
     #f.close()
-    if type(clipping_bbox) != type(None):
+    if type(clipping_box) != type(None):
         utmcode = ds.attrs.get("crs")
-        clipping_bbox_utm = wgs2utm(clipping_bbox, utmcode)
-        x1, y1, x2, y2 = clipping_bbox_utm.bounds
+        clipping_box_utm = wgs2utm(clipping_box, utmcode)
+        x1, y1, x2, y2 = clipping_box_utm.bounds
         ds = ds.sel(x=slice(x1,x2),
                       y=slice(y2,y1))
     return ds
