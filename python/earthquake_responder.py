@@ -21,6 +21,9 @@ web_path_maps = 'https://comet.nerc.ac.uk/earthquakes'
 
 eqcsvfile = "/home/home02/earmla/pokuseq.csv"
 
+eqnisardir = os.path.join(public_path, 'EQ', 'NISAR')
+eqnisardir_web = os.path.join(web_path+'.public', 'EQ', 'NISAR')
+
 #you may want to change these parameters:
 max_days = 35
 minmag = 5.5
@@ -723,7 +726,7 @@ def get_frames_in_event(event,radius = 9999):
 
 
 # usg='us6000tkt2'
-def get_nisar_coseismic_ifg(usg, start_from_gslcs = False):
+def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
     ''' this will search and download any existing coseismic geocoded ifg from NISAR'''
     event = get_event_details(usg)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
@@ -743,7 +746,7 @@ def get_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                      clipit = True, processit = True, processit_target_resolution_m=50,
                      startdate=eventdate, enddate=eventdate)
     else:
-        print('not ready yet')
+        # print('not ready yet')
         bbox = nd.lp.bbox_to_wkt(lon1, lat1, lon2, lat2)
         nsrs = nd.get_nisar_data(bbox, dtype = 'GUNW', outAspd=True, startdate=eventdate, enddate=eventdate)
         if not nsrs.empty:
@@ -756,6 +759,27 @@ def get_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                 unw.rio.to_raster(outif)  # no need for compression as i will translate to wgs later
                 cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + " " + outif_wgs
                 rc = os.system(cmd)
+                # now move it to the EQ folder
+                shutil.move(outif_wgs, os.path.join(eqnisardir, outif_wgs))
+                cmd = "create_preview_unwrapped "+os.path.join(eqnisardir, outif_wgs)
+                os.system(cmd)
+                os.remove(outif)
+                # add download link to the event html:
+                eventfile = os.path.join(public_path, 'EQ', event.id + '.html')
+                if not os.path.exists(eventfile):
+                    print('WARNING, no such event file - might get error adding the NISAR data')
+                ef = open(eventfile, "a+")
+                fullwebpath = os.path.join(eqnisardir_web, outif_wgs)
+                ff = outif_wgs.split('_')
+                frame = ff[5]+ff[6]+'_'+ff[7]+ff[8]
+                newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath, frame, outif_wgs)
+                ef.write(newline)
+                newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath.replace('.tif', '.png'), frame, outif_wgs.replace('.tif', '.png'))
+                ef.write(newline)
+                ef.close()
+        else:
+            print('No NISAR data exist for this event')
+            return
     return
 
 
@@ -1008,6 +1032,11 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                     newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath_ifg, frame, kml)
                     f.write(newline)
                 f.close()
+        try:
+            print('Searching and adding NISAR coseismic ifgs')
+            add_nisar_coseismic_ifg(eventid)
+        except:
+            print('some error doing this')
         if os.path.exists(eventfile):
             #this is to remove duplicities.. i know, should be done better..
             os.system('sort -u {0} > {0}.tmp; mv {0}.tmp {0}'.format(eventfile))
