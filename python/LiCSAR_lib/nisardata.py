@@ -495,7 +495,8 @@ def print_metadata(metadata):
     pprint(metadata, width=100, compact=True)
 
 
-def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):  #, load_more = False):
+def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
+              add_offsets = True, add_iono = False, add_enu = False):  #, load_more = False):
     f = h5py.File(path, "r")
     basestr = '/science/LSAR/GUNW/grids/frequency' + freq_code
     try:
@@ -527,6 +528,37 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):  #, lo
     coh = da.from_array(coh, chunks=chunks)
     ds['coh'] = ds['unw'].copy()
     ds.coh.values = coh
+    if add_iono:
+        try:
+            print('adding iono phase')
+            iono = f[basestr + '/' + 'unwrappedInterferogram/' + polar + '/ionospherePhaseScreen']
+            iono = da.from_array(iono, chunks=chunks)
+            ds['iono'] = ds['unw'].copy()
+            ds.iono.values = iono
+        except:
+            print('error adding iono phase')
+    if add_offsets:
+        try:
+            print('adding pixel offsets')
+            roffs = f[basestr + '/' + 'pixelOffsets/' + polar + '/slantRangeOffset']
+            aoffs = f[basestr + '/' + 'pixelOffsets/' + polar + '/alongTrackOffset']
+            roffs = da.from_array(roffs, chunks=chunks)
+            aoffs = da.from_array(aoffs, chunks=chunks)
+            ds['range_offsets'] = ds['unw'].copy()
+            ds['range_offsets'].values = roffs
+            ds['azimuth_offsets'] = ds['unw'].copy()
+            ds['azimuth_offsets'].values = aoffs
+        except:
+            print('error adding pixel offsets')
+    if add_enu:
+        try:
+            enu = get_ENU(path)
+            for dv in enu.data_vars:
+                print('adding '+dv)
+                # ds[dv] = ds.unw.copy()
+                ds[dv] = lp.fit_2D_xarray(enu[dv], degree='quadratic', maskedonly=False, fit_to_xrda=ds['unw'])
+        except:
+            print('error adding ENUs')
     if type(clipping_box) != type(None):
         utmcode = ds.attrs.get("crs")
         clipping_box_utm = wgs2utm(clipping_box, utmcode)
@@ -535,6 +567,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):  #, lo
                       y=slice(y2,y1))
     # f.close()  # i need to keep this open..
     return ds
+
 
 '''
 def load_gunw_all(path, chunks="auto", clipping_box = None):
@@ -651,13 +684,14 @@ science/LSAR/GSLC/metadata/radarGrid/yCoordinates
 '''
 
 
-def get_ENU(path, ftype = 'GSLC', chunks='auto'):
+def get_ENU(path, chunks='auto'):
     ''' extracts the ENU unit vectors from the GSLC H5 file
     'NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5'
     NEEDS SOME CHECKS!!! is it same direction as expected by our LiCS definition of the look angle data??
     '''
     chunks = 'auto'
     f = h5py.File(path, "r")
+    ftype = os.path.basename(path).split('_')[3]
     basestr = 'science/LSAR/'+ftype+'/metadata/radarGrid' #/xCoordinates'
     inc = f[basestr+'/incidenceAngle']
     inc = da.from_array(inc, chunks=chunks)
@@ -680,9 +714,9 @@ def get_ENU(path, ftype = 'GSLC', chunks='auto'):
     ds = xr.Dataset(
         data_vars={
             # "inc": (("y", "x"), inc),   # or just unit_z to be cos(inc)
-            "unit_x": (("y", "x"), unit_x),
-            "unit_y": (("y", "x"), unit_y),
-            "unit_z": (("y", "x"), np.cos(np.deg2rad(inc)))
+            "E": (("y", "x"), unit_x),
+            "N": (("y", "x"), unit_y),
+            "U": (("y", "x"), np.cos(np.deg2rad(inc)))
         },
         coords={
             "x": ("x", x),
@@ -694,6 +728,8 @@ def get_ENU(path, ftype = 'GSLC', chunks='auto'):
             "source_file": path,
         }
     )
+    #ds = ds.load() # load to memory
+    #f.close()
     return ds
 
 

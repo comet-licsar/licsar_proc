@@ -253,8 +253,9 @@ def runcmd(cmd, printcmd = True):
         print('WARNING - command did not exit as OK')
 
 
-def fit_2D_xarray(da, degree = 'quadratic', maskedonly=True):
-    """ ready for either quadratic or cubic fitting"""
+def fit_2D_xarray(da, degree = 'quadratic', maskedonly=True, fit_to_xrda = None):
+    """ ready for either quadratic or cubic fitting
+    if fit_to_xrda is some xr.DataArray (or Dataset), it will return the fit to its coordinates.."""
     # Get coordinates and flatten
     if 'lon' in da.coords:
         coordx='lon'
@@ -270,6 +271,12 @@ def fit_2D_xarray(da, degree = 'quadratic', maskedonly=True):
     # Mask NaNs
     mask = ~np.isnan(Z)
     X_valid, Y_valid, Z_valid = X[mask], Y[mask], Z[mask]
+    # fitting to another xrda/xrds?
+    if type(fit_to_xrda) != type(None):
+        da = fit_to_xrda
+        x, y = np.meshgrid(da[coordx], da[coordy])
+        X = x.ravel()
+        Y = y.ravel()
     #
     if degree == 'quadratic':
         # Design matrix for quadratic surface
