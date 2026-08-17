@@ -722,6 +722,30 @@ def get_frames_in_event(event,radius = 9999):
     return frames
 
 
+# usg='us6000tkt2'
+def get_nisar_coseismic_ifg(usg, start_from_gslcs = False, delta_days = 30):
+    ''' this will search and download any existing coseismic geocoded ifg from NISAR'''
+    event = get_event_details(usg)
+    radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
+    lon1 = event.longitude - radius
+    lat1 = event.latitude + radius
+    lon2 = event.longitude + radius
+    lat2 = event.latitude - radius
+    import nisardata as nd
+    # downloadit = False,
+    #               clipit = True, processit = True, processit_target_resolution_m=110,
+    #               startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date())
+    startdate = event.time-dt.timedelta(days=delta_days)
+    enddate = event.time + dt.timedelta(days=delta_days)
+    if start_from_gslcs:
+        nd.fullchain(lon1, lat1, lon2, lat2, downloadit = True,
+                     clipit = True, processit = True, processit_target_resolution_m=50,
+                     startdate=startdate, enddate=enddate)
+    else:
+        print('not ready yet')
+    return
+
+
 def import_to_licsinfo_eq(event, active = True):
     if lq.get_eqid(event.id):
         print('eq already in database')#', cancelling')

@@ -200,7 +200,19 @@ Decomposition to E-U(+N) vectors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This section should contain information on both decomposition from A+D - for now, you may go through `tutorial by Andrew Watson <https://github.com/andwatson/interseismic_practical>`_.
-For LiCSAR, you may investigate script ``decomposition.py`` for a simple solution in python (Andrew adds weighting average etc in his open MATLAB scripts).
+For LiCSAR, you may investigate functions in script ``decompose.py`` - for usage, contact Milan, or just export your cum.h5 file using ``LiCSBAS_out2nc.py``.
+
+
+NISAR data processing
+---------------------
+
+The NISAR data processor is not systematized as in case of Sentinel-1. The ``nisardata.py`` contains functions to discover, download, process NISAR GSLC data and generate basic LiCSBAS output.
+For example, to generate NISAR InSAR outputs for Manda Hararo volcano, you can do:
+::
+  import volcdb as v
+  import nisardata as nd
+  vid = int(v.find_volcano_by_name('Hararo').volc_id)
+  nd.fullchain_volcano(vid, target_resolution_m=50, startdate = nd.dt.date(2026,7,1), enddate = nd.dt.date(2026,7,31))
 
 
 Tools operating with LiCSAR data

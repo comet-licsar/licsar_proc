@@ -50,7 +50,8 @@ fullchain(lon1, lat1, lon2, lat2, downloadit = True)
 def fullchain(lon1, lat1, lon2, lat2, 
               nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
               downloadit = False,
-              clipit = True, processit = True, processit_target_resolution_m=110):
+              clipit = True, processit = True, processit_target_resolution_m=110,
+              startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date()):
     # will get automatically
     if not nisarslcpath:
         if 'XFCPATH' in os.environ:
@@ -62,7 +63,7 @@ def fullchain(lon1, lat1, lon2, lat2,
         print('expected input data into '+nisarslcpath)
     #
     bbox = lp.bbox_to_wkt(lon1, lat1, lon2, lat2)
-    nsrs = get_nisar_data(bbox, outAspd = True)
+    nsrs = get_nisar_data(bbox, outAspd = True, startdate = startdate, enddate = enddate)
     # filter a bit:
     polygon = wkt.loads(bbox)
     nsrs=nsrs[nsrs.intersects(polygon)]
@@ -313,7 +314,7 @@ def get_nisar_dem(wsen, outfile = 'nisar_dem.tif', tmpfolder = 'nisar_dem'):
     print('now you need to load and clip and fit to the ifgs...')
 
 
-def get_nisar_data_for_volcano(volcanoid):
+def get_nisar_data_for_volcano(volcanoid, startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date()):
     ''' find id using
     vname='Etna'
     volcanoid=int(v.find_volcano_by_name(vname).volc_id.values[0])
@@ -323,14 +324,19 @@ def get_nisar_data_for_volcano(volcanoid):
     return get_nisar_data(wkt, outAspd = True)
 
 
-def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR',
-                      nisar_slcdir = '/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR/download',
-                      target_resolution_m=111):
+# startdate = , enddate = 20260703, 20260731):
+def fullchain_volcano(volcid, workdir=os.path.join(os.getcwd(), 'NISAR'), # '/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR',
+                      nisar_slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC',
+                      target_resolution_m=111, startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date()):
     import volcdb as v
+    if not os.path.exists(workdir):
+        print('WARNING, work directory does not exist - creating '+workdir)
+        os.mkdir(workdir)
     os.chdir(workdir)
     if not os.path.exists(str(volcid)):
         os.mkdir(str(volcid))
     os.chdir(str(volcid))
+    print('Outputs in ' + str(os.getcwd()))
     volclip=v.get_volclip_vids(volcid)[0] # assumming only one
     vpoly = v.get_volclips_gpd(volclip).loc[0]['geom']
     lon1, lat1, lon2, lat2 = vpoly.bounds
@@ -342,7 +348,8 @@ def fullchain_volcano(volcid, workdir='/work/scratch-pw4/licsar/earmla/batchdir/
               nisarslcpath=nisar_slcdir,
               downloadit=True,
               clipit=True, processit=True,
-              processit_target_resolution_m=target_resolution_m)
+              processit_target_resolution_m=target_resolution_m,
+              startdate = startdate, enddate = enddate)
 
 
 # say we want to get NISAR data covering particular location, or region:
