@@ -629,14 +629,14 @@ science/LSAR/GSLC/metadata/radarGrid/yCoordinates
 '''
 
 
-def get_ENU(path, chunks='auto'):
+def get_ENU(path, ftype = 'GSLC', chunks='auto'):
     ''' extracts the ENU unit vectors from the GSLC H5 file
     'NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T130752_20251230T130827_X05009_N_F_J_001.h5'
     NEEDS SOME CHECKS!!! is it same direction as expected by our LiCS definition of the look angle data??
     '''
     chunks = 'auto'
     f = h5py.File(path, "r")
-    basestr = 'science/LSAR/GSLC/metadata/radarGrid' #/xCoordinates'
+    basestr = 'science/LSAR/'+ftype+'/metadata/radarGrid' #/xCoordinates'
     inc = f[basestr+'/incidenceAngle']
     inc = da.from_array(inc, chunks=chunks)
     unit_x = f[basestr+'/losUnitVectorX']
