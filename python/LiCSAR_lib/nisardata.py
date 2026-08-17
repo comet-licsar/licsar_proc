@@ -343,16 +343,33 @@ def get_nisar_data_for_volcano(volcanoid, dtype = 'GSLC', startdate = dt.date(20
             print('Converting existing GUNW data into geotiffs - now only unw data, will add coh and pha later if needed')
             for f in filepaths:
                 print(f)
-                unw = load_gunw(f) # , freq_code = 'A', clipping_box = None)
-                unw = unw.rio.write_crs(unw.crs)
+                try:
+                    gunw = load_gunw(f) # , freq_code = 'A', clipping_box = None)
+                except:
+                    print('no freqA data - trying lower resolution freqB')
+                    gunw = load_gunw(f, freq_code = 'B')
+                gunw = gunw.rio.write_crs(gunw.crs)
                 outif = os.path.basename(f).replace('.h5', '.geo.unw.tif')
                 outif_wgs = os.path.basename(f).replace('.h5', '.geo.unw.wgs84.tif')
-                unw.rio.to_raster(outif)  # no need for compression as i will translate to wgs later
+                gunw['unw'].rio.to_raster(outif)  # no need for compression as i will translate to wgs later
                 cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + " " + outif_wgs
                 rc = os.system(cmd)
+                os.remove(outif)
                 # preview
                 cmd = "create_preview_pygmt.py --grid " + outif_wgs + " --title NISAR --photobg --label unw"
                 rc = os.system(cmd)
+                # same for coh
+                outif = os.path.basename(f).replace('.h5', '.geo.cc.tif')
+                outif_wgs = os.path.basename(f).replace('.h5', '.geo.cc.wgs84.tif')
+                # (gunw['coh']*255).astype(np.uint8).rio.to_raster(outif)
+                gunw['coh'].rio.to_raster(outif)
+                cmd = "gdalwarp -t_srs EPSG:4326 -r near " + outif + " " + outif+'.tmp.tif'
+                # cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + " " + outif + '.tmp.tif'
+                rc = os.system(cmd)
+                cmd = "gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif+'.tmp.tif' + " " + outif_wgs
+                rc = os.system(cmd)
+                os.remove(outif+'.tmp.tif')
+                os.remove(outif)
     return datapd
 
 
@@ -478,7 +495,7 @@ def print_metadata(metadata):
     pprint(metadata, width=100, compact=True)
 
 
-def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):
+def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):  #, load_more = False):
     f = h5py.File(path, "r")
     basestr = '/science/LSAR/GUNW/grids/frequency' + freq_code
     try:
@@ -505,13 +522,18 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):
             "polarization": polar
         }
     )
+    # if load_more:
+    coh = f[basestr + '/' + 'unwrappedInterferogram/'+polar+'/coherenceMagnitude']
+    coh = da.from_array(coh, chunks=chunks)
+    ds['coh'] = ds['unw'].copy()
+    ds.coh.values = coh
     if type(clipping_box) != type(None):
         utmcode = ds.attrs.get("crs")
         clipping_box_utm = wgs2utm(clipping_box, utmcode)
         x1, y1, x2, y2 = clipping_box_utm.bounds
         ds = ds.sel(x=slice(x1,x2),
                       y=slice(y2,y1))
-    # f.close()
+    # f.close()  # i need to keep this open..
     return ds
 
 '''
