@@ -723,7 +723,7 @@ def get_frames_in_event(event,radius = 9999):
 
 
 # usg='us6000tkt2'
-def get_nisar_coseismic_ifg(usg, start_from_gslcs = False, delta_days = 30):
+def get_nisar_coseismic_ifg(usg, start_from_gslcs = False):
     ''' this will search and download any existing coseismic geocoded ifg from NISAR'''
     event = get_event_details(usg)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
@@ -735,14 +735,27 @@ def get_nisar_coseismic_ifg(usg, start_from_gslcs = False, delta_days = 30):
     # downloadit = False,
     #               clipit = True, processit = True, processit_target_resolution_m=110,
     #               startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date())
-    startdate = event.time-dt.timedelta(days=delta_days)
-    enddate = event.time + dt.timedelta(days=delta_days)
+    #startdate = event.time-dt.timedelta(days=delta_days)
+    #enddate = event.time + dt.timedelta(days=delta_days)
+    eventdate = event.time.date()
     if start_from_gslcs:
         nd.fullchain(lon1, lat1, lon2, lat2, downloadit = True,
                      clipit = True, processit = True, processit_target_resolution_m=50,
-                     startdate=startdate, enddate=enddate)
+                     startdate=eventdate, enddate=eventdate)
     else:
         print('not ready yet')
+        bbox = nd.lp.bbox_to_wkt(lon1, lat1, lon2, lat2)
+        nsrs = nd.get_nisar_data(bbox, dtype = 'GUNW', outAspd=True, startdate=eventdate, enddate=eventdate)
+        if not nsrs.empty:
+            numifgs, filepaths = nd.download_nisar_datapd(nsrs, nisarslcpath='/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC')
+            for f in filepaths:
+                unw = nd.load_gunw(f)  # , freq_code = 'A', clipping_box = None)
+                unw = unw.rio.write_crs(unw.crs)
+                outif = os.path.basename(f).replace('.h5', '.geo.unw.tif')
+                outif_wgs = os.path.basename(f).replace('.h5', '.geo.unw.wgs84.tif')
+                unw.rio.to_raster(outif)  # no need for compression as i will translate to wgs later
+                cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + " " + outif_wgs
+                rc = os.system(cmd)
     return
 
 

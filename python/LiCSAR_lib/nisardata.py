@@ -480,7 +480,7 @@ def print_metadata(metadata):
 
 def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):
     f = h5py.File(path, "r")
-    basestr = '/science/LSAR/GSLC/grids/frequency' + freq_code
+    basestr = '/science/LSAR/GUNW/grids/frequency' + freq_code
     try:
         dset = f[basestr + '/' + 'unwrappedInterferogram/HH/unwrappedPhase']
         polar = 'HH'
@@ -511,8 +511,50 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None):
         x1, y1, x2, y2 = clipping_box_utm.bounds
         ds = ds.sel(x=slice(x1,x2),
                       y=slice(y2,y1))
+    # f.close()
     return ds
 
+'''
+def load_gunw_all(path, chunks="auto", clipping_box = None):
+    f = h5py.File(path, "r")
+    for freqstr in f['/science/LSAR/GUNW/grids'].keys():
+        basestr = '/science/LSAR/GUNW/grids/' + freqstr
+        # assuming only one polarization...:
+        #polar = f['/science/LSAR/GUNW/grids/'+freqstr+'/listOfPolarizations'][0].decode()
+        #
+        try:
+            dset = f[basestr + '/' + 'unwrappedInterferogram/HH/unwrappedPhase']
+            polar = 'HH'
+        except:
+            dset = f[basestr + '/' + 'unwrappedInterferogram/VV/unwrappedPhase']
+            polar = 'VV'
+        unw = da.from_array(dset, chunks=chunks)
+        x = da.from_array(f[basestr+ '/' + 'unwrappedInterferogram/xCoordinates'], chunks=chunks)
+        y = da.from_array(f[basestr + '/' + 'unwrappedInterferogram/yCoordinates'], chunks=chunks)
+        proj_group = f[basestr + "/unwrappedInterferogram/projection"]
+        epsg = proj_group.attrs.get("epsg_code", None)
+        crs = CRS.from_epsg(int(epsg)).to_string() if epsg is not None else None
+    # --- Build xarray Dataset ---
+    ds = xr.Dataset(
+        data_vars={ 'unw': (("y", "x"), unw) },
+        coords={"x": ("x", x),"y": ("y", y) },
+        attrs={
+            "epsg": epsg,
+            "crs": crs,
+            "source_file": path,
+            "freq": freq_code,
+            "polarization": polar
+        }
+    )
+    if type(clipping_box) != type(None):
+        utmcode = ds.attrs.get("crs")
+        clipping_box_utm = wgs2utm(clipping_box, utmcode)
+        x1, y1, x2, y2 = clipping_box_utm.bounds
+        ds = ds.sel(x=slice(x1,x2),
+                      y=slice(y2,y1))
+    # f.close()
+    return ds
+'''
 
 def load_gslc(path, freq_code = 'A', polarization = 'HH', chunks="auto", clipping_box = None):
     """
