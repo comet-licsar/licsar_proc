@@ -21,8 +21,8 @@ web_path_maps = 'https://comet.nerc.ac.uk/earthquakes'
 
 eqcsvfile = "/home/home02/earmla/pokuseq.csv"
 
-eqnisardir = os.path.join(public_path, 'EQ', 'NISAR')
-eqnisardir_web = os.path.join(web_path+'.public', 'EQ', 'NISAR')
+# eqnisardir = os.path.join(public_path, 'EQ', 'NISAR')
+# eqnisardir_web = os.path.join(web_path+'.public', 'EQ', 'NISAR')
 
 #you may want to change these parameters:
 max_days = 35
