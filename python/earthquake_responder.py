@@ -726,7 +726,7 @@ def get_frames_in_event(event,radius = 9999):
 
 
 def pubpath2webpath(pubpath):
-    ''' input is in \$LiCSAR_public and this will convert to \$LiCSAR_web and return if exists'''
+    ''' input is in $LiCSAR_public and this will convert to $LiCSAR_web and return if exists'''
     ppi=len(os.environ['LiCSAR_public'].split('/'))
     pp=pubpath.split('/')
     stab = pp[ppi:]
@@ -741,7 +741,7 @@ def pubpath2webpath(pubpath):
 
 
 def update_eventfile(eventfile, jasmin_path):
-    ''' use \$LiCSAR_public or \$LiCSAR_web/../../20260101_20260303 as jasmin_path - this will also check if exists already or not'''
+    ''' use $LiCSAR_public or $LiCSAR_web/../../20260101_20260303 as jasmin_path - this will also check if exists already or not'''
     ppi = len(os.environ['LiCSAR_public'].split('/'))
     pp = jasmin_path.split('/')
     if pp[ppi-1]=='LiCSAR_products.public':
