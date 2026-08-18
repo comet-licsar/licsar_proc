@@ -80,7 +80,7 @@ fullchain(lon1, lat1, lon2, lat2, downloadit = True)
 def fullchain(lon1, lat1, lon2, lat2, 
               nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
               downloadit = False,
-              clipit = True, processit = True, processit_target_resolution_m=110,
+              clipit = True, processit = True, processit_target_resolution_m=110,  # note freq A would have better than 10 m spacing, so.. resolution 40 m?
               startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date()):
     # will get automatically
     if not nisarslcpath:

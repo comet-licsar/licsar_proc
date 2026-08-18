@@ -756,12 +756,12 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                 unw = unw.rio.write_crs(unw.crs)
                 outif = os.path.basename(f).replace('.h5', '.geo.unw.tif')
                 outif_wgs = os.path.basename(f).replace('.h5', '.geo.unw.wgs84.tif')
-                unw.rio.to_raster(outif)  # no need for compression as i will translate to wgs later
+                unw['unw'].rio.to_raster(outif)  # no need for compression as i will translate to wgs later
                 cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + " " + outif_wgs
                 rc = os.system(cmd)
                 # now move it to the EQ folder
-                shutil.move(outif_wgs, os.path.join(eqnisardir, outif_wgs))
-                cmd = "create_preview_unwrapped "+os.path.join(eqnisardir, outif_wgs)
+                shutil.move(outif_wgs, os.path.join(eqnisardir, outif))
+                cmd = "create_preview_unwrapped "+os.path.join(eqnisardir, outif)
                 os.system(cmd)
                 os.remove(outif)
                 # add download link to the event html:
@@ -1033,8 +1033,8 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                     f.write(newline)
                 f.close()
         try:
-            print('Searching and adding NISAR coseismic ifgs')
-            add_nisar_coseismic_ifg(eventid)
+            print('Searching and adding NISAR coseismic ifgs - in dev')
+            # add_nisar_coseismic_ifg(eventid)
         except:
             print('some error doing this')
         if os.path.exists(eventfile):
