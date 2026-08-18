@@ -79,7 +79,7 @@ lat1, lat2 = 33.81550899014754, 33.70198918701689
 fullchain(lon1, lat1, lon2, lat2, downloadit = True)
 '''
 def fullchain(lon1, lat1, lon2, lat2, 
-              nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
+              nisarslcpath = os.environ['LiCSAR_temp'], # /gws/ssde/j25a/nceo_geohazards/vol1/public/shared/NISAR/allinputs',
               downloadit = False,
               clipit = True, processit = True, processit_target_resolution_m=110,  # note freq A would have better than 10 m spacing, so.. resolution 40 m?
               startdate = dt.date(2025,1,1), enddate = dt.datetime.now().date()):
@@ -336,7 +336,7 @@ def get_nisar_data_for_volcano(volcanoid, dtype = 'GSLC', startdate = dt.date(20
     wkt = v.get_volc_info(volcanoid).geom.values[0].wkt
     datapd = get_nisar_data(wkt, dtype = dtype, startdate = startdate, enddate = enddate, outAspd = True)
     if downloadit:
-        downdir = os.environ('LiCSAR_SLC')  # '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC'
+        downdir = os.environ['LiCSAR_temp']  # '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC'
         print('Using LiCSAR_SLC download directory')
         numifgs, filepaths = download_nisar_datapd(datapd, downdir)
         print('downloaded '+str(numifgs)+' new data')
