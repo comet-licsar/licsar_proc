@@ -14,6 +14,8 @@ import framecare as fc
 import time
 import s1data as s1
 
+from python.scaling_factor_sbovl import output_path
+
 public_path = os.environ['LiCSAR_public']
 procdir_path = os.environ['LiCSAR_procdir']
 web_path = 'https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products'
@@ -755,7 +757,9 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
         # check for existing data:
         newones = []
         for i,fid in nsrs.fileID.items():
-            expectedfn = os.path.join(eqnisardir, fid+'.geo.unw.tif')
+            expected_path = nd.get_frameid(fid, return_pubpath = True)
+            # expectedfn = os.path.join(eqnisardir, fid + '.geo.unw.tif')
+            expectedfn = os.path.join(expected_path, os.path.basename(expected_path)+'.geo.unw.tif')
             if not os.path.exists(expectedfn):
                 newones.append(i)
         nsrs = nsrs.loc[newones]
@@ -763,7 +767,10 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
             numifgs, filepaths = nd.download_nisar_datapd(nsrs, nisarslcpath='/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC')
             for f in filepaths:
                 unw = nd.load_gunw(f)  # , freq_code = 'A', clipping_box = None)
-                outifs = nd.export_gunw(unw, eqnisardir)
+                output_path = nd.get_frameid(f, return_pubpath = True)
+                if not os.path.exists(output_path):
+                    os.makedirs(output_path)
+                outifs = nd.export_gunw(unw, output_path)
                 '''
                 unw = unw.rio.write_crs(unw.crs)
                 outif = os.path.basename(f).replace('.h5', '.geo.unw.tif')

@@ -30,6 +30,7 @@ import numpy as np
 from rasterio.crs import CRS  # optional but convenient
 
 from dask.diagnostics import ProgressBar
+
 ProgressBar().register()
 
 
@@ -373,9 +374,40 @@ def get_nisar_data_for_volcano(volcanoid, dtype = 'GSLC', startdate = dt.date(20
     return datapd
 
 
-def export_gunw(ds, outpath):
+def get_frameid(fileid, return_pubpath = False):
+    '''
+    Function to get frame ID from a file id (or use filename, e.g. NISAR_L2_PR_GUNW_... or GSLC)
+    or it will return full path to the public directory for this file, including either epochs/date or interferograms/pair if GUNW
+    warning - we now ignore HH and L/S band is identified by return_pubpath..
+    '''
+    ff=os.path.basename(fileid).split('_')
+    frameid = ff[5]+ff[6]+'_'+ff[7]
+    if not return_pubpath:
+        return frameid
+    else:
+        band = ff[1][0]
+        tr = str(int(ff[5]))
+        pubpath = os.environ['LiCSAR_public']
+        nispath = os.path.join(pubpath, 'nisar.'+band, tr, frameid)
+        if ff[3] == 'GUNW':
+            pair = ff[11].split('T')[0]+'_'+ff[13].split('T')[0]
+            outpath = os.path.join(nispath, 'interferograms', pair)
+        else:
+            # assuming GSLC
+            epoch = ff[11].split('T')[0]
+            outpath = os.path.join(nispath, 'epochs', epoch)
+        return outpath
+
+
+def export_gunw(ds, outpath, name_as_pair = True):
+    ''' This will export loaded GUNW dataset into geotiffs to outpath, by default as 202xxxxx_202xxxxx.geo.unw.tif.
+    if name_as_pair is False, we will use the source name, e.g. NISAR_xxxxx_xxxx_.geo.unw.tif etc.
+    ( best to use outpath by get_frameid(fileid, True)  )'''
     ds = ds.rio.write_crs(ds.crs)
     fid = os.path.basename(ds.source_file).split('.')[0]
+    if name_as_pair:
+        ff = fid.split('_')
+        fid = ff[11].split('T')[0]+'_'+ff[13].split('T')[0]
     outifs = []
     for dvar in ds.data_vars:
         print('Exporting '+dvar)
