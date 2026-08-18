@@ -727,6 +727,47 @@ def get_frames_in_event(event,radius = 9999):
     return frames
 
 
+def pubpath2webpath(pubpath):
+    ''' input is in \$LiCSAR_public and this will convert to \$LiCSAR_web and return if exists'''
+    ppi=len(os.environ['LiCSAR_public'].split('/'))
+    pp=pubpath.split('/')
+    stab = pp[ppi:]
+    webdir = os.path.join(os.environ['LiCSAR_web'], *stab)
+    if os.path.exists(webdir):
+        return webdir
+    else:
+        print('expected path does not exist:')
+        print(webdir)
+        print('(did you run cedaarch_create_html.sh already?)')
+        return False
+
+
+def update_eventfile(eventfile, jasmin_path):
+    ''' use \$LiCSAR_public or \$LiCSAR_web/../../20260101_20260303 as jasmin_path - this will also check if exists already or not'''
+    ppi = len(os.environ['LiCSAR_public'].split('/'))
+    pp = jasmin_path.split('/')
+    if pp[ppi-1]=='LiCSAR_products.public':
+        wpadd = '.public'
+    else:
+        wpadd = ''
+    stab = pp[ppi:]
+    fullwebpath = os.path.join(web_path+wpadd, *stab)
+    try:
+        tr=int(stab[0])
+        framestr = stab[1]
+    except:
+        framestr = stab[0]+'_'+stab[2]
+    title = framestr+': '+pp[-1]
+    newline = '<a href="{0}">{1}</a> <br /> \n'.format(fullwebpath, title)
+    with open(eventfile, 'r', encoding='utf-8') as ef:
+        if newline in ef.readlines():
+            print("The record already existed in the event file")
+            return False
+    with open(eventfile, 'a+', encoding='utf-8') as ef:
+        ef.write(newline)
+    return True
+
+
 # usg='us6000tkt2'
 def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
     ''' this will search and download any existing coseismic geocoded ifg from NISAR'''
@@ -762,15 +803,29 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
             expectedfn = os.path.join(expected_path, os.path.basename(expected_path)+'.geo.unw.tif')
             if not os.path.exists(expectedfn):
                 newones.append(i)
+            else:
+                # check and update in the event file
+                inpath = pubpath2webpath(expected_path)
+                if inpath:
+                    update_eventfile(eventfile, inpath)
         nsrs = nsrs.loc[newones]
         if not nsrs.empty:
-            numifgs, filepaths = nd.download_nisar_datapd(nsrs, nisarslcpath='/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC')
+            numifgs, filepaths = nd.download_nisar_datapd(nsrs, nisarslcpath=os.environ['LiCSAR_temp']) #, '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC')
             for f in filepaths:
                 unw = nd.load_gunw(f)  # , freq_code = 'A', clipping_box = None)
                 output_path = nd.get_frameid(f, return_pubpath = True)
                 if not os.path.exists(output_path):
                     os.makedirs(output_path)
                 outifs = nd.export_gunw(unw, output_path)
+                # now also set it in the $LiCSAR_web:
+                oo = output_path.split('/')
+                # cmd = "cedaarch_create_html.sh 133A_007 20260611_20260705 interferograms nisar.L "
+                cmd = "cedaarch_create_html.sh {0} {1} interferograms {2}".format(oo[-3], oo[-1], oo[-5])
+                rc = os.system(cmd)
+                # check and update in the event file
+                inpath = pubpath2webpath(output_path)
+                if inpath:
+                    update_eventfile(eventfile, inpath)
                 '''
                 unw = unw.rio.write_crs(unw.crs)
                 outif = os.path.basename(f).replace('.h5', '.geo.unw.tif')
@@ -783,12 +838,13 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                 cmd = "create_preview_unwrapped "+os.path.join(eqnisardir, outif)
                 os.system(cmd)
                 os.remove(outif)
-                '''
                 # add download link to the event html:
                 ef = open(eventfile, "a+")
                 for tifpath in outifs:
                     tif = os.path.basename(tifpath)
-                    fullwebpath = os.path.join(eqnisardir_web, tif)
+                    # fullwebpath = os.path.join(eqnisardir_web, tif)
+                    fullwebpath_ifg = os.path.join(web_path, track, frame, 'interferograms', tif)
+                    newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath_ifg, frame, kml)
                     ff = tif.split('_')
                     frame = ff[5]+ff[6]+'_'+ff[7]+ff[8]
                     newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath, frame, tif)
@@ -796,6 +852,7 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                     newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath.replace('.tif', '.png'), frame, tif.replace('.tif', '.png'))
                     ef.write(newline)
                 ef.close()
+                '''
         else:
             print('No NISAR data exist for this event')
             return
@@ -1053,7 +1110,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                 f.close()
         try:
             print('Searching and adding NISAR coseismic ifgs - in dev')
-            # add_nisar_coseismic_ifg(eventid)
+            add_nisar_coseismic_ifg(eventid)
         except:
             print('some error doing this')
         if os.path.exists(eventfile):

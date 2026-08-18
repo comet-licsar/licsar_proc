@@ -10,6 +10,8 @@ usage() {
   echo "   e.g. cedaarch_create_html.sh \$frame \$pair" 1>&2;
   echo "   or cedaarch_create_html.sh \$frame \$epoch epochs" 1>&2;
   echo "   (third param is core directory, by default: interferograms)" 1>&2;
+  echo "   (for non-S1 data, add sat code as 4th param, e.g. nisar.L - such as " 1>&2;
+  echo "   cedaarch_create_html.sh 133A_007 20260611_20260705 interferograms nisar.L )" 1>&2;
   echo " " 1>&2; 
   exit 1; 
 }
@@ -25,7 +27,12 @@ fi
 ddir=interferograms
 if [ ! -z $3 ]; then ddir=$3; fi
 tr=`track_from_frame $frame`
-
+if [ ! -z $4 ]; then
+  sat=$4
+  if [ ! -d $LiCSAR_public/$sat ]; then echo "wrong sat code provided: "$sat; echo ""; usage; exit; fi
+  # a trick..
+  tr=$sat/$tr
+fi
 indir=$LiCSAR_public/$tr/$frame/$ddir/$pairep
 if [ ! -d $indir ]; then
   echo "The source dir does not exist: "$indir
@@ -61,7 +68,7 @@ fi
 outhtml=$outdir/$ddir/$pairep
 pubwebdir="https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products.public/"$tr/$frame/$ddir
 
-if [ $tr -lt 10 ]; then cedatr=0$tr; else cedatr=$tr; fi
+if [ $tr -lt 10 ]; then cedatr=0$tr; else cedatr=$tr; fi 2>/dev/null
 cedaarchwebdir="https://data.ceda.ac.uk/neodc/comet/data/licsar_products/"$cedatr/$frame
 # on CEDA Archive, we have ifgs directly in the frame dir, but epochs or metadata are under this..
 if [ $ddir != interferograms ]; then
