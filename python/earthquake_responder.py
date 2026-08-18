@@ -14,8 +14,6 @@ import framecare as fc
 import time
 import s1data as s1
 
-from python.scaling_factor_sbovl import output_path
-
 public_path = os.environ['LiCSAR_public']
 procdir_path = os.environ['LiCSAR_procdir']
 web_path = 'https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products'
