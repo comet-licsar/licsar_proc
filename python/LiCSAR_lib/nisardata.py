@@ -373,6 +373,70 @@ def get_nisar_data_for_volcano(volcanoid, dtype = 'GSLC', startdate = dt.date(20
     return datapd
 
 
+def export_gunw(ds, outpath):
+    ds = ds.rio.write_crs(ds.crs)
+    fid = os.path.basename(ds.source_file).split('.')[0]
+    outifs = []
+    for dvar in ds.data_vars:
+        print('Exporting '+dvar)
+        if dvar == 'unw':
+            outif = os.path.join(outpath, fid + '.geo.unw.tif')
+            outifs.append(outif)
+            ds['unw'].rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
+            cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif+'.tmp.tif' + " " + outif
+            rc = os.system(cmd)
+            os.remove(outif + '.tmp.tif')
+            cmd = "create_preview_unwrapped " + outif
+            rc = os.system(cmd)
+            # and now wrapped
+            ds['pha'] = ds['unw'].copy()
+            ds.pha.values = np.angle(np.exp(1j * ds.pha.values))
+            outif = os.path.join(outpath, fid + '.geo.diff_pha.tif')
+            outifs.append(outif)
+            ds['pha'].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
+            cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
+            rc = os.system(cmd)
+            os.remove(outif + '.tmp.tif')
+            cmd = "create_preview_wrapped " + outif
+            rc = os.system(cmd)
+        elif dvar == 'coh':
+            outif = os.path.join(outpath, fid + '.geo.cc.tif')
+            outifs.append(outif)
+            ds['coh'].rio.to_raster(outif)
+            cmd = "gdalwarp -t_srs EPSG:4326 -r near " + outif + " " + outif + '.tmp.tif'
+            rc = os.system(cmd)
+            cmd = "gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
+            rc = os.system(cmd)
+            os.remove(outif + '.tmp.tif')
+            cmd = "create_preview_coh " + outif
+            rc = os.system(cmd)
+        elif dvar == 'range_offsets':
+            outif = os.path.join(outpath, fid + '.geo.rng.tif')
+            outifs.append(outif)
+            ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
+            cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
+            rc = os.system(cmd)
+            os.remove(outif + '.tmp.tif')
+            cmd = "create_preview_offsets " + outif
+            rc = os.system(cmd)
+        elif dvar == 'azimuth_offsets':
+            outif = os.path.join(outpath, fid + '.geo.azi.tif')
+            outifs.append(outif)
+            ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
+            cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
+            rc = os.system(cmd)
+            os.remove(outif + '.tmp.tif')
+            cmd = "create_preview_offsets " + outif
+            rc = os.system(cmd)
+        else:
+            outif = os.path.join(outpath, fid + '.geo.'+dvar+'.tif')
+            ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
+            cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
+            rc = os.system(cmd)
+            os.remove(outif + '.tmp.tif')
+    return outifs
+
+
 # startdate = , enddate = 20260703, 20260731):
 def fullchain_volcano(volcid, workdir=os.path.join(os.getcwd(), 'NISAR'), # '/work/scratch-pw4/licsar/earmla/batchdir/subsets.NISAR',
                       nisar_slcdir = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC',

@@ -741,7 +741,7 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
     #startdate = event.time-dt.timedelta(days=delta_days)
     #enddate = event.time + dt.timedelta(days=delta_days)
     eventdate = event.time.date()
-    if start_from_gslcs:
+    if start_from_gslcs:  # only if you need high resolution...
         nd.fullchain(lon1, lat1, lon2, lat2, downloadit = True,
                      clipit = True, processit = True, processit_target_resolution_m=50,
                      startdate=eventdate, enddate=eventdate)
@@ -749,10 +749,22 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
         # print('not ready yet')
         bbox = nd.lp.bbox_to_wkt(lon1, lat1, lon2, lat2)
         nsrs = nd.get_nisar_data(bbox, dtype = 'GUNW', outAspd=True, startdate=eventdate, enddate=eventdate)
+        eventfile = os.path.join(public_path, 'EQ', event.id + '.html')
+        if not os.path.exists(eventfile):
+            print('WARNING, no such event file - might get error adding the NISAR data')
+        # check for existing data:
+        newones = []
+        for i,fid in nsrs.fileID.items():
+            expectedfn = os.path.join(eqnisardir, fid+'.geo.unw.tif')
+            if not os.path.exists(expectedfn):
+                newones.append(i)
+        nsrs = nsrs.loc[newones]
         if not nsrs.empty:
             numifgs, filepaths = nd.download_nisar_datapd(nsrs, nisarslcpath='/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC')
             for f in filepaths:
                 unw = nd.load_gunw(f)  # , freq_code = 'A', clipping_box = None)
+                outifs = nd.export_gunw(unw, eqnisardir)
+                '''
                 unw = unw.rio.write_crs(unw.crs)
                 outif = os.path.basename(f).replace('.h5', '.geo.unw.tif')
                 outif_wgs = os.path.basename(f).replace('.h5', '.geo.unw.wgs84.tif')
@@ -764,18 +776,18 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                 cmd = "create_preview_unwrapped "+os.path.join(eqnisardir, outif)
                 os.system(cmd)
                 os.remove(outif)
+                '''
                 # add download link to the event html:
-                eventfile = os.path.join(public_path, 'EQ', event.id + '.html')
-                if not os.path.exists(eventfile):
-                    print('WARNING, no such event file - might get error adding the NISAR data')
                 ef = open(eventfile, "a+")
-                fullwebpath = os.path.join(eqnisardir_web, outif_wgs)
-                ff = outif_wgs.split('_')
-                frame = ff[5]+ff[6]+'_'+ff[7]+ff[8]
-                newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath, frame, outif_wgs)
-                ef.write(newline)
-                newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath.replace('.tif', '.png'), frame, outif_wgs.replace('.tif', '.png'))
-                ef.write(newline)
+                for tifpath in outifs:
+                    tif = os.path.basename(tifpath)
+                    fullwebpath = os.path.join(eqnisardir_web, tif)
+                    ff = tif.split('_')
+                    frame = ff[5]+ff[6]+'_'+ff[7]+ff[8]
+                    newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath, frame, tif)
+                    ef.write(newline)
+                    newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath.replace('.tif', '.png'), frame, tif.replace('.tif', '.png'))
+                    ef.write(newline)
                 ef.close()
         else:
             print('No NISAR data exist for this event')
