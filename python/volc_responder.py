@@ -22,9 +22,24 @@ def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
         os.remove(kmzfile)
     if os.path.exists(kmlfile):
         os.remove(kmlfile)
-    request = requests.get(url)
-    if request.status_code == 200:
-        os.system('wget {0} >/dev/null 2>/dev/null'.format(url))
+    # bot protection... need more complex:
+    import requests
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/139.0.0.0 Safari/537.36"
+        ),
+        "Referer": "https://volcano.si.edu/",
+    }
+    r = requests.get(url, headers=headers, allow_redirects=True)
+    #print(r.status_code)
+    #print(r.headers.get("content-type"))
+    with open("WeeklyVolcanoGE-Reports.kmz", "wb") as f:
+        f.write(r.content)
+    # request = requests.get(url)
+    if r.status_code == 200:
+        # os.system('wget {0} >/dev/null 2>/dev/null'.format(url))
         os.system('unzip {0} >/dev/null 2>/dev/null'.format(kmzfile))
         os.system('rm {0}'.format(kmzfile))
         os.system('iconv -f iso-8859-1 -t utf-8 {0} > {1}'.format(kmlfile, kmlfile+'.utf8'))
@@ -35,6 +50,7 @@ def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
         print('error: '+str(request))
         return False
     return True
+
 
 def get_frames_from_kml(filename = 'WeeklyVolcanoGE-Reports.kml'):
     doc = etree.parse(filename)
