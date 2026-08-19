@@ -20,7 +20,7 @@ web_path = 'https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_produc
 web_path_maps = 'https://comet.nerc.ac.uk/earthquakes'
 
 eqcsvfile = "/home/home02/earmla/pokuseq.csv"
-
+eqframescsv = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv'
 # eqnisardir = os.path.join(public_path, 'EQ', 'NISAR')
 # eqnisardir_web = os.path.join(web_path+'.public', 'EQ', 'NISAR')
 
@@ -181,7 +181,7 @@ def update_eq_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public
             return False
 
 
-def regenerate_eq2frames_csv(csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv'):
+def regenerate_eq2frames_csv(csvfile = eqframescsv):
     query = "select p.polyid_name as frame, ST_aswkb(pg.geom) as the_geom, eq.USGS_ID as usgsid, eq.location, e2f.post_acq as next_possible, e2f.next_acq as next_expected  \
         from eq2frame e2f inner join eq on e2f.eqid=eq.eqid inner join polygs2gis pg  \
         on pg.polyid=e2f.fid inner join polygs p on p.polyid=e2f.fid"
@@ -255,7 +255,7 @@ def get_days_since_last_acq(frame, eventtime = dt.datetime.now(), metafile = Fal
     return misc.safe_datetime_diff(eventtime, lastone)
 
 
-def update_eq2frames_csv(eventid, csvfile = '/gws/ssde/j25a/nceo_geohazards/vol1/public/LiCSAR_products/EQ/eqframes.csv',
+def update_eq2frames_csv(eventid, csvfile = eqframescsv,
                          metafile = False, delete = False):
     """
        eventid -- USGS ID of given event
@@ -740,7 +740,7 @@ def pubpath2webpath(pubpath):
         return False
 
 
-def update_eventfile(eventfile, jasmin_path):
+def update_eventfile(eventfile, jasmin_path, update_eqframes = True):
     ''' use $LiCSAR_public or $LiCSAR_web/../../20260101_20260303 as jasmin_path - this will also check if exists already or not'''
     ppi = len(os.environ['LiCSAR_public'].split('/'))
     pp = jasmin_path.split('/')
@@ -752,8 +752,10 @@ def update_eventfile(eventfile, jasmin_path):
     fullwebpath = os.path.join(web_path+wpadd, *stab)
     try:
         tr=int(stab[0])
+        frame = stab[1]
         framestr = stab[1]
     except:
+        frame=stab[2]
         framestr = stab[0]+'_'+stab[2]
     title = framestr+': '+pp[-1]
     newline = '<a href="{0}">{1}</a> <br /> \n'.format(fullwebpath, title)
@@ -763,7 +765,44 @@ def update_eventfile(eventfile, jasmin_path):
             return False
     with open(eventfile, 'a+', encoding='utf-8') as ef:
         ef.write(newline)
+    if update_eqframes:
+        usgsid = os.path.basename(eventfile).split('.')[0]
+        if misc.grep1line(framestr + ';' + usgsid, eqframescsv):
+            print(framestr+' already in eqframescsv for event '+usgsid)
+        else:
+            hgtfile = jasmin_path+'/../../metadata/'+frame+'.geo.hgt.tif'
+            if not os.path.exists(hgtfile):
+                # workaround:
+                hgtfile = os.path.join(jasmin_path.replace('LiCSAR_products.future/','LiCSAR_products.public/').replace('LiCSAR_products/','LiCSAR_products.public/'), os.path.basename(jasmin_path)+'.geo.unw.tif')
+            if os.path.exists(hgtfile):
+                the_geom = get_geom_from_tif(hgtfile)
+                import re
+                framewebpath = re.search(r'(https://.+?)interferograms', fullwebpath).group(1)
+                download = "<a href='{0}' target='_blank'>Link</a>".format(framewebpath)
+                post_date = ''  # '2021-03-09 06:58:27'  # might work with nans? or add -999?
+                newline = the_geom + ';' + framestr + ';' + usgsid + ';' + download + ';' + post_date + ';' + post_date + ';-999\n'
+                with open(eqframescsv, 'a+', encoding='utf-8') as ef:
+                    ef.write(newline)
     return True
+
+
+def get_geom_from_tif(tif):
+    import rasterio
+    from shapely.geometry import Polygon
+    from shapely import wkb
+    with rasterio.open(tif) as src:
+        bounds = src.bounds
+    # Create footprint polygon from raster bounds
+    poly = Polygon([
+        (bounds.left, bounds.bottom),
+        (bounds.left, bounds.top),
+        (bounds.right, bounds.top),
+        (bounds.right, bounds.bottom),
+        (bounds.left, bounds.bottom)
+    ])
+    # WKB hex representation
+    the_geom = wkb.dumps(poly, hex=True)
+    return the_geom
 
 
 # usg='us6000tkt2'
