@@ -849,13 +849,39 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
         if not nsrs.empty:
             numifgs, filepaths = nd.download_nisar_datapd(nsrs, nisarslcpath=os.environ['LiCSAR_temp']) #, '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC')
             for f in filepaths:
-                unw = nd.load_gunw(f)  # , freq_code = 'A', clipping_box = None)
                 output_path = nd.get_frameid(f, return_pubpath = True)
+                oo = output_path.split('/')
+                pair = os.path.basename(output_path)
+                frame = oo[-3]
                 if not os.path.exists(output_path):
                     os.makedirs(output_path)
+                metapath = output_path + '/../../metadata'
+                if not os.path.exists(metapath):
+                    os.mkdir(metapath)
+                    do_enus = True
+                else:
+                    do_enus = False
+                unw = nd.load_gunw(f, add_enu=do_enus)  # , freq_code = 'A', clipping_box = None)
                 outifs = nd.export_gunw(unw, output_path)
+                if do_enus:
+                    # also need to create hgt file, so:
+                    # add hgt... TODO
+                    import rasterio
+                    tif = outifs[0]
+                    with rasterio.open(tif) as src:
+                        bounds = src.bounds
+                    wsen = (bounds.left, bounds.bottom, bounds.right, bounds.top)
+                    hgtfile = os.path.join(metapath, frame+'.geo.hgt.tif')
+                    nd.get_nisar_dem(wsen, outfile=hgtfile+'.tmp.tif', tmpfolder='nisar_dem_todelete')
+                    os.system('rm -rf nisar_dem_todelete')
+                    os.system('gdalwarp2match.py {0} {1} {2}'.format(hgtfile+'.tmp.tif', tif, hgtfile))
+                    os.remove(hgtfile+'.tmp.tif')
+                    # and now export the ENUs
+                    for enu in ['E','N','U']:
+                        inenu = os.path.join(output_path, pair+'.geo.'+enu+'.tif')
+                        outenu = os.path.join(metapath, frame+'.geo.'+enu+'.tif')
+                        shutil.move(inenu, outenu)
                 # now also set it in the $LiCSAR_web:
-                oo = output_path.split('/')
                 # cmd = "cedaarch_create_html.sh 133A_007 20260611_20260705 interferograms nisar.L "
                 cmd = "cedaarch_create_html.sh {0} {1} interferograms {2}".format(oo[-3], oo[-1], oo[-5])
                 rc = os.system(cmd)

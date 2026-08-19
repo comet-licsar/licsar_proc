@@ -410,9 +410,11 @@ def export_gunw(ds, outpath, name_as_pair = True):
         fid = ff[11].split('T')[0]+'_'+ff[13].split('T')[0]
     outifs = []
     for dvar in ds.data_vars:
-        print('Exporting '+dvar)
+        print('Exporting '+dvar+' (if does not exist)')
         if dvar == 'unw':
             outif = os.path.join(outpath, fid + '.geo.unw.tif')
+            if os.path.exists(outif):
+                continue
             outifs.append(outif)
             ds['unw'].rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif+'.tmp.tif' + " " + outif
@@ -433,6 +435,8 @@ def export_gunw(ds, outpath, name_as_pair = True):
             rc = os.system(cmd)
         elif dvar == 'coh':
             outif = os.path.join(outpath, fid + '.geo.cc.tif')
+            if os.path.exists(outif):
+                continue
             outifs.append(outif)
             ds['coh'].rio.to_raster(outif)
             cmd = "gdalwarp -t_srs EPSG:4326 -r near " + outif + " " + outif + '.tmp.tif'
@@ -444,6 +448,8 @@ def export_gunw(ds, outpath, name_as_pair = True):
             rc = os.system(cmd)
         elif dvar == 'range_offsets':
             outif = os.path.join(outpath, fid + '.geo.rng.tif')
+            if os.path.exists(outif):
+                continue
             outifs.append(outif)
             ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
@@ -453,6 +459,8 @@ def export_gunw(ds, outpath, name_as_pair = True):
             rc = os.system(cmd)
         elif dvar == 'azimuth_offsets':
             outif = os.path.join(outpath, fid + '.geo.azi.tif')
+            if os.path.exists(outif):
+                continue
             outifs.append(outif)
             ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
@@ -462,6 +470,8 @@ def export_gunw(ds, outpath, name_as_pair = True):
             rc = os.system(cmd)
         else:
             outif = os.path.join(outpath, fid + '.geo.'+dvar+'.tif')
+            if os.path.exists(outif):
+                continue
             ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
             rc = os.system(cmd)
