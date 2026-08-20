@@ -1,5 +1,7 @@
 import pygmt
 import matplotlib.pyplot as plt
+import tempfile
+import matplotlib.image as mpimg
 import numpy as np
 import pandas as pd
 try:
@@ -192,6 +194,17 @@ def prepare_pygmt_fig(hlon1, hlon2, hlat1, hlat2, bevel = 0.05):
         rectangle = [[region[0], region[2], region[1], region[3]]]
         fig.plot(data=rectangle, style="r+s", pen="2p,blue")
     return fig
+
+
+def pygmt_show(fig):
+    with tempfile.NamedTemporaryFile(suffix=".png") as f:
+        fig.savefig(f.name, dpi=150)
+        img = mpimg.imread(f.name)
+        plt.figure()
+        plt.imshow(img)
+        plt.axis("off")
+        plt.show()
+
 
 def pygmt_plot_interactive(cube, title, label='deformation rate [mm/year]', lims=[-15, 50],
                            cmap="polar", photobg=False, plotvec=None, yrange = None):
@@ -703,7 +716,8 @@ def fig_add_faults(fig,
 
 
 def pygmt_plot_bursts(burstlist = None, framelist = None, title = '', background = True,
-                      projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True):
+                      projection = "M8c", bevel = 0.05, label_nofiles = False, label_bids = True,
+                      show = True):
     '''
     This will plot either bursts or frames. You may want to use
     burstlist = fc.lq.sqlout2list(fc.get_bidtanxs_in_frame(frame))
@@ -794,4 +808,6 @@ def pygmt_plot_bursts(burstlist = None, framelist = None, title = '', background
                      y=bidsgpd.geometry.centroid.y.values,
                      font="5p,Helvetica")  # , justify="RT", offset='J/30p')
     #
+    if show:
+        pygmt_show(fig)
     return fig
