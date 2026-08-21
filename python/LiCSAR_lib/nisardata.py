@@ -431,7 +431,7 @@ def export_gunw(ds, outpath, name_as_pair = True):
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
             rc = os.system(cmd)
             os.remove(outif + '.tmp.tif')
-            cmd = "create_preview_wrapped " + outif
+            cmd = "create_preview_wrapped " + outif + " 0"
             rc = os.system(cmd)
         elif dvar == 'coh':
             outif = os.path.join(outpath, fid + '.geo.cc.tif')
@@ -444,14 +444,16 @@ def export_gunw(ds, outpath, name_as_pair = True):
             cmd = "gdal_translate -of GTiff -ot Byte -scale 0 1 0 255 -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
             rc = os.system(cmd)
             os.remove(outif + '.tmp.tif')
-            cmd = "create_preview_coh " + outif
+            cmd = "create_preview_coh " + outif + " 0"
             rc = os.system(cmd)
         elif dvar == 'range_offsets':
             outif = os.path.join(outpath, fid + '.geo.rng.tif')
             if os.path.exists(outif):
                 continue
             outifs.append(outif)
-            ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
+            offs = ds[dvar]
+            offs = offs - offs.mean()
+            offs.rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
             rc = os.system(cmd)
             os.remove(outif + '.tmp.tif')
@@ -462,7 +464,9 @@ def export_gunw(ds, outpath, name_as_pair = True):
             if os.path.exists(outif):
                 continue
             outifs.append(outif)
-            ds[dvar].rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
+            offs = ds[dvar]
+            offs = offs - offs.mean()
+            offs.rio.to_raster(outif + '.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
             rc = os.system(cmd)
             os.remove(outif + '.tmp.tif')

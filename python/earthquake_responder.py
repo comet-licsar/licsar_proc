@@ -810,6 +810,9 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
     ''' this will search and download any existing coseismic geocoded ifg from NISAR'''
     event = get_event_details(usg)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
+    if not radius:
+        print('The quake is out of scope - skipping NISAR as probably irrelevant')
+        return False
     lon1 = event.longitude - radius
     lat1 = event.latitude + radius
     lon2 = event.longitude + radius
