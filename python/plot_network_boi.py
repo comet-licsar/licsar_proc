@@ -1,0 +1,405 @@
+#!/usr/bin/env python3
+
+#MNergizci, hacked the plot_network.py to work with sboi network check.
+
+# two outputs are: png plot and text file for gaps (both are mandatory)
+# e.g. $LiCSAR_public/$track/$frame output.png gaps.txt
+#%% Import
+import os
+import glob
+import sys
+import numpy as np
+import LiCSBAS_io_lib as io_lib
+#import LiCSBAS_plot_lib as plot_lib
+from LiCSBAS_plot_lib import *
+import LiCSBAS_tools_lib as tools_lib
+import LiCSBAS_inv_lib as inv_lib
+import datetime as dt
+import s1data as s1
+import pandas as pd
+import argparse
+
+#%%
+def read_bperp_file(bperp_file, imdates, return_missflag = False):
+    """
+    updated from LiCSBAS io_lib function to give 0 for missing imdates
+    
+    bperp_file (baselines) contains (m: primary (master), s: secondary,
+                                     sm: single prime):
+          smdate    sdate    bp    dt
+        20170302 20170326 130.9  24.0
+        20170302 20170314  32.4  12.0
+    Old bperp_file contains (m: primary (master), s:secondary,
+                             sm: single prime):
+        num    mdate    sdate   bp   dt  dt_m_sm dt_s_sm bp_m_sm bp_s_sm
+          1 20170218 20170326 96.6 36.0    -12.0    24.0    34.2   130.9
+          2 20170302 20170314 32.4 12.0      0.0    12.0     0.0    32.4
+    Return: bperp
+    """
+    bperp = []
+    missflag = False
+    bperp_dict = {}
+    ### Determine type of bperp_file; old or not
+    with open(bperp_file) as f:
+        line = f.readline().split() #list
+    if len(line) == 4: ## new format
+        bperp_dict[line[0]] = '0.00' ## single prime. unnecessary?
+        with open(bperp_file) as f:
+            for l in f:
+                if len(l.split()) == 4:
+                    bperp_dict[l.split()[1]] = l.split()[2]
+    else: ## old format
+        with open(bperp_file) as f:
+            for l in f:
+                bperp_dict[l.split()[1]] = l.split()[-2]
+                bperp_dict[l.split()[2]] = l.split()[-1]
+    for imd in imdates:
+        if imd in bperp_dict:
+            bperp.append(float(bperp_dict[imd]))
+        else: ## If no key exists
+            bperp.append(0)
+            missflag = True
+            if not return_missflag:
+                print('WARNING: bperp for {} not found, nullifying'.format(imd))
+            #return False
+    if return_missflag:
+        return bperp, missflag
+    else:
+        return bperp
+
+
+
+#%%
+def plot_network_upd(ifgdates, bperp, ifgdir, pngfile, datatype, firstdate = dt.datetime(2014, 9, 25), lastdate = None):
+    """
+    Plot network of interferometric pairs.
+    bperp can be dummy (-1~1).
+    Suffix of pngfile can be png, ps, pdf, or svg.
+    20160324_20160926.geo.sbovldiff.adf.mm.tif  20160324_20160926.geo.bovldiff.adf.mm.tif
+    20160324_20160926.geo.unw.tif	
+    """
+    
+    frame = os.path.basename(os.path.dirname(ifgdir))
+    
+    # Initialise the list of checked interferogram dates
+    ifgdates_checked = []
+    
+    # Set the file extension to search for based on datatype
+    file_suffix = ''
+    if datatype == 'unw':
+        file_suffix = '.geo.unw.tif'
+    elif datatype == 'sbovl':
+        file_suffix = 'bovldiff.adf.mm.tif'
+    else:
+        raise ValueError(f"Unsupported datatype: {datatype}. Supported values are 'unw' and 'sbovl'.")
+    print(datatype)
+    # Traverse directories and filter files
+    if os.path.exists(ifgdir):
+        for ifgd in os.listdir(ifgdir):  # Loop through interferogram directories
+            ifg_path = os.path.join(ifgdir, ifgd)  # Full path to the interferogram directory
+            if os.path.isdir(ifg_path):  # Ensure it’s a directory
+                # Search for files matching the suffix
+                matching_files = glob.glob(os.path.join(ifg_path, f'*{file_suffix}'))
+                if matching_files:  # If matching files are found
+                    ifgdates_checked.append(ifgd)
+    else:
+        raise FileNotFoundError(f"The directory {ifgdir} does not exist.")
+
+                
+    if len(ifgdates_checked) < len(ifgdates):
+        # Calculate missing interferograms
+        missing_dates = list(set(ifgdates) - set(ifgdates_checked))
+        
+        # Notify the user about missing interferograms
+        print(f"{len(missing_dates)} interferograms are missing in the folder. Please re-run and re-store them. "
+            f"The missing dates are saved as 'missing_{datatype}'")
+        
+        # Save the missing dates to a text file
+        print(os.path.dirname(ifgdir))
+        if os.path.exists('metadata'):
+            missing_file = os.path.join(os.path.dirname(ifgdir),'metadata', f'missing_{datatype}')
+        else:
+            missing_file = os.path.join(os.path.dirname(ifgdir), f'missing_{datatype}')
+        with open(missing_file, 'w') as f:
+            for item in missing_dates:
+                f.write(f"{item}\n")
+    
+    ifgdates = ifgdates_checked                   
+    imdates_all = tools_lib.ifgdates2imdates(ifgdates)
+    n_im_all = len(imdates_all)
+    imdates_dt_all = np.array(([dt.datetime.strptime(imd, '%Y%m%d') for imd in imdates_all])) ##datetime
+    ifgdates = list(set(ifgdates))
+    ifgdates.sort()
+    imdates = tools_lib.ifgdates2imdates(ifgdates)
+    n_im = len(imdates)
+    imdates_dt = np.array(([dt.datetime.strptime(imd, '%Y%m%d') for imd in imdates])) ##datetime
+    if lastdate is None:
+        lastdate = dt.datetime.today()
+
+   
+    ### Identify gaps 
+    G = inv_lib.make_sb_matrix(ifgdates)
+    ixs_inc_gap = np.where(G.sum(axis=0)==0)[0]
+    #
+    ### Plot fig
+    #figsize_x = np.round(((imdates_dt_all[-1]-imdates_dt_all[0]).days)/80)+2
+    figsize_x = np.round(((lastdate-firstdate).days)/80)+2
+    #fig = plt.figure(figsize=(figsize_x, 6))
+    fig = plt.figure(figsize=(figsize_x, 7))
+    #ax = fig.add_axes([0.06, 0.12, 0.92,0.85])
+    ax = fig.add_axes([0.03, 0.12, 0.94,0.8])
+    #
+    ### IFG blue lines
+    for i, ifgd in enumerate(ifgdates):
+        ix_m = imdates_all.index(ifgd[:8])
+        ix_s = imdates_all.index(ifgd[-8:])
+        label = 'IFG' if i==0 else '' #label only first
+        plt.plot([imdates_dt_all[ix_m], imdates_dt_all[ix_s]], [bperp[ix_m],
+                bperp[ix_s]], color='b', alpha=0.6, zorder=2, label=label)
+    #
+    #
+    
+    ###Align bperp with imdates_all
+    bperp_dict = {imd: 0 for imd in imdates_all}  # Initialise with 0
+    for imd, bp in zip(imdates, bperp):
+        bperp_dict[imd] = bp  # Replace with actual values
+
+    # Create bperp array aligned with imdates_dt_all
+    bperp_aligned = [bperp_dict[imd] for imd in imdates_all]
+    bperp = np.array(bperp_aligned)
+    ### Image points and dates
+    ax.scatter(imdates_dt_all, bperp, alpha=0.6, zorder=4)
+    for i in range(n_im_all):
+        if bperp[i] > np.median(bperp): va='bottom'
+        else: va = 'top'
+        ax.annotate(imdates_all[i][4:6]+'/'+imdates_all[i][6:],
+                    (imdates_dt_all[i], bperp[i]), ha='center', va=va, zorder=8)
+    #
+    #
+    ### gaps
+    if len(ixs_inc_gap)!=0:
+        gap_dates_dt = []
+        for ix_gap in ixs_inc_gap:
+            ddays_td = imdates_dt[ix_gap+1]-imdates_dt[ix_gap]
+            gap_dates_dt.append(imdates_dt[ix_gap]+ddays_td/2)
+        plt.vlines(gap_dates_dt, 0, 1, transform=ax.get_xaxis_transform(),
+                   zorder=1, label='Gap', alpha=0.6, colors='k', linewidth=3)
+    #
+    #
+    ### Locater        
+    loc = ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    try:  # Only support from Matplotlib 3.1
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+    except:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d'))
+        for label in ax.get_xticklabels():
+            label.set_rotation(20)
+            label.set_horizontalalignment('right')
+    #
+    #
+    ax.grid(visible=True, which='major')
+    ### Add bold line every 1yr
+    ax.xaxis.set_minor_locator(mdates.YearLocator())
+    ax.grid(visible=True, which='minor', linewidth=2)
+    ax.set_xlim((firstdate, lastdate))
+    #ax.set_xlim((imdates_dt_all[0]-dt.timedelta(days=10),
+    #             imdates_dt_all[-1]+dt.timedelta(days=10)))
+    ### Labels and legend
+    plt.xlabel('Time')
+    if np.all(np.abs(np.array(bperp))<=1): ## dummy
+        plt.ylabel('dummy')
+    else:
+        plt.ylabel('Bperp [m]')
+    #
+    # 2022-04-19 adding dots of 'existing epochs'
+    epochdates = s1.get_epochs_for_frame(frame, firstdate.date(), lastdate.date(), returnAsDate = True)
+    for imd in imdates_dt:
+        imdd = imd.date()
+        if imdd in epochdates:
+            #print('debug - found and removed ok: '+str(imdd))
+            epochdates.remove(imdd)
+    ax.scatter(epochdates,np.zeros(len(epochdates)), facecolors='none', edgecolors='red')
+    # adding timestamp
+    timestamp = 'updated: '+str(dt.datetime.now().strftime("%Y-%m-%d %I:%M:%S"))
+    plt.title(frame+', '+timestamp)
+    ax.title.set_size(16)
+    #plt.text(0.5,0.5,timestamp)
+    plt.legend()
+    ### Save
+    if os.path.exists('metadata'):
+        plt.savefig(os.path.join('metadata', pngfile))
+    else:
+        plt.savefig(pngfile)
+    plt.close()
+
+
+
+
+
+# Main script
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Plot network for interferometric pairs.")
+    parser.add_argument("framedir", help="Path to frame directory.")
+    parser.add_argument("--datatype", default="unw", choices=["unw", "sbovl"],
+                        help="Datatype to process: 'unw' (default) or 'sbovl'.")
+    args = parser.parse_args()
+
+    framedir = args.framedir
+    datatype = args.datatype
+
+    # Set pngfile and gapfile dynamically
+    pngfile = "network.png" if datatype == "unw" else "network_bovl.png"
+    gapfile = "gaps.txt" if datatype == "unw" else "gaps_bovl.txt"
+
+    #prepare directories
+    ifgdir = os.path.join(framedir, 'interferograms')
+    bperp_file = os.path.join(framedir, 'metadata', 'baselines')
+    if not os.path.exists(ifgdir):
+        # update to have it work in BATCH_CACHE_DIR
+        ifgdir = os.path.join(framedir, 'GEOC')
+        bperp_file = os.path.join(framedir, 'baselines')
+        if not os.path.exists(ifgdir):
+            print('error, no interferograms found for this frame')
+            exit()
+        else:
+            print('generating baselines file in custom directory')
+            cmd = 'cd {0}; mk_bperp_file.sh; mv baselines {1} 2>/dev/null'.format(framedir, bperp_file)
+            rc = os.system(cmd)
+
+    # Remove existing files
+    if os.path.exists('metadata'):
+        if os.path.exists(os.path.join('metadata', pngfile)):
+            os.remove(os.path.join('metadata', pngfile))
+        if os.path.exists(os.path.join('metadata', gapfile)):
+            os.remove(os.path.join('metadata', gapfile))
+    else:
+        if os.path.exists(pngfile):
+            os.remove(pngfile)
+        if os.path.exists(gapfile):
+            os.remove(gapfile)    
+    
+    #read interferograms
+    ifgdates = tools_lib.get_ifgdates(ifgdir)
+    imdates = tools_lib.ifgdates2imdates(ifgdates)
+
+    #handle baselines
+    if not os.path.exists(bperp_file):
+        print('No baselines file exists. The Bperps will be estimated')
+        import framecare as fc
+        frame = os.path.basename(framedir)
+        bpd = fc.make_bperp_file(frame, bperp_file, donotstore=False)
+    #    print('Make dummy bperp')
+    #    bperp_file = os.path.join(framedir,'baselines_tmp.txt')
+    #    io_lib.make_dummy_bperp(bperp_file, imdates)
+
+
+
+    try:
+        bperp, ismissing = read_bperp_file(bperp_file, imdates, return_missflag = True)
+        try:
+            # just in case...
+            bperp[np.isnan(bperp)] = 0
+            absbp = np.abs(bperp)
+            over = np.where(absbp>800)
+            if len(over)>0:
+                print('WARNING, removing bperps that are over threshold of 800 m. These will be reestimated.')
+                bperp[over]=0
+                ismissing = True
+        except:
+            print('an error trying to remove bperps over 800 m')
+
+        # double check missing - count zeroes
+        if not ismissing:
+            if len(bperp)>1:
+                absbp=np.abs(bperp)
+                absbp.sort()
+                if absbp[1] == 0:
+                    ismissing = True
+        if ismissing:
+            print('some epochs have missing bperps, trying to find them through ASF')
+            import framecare as fc
+            frame=os.path.basename(framedir)
+            bperp=np.array(bperp)
+            imdates=np.array(imdates)
+            missingdates = imdates[bperp==0]
+            missingdates2 = imdates[np.abs(bperp)>400]
+            missingdates = np.concatenate((missingdates2, missingdates))
+            missingdates2 = imdates[np.isnan(bperp)]
+            missingdates = np.concatenate((missingdates2, missingdates))
+            refdate = fc.get_master(frame)
+            missingdates = missingdates[missingdates != refdate]
+            # load existing
+            prevbp = pd.read_csv(bperp_file, header=None, sep = ' ')
+            prevbp.columns = ['ref_date', 'date', 'bperp', 'btemp']
+            #print('TODO - remove missingepochs from prevbp')
+            # get new - try first only from ASF (more accurate)
+            bpd = fc.make_bperp_file(frame, bperp_file, asfonly = True, donotstore = True)
+            stillmissing = []
+            for m in missingdates:
+                # first drop it from the prevbp:
+                mint = int(m)
+                prevbp = prevbp.drop(prevbp[prevbp.date == mint].index)
+                mpd = bpd[bpd.date==m]
+                if not mpd.empty:
+                    mbperp = mpd.bperp.mean()
+                    mbtemp = mpd.btemp.values[0]
+                    prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), mbperp, int(mbtemp)] # new line
+                else:
+                    #mbperp = 0
+                    #mbtemp = fc.datediff(refdate, m)
+                    print('no ASF information for epoch '+m+'. Adding for LiCSAR estimation.') #Storing only bperp=0')
+                    stillmissing.append(m)
+                    ''' NOT COMPLETE YET - SOMETHING IS WRONG IN THIS BELOW:
+                    print('no ASF information for epoch '+m+'. Estimating from LiCSAR db - slow way now') #Storing only bperp=0')
+                    try:
+                        mepl, mbperpl = fc.get_bperp_estimates(frame, epochs = [m])
+                        mbperp = round(mbperpl[0])
+                    except:
+                        print('ERROR for epoch '+m+'. Setting zero.')
+                        mbperp = 0
+                    '''
+            if stillmissing:
+                bperps = fc.estimate_bperps(frame, stillmissing, return_epochsdt=False)
+                bperps = np.array(bperps).astype(int)
+                i = 0
+                for m in stillmissing:
+                    mbperp = bperps[i]
+                    mbtemp = fc.datediff(refdate, m)
+                    prevbp.loc[len(prevbp.index)] = [int(refdate), int(m), int(mbperp), int(mbtemp) ]
+                    i = i+1
+            prevbp = prevbp.sort_values('btemp').reset_index(drop=True)
+            #bpd.to_csv(bperp_file, sep = ' ', index = False, header = False)
+            bperps = bperps.astype(int)  # for some reason we still export as floats!
+            prevbp.to_csv(bperp_file, sep = ' ', index = False, header = False)
+            bperp = read_bperp_file(bperp_file, imdates)
+    except:
+        print('error reading baselines file! trying to fully recreate through ASF')
+        try:
+            if os.path.exists(bperp_file):
+                os.remove(bperp_file)
+            frame=os.path.basename(framedir)
+            import framecare as fc
+            rc = fc.make_bperp_file(frame, bperp_file)
+            bperp = read_bperp_file(bperp_file, imdates)
+        except:
+            print('some error occurred. Making dummy bperp')
+            bperp_file = os.path.join(framedir,'baselines_tmp.txt')
+            io_lib.make_dummy_bperp(bperp_file, imdates)
+            bperp = read_bperp_file(bperp_file, imdates)
+
+
+
+     # Plot network
+    plot_network_upd(ifgdates, bperp, ifgdir, pngfile, datatype=datatype)
+    os.system('chmod 777 '+pngfile+' 2>/dev/null')
+    os.system('chmod 777 '+bperp_file+' 2>/dev/null')
+
+    ## Identify gaps
+    G = inv_lib.make_sb_matrix(ifgdates)
+    ixs_inc_gap = np.where(G.sum(axis=0)==0)[0]
+    if ixs_inc_gap.size!=0:
+        with open(gapfile, 'w') as f:
+            for ix in ixs_inc_gap:
+                print("{}_{}".format(imdates[ix], imdates[ix+1]), file=f)
+
+
