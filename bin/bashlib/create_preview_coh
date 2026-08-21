@@ -4,7 +4,7 @@ create_preview_coh() {
     local cohfile=$1
     extracmd_convert=''
     if [ ! -z $2 ]; then
-     extracmd_convert='-resize 30%'
+     extracmd_convert="-resize 30% -resize '800x>'"
     fi
     outfile=`echo $cohfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
     # 2026/07: GMT 6.6 changed strategy, causing (compressed) Byte tif files problematic..

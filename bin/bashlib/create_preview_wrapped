@@ -5,7 +5,7 @@ create_preview_wrapped() {
     extracmd_convert=''
     if [ ! -z $2 ]; then
      if [ $2 == 0 ]; then
-      extracmd_convert='-resize 30%'
+      extracmd_convert="-resize 30% -resize '800x>'"
      fi
     fi
     outfile=`echo $ifgfile | sed 's/_pha//' | rev | cut -c 4- | rev`png
