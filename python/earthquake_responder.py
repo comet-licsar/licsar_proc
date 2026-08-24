@@ -813,10 +813,10 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
     if not radius:
         print('The quake is out of scope - skipping NISAR as probably irrelevant')
         return False
-    lon1 = event.longitude - radius
-    lat1 = event.latitude + radius
-    lon2 = event.longitude + radius
-    lat2 = event.latitude - radius
+    lon1 = event.longitude - radius/2  # halving radius as we rather need near-fault zone
+    lat1 = event.latitude + radius/2
+    lon2 = event.longitude + radius/2
+    lat2 = event.latitude - radius/2
     import nisardata as nd
     # downloadit = False,
     #               clipit = True, processit = True, processit_target_resolution_m=110,
