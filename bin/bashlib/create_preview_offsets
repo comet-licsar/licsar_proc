@@ -34,11 +34,11 @@ create_preview_offsets() {
     echo "limiting offsets to "$minoff"/"$maxoff" m, in preview cutting "$cutoff" percent of tails"
     gmt grdclip $infile -G`basename $outfile .png`.masked.tif=gd:Gtiff -Sr0/NaN -Sb$minoff/NaN -Sa$maxoff/NaN
     #gmt grdconvert $infile.masked.nc -G$outfile.masked.tif:GTiff
-    infile=`basename $outfile .png`.masked.tif
-    barpng=`create_colourbar_m $infile $code $cutoff`
-    minmaxcolour=`gmt grdinfo -T+a$cutoff'+s' $infile` # must remain same as in create_colourbar_m !
+    tempinfile=`basename $outfile .png`.masked.tif
+    barpng=`create_colourbar_m $tempinfile $code $cutoff`
+    minmaxcolour=`gmt grdinfo -T+a$cutoff'+s' $tempinfile` # must remain same as in create_colourbar_m !
     gmt makecpt -C$LiCSARpath/misc/colourmap.cpt -Iz $minmaxcolour/0.025 >`dirname $outfile`/$code.cpt
-    gmt grdimage $infile -C`dirname $outfile`/$code.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
+    gmt grdimage $tempinfile -C`dirname $outfile`/$code.cpt $extracmd -JM1 -Q -nn+t0.1 -A$outfile.tt.png
     #convert $extracmd_convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
     convert $outfile.tt.png PNG8:$outfile; rm $outfile.tt.png
    if [ ! -z $frame ]; then
@@ -59,14 +59,15 @@ create_preview_offsets() {
      fi
      echo 'debug: generating kml for '$code
      # overcoming the annoying gridline/pixel registration issue... finally
-     gmt grdconvert $infile -G$infile.nc
-     gmt grdedit -T $infile.nc
-     gmt grd2kml -Ag0 -C`dirname $outfile`/$code.cpt -nn+t0.1 -T$TN -N$TN $extracmd $infile.nc 2>/dev/null
-     rm $infile.nc
+     gmt grdconvert $tempinfile -G$tempinfile.nc
+     gmt grdedit -T $tempinfile.nc
+     gmt grd2kml -Ag0 -C`dirname $outfile`/$code.cpt -nn+t0.1 -T$TN -N$TN $extracmd $tempinfile.nc 2>/dev/null
+     rm $tempinfile.nc
    else
     rm `dirname $outfile`/$code.cpt
     rm $barpng $outfile.temp.png
    fi
+   rm $tempinfile
   else
     echo "Usage: create_preview_offsets ..geo.rng/azi.tif [frame] [cutoff] [tokml?]"
     echo "(can be either geotiff or nc/grd)"
