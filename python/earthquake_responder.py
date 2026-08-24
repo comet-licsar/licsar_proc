@@ -1041,7 +1041,10 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, i
                 print('some issue with event '+event.id)
 
 
-def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive = False, skipchecks = False, onlycoseismic = True, only_non_existing_coseismic = True):
+def process_eq(eventid = 'us70008hvb', step = 1, 
+        overwrite = False, makeactive = False, skipchecks = False, 
+        onlycoseismic = True, only_non_existing_coseismic = True,
+        add_nisar = False):
     """
     Perform the earthquake frames processing.
 
@@ -1053,6 +1056,7 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
         skipchecks: will skip some default checks, e.g. by default we limit processing by depth
         onlycoseismic: will generate only coseismic kmls (step 2)
         only_non_existing_coseismic: will process frames in step 1 only if they have no coseismic ifg
+        add_nisar: whether also add coseismic NISAR ifgs. ERRORS IN LOTUS (pyproj), so defaulting to False now
     """
     event =  get_event_by_id(eventid)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
@@ -1178,16 +1182,6 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                     newline = '<a href="{0}">{1}: {2}</a> <br /> \n'.format(fullwebpath_ifg, frame, kml)
                     f.write(newline)
                 f.close()
-        try:
-            print('Searching and adding NISAR coseismic ifgs - in dev')
-            add_nisar_coseismic_ifg(eventid)
-        except:
-            print('some error doing this')
-        if os.path.exists(eventfile):
-            #this is to remove duplicities.. i know, should be done better..
-            os.system('sort -u {0} > {0}.tmp; mv {0}.tmp {0}'.format(eventfile))
-            print('done. Check this webpage:')
-            print(os.path.join(web_path,'EQ',event.id+'.html'))
     elif step == 3:
         # run no. 3 - export to EPOS and GEP
         for frame in frames:
@@ -1203,6 +1197,17 @@ def process_eq(eventid = 'us70008hvb', step = 1, overwrite = False, makeactive =
                 if os.path.exists(tostore):
                     print('exporting ifg of {0} to GEP'.format(shortestpair))
                     rc = os.system('epos_export_tif.sh {0} 1'.format(tostore))
+    if add_nisar:
+        try:
+            print('Searching and adding NISAR coseismic ifgs - in dev')
+            add_nisar_coseismic_ifg(eventid)
+        except:
+            print('some error doing this')
+        if os.path.exists(eventfile):
+            #this is to remove duplicities.. i know, should be done better..
+            os.system('sort -u {0} > {0}.tmp; mv {0}.tmp {0}'.format(eventfile))
+            print('done. Check this webpage:')
+            print(os.path.join(web_path,'EQ',event.id+'.html'))
 
 
 def main():
