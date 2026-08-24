@@ -633,7 +633,9 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
             "polarization": polar
         }
     )
-    # if load_more:
+    # mask unw where unw is zero
+    ds = ds.where(ds.unw != 0)
+    # add coherence
     coh = f[basestr + '/' + 'unwrappedInterferogram/'+polar+'/coherenceMagnitude']
     coh = da.from_array(coh, chunks=chunks)
     ds['coh'] = ds['unw'].copy()
