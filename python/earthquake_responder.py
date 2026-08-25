@@ -1001,7 +1001,9 @@ def is_blacklisted(eventid, blacklistfile = '/gws/ssde/j25a/nceo_geohazards/vol1
         return False
 
 
-def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, ingestedonly = False, onlycoseismic = False, only_non_existing_coseismic = True):
+def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, 
+                overwrite = False, ingestedonly = False, onlycoseismic = False, 
+                only_non_existing_coseismic = True, add_nisar = False):
     """
     This will process all earthquakes in given range:
     step 0 would only find and ingest eq/related frames to the database
@@ -1015,7 +1017,7 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, i
         step: see above (1 or 2)
         overwrite: no comment
         ingestedonly: SAFE SIDE - would work only with events that are already in the EIDP
-
+        add_nisar: will check and download and add nisar data
     Returns:
 
     """
@@ -1036,7 +1038,10 @@ def process_all_eqs(minmag = 5.5, pastdays = 400, step = 2, overwrite = False, i
             else:
                 makeactive = False
             try:
-                process_eq(event.id, step, overwrite, makeactive, onlycoseismic = onlycoseismic, only_non_existing_coseismic = only_non_existing_coseismic)
+                process_eq(event.id, step, overwrite, makeactive, 
+                        onlycoseismic = onlycoseismic, 
+                        only_non_existing_coseismic = only_non_existing_coseismic,
+                        add_nisar = add_nisar)
             except:
                 print('some issue with event '+event.id)
 
