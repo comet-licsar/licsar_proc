@@ -399,7 +399,7 @@ def get_frameid(fileid, return_pubpath = False):
         return outpath
 
 
-def export_gunw(ds, outpath, name_as_pair = True):
+def export_gunw(ds, outpath, name_as_pair = True, coh_thres_mask = 0.22):
     ''' This will export loaded GUNW dataset into geotiffs to outpath, by default as 202xxxxx_202xxxxx.geo.unw.tif.
     if name_as_pair is False, we will use the source name, e.g. NISAR_xxxxx_xxxx_.geo.unw.tif etc.
     ( best to use outpath by get_frameid(fileid, True)  )'''
@@ -416,7 +416,11 @@ def export_gunw(ds, outpath, name_as_pair = True):
             if os.path.exists(outif):
                 continue
             outifs.append(outif)
-            ds['unw'].rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
+            if 'coh' in ds:
+                outunw = ds['unw'].where(ds['coh']>coh_thres_mask)
+            else:
+                outunw = ds['unw']
+            outunw.rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif+'.tmp.tif' + " " + outif
             rc = os.system(cmd)
             os.remove(outif + '.tmp.tif')
@@ -480,6 +484,13 @@ def export_gunw(ds, outpath, name_as_pair = True):
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
             rc = os.system(cmd)
             os.remove(outif + '.tmp.tif')
+    bperpfile = os.path.join(outpath, 'bperp')
+    bperp = ds.attrs['bperp']
+    try:
+        with open(bperpfile, "w") as fbp:
+            fbp.write(f"{bperp}\n")
+    except:
+        print('bperp write error')
     return outifs
 
 
@@ -577,6 +588,52 @@ def list_sizes(path = 'NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T13075
         f.visititems(visit)
 
 
+def export_licsar_metadata(h5file, metafile):
+    band = os.path.basename(h5file).split('_')[1][0]
+    if band == 'S':
+        print('this is S band - not ready for metadata')
+        return False
+    prodtype = os.path.basename(h5file).split('_')[3]
+    with h5py.File(h5file) as f:
+        try:
+            freq = f['/science/LSAR/'+prodtype+'/grids/frequencyA/centerFrequency'][()]
+            freqband = 'A'
+        except:
+            print('WARNING, this is not freqA band! Trying B')
+            freq = f['/science/LSAR/'+prodtype+'/grids/frequencyB/centerFrequency'][()]
+            freqband = 'B'
+    # center time:
+    from datetime import datetime, timedelta
+    t1 = os.path.basename(h5file).split('_')[11].split('T')[1]
+    t2 = os.path.basename(h5file).split('_')[12].split('T')[1]
+    fmt = "%H%M%S"
+    # Convert to seconds since midnight
+    dt1 = datetime.strptime(t1, fmt)
+    dt2 = datetime.strptime(t2, fmt)
+    sec1 = dt1.hour * 3600 + dt1.minute * 60 + dt1.second
+    sec2 = dt2.hour * 3600 + dt2.minute * 60 + dt2.second
+    # Mean time in seconds
+    mean_sec = (sec1 + sec2) / 2
+    # Format as HH:MM:SS.mmm
+    mean_td = timedelta(seconds=mean_sec)
+    total_seconds = mean_td.total_seconds()
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    seconds = total_seconds % 60
+    center_time = f"{hours:02d}:{minutes:02d}:{seconds:06.3f}"
+    # write it
+    with open(metafile, "a") as fmet:
+        fmet.write(f"center_time={center_time}\n")
+        fmet.write(f"frequency={int(freq)}\n")
+    #heading = 
+    #appliedDEM = science/LSAR/GUNW/metadata/processingInformation/inputs/demSource
+    # science/LSAR/GUNW/metadata/radarGrid/wetTroposphericPhaseScreen
+    #science/LSAR/GUNW/metadata/radarGrid/perpendicularBaseline
+    #science/LSAR/GUNW/metadata/radarGrid/incidenceAngle
+    #science/LSAR/GUNW/metadata/radarGrid/heightAboveEllipsoid
+    return True
+
+
 def read_metadata(group, max_elements=100000):
     result = {}
     # Read group attributes
@@ -621,6 +678,8 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
     proj_group = f[basestr + "/unwrappedInterferogram/projection"]
     epsg = proj_group.attrs.get("epsg_code", None)
     crs = CRS.from_epsg(int(epsg)).to_string() if epsg is not None else None
+    # get bperp:
+    bperp = np.nanmean(f['/science/LSAR/GUNW/metadata/radarGrid/perpendicularBaseline'][()])
     # --- Build xarray Dataset ---
     ds = xr.Dataset(
         data_vars={ 'unw': (("y", "x"), unw) },
@@ -630,7 +689,8 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
             "crs": crs,
             "source_file": path,
             "freq": freq_code,
-            "polarization": polar
+            "polarization": polar,
+            "bperp": bperp
         }
     )
     # mask unw where unw is zero

@@ -22,8 +22,10 @@ def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
         os.remove(kmzfile)
     if os.path.exists(kmlfile):
         os.remove(kmlfile)
+    #if use_playwright:
+    #    from playwright.sync_api import sync_playwright
+    #    with sync_playwright() as p:
     # bot protection... need more complex:
-    import requests
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -47,7 +49,7 @@ def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
         os.rename(kmlfile+'.utf8', kmlfile)
     else:
         print('some URL problem - not downloading')
-        print('error: '+str(request))
+        print('error: '+str(r))
         return False
     return True
 
