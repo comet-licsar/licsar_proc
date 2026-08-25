@@ -864,6 +864,9 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                     do_enus = True
                 else:
                     do_enus = False
+                metafile = os.path.join(metapath, 'metadata.txt')
+                if not os.path.exists(metafile):
+                    nd.export_licsar_metadata(f, metafile)
                 unw = nd.load_gunw(f, add_iono = True, add_enu=do_enus)  # , freq_code = 'A', clipping_box = None)
                 if 'iono' in unw:
                     print('Iono correction available - using to correct the unw data')
