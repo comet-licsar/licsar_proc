@@ -76,7 +76,7 @@ if [ $ddir != interferograms ]; then
 fi
 
 rm -f $outhtml
-for ext in png tif kmz; do   # we store only png and tif files in /neodc but need also kmzs
+for ext in png tif kmz txt; do   # we store only png and tif files in /neodc but need also kmzs. and txts (metadata..)
   for f in `ls $indir/*.$ext 2>/dev/null`; do
   if [ -f $f ]; then    # just in case this is symlink that does not exist...
     # if the file is symbolic link leading to neodc:

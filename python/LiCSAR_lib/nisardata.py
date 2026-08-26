@@ -484,13 +484,20 @@ def export_gunw(ds, outpath, name_as_pair = True, coh_thres_mask = 0.22):
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif + '.tmp.tif' + " " + outif
             rc = os.system(cmd)
             os.remove(outif + '.tmp.tif')
-    bperpfile = os.path.join(outpath, 'bperp')
+    metafile = os.path.join(outpath, 'metadata.txt')
+    #     with open(metafile, "a") as fmet:
+    #         fmet.write(f"center_time={center_time}\n")
+    #         fmet.write(f"frequency={int(freq)}\n")
     bperp = ds.attrs['bperp']
+    polar = ds.attrs['polarization']
+    freq = ds.attrs['freq']
     try:
-        with open(bperpfile, "w") as fbp:
-            fbp.write(f"{bperp}\n")
+        with open(metafile, "a") as fmet:
+            fmet.write(f"bperp={bperp}\n")
+            fmet.write(f"polarization={polar}\n")
+            fmet.write(f"frequency={freq}\n")
     except:
-        print('bperp write error')
+        print('pair metadata write error')
     return outifs
 
 
@@ -702,7 +709,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
     ds.coh.values = coh
     if add_iono:
         try:
-            print('adding iono phase')
+            print('getting iono phase')
             iono = f[basestr + '/' + 'unwrappedInterferogram/' + polar + '/ionospherePhaseScreen']
             iono = da.from_array(iono, chunks=chunks)
             ds['iono'] = ds['unw'].copy()

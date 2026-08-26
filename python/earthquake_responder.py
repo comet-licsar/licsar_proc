@@ -1095,6 +1095,17 @@ def process_eq(eventid = 'us70008hvb', step = 1,
         except:
             print('no KML exists for this event')
         f.close()
+    elif not misc.grep1('USGS', eventfile):
+        print(os.path.basename(eventfile) + ' exists but without USGS info. Adding this..')
+        f = open(eventfile, "a")
+        newline = "<a href='{0}'>USGS info on {1}</a> <br /> \n".format(event.url, event.id)
+        f.write(newline)
+        try:
+            newline = "<a href='{0}'>USGS kml file</a> <br /> \n".format(event.getDetailURL().replace('geojson', 'kml'))
+            f.write(newline)
+        except:
+            print('no KML exists for this event')
+        f.close()
     frames = get_frames_in_event(event, radius)
     if isinstance(frames, tuple):
         frames=lq.sqlout2list(frames)

@@ -21,6 +21,25 @@ correct_ifg_gacos_public() {
       return 0
      fi
     done
+    # check for registration: (1 - pixel reg, 0 - gridline reg)
+    if [ `gmt grdinfo -Cn $infile $gacos1 $gacos2  2>/dev/null | rev | gawk {'print $2'} | sort -u | wc -l` -gt 1 ]; then
+      echo "WARNING - different registration regime - fixing "`basename $infile`
+      hgtfile=$LiCSAR_public/$track/$frame/metadata/$frame.geo.hgt.tif  # template
+      if [ ! -f $hgtfile ]; then echo "ERROR - hgt file does not exist - something wrong with the frame"; exit; fi
+      if [ `gmt grdinfo -Cn $infile $hgtfile  2>/dev/null | rev | gawk {'print $2'} | sort -u | wc -l` -gt 1 ]; then
+         echo "the input file differs from hgt - changing "$infile  #file- some issue with the frame - ok, running"
+         gmt grdsample $infile -T -G$infile.tif=gd:GTiff
+         rm $infile; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=2 $infile.tif $infile; rm $infile.tif
+      else
+         echo "seems GACOS data are of unexpected registration..."
+         for g in $gacos1 $gacos2; do
+           if [ `gmt grdinfo -Cn $g $infile  2>/dev/null | rev | gawk {'print $2'} | sort -u | wc -l` -gt 1 ]; then
+              gmt grdsample $g -T -G$g.tif=gd:GTiff
+              rm $g; gdal_translate -of GTiff -co COMPRESS=DEFLATE -co PREDICTOR=2 $g.tif $g; rm $g.tif
+           fi
+         done
+      fi
+    fi
     #U=$LiCSAR_public/$track/$frame/metadata/$frame.geo.U.tif
     outfile=$ifgpath/$ifg.geo.$ext.gacos.tif
     #wavelength of Sentinel-1
