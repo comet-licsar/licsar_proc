@@ -50,11 +50,11 @@ correct_ifg_gacos_public() {
     #mcoef=226.56
     echo "correcting the interferogram to "$outfile
     if [ $ext == 'unw' ]; then
-     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB SUB = $outfile'=gd:Gtiff'
+     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos1 $gacos2 SUB SUB = $outfile'=gd:Gtiff'
      create_preview_unwrapped $outfile
     else
      #sltd are already in radians
-     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB SUB WRAP = $outfile'=gd:Gtiff'
+     gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos1 $gacos2 SUB SUB WRAP = $outfile'=gd:Gtiff'
      #gmt grdmath $infile'=gd:Gtiff+n0' 0 NAN $gacos2 $gacos1 SUB 226.56 MUL 0 NAN $U DIV SUB WRAP = $outfile'=gd:Gtiff'
      create_preview_wrapped $outfile
     fi
