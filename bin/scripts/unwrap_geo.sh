@@ -177,7 +177,9 @@ if [ ! -f $outunw ]; then
   echo "error during create_preview_unwrapped - just moving tmp.tif to unw.tif"
   which gmt > $outunw.err
   echo $LD_LIBRARY_PATH >> $outunw.err
-  which gdalinfo > $outunw.err
+  which gdalinfo >> $outunw.err
+  echo "PROJ_DATA="$PROJ_DATA >> $outunw.err
+  gdal_translate 2>> $outunw.err
   mv $outunw.tmp.tif $outunw
 fi
 
@@ -188,9 +190,13 @@ gdal_edit.py -a_srs EPSG:4326 $outunw
 mv $outunw $outunw.tif
 gdalwarp2match.py $outunw.tif $ifg $outunw
 # compressing
-mv $outunw $outunw.tif
+if [ ! -f $outunw ]; then echo "problem with gdalwarp2match"; echo "problem with gdalwarp2match" >> $outunw.err; fi
+mv $outunw $outunw.tif; sleep 1 # sync
 gdal_translate -of GTiff -ot Float32 -co COMPRESS=DEFLATE -co PREDICTOR=3 -a_srs EPSG:4326 $outunw.tif $outunw
-rm $outunw.tif
+if [ ! -f $outunw ]; then echo "problem with gdal_translate"; echo "problem with gdal_translate" >> $outunw.err; fi
+else
+ rm $outunw.tif
+fi
 
 #mv unw1png `echo $outunw | rev | cut -c 4- | rev`png
 cd ..; rm -r temp
