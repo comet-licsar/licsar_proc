@@ -13,6 +13,7 @@ import pandas as pd
 public_path = os.environ['LiCSAR_public']
 framelistfile = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/volc-proc/active_frames.txt'
 customframesfile = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/volc-proc/active_frames_custom.txt'
+kmzfile = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/volc-proc/WeeklyVolcanoGE-Reports.kmz'
 
 def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
     #thanks Fabien for this!
@@ -37,7 +38,7 @@ def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
     r = requests.get(url, headers=headers, allow_redirects=True)
     #print(r.status_code)
     #print(r.headers.get("content-type"))
-    with open("WeeklyVolcanoGE-Reports.kmz", "wb") as f:
+    with open(kmzfile, "wb") as f:
         f.write(r.content)
     # request = requests.get(url)
     if r.status_code == 200:
@@ -113,11 +114,12 @@ def get_indate(frame, numepochs = 3):
 
 def main():
     print('getting Weekly Active Volcanoes')
-    if not download_volc_kml():
-        print('some error in download, cancelling')
-        return False
+    if not download_volc_kml(kmzfile):
+        print('some error in downloading weekly kmz - using the previous one')
+        
     print('getting list of frames covering the active volcanoes')
-    frames = get_frames_from_kml()
+    kmlfile = kmzfile.replace('.kmz','.kml')
+    frames = get_frames_from_kml(kmlfile)
     print('There are {0} frames to process over the active volcanoes'.format(str(len(frames))))
     with open(customframesfile, 'r') as f:
         custom_frames = f.read().splitlines()
