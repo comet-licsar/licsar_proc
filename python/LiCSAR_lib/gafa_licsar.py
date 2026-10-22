@@ -63,12 +63,18 @@ def identify_raw_covering_slc(slcfile, rawfiles):
 
     Returns:
         raw file id that covers the given slcfile
+
+    Note, useful functions:
+    slcs = s1.get_images_for_frame('002A_16128_292828', s1.dt.date(2026,3,6), s1.dt.date(2026,3,7), prodType='SLC', asf = False)
+    raws = s1.get_images_for_frame('002A_16128_292828', s1.dt.date(2026,3,6), s1.dt.date(2026,3,7), prodType='RAW', asf = False)
     '''
     t1slc, t2slc = get_dates_from_filename(slcfile)
+    t1slc = t1slc + dt.timedelta(seconds=4)  # add tolerance
+    t2slc = t2slc - dt.timedelta(seconds=4) # add tolerance
     for rawfile in rawfiles:
         t1, t2 = get_dates_from_filename(rawfile)
-        if t1 < t1slc and t2 > t2slc:
-            return rawfile
+        if (t1 <= t1slc and t2 >= t2slc):
+            return rawfile # full coverage
     print('None of the raw files cover this SLC')
     return None
 
