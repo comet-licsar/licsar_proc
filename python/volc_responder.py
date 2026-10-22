@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from urllib import response
+
 from lxml import etree
 import os
 from subprocess import call
@@ -13,6 +15,115 @@ import pandas as pd
 public_path = os.environ['LiCSAR_public']
 framelistfile = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/volc-proc/active_frames.txt'
 customframesfile = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/volc-proc/active_frames_custom.txt'
+kmzfile = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/volc-proc/WeeklyVolcanoGE-Reports.kmz'
+
+
+import xml.etree.ElementTree as ET
+
+import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Point
+
+def georss_to_kml(rss_url, output_path="weekly_volcanoes.kml"):
+    response = requests.get(rss_url, verify=False, timeout=60)
+    response.raise_for_status()
+    root = ET.fromstring(response.content)
+    ns = {"georss": "http://www.georss.org/georss"}
+    rows = []
+    for item in root.findall(".//item"):
+        point = item.findtext("georss:point", namespaces=ns)
+        if not point:
+            continue
+        lat, lon = map(float, point.split())
+        rows.append({
+            "name": item.findtext("title", ""),
+            "description": item.findtext("description", ""),
+            "link": item.findtext("link", ""),
+            "geometry": Point(lon, lat),
+        })
+    gdf = gpd.GeoDataFrame(rows, geometry="geometry", crs="EPSG:4326")
+    gdf.to_file(output_path, driver="KML")
+    return gdf
+
+
+def extract_volcanoes_from_RSS(RSS_URL = "https://a.cf11.si.edu/news/WeeklyVolcanoRSS.xml"):
+    ''' found by Pedro - thank you'''
+    # found in google to use smithosnian data base
+    import requests
+    import urllib3
+    import xml.etree.ElementTree as ET
+    import pandas as pd
+    import re
+    KEYWORDS = [
+        "deformation",
+        "ground deformation",
+        "inflation",
+        "deflation",
+        "uplift",
+        "subsidence",
+        "gps",
+        "gnss",
+        "tilt",
+        "geodetic",
+        "seismic swarm",
+        "swarm",
+        "seismicity",
+        "seismic",
+        "unrest",
+        "alert level"
+    ]
+    urllib3.disable_warnings()
+    print("Downloading RSS...")
+    response = requests.get(
+        RSS_URL,
+        verify=False,
+        timeout=60
+    )
+    response.raise_for_status()
+    print("Status:", response.status_code)
+    root = ET.fromstring(response.content)
+    items = list(root.iter("item"))
+    print(f"Items found: {len(items)}")
+    rows = []
+    for item in items:
+        title = item.findtext("title", "")
+        description = item.findtext("description", "")
+        link = item.findtext("link", "")
+        volcano = ""
+        country = ""
+        report_date = ""
+        activity_type = ""
+        m = re.match(
+            r"(.+?)\s+\((.+?)\)\s+-\s+Report for\s+(.*?)\s+-\s+(.*)",
+            title
+        )
+        if m:
+            volcano = m.group(1).strip()
+            country = m.group(2).strip()
+            report_date = m.group(3).strip()
+            activity_type = m.group(4).strip()
+        text = f"{title} {description}".lower()
+        found_keywords = []
+        for kw in KEYWORDS:
+            if kw.lower() in text:
+                found_keywords.append(kw)
+        rows.append({
+            "volcano": volcano,
+            "country": country,
+            "report_date": report_date,
+            "activity_type": activity_type,
+            "keywords": ";".join(found_keywords),
+            "n_keywords": len(found_keywords),
+            "link": link
+        })
+    df = pd.DataFrame(rows)
+    df.sort_values(
+        by="n_keywords",
+        ascending=False,
+        inplace=True
+    )
+    return df
+
 
 def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
     #thanks Fabien for this!
@@ -37,7 +148,7 @@ def download_volc_kml(kmzfile = 'WeeklyVolcanoGE-Reports.kmz'):
     r = requests.get(url, headers=headers, allow_redirects=True)
     #print(r.status_code)
     #print(r.headers.get("content-type"))
-    with open("WeeklyVolcanoGE-Reports.kmz", "wb") as f:
+    with open(kmzfile, "wb") as f:
         f.write(r.content)
     # request = requests.get(url)
     if r.status_code == 200:
@@ -70,6 +181,7 @@ def get_frames_from_kml(filename = 'WeeklyVolcanoGE-Reports.kml'):
             for frame in frames:
                 frames_set.add(frame)
     return list(frames_set)
+
 
 def update_framelist_fabien(volcdir = '/gws/ssde/j25a/nceo_geohazards/vol1/projects/LiCS/volc-proc/list_database'):
     '''
@@ -112,12 +224,18 @@ def get_indate(frame, numepochs = 3):
     return indate.date()
 
 def main():
-    print('getting Weekly Active Volcanoes')
-    if not download_volc_kml():
-        print('some error in download, cancelling')
-        return False
-    print('getting list of frames covering the active volcanoes')
-    frames = get_frames_from_kml()
+    print('getting Weekly Active Volcanoes from Smithonian RSS feed')
+    try:
+        kmlfile = 'WeeklyVolcanoGE-fromRSS.kml'
+        gdf = georss_to_kml(rss_url = "https://a.cf11.si.edu/news/WeeklyVolcanoRSS.xml", output_path=kmlfile)
+        frames = get_frames_from_kml(kmlfile)
+    except:
+        print('some error getting the RSS feed - trying to download the kmz file instead')
+        if not download_volc_kml(kmzfile):
+            print('some error in downloading weekly kmz - using the previous one')    
+        print('getting list of frames covering the active volcanoes')
+        kmlfile = kmzfile.replace('.kmz','.kml')
+        frames = get_frames_from_kml(kmlfile)
     print('There are {0} frames to process over the active volcanoes'.format(str(len(frames))))
     with open(customframesfile, 'r') as f:
         custom_frames = f.read().splitlines()
