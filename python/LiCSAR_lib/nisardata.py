@@ -491,11 +491,16 @@ def export_gunw(ds, outpath, name_as_pair = True, coh_thres_mask = 0.22):
     bperp = ds.attrs['bperp']
     polar = ds.attrs['polarization']
     freq = ds.attrs['freq']
+    if 'iono' in ds.data_vars:
+        ionobool=1
+    else:
+        ionobool=0
     try:
         with open(metafile, "a") as fmet:
             fmet.write(f"bperp={bperp}\n")
             fmet.write(f"polarization={polar}\n")
             fmet.write(f"frequency={freq}\n")
+            fmet.write(f"applied_iono_correction={ionobool}\n")
     except:
         print('pair metadata write error')
     return outifs

@@ -424,3 +424,42 @@ createSLCtab 20250405 rslc > 20250405R.tab
 ScanSAR_coreg.py 20250324.tab 20250324 20250405.tab 20250405 20250405R_tab - 20 4 --r_only --no_cleaning # the following params might be useful to check/test: --no_check or --burst_check
 # 4. check the interferograms in the temp folder, or create the bovls
 '''
+
+
+'''
+
+1.gafa_frame_inputs.py
+2.gafa_focusing.py
+are in:
+/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/insar_proc/mnergizci/from_home/softwares/licsar_proc/python/LiCSAR_lib
+but libs need:
+/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/insar_proc/mnergizci/ESBOI_mynmar/examples/
+
+'''
+
+'''
+to get slcs:
+slcs = s1.get_images_for_frame('002A_16128_292828', s1.dt.date(2026,3,6), s1.dt.date(2026,3,7), prodType='SLC', asf = False)
+slcs.sort()
+raws = s1.get_images_for_frame('002A_16128_292828', s1.dt.date(2026,3,6), s1.dt.date(2026,3,7), prodType='RAW', asf = False)
+raws.sort()
+a=[]
+for s in slcs:
+    print(s)
+    a.append(identify_raw_covering_slc(s, raws))
+
+a.sort()
+for x in a:
+    print(x)
+
+
+to get required PODs:
+import orbit_lib as o
+o.get_orbit_filenames_for_datetime(pd.Timestamp(2026,3,7,20,55,5, tz='UTC'))
+
+to get required AUXs:
+./download_s1_aux.py --product S1D_IW_RAW__0SSH_20260307T205606_20260307T205638_001793_0028CF_7196 --platform S1D --dry-run
+
+to get DEM:
+mk_copdem_listonly 002A_16128_292828.geo.hgt.tif
+'''

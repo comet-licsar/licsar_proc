@@ -871,7 +871,7 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                 if 'iono' in unw:
                     print('Iono correction available - using to correct the unw data')
                     unw['unw'] = unw['unw'] - unw['iono']
-                    unw = unw.drop_vars(['iono'])
+                    # unw = unw.drop_vars(['iono'])
                 outifs = nd.export_gunw(unw, output_path)
                 if do_enus:
                     # also need to create hgt file, so:
