@@ -233,6 +233,7 @@ def download_date(
     date_dir.mkdir(parents=True, exist_ok=True)
     if not os.path.exists(aux_dir):
         os.mkdir(aux_dir)
+    aux_dir = Path(aux_dir)
     # --------------------------------------------------
     # Get RAW product table for this acquisition date
     # --------------------------------------------------
