@@ -1,0 +1,35 @@
+[paths.sentinel1]
+aux = "/gws/ssde/j25a/nceo_geohazards/vol1/S1_AUX"
+
+[azimuth]
+windowtype = "general_hamming"
+windowparameters = 0.75
+processingbandwidth = 1.0
+apply_element_pattern_correction = true
+common_grid = true
+samplespacing = 0.002055556299999998
+dc_estimation = "zero"
+migration = "fft"
+kernel_degree = 4
+padfraction = 1.0
+
+[range]
+windowtype = "general_hamming"
+windowparameters = 0.75
+apply_range_spreading_loss = true
+apply_elevation_antenna_pattern = true
+common_grid = true
+pad = true
+
+# Swath dependent parameters
+[swathparameters.IW1.range]
+totalbandwidth = 56.5e6
+resampling = [1,1]
+
+[swathparameters.IW2.range]
+totalbandwidth = 48.3e6
+resampling = [33,28]
+
+[swathparameters.IW3.range]
+totalbandwidth = 42.8e6
+resampling = [48,35]

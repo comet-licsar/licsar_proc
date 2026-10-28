@@ -2,56 +2,48 @@
 
 import h5py
 import datetime as dt
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone
+from pathlib import Path
 import numpy as np
-import sys, os
-
-#Usage:
-#inh5 = 'S1C_SLC_066-0655-IW1-VV_20251123T052759.nc'
-#create_TOPS_par_slab(inh5)
-
-
-#try:
-#    inh5 = sys.argv[1]
-#    create_TOPS_par_slab(inh5)
-#except:
-#    print('Usage: gafa_licsar.py S1C_SLC_066-0655-IW1-VV_20251123T052759.nc')
-#    exit()
-
-
-'''
-we need first to find raw files covering the frame coords (sent to MN),
-then focus and merge into $epoch.IWx.slc files (and generate par files),
-and then merge all to one frame SLC to be processed afterwards:
-e.g. folders GAFA_1 GAFA_2
-each has $epoch.IW?.slc* files inside
-
-epoch=20250324
-prevtab=''
-slctab=$epoch.tab
-mergetab=$epoch.merged.tab
-createSLCtab $epoch merged.slc > $mergetab
-createSLCtab $epoch slc > $slctab
-for fld in GAFA_*; do
- createSLCtab $fld/$epoch slc > $fld.tab
- if [ ! -z $prevtab ]; then
-   SLC_cat_ScanSAR $prevtab $fld.tab $mergetab
-   for x in `ls $epoch.IW?.merged.slc*`; do mv $x `echo $x | sed 's/\.merged//'`; done
-   prevtab=$slctab
- else
-   prevtab=$fld.tab
- fi 
-done
-rm $mergetab
-'''
-
-'''
+import sys, os, subprocess, shutil
+import glob
+import xarray as xr
+import s1data as s1
+from LiCSAR_misc import grep1line
 import LiCSquery as lq
+import s1data
+import orbit_lib
+import zipfile
+import gafa
+from gdar.base.raster import Collection, DataRaster
+# GAFA functionality
+from gafa.processor import focus_s1_tops_products, get_s1_raw_reader
+from gafa.io.gafa.reader import reader as read_gafa
+from download_s1_aux import (
+    choose_aux_product,
+    download_file,
+    ensure_safe_dir,
+    list_aux_products,
+    parse_product_or_date,
+)
 
-lq.get_frame_files_date(frame, dt.datetime(2025,3,24), True
 
-this will return list of SLC files registered within the frame (i.e. having frame bursts
-'''
+def link_or_copy_file(src, dst_dir):
+    src = Path(src)
+    dst = dst_dir / src.name
+
+    if dst.exists():
+        print(f"  - exists: {dst.name}")
+        return dst
+
+    try:
+        os.symlink(src, dst)
+        print(f"  - linked: {dst.name}")
+    except OSError:
+        shutil.copy2(src, dst)
+        print(f"  - copied: {dst.name}")
+
+    return dst
 
 
 def identify_raw_covering_slc(slcfile, rawfiles):
@@ -79,6 +71,23 @@ def identify_raw_covering_slc(slcfile, rawfiles):
     return None
 
 
+def identify_raw_covering_slcs(slcfiles, rawfiles):
+    """
+    Identify the de-duplicated RAW products needed to cover the given SLC files.
+    """
+    raw_covers = []
+    seen = set()
+    for slcfile in slcfiles:
+        raw_cover = identify_raw_covering_slc(slcfile, rawfiles)
+        print(f"  - {Path(str(slcfile)).name}")
+        print(f"    covered by: {raw_cover}")
+        if raw_cover is None or raw_cover in seen:
+            continue
+        raw_covers.append(raw_cover)
+        seen.add(raw_cover)
+    return raw_covers
+
+
 def get_dates_from_filename(filename):
     ''' Helper function to get t1 and t2 from given S1 filename
 
@@ -94,336 +103,325 @@ def get_dates_from_filename(filename):
     return t1, t2
 
 
-def create_TOPS_par_slab(inh5):
-    ''' Function to generate TOPS_par slab for given burst, e.g.
-
-    Args:
-        inh5: nc file for a burst, as output from GAFA. e.g. S1C_SLC_066-0655-IW1-VV_20251123T052759.nc
-
-    '''
-    f = h5py.File(inh5, "r")
-
-    pos = f["/meta/grid/refsys/trajectory/pos"][:]
-    vel = f["/meta/grid/refsys/trajectory/vel"][:]
-    t   = f["/meta/grid/refsys/trajectory/utc"][:]
-
-    units = f["/meta/grid/refsys/trajectory/utc"].attrs["units"].decode()
-    ref = datetime.strptime(units.split("since")[1].strip(),
-                            "%Y-%m-%d %H:%M:%S")
-    times = [ref + timedelta(seconds=float(x)) for x in t]
-
-    i = len(t)//2
-
-    burst_date = times[0]
-    burst_start_time = t[0]
-
-    sensing_date = times[0]       # usually aligned with burst start
-    sensing_start_time = t[0]
-
-    print(f"burst_date_1:          {burst_date.isoformat()}")
-    print(f"burst_start_time_1:    {burst_start_time:12.6f}  s")
-
-    print(f"sensing_date_1:        {sensing_date.isoformat()}")
-    print(f"sensing_start_time_1:  {sensing_start_time:12.6f}  s")
-
-    print("sensing_position_1:", *pos[i])
-    print("sensing_velocity_1:", *vel[i])
-
-    dop_t = f["/meta/doppler/centroid/utc"][:]
-    dop_units = f["/meta/doppler/centroid/utc"].attrs["units"].decode()
-
-    ref = dop_units.split("since")[1].strip()
-    t0 = datetime.strptime(ref.split(".")[0], "%Y-%m-%d %H:%M:%S")
-
-    doppler_date = t0 + timedelta(seconds=float(dop_t[0]) * 1e-9)  # nanoseconds
-
-    rgtime = f["/meta/doppler/centroid/rgtime"][:]
-    doppler_srdelay = np.mean(rgtime)
-
-    dop = f["/meta/doppler/centroid/values"][:]
-
-    # Fit 4th-order polynomial
-    coeffs = np.polyfit(rgtime, dop[0], 4)[::-1]
-
-    # pad to 5 terms
-    coeffs = np.pad(coeffs, (0, 5 - len(coeffs)))
-
-    print(f"doppler_date_1:        {doppler_date.isoformat()}")
-    print(f"doppler_time_1:        {doppler_srdelay:12.6f}   s")
-    print(f"doppler_srdelay_1:     {doppler_srdelay:.5e}   s")
-
-    print("doppler_polynomial_1:  " +
-          " ".join(f"{c: .5e}" for c in coeffs))
+''' Following functionality was developed by Muhammet Nergizci, an extremely talented PhD student. R.I.P. 2026
+'''
+### FOCUSING
 
 
-    print("NOTE: The Azimuth FM is only approximated from velocity + geometry....")
-    # crude approximation: use Doppler curvature
-    az_fmrate_poly = coeffs * (-1e2)   # scaled derivative-like estimate
-
-    print(f"az_fmrate_date_1:      {doppler_date.isoformat()}")
-    print(f"az_fmrate_time_1:      {doppler_srdelay:12.6f}   s")
-    print(f"az_fmrate_srdelay_1:   {doppler_srdelay:.5e}   s")
-
-    print("az_fmrate_polynomial_1: " +
-          " ".join(f"{c: .5e}" for c in az_fmrate_poly))
-
-    grid_shape = f["/meta/grid/shape"][:]   # [lines, samples]
-    gate_shape = f["/meta/gate/shape"][:]   # valid region
-
-    lines, samples = grid_shape
-    valid_lines, valid_samples = gate_shape
+def print_section(title):
+    print()
+    print(f"-- {title} --")
 
 
-    first_valid_sample = 0
-    last_valid_sample  = valid_samples
-
-    first_valid_line   = 0
-    last_valid_line    = valid_lines
-
-    print(f"first_valid_sample_1:  {first_valid_sample:6d}         samples")
-    print(f"last_valid_sample_1:   {last_valid_sample:6d}         samples")
-    print(f"first_valid_line_1:    {first_valid_line:6d}         lines")
-    print(f"last_valid_line_1:     {last_valid_line:6d}         lines")
-
-    print(f"burst_boffset_1:       0")
-
-    print("NOTE: safe approximation of ascending node fields")
-
-    asc_node_delta = t[1] - t[0]   # time spacing
-    burst_asc_node = 0.0           # placeholder
-
-    print(f"asc_node_delta_1:      {asc_node_delta:12.6f}  s")
-    print(f"burst_asc_node_1:      {burst_asc_node:12.6f}  bursts")
+def print_items(items):
+    for item in items:
+        print(f"  - {item}")
 
 
-    print("NOTE: now only simple burst window estimates from timing and samples..")
-
-    range_start = rgtime.min() * 1e6
-    range_end   = rgtime.max() * 1e6
-
-    az_start = t[0]
-    az_end   = t[-1]
-
-    print("burst_win_1:  "
-          f"{range_start:.5f}   {range_end:.5f}   "
-          f"{az_start:.6f}   {az_end:.6f}   "
-          f"0   {samples}   1   {lines}")
-    print("ext_burst_win_1:  "
-          f"{range_start:.5f}   {range_end*1.001:.5f}   "
-          f"{az_start:.6f}   {az_end*1.001:.6f}   "
-          f"0   {samples}   1   {lines}")
-    print("NEXT STEPS:")
-    print(" - true TOPS burst segmentation")
-    print(" - precise azimuth FM rates")
-    print(" - exact azimuth timing grid")
-    print(" - correct burst synchronization")
-    f.close()
-
-
-import glob
-import xarray as xr
-
-def merge_full(ncpath = os.getcwd()):
-    ''' This will merge all nc burst files per each swath into merged.IWx.slc files, in FCOMPLEX format (2x float32)
-    It now assumes all have the same number of samples, otherwise this will fail.
-    '''
-    curpth = os.getcwd()
-    os.chdir(ncpath)
-    ncs = glob.glob('S1?_SLC_*.nc')
-    if not ncs:
-        print('no slc files found')
-        return False
-    nc=ncs[0]
-    datestr=nc.split('_')[-1].split('T')[0]
-    for iw in ['IW1','IW2','IW3']:
-        nclist = glob.glob('S1?_SLC_*-'+iw+'-*.nc')
-        if nclist:
-            nclist.sort()
-            merge_ncs(nclist, outfile = datestr + '.'+iw+'.slc')
-    os.chdir(curpth)
-
-
-def _fix_shape_rg(cpx, dimrg):
-    a,r = cpx.shape
-    if r==dimrg:
-        return cpx
-    return np.pad(cpx, ((0, 0), (0, dimrg-r)),
-                    mode='constant', constant_values = 0)
-
-
-def merge_ncs(nclist, outfile = 'output.slc'):
-    if os.path.exists(outfile):
-        os.system('rm '+outfile)
-    dimaz, dimrg = 0, 0
-    for nc in nclist:
-        a=xr.open_dataset(nc)
-        dimaznc, dimrgnc = a.raster.shape
-        #dimaz = max(dimaz,dimaznc)
-        dimrg = max(dimrg,dimrgnc)
-    print('Creating '+outfile+' in FCOMPLEX and dimensions of')
-    print('samples: '+str(dimrg))
-    # print('lines: '+str(int(dimaz*len(nclist))))
-    # print('(this means '+str(dimrg)+' samples x '+str(dimaz)+' lines per burst)')
-    for nc in nclist:
-        print(nc)
-        a=xr.open_dataset(nc)
-        arr=a.raster.values
-        cpx = (arr['r'] + 1j * arr['i']).astype(np.complex64)
-        # cpx = _fix_shape(cpx, dimaz, dimrg)
-        cpx = _fix_shape_rg(cpx, dimrg)
-        cpx = cpx.byteswap()
-        with open(outfile, 'ab') as f:
-            cpx.tofile(f)
-
-
-from pathlib import Path
-import struct
-import numpy as np
-
-
-def load_gdr(fname):
-    """ by Copilot
-    Load a GDR raster (ifg or sigma) and return
-
-        array, metadata
-
-    Supports complex64 and float32 rasters.
-
-    e.g.
-ifg, meta = load_gdr(
-    "ifgm_2025-03-27_2025-04-02_143-0095-IW1-VV.gdr"
-)
-# MAG:
-plt.imshow(np.log1p(np.abs(ifg)), cmap="gray")
-plt.show()
-# PHA:
-plt.imshow(np.angle(ifg), cmap="hsv")
-plt.colorbar()
-plt.show()
-
+def read_gafa_slc(path) -> DataRaster:
     """
+    Function that provides a reader for a folder of focused bursts in NetCDF format.
+    """
+    match path.stem[4:6]:
+        case "IW":
+            swaths = ["IW1", "IW2", "IW3"]
+        case "EW":
+            swaths = ["EW1","EW2","EW3","EW4","EW5"]
+    pols = [path.stem[15]]
+    r = {}
+    for sw in swaths:
+        s = {}
+        for p in pols:
+            fslc_gafa = sorted([f for f in path.glob(f"**/*{sw}-{p}*.nc")])
+            b = []
+            for f in fslc_gafa:
+                b.append(read_gafa(f))
+            if len(b) != 0:
+                s[p] = b
+        if len(s) != 0:
+            r[sw] = s
+    return Collection(r) if len(r) > 0 else None
 
-    fname = Path(fname)
 
-    with open(fname, "rb") as f:
-
-        # --------------------------------------------------
-        # file header
-        # --------------------------------------------------
-
-        magic = f.read(4)
-        if magic[1:] != b"GDR":
-            raise ValueError("Not a GDR file")
-
-        version = struct.unpack("<I", f.read(4))[0]
-        schema_len = struct.unpack("<Q", f.read(8))[0]
-
-        schema = f.read(schema_len).decode(
-            "latin1",
-            errors="ignore"
-        )
-
-        meta_start = 16 + schema_len
-
-        # --------------------------------------------------
-        # raster dtype
-        # --------------------------------------------------
-
-        if "dtype:complex64" in schema:
-            dtype = np.complex64
-        elif "dtype:float32" in schema:
-            dtype = np.float32
-        elif "dtype:float64" in schema:
-            dtype = np.float64
-        else:
-            raise ValueError("Unsupported dtype in schema")
-
-        # --------------------------------------------------
-        # scan metadata for shape
-        # --------------------------------------------------
-
-        f.seek(meta_start)
-        meta_bytes = f.read(2048)
-
-        shape = None
-
-        for offset in range(len(meta_bytes) - 16):
-
-            try:
-                a = struct.unpack_from("<q", meta_bytes, offset)[0]
-                b = struct.unpack_from("<q", meta_bytes, offset + 8)[0]
-
-                # plausible raster dimensions
-                if (
-                        100 <= a <= 50000
-                        and 100 <= b <= 50000
-                ):
-                    pixels = a * b
-                    data_bytes = pixels * np.dtype(dtype).itemsize
-
-                    filesize = fname.stat().st_size
-
-                    if filesize > data_bytes:
-                        shape = (int(a), int(b))
-                        shape_offset = offset
-                        break
-
-            except Exception:
-                pass
-
-        if shape is None:
-            raise RuntimeError("Could not determine raster shape")
-
-    # ------------------------------------------------------
-    # raster starts at end-of-file
-    # ------------------------------------------------------
-
-    filesize = fname.stat().st_size
-
-    data_bytes = (
-            shape[0]
-            * shape[1]
-            * np.dtype(dtype).itemsize
+def multilook(d, my: int, mx: int, y0: int = 0, x0: int = 0):
+    """
+    Boxcar multilook filter with factors (my, mx).
+    """
+    ny, nx = d.shape[0] - y0, d.shape[1] - x0
+    ly, lx = ny // my, nx // mx
+    ky, kx = ly * my, lx * mx
+    return np.mean(
+        np.mean(d[y0 : y0 + ky, x0 : x0 + kx].reshape(ly, my, lx, mx), axis=-1), axis=-2
     )
 
-    data_offset = filesize - data_bytes
 
-    arr = np.fromfile(
-        fname,
-        dtype=dtype,
-        offset=data_offset,
-    ).reshape(shape)
+def extract_safe_products(date_dir):
+    """Extract RAW zip files in date_dir when the matching .SAFE folder is missing."""
+    for zip_file in sorted(date_dir.glob("S1*_RAW_*.zip")):
+        safe_dir = date_dir / zip_file.with_suffix(".SAFE").name
+        if safe_dir.exists():
+            print(f"  - exists: {safe_dir.name}")
+            continue
+        print(f"  - extracting: {zip_file.name}")
+        with zipfile.ZipFile(zip_file) as zf:
+            zf.extractall(date_dir)
 
-    arr[arr==0] = np.nan
 
-    meta = {
-        "version": version,
-        "dtype": np.dtype(dtype).name,
-        "shape": shape,
-        "shape_offset": shape_offset,
-        "data_offset": data_offset,
-        "schema": schema,
-    }
+def collect_raw_products(date_dir):
+    """Return the SAFE products available for one acquisition date."""
+    return sorted(date_dir.glob("S1*_RAW_*.SAFE"))
 
-    return arr, meta
 
-'''
-# 1. merge the files (this will pad only in range)
-cd 20250324; python3 -c "from gafa_licsar import *; merge_full()"
-cd ../20250405; python3 -c "from gafa_licsar import *; merge_full()"
-# 2. move the slcs and par files to some new directory
-# 3. coregister them
-createSLCtab 20250324 slc > 20250324.tab
-createSLCtab 20250405 slc > 20250405.tab
-createSLCtab 20250405 rslc > 20250405R.tab
-# the previous commands i tried:
-# SLC_mosaic_ScanSAR 20250324.tab 20250324.slc 20250324.slc.par 20 4 - - # to use existing burst windows
-# SLC_mosaic_ScanSAR 20250324.tab 20250324.gamma.slc 20250324.gamma.slc.par 20 4 1 - # to have gamma recalc burst windows
-# multi_look 20250324.slc 20250324.slc.par 20250324.mli 20250324.mli.par 20 4
-# but the idea is to coregister per swath... and then use existing routines to create bovl. so:
-ScanSAR_coreg.py 20250324.tab 20250324 20250405.tab 20250405 20250405R_tab - 20 4 --r_only --no_cleaning # the following params might be useful to check/test: --no_check or --burst_check
-# 4. check the interferograms in the temp folder, or create the bovls
-'''
+def focus_date(
+    acquisition_date,
+    frame,
+    frame_dir,
+    config,
+    custom_config,
+    extract_zips,
+    overwrite,
+    output_suffix,
+):
+    print("=" * 80)
+    print(f"Focusing frame {frame} for {acquisition_date}")
+    print("=" * 80)
+
+    date_dir = frame_dir / 'RAW' / acquisition_date
+    if not date_dir.exists():
+        raise FileNotFoundError(f"RAW date directory does not exist: {date_dir}")
+
+    if extract_zips:
+        print_section(f"Extract RAW zip files -> {date_dir}")
+        extract_safe_products(date_dir)
+
+    raw_products = collect_raw_products(date_dir)
+    if not raw_products:
+        raise RuntimeError(f"No RAW .SAFE products found in {date_dir}")
+
+    print_section(f"RAW products selected ({len(raw_products)})")
+    for raw_product in raw_products:
+        print(f"  - {raw_product.name}")
+
+    print_section(f"GAFA output -> {date_dir}")
+    focus_s1_tops_products(
+        raw_products,
+        config,
+        date_dir,
+        custom_config=custom_config,
+        overwrite=overwrite,
+        verbose=True,
+        timing=True,
+        output_suffix=output_suffix,
+    )
+
+
+def download_date(
+    acquisition_date,
+    frame,
+    frame_dir,
+    aux_dir = "/gws/ssde/j25a/nceo_geohazards/vol1/S1_AUX",
+    download_aux = True,
+    aux_types = ["INS", "CAL"],
+    keep_aux_zip = False,
+    download_orbits = True, # or link
+    orbit_producttype = "POEORB"
+):
+    print("=" * 80)
+    print(f"Processing frame {frame} for {acquisition_date}")
+    print("=" * 80)
+    date_dir = frame_dir / acquisition_date
+    date_dir.mkdir(parents=True, exist_ok=True)
+    if not os.path.exists(aux_dir):
+        os.mkdir(aux_dir)
+    # --------------------------------------------------
+    # Get RAW product table for this acquisition date
+    # --------------------------------------------------
+    rawfiles = s1data.get_images_for_frame(
+        frame,
+        acquisition_date,
+        acquisition_date,
+        prodType="RAW",
+        asf=False,
+        outAspd=True
+    )
+
+    print_section(f"RAW products found ({len(rawfiles)})")
+    print_items(rawfiles["title"])
+
+    # --------------------------------------------------
+    # Get SLC products for the same frame/date
+    # --------------------------------------------------
+    start_dt = dt.datetime.strptime(acquisition_date, "%Y%m%d")
+    slcfiles = lq.get_frame_files_date(frame, start_dt, True)
+
+    print_section(f"SLC coverage ({len(slcfiles)} SLC files)")
+    covered_raw_products = identify_raw_covering_slcs(slcfiles, rawfiles)
+
+    if not covered_raw_products:
+        raise RuntimeError(f"No RAW products cover the SLC files for {frame}/{acquisition_date}.")
+
+    print_section(f"RAW products selected ({len(covered_raw_products)})")
+    print_items(covered_raw_products)
+
+    # --------------------------------------------------
+    # Download Sentinel-1 AUX files needed by GAFA
+    # --------------------------------------------------
+    if download_aux:
+        print_section("AUX files")
+        aux_catalogs = {aux_type: list_aux_products(aux_type) for aux_type in aux_types}
+        selected_aux = {}
+        for product in covered_raw_products:
+            product = str(product).strip()
+            if not product:
+                continue
+
+            platform, acquisition_time = parse_product_or_date(product, None, None)
+            for aux_type in aux_types:
+                aux_product = choose_aux_product(
+                    aux_catalogs[aux_type],
+                    platform,
+                    acquisition_time,
+                    aux_type,
+                )
+                selected_aux[(aux_type, aux_product.name)] = aux_product
+
+        for (aux_type, _), aux_product in sorted(selected_aux.items()):
+            zip_file = aux_dir / f"{aux_product.name}.SAFE.zip"
+            print(
+                f"  - AUX_{aux_type}: {aux_product.name} "
+                f"(valid from {aux_product.validity_start:%Y%m%dT%H%M%S})"
+            )
+            download_file(aux_product.download_url, zip_file)
+            ensure_safe_dir(zip_file, aux_dir)
+            if not keep_aux_zip:
+                zip_file.unlink(missing_ok=True)
+
+    # --------------------------------------------------
+    # Link Sentinel-1 orbit files needed by GAFA
+    # --------------------------------------------------
+    if download_orbits:
+        print_section("Orbit files")
+        if orbit_lib is None:
+            raise ImportError("download_orbits=True, but orbit_lib could not be imported.")
+
+        selected_orbits = set()
+        for product in covered_raw_products:
+            product = str(product).strip()
+            if not product:
+                continue
+
+            platform, acquisition_time = parse_product_or_date(product, None, None)
+            acquisition_time = acquisition_time.replace(tzinfo=timezone.utc)
+            orbit_list = orbit_lib.get_orbit_filenames_for_datetime(
+                acquisition_time,
+                producttype=orbit_producttype,
+                s1ab=platform,
+            )
+
+            for orbit_file in orbit_list:
+                selected_orbits.add(orbit_file)
+
+        for orbit_file in sorted(selected_orbits):
+            link_or_copy_file(orbit_file, aux_dir)
+
+    # --------------------------------------------------
+    # Download each RAW product into raws_mynmar/frame/acquisition_date
+    # --------------------------------------------------
+    print_section(f"RAW zip downloads -> {date_dir}")
+    for product in covered_raw_products:
+        product = str(product).strip()
+
+        if not product:
+            continue
+
+        if product.endswith(".zip"):
+            zip_name = product
+        else:
+            zip_name = product + ".zip"
+
+        out_file = date_dir / zip_name
+
+        if out_file.exists():
+            print(f"  - exists: {zip_name}")
+            continue
+
+        print(f"  - downloading: {zip_name}")
+        try:
+            subprocess.run(
+                ["wget_cdse", zip_name],
+                cwd=str(date_dir),
+                check=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"FAILED: {zip_name}")
+            print(f"Return code: {e.returncode}")
+            continue
+
+
+def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.date(2026,2,1),
+                            normal_focusing = False, overwrite = False,
+                            perform_download = False, perform_focusing = False):
+    ''' This will focus raw files for given frame, at given date range.
+    We expect the processing to be performed from BATCH\_CACHE\_DIR where you should have RAW folder ready - or set it to download here?
+    normal_focusing: if True, it will perform ordinary focusing (not extended bursts)
+    perform_download: if True, it will autodownload RAW files and AUX files
+    perform_focusing: if False, it will not perform focusing (useful if only download is needed)
+    '''
+    # get epochs to process
+    dates = s1.get_epochs_for_frame(frame, startdate, enddate)
+    # get reference height
+    metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata', 'metadata.txt')
+    try:
+        refhei = float(misc.grep1line('avg_height',metafile).split('=')[1])
+    except:
+        print('WARNING: error loading avg height from metafile - setting ref hei to 100 m')
+        refhei = 100.0
+    # dates = ["20250324", "20250405"]
+    batchdir = os.environ["BATCH_CACHE_DIR"]
+    # raw_root = Path(f"{batchdir}/ESBOI_02062026")
+    frame_dir = batchdir / frame
+    if perform_download:
+        for acquisition_date in dates:
+            download_date(
+                acquisition_date,
+                frame,
+                frame_dir
+            )
+        print('Downloading finished')
+    if perform_focusing:
+        # --------------------------------------------------
+        # Config setup
+        # --------------------------------------------------
+        extract_zips = True
+        if normal_focusing:
+            config = os.path.join(os.environ['LiCSARpath'],'misc','gafa_s1_iw_ipf.toml')
+            output_suffix = "_normal"
+        else:
+            config = os.path.join(os.environ['LiCSARpath'],'misc','gafa_s1_iw_fullspectrum.toml')
+            output_suffix = "_extended"
+        custom_config = {
+            # "paths": {
+            #    "sentinel1": {
+            #        "aux": str(auxpath)
+            #    }
+            # },
+            "geometry": {
+                "ref_height": refhei
+            }
+        }
+        for acquisition_date in dates:
+            focus_date(
+                acquisition_date,
+                frame,
+                frame_dir,
+                config,
+                custom_config,
+                extract_zips,
+                overwrite,
+                output_suffix,
+            )
+        print("Focusing finished.")
+    print('done')
 
 
 '''
@@ -458,7 +456,7 @@ import orbit_lib as o
 o.get_orbit_filenames_for_datetime(pd.Timestamp(2026,3,7,20,55,5, tz='UTC'))
 
 to get required AUXs:
-./download_s1_aux.py --product S1D_IW_RAW__0SSH_20260307T205606_20260307T205638_001793_0028CF_7196 --platform S1D --dry-run
+download_s1_aux.py --product S1D_IW_RAW__0SSH_20260307T205606_20260307T205638_001793_0028CF_7196 --platform S1D --dry-run
 
 to get DEM:
 mk_copdem_listonly 002A_16128_292828.geo.hgt.tif
