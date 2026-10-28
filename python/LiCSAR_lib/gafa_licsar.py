@@ -253,6 +253,9 @@ def download_date(
     # --------------------------------------------------
     start_dt = dt.datetime.strptime(acquisition_date, "%Y%m%d")
     slcfiles = lq.get_frame_files_date(frame, start_dt, True)
+    if not slcfiles:
+        # try from cdse:
+        slcfiles = s1.get_images_for_frame(frame, acquisition_date, acquisition_date, prodType='SLC', asf = False)
 
     print_section(f"SLC coverage ({len(slcfiles)} SLC files)")
     covered_raw_products = identify_raw_covering_slcs(slcfiles, rawfiles)
@@ -297,7 +300,7 @@ def download_date(
                 zip_file.unlink(missing_ok=True)
 
     # --------------------------------------------------
-    # Link Sentinel-1 orbit files needed by GAFA
+    # Link Sentinel-1 orbit files - needed by GAFA to reside in the aux_dir..
     # --------------------------------------------------
     if download_orbits:
         print_section("Orbit files")
@@ -325,7 +328,7 @@ def download_date(
             link_or_copy_file(orbit_file, aux_dir)
 
     # --------------------------------------------------
-    # Download each RAW product into raws_mynmar/frame/acquisition_date
+    # Download each RAW product into date_dir
     # --------------------------------------------------
     print_section(f"RAW zip downloads -> {date_dir}")
     for product in covered_raw_products:
