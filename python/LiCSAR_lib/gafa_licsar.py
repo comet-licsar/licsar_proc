@@ -229,7 +229,7 @@ def download_date(
     print("=" * 80)
     print(f"Processing frame {frame} for {acquisition_date}")
     print("=" * 80)
-    date_dir = frame_dir / acquisition_date
+    date_dir = frame_dir / 'RAW' / acquisition_date
     date_dir.mkdir(parents=True, exist_ok=True)
     if not os.path.exists(aux_dir):
         os.mkdir(aux_dir)
@@ -254,11 +254,12 @@ def download_date(
     start_dt = dt.datetime.strptime(acquisition_date, "%Y%m%d")
     slcfiles = lq.get_frame_files_date(frame, start_dt, True)
     if not slcfiles:
+        print('WARNING - no SLC files in LiCSInfo DB for '+str(start_dt))
         # try from cdse:
         slcfiles = s1.get_images_for_frame(frame, acquisition_date, acquisition_date, prodType='SLC', asf = False)
 
     print_section(f"SLC coverage ({len(slcfiles)} SLC files)")
-    covered_raw_products = identify_raw_covering_slcs(slcfiles, rawfiles)
+    covered_raw_products = identify_raw_covering_slcs(slcfiles, rawfiles['title'].values)
 
     if not covered_raw_products:
         raise RuntimeError(f"No RAW products cover the SLC files for {frame}/{acquisition_date}.")
