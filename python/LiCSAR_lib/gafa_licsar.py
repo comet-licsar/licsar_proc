@@ -365,13 +365,15 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
                             normal_focusing = False, overwrite = False,
                             perform_download = False, perform_focusing = False):
     ''' This will focus raw files for given frame, at given date range.
-    We expect the processing to be performed from BATCH\_CACHE\_DIR where you should have RAW folder ready - or set it to download here?
+    We expect the processing to be performed from BATCH_CACHE_DIR where you should have RAW folder ready - or set it to download here?
     normal_focusing: if True, it will perform ordinary focusing (not extended bursts)
     perform_download: if True, it will autodownload RAW files and AUX files
     perform_focusing: if False, it will not perform focusing (useful if only download is needed)
     '''
     # get epochs to process
     dates = s1.get_epochs_for_frame(frame, startdate, enddate)
+    print('\n Selected epochs are: ')
+    print(dates)
     # get reference height
     metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata', 'metadata.txt')
     try:
@@ -380,7 +382,7 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
         print('WARNING: error loading avg height from metafile - setting ref hei to 100 m')
         refhei = 100.0
     # dates = ["20250324", "20250405"]
-    batchdir = os.environ["BATCH_CACHE_DIR"]
+    batchdir = Path(os.environ["BATCH_CACHE_DIR"])
     # raw_root = Path(f"{batchdir}/ESBOI_02062026")
     frame_dir = batchdir / frame
     if perform_download:
