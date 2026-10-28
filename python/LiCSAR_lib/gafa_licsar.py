@@ -377,7 +377,7 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
     # get reference height
     metafile = os.path.join(os.environ['LiCSAR_public'],str(int(frame[:3])),frame,'metadata', 'metadata.txt')
     try:
-        refhei = float(misc.grep1line('avg_height',metafile).split('=')[1])
+        refhei = float(grep1line('avg_height',metafile).split('=')[1])
     except:
         print('WARNING: error loading avg height from metafile - setting ref hei to 100 m')
         refhei = 100.0
