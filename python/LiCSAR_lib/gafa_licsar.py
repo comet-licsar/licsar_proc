@@ -2,6 +2,7 @@
 
 import h5py
 import datetime as dt
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 import numpy as np
@@ -181,6 +182,7 @@ def focus_date(
     extract_zips,
     overwrite,
     output_suffix,
+    convert_to_gamma
 ):
     print("=" * 80)
     print(f"Focusing frame {frame} for {acquisition_date}")
@@ -213,6 +215,16 @@ def focus_date(
         timing=True,
         output_suffix=output_suffix,
     )
+    if convert_to_gamma:
+        # how to get the folder name??
+        slc_fldname = frame_dir / 'SLC' / acquisition_date
+        raw_fldname = date_dir
+        gafa_fldname = os.path.basename(glob.glob(raw_fldname + '/GAF*')[0])
+        cmd = 'cd ' + raw_fldname + '; par_S1_GAFA_SLC ' + gafa_fldname
+        print(cmd)  # to debug
+        os.system(cmd)
+        # now need to move it where it belongs
+        shutil.move(raw_fldname / acquisition_date, slc_fldname)
 
 
 def download_date(
@@ -365,12 +377,15 @@ def download_date(
 
 def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.date(2026,2,1),
                             normal_focusing = False, overwrite = False,
-                            perform_download = False, perform_focusing = False):
+                            perform_download = False, perform_focusing = False,
+                            convert_to_gamma_after_focusing = True, nproc = 1):
     ''' This will focus raw files for given frame, at given date range.
     We expect the processing to be performed from BATCH_CACHE_DIR where you should have RAW folder ready - or set it to download here?
     normal_focusing: if True, it will perform ordinary focusing (not extended bursts)
     perform_download: if True, it will autodownload RAW files and AUX files
     perform_focusing: if False, it will not perform focusing (useful if only download is needed)
+    convert_to_gamma_after_focusing: doesn't do anything if perform_focusing is False
+    nproc: number of acquisitions to focus in parallel
     '''
     # get epochs to process
     dates = s1.get_epochs_for_frame(frame, startdate, enddate)
@@ -387,6 +402,16 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
     batchdir = Path(os.environ["BATCH_CACHE_DIR"])
     # raw_root = Path(f"{batchdir}/ESBOI_02062026")
     frame_dir = batchdir / frame
+    if not overwrite:
+        # if exists in SLC already, do not download:
+        dates2 = []
+        for acquisition_date in dates:
+            fldname = frame_dir / 'SLC' / acquisition_date
+            if fldname.exists():
+                print(acquisition_date+' exists in SLC folder. Skipping')
+            else:
+                dates2.append(acquisition_date)
+        dates = dates2
     if perform_download:
         for acquisition_date in dates:
             download_date(
@@ -416,18 +441,39 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
                 "ref_height": refhei
             }
         }
-        for acquisition_date in dates:
-            focus_date(
-                acquisition_date,
-                frame,
-                frame_dir,
-                config,
-                custom_config,
-                extract_zips,
-                overwrite,
-                output_suffix,
-            )
-        print("Focusing finished.")
+        if nproc == 1:
+            for acquisition_date in dates:
+                focus_date(
+                    acquisition_date,
+                    frame,
+                    frame_dir,
+                    config,
+                    custom_config,
+                    extract_zips,
+                    overwrite,
+                    output_suffix,
+                    convert_to_gamma_after_focusing
+                )
+        else:
+            with ProcessPoolExecutor(max_workers=nproc) as executor:
+                futures = [
+                    executor.submit(
+                        focus_date,
+                        acquisition_date,
+                        frame,
+                        frame_dir,
+                        config,
+                        custom_config,
+                        extract_zips,
+                        overwrite,
+                        output_suffix,
+                        convert_to_gamma_after_focusing,
+                    )
+                    for acquisition_date in dates
+                ]
+                for future in futures:
+                    future.result()
+        print("Focusing finished. Result is in " + frame_dir)
     print('done')
 
 
