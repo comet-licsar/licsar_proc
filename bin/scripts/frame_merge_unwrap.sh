@@ -145,7 +145,7 @@ detect_nodata() {
 }
 
 
-for ext in geo.iono.code.tif sltd.geo.tif  tide.geo.tif geo.mli.tif; do
+for ext in geo.iono.tif sltd.geo.tif  tide.geo.tif geo.mli.tif; do
   echo "merging "$ext
 #for epoch in `ls $LiCSAR_public/$track/$frame2/epochs | grep 20`; do 
 for epoch in $(awk -F'[_.]' '{print $1; print $2}' $frame/ifg_merge_unwrap.list | sort -u); do

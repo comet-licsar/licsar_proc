@@ -764,10 +764,10 @@ for ifg in `ls interferograms`; do
  infilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.tif
  outfilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.noiono.tif
  if [ ! -f $outfilee ]; then
- if [ -f $epath/$date1/$date1.geo.iono.code.tif ] && [ -f $epath/$date2/$date2.geo.iono.code.tif ]; then
+ if [ -f $epath/$date1/$date1.geo.iono.tif ] && [ -f $epath/$date2/$date2.geo.iono.tif ]; then
    #doit=1
-   ionod1=$epath/$date1/$date1.geo.iono.code.tif
-   ionod2=$epath/$date2/$date2.geo.iono.code.tif   # should be A-B....
+   ionod1=$epath/$date1/$date1.geo.iono.tif
+   ionod2=$epath/$date2/$date2.geo.iono.tif   # should be A-B....
    correct_ifg_tides_public $frame $ifg $ext
    gdalwarp2match.py $infilee $hgtfile $infilee'.tmp.tif'
    mv $infilee'.tmp.tif' $infilee

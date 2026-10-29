@@ -58,7 +58,7 @@ a['iono']=a['iono']-a['iono'][i]
 # now get the iono gradients
 ionovar = 'iono'
 if 'iono' not in a:
-    ionovar = 'geo.iono.code.tif'
+    ionovar = 'geo.iono.tif'
 
 if ionovar not in a:
     print('NO IONO LAYER INSIDE H5 FILE?!')

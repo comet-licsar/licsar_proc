@@ -230,7 +230,7 @@ if [ -f $eqaok ]; then
    chmod 775 $cumhok
   fi
   python3 -c "from lics_tstools import *; correct_cum_from_tifs('"$cumhok"', '"$epochsdir"', 'tide.geo.tif', 1000, directcorrect = False)"
-  python3 -c "from lics_tstools import *; correct_cum_from_tifs('"$cumhok"', '"$epochsdir"', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False)"
+  python3 -c "from lics_tstools import *; correct_cum_from_tifs('"$cumhok"', '"$epochsdir"', 'geo.iono.tif', 55.465/(4*np.pi), directcorrect = False)"
   if [ ! -f $fr.gacos.vel.tif ]; then
     python3 -c "from lics_tstools import *; correct_cum_from_tifs('"$cumhok"', '"$epochsdir"', 'sltd.geo.tif', -55.465/(4*np.pi), directcorrect = False, newcumname = 'gacos')"
     LiCSBAS_cum2vel.py --datavar gacos -i $cumhok -o gacos;

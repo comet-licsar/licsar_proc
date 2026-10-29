@@ -874,8 +874,8 @@ if [ "$iono" -gt 0 ]; then
 	   #$epochdir
 	   outfile=`pwd`/$pair.geo.$outext.tif
 	   if [ ! -f $outfile ]; then
-		 ionod1=$epochdir/$date1/$date1.geo.iono.code.tif
-		 ionod2=$epochdir/$date2/$date2.geo.iono.code.tif   # should be A-B....
+		 ionod1=$epochdir/$date1/$date1.geo.iono.tif
+		 ionod2=$epochdir/$date2/$date2.geo.iono.tif   # should be A-B....
 		 if [ -f $ionod1 ] && [ -f $ionod2 ]; then
 			#echo $pair
 			#python3 -c "from iono_correct import *;
@@ -992,10 +992,10 @@ if [ "$iono" -gt 0 ]; then
 	   #$epochdir
 	   outfile=`pwd`/$pair.geo.$outext.tif
 	   if [ ! -f $outfile ]; then
-		 ionod1A=$epochdir/$date1/$date1.geo.iono.code.sTECA.tif
-		 ionod1B=$epochdir/$date1/$date1.geo.iono.code.sTECB.tif   # should be A-B....
-     ionod2A=$epochdir/$date2/$date2.geo.iono.code.sTECA.tif
-		 ionod2B=$epochdir/$date2/$date2.geo.iono.code.sTECB.tif   # should be A-B....
+		 ionod1A=$epochdir/$date1/$date1.geo.iono.sTECA.tif
+		 ionod1B=$epochdir/$date1/$date1.geo.iono.sTECB.tif   # should be A-B....
+     ionod2A=$epochdir/$date2/$date2.geo.iono.sTECA.tif
+		 ionod2B=$epochdir/$date2/$date2.geo.iono.sTECB.tif   # should be A-B....
 		 if [ -f $ionod1A ] && [ -f $ionod1B ] && [ -f $ionod2A ] && [ -f $ionod2B ]; then
 			echo "print('"$pair"')" >> $tmpy
 			echo "try:" >> $tmpy
@@ -1058,9 +1058,9 @@ if [ "$iono" -gt 0 ]; then
 
   # Define file extensions based on sbovl flag
   if [ "$sbovl" -gt 0 ]; then
-    extfull=("geo.iono.code.sTECA.tif" "geo.iono.code.sTECB.tif")  # sTECA & sTECB for sbovl
+    extfull=("geo.iono.sTECA.tif" "geo.iono.sTECB.tif")  # sTECA & sTECB for sbovl
   else
-    extfull=("geo.iono.code.tif")  # Standard iono correction
+    extfull=("geo.iono.tif")  # Standard iono correction
   fi
 
   # Loop through all epoch directories
@@ -1097,10 +1097,10 @@ fi
  # infilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.tif
  # outfilee=$ifgspath/$ifg/$ifg.geo.diff_pha.notides.noiono.tif
  # if [ ! -f $outfilee ]; then
- # if [ -f $epath/$date1/$date1.geo.iono.code.tif ] && [ -f $epath/$date2/$date2.geo.iono.code.tif ]; then
+ # if [ -f $epath/$date1/$date1.geo.iono.tif ] && [ -f $epath/$date2/$date2.geo.iono.tif ]; then
  #   #doit=1
- #   ionod1=$epath/$date1/$date1.geo.iono.code.tif
- #   ionod2=$epath/$date2/$date2.geo.iono.code.tif   # should be A-B....
+ #   ionod1=$epath/$date1/$date1.geo.iono.tif
+ #   ionod2=$epath/$date2/$date2.geo.iono.tif   # should be A-B....
  #   correct_ifg_tides_public $frame $ifg $ext
  #   gdalwarp2match.py $infilee $hgtfile $infilee'.tmp.tif'
  #   mv $infilee'.tmp.tif' $infilee
@@ -1498,16 +1498,16 @@ if [ $run_jasmin -eq 1 ]; then
     fi
     lbreproc=1
     lbreprocname=$lbreprocname'.noSET'
-    #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.code.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
+    #correct_cum_from_tifs(cumhdfile, tifdir = 'GEOC.EPOCHS', ext='geo.iono.tif', tif_scale2mm = 1, outputhdf = None, directcorrect = True)
   fi
   if [ "$iono" -gt 0 ]; then
     #echo "insert code to post-correct iono here"
     if [ "$sbovl" -eq 0 ]; then
       echo "Note: iono corrections will be applied to cum_filt"
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.tif', 55.465/(4*np.pi), sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
       echo "Note: iono corrections will be applied before step 16. skipping" # Same story MN
-      #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
+      #echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum_filt.h5', 'GEOC.EPOCHS', 'geo.iono.sTECA.tif', 14000, sbovl=True)\"" >> jasmin_run.sh
     fi
     lbreproc=1
     lbreprocname=$lbreprocname'.noiono'
@@ -1534,10 +1534,10 @@ if [ $storeext2cube -gt 0 ]; then
   if [ $iono -gt 0 ]; then
     echo "Additionally, the corrections will be stored in cum.h5 as layer iono"
     if [ "$sbovl" -eq 0 ]; then
-      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
+      echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('"$tsdir"/cum.h5', 'GEOC.EPOCHS', 'geo.iono.tif', 55.465/(4*np.pi), directcorrect = False, sbovl=False)\"" >> jasmin_run.sh
     elif [ "$sbovl" -eq 1 ] && [ "$sbovl_model" -eq 0 ]; then
       echo "correction already applied to cum.h5 in batch_LiCSBAS.sh step.."
-      # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.code.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
+      # echo "python3 -c \"from lics_tstools import *; correct_cum_from_tifs('$tsdir/cum.h5', 'GEOC.EPOCHS', 'geo.iono.sTECA.tif', 14000, directcorrect = False, sbovl=True)\"" >> jasmin_run.sh
     fi
   fi
   if [ $dogacos -gt 0 ]; then
