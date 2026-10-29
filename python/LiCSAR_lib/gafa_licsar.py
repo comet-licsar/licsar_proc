@@ -499,7 +499,7 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
                 ]
                 for future in futures:
                     future.result()
-        print("Focusing finished. Result is in " + frame_dir)
+        print("Focusing finished. Result is in " + str(frame_dir))
     print('done')
 
 
