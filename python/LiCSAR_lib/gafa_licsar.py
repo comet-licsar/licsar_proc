@@ -5,6 +5,7 @@ import datetime as dt
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
+import re
 import numpy as np
 import sys, os, subprocess, shutil
 import glob
@@ -182,7 +183,7 @@ def focus_date(
     extract_zips,
     overwrite,
     output_suffix,
-    convert_to_gamma
+    convert_to_gamma_output
 ):
     print("=" * 80)
     print(f"Focusing frame {frame} for {acquisition_date}")
@@ -215,16 +216,41 @@ def focus_date(
         timing=True,
         output_suffix=output_suffix,
     )
-    if convert_to_gamma:
-        # how to get the folder name??
+    if convert_to_gamma_output:
         slc_fldname = frame_dir / 'SLC' / acquisition_date
-        raw_fldname = date_dir
-        gafa_fldname = os.path.basename(glob.glob(raw_fldname + '/GAF*')[0])
-        cmd = 'cd ' + raw_fldname + '; par_S1_GAFA_SLC ' + gafa_fldname
-        print(cmd)  # to debug
-        os.system(cmd)
-        # now need to move it where it belongs
-        shutil.move(raw_fldname / acquisition_date, slc_fldname)
+        slc_fldname.mkdir(parents=True, exist_ok=True)
+        gafa_fldname = next(date_dir.glob('GAF*'), None)
+        if gafa_fldname is None:
+            raise FileNotFoundError(f"No GAFA output directory found in {date_dir}")
+        convert_to_gamma(gafa_fldname, slc_fldname)
+
+def convert_to_gamma(gafa_out_dir, slc_out_dir):
+    slc_out_dir = Path(slc_out_dir)
+    subprocess.run(
+        ["par_S1_GAFA_SLC", str(gafa_out_dir)],
+        cwd=slc_out_dir,
+        check=True,
+    )
+
+    output_pattern = re.compile(
+        r"^(?P<date>\d{8})\.(?:vv|vh|hh|hv)\."
+        r"(?P<swath>iw[123])\.slc(?P<suffix>\.par|\.tops_par)?$",
+        re.IGNORECASE,
+    )
+    for output_file in slc_out_dir.iterdir():
+        match = output_pattern.fullmatch(output_file.name)
+        if not match or not output_file.is_file():
+            continue
+        suffix = match.group("suffix") or ""
+        if suffix.lower() == ".tops_par":
+            suffix = ".TOPS_par"
+        renamed_file = slc_out_dir / (
+            f"{match.group('date')}.{match.group('swath').upper()}.slc{suffix}"
+        )
+        if renamed_file.exists():
+            raise FileExistsError(f"Cannot rename {output_file} to existing file {renamed_file}")
+        output_file.rename(renamed_file)
+    return True
 
 
 def download_date(
