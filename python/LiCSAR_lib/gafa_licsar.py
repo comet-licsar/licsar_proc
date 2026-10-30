@@ -501,6 +501,10 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
                     future.result()
         print("Focusing finished. Result is in " + str(frame_dir))
     print('done')
+    print('now, you may want just to do:')
+    print('licsar_make_frame.sh -n -f '+frame+' 0 0 2013-01-01 2013-01-02; mkdir $BATCH_CACHE_DIR/'+frame+'/log')
+    print('convert2Xcomplex.sh $BATCH_CACHE_DIR/'+frame+'/RSLC/*')
+    print('cd $BATCH_CACHE_DIR; framebatch_postproc_coreg.sh -f '+frame+' 1; rm -r '+frame+'/LUT')
 
 
 '''

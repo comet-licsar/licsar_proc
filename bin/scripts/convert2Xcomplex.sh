@@ -2,7 +2,7 @@
 
 if [ -z $2 ]; then
   echo "Usage: path to SLC or RSLC epoch dir - this will change it to either SCOMPLEX or FCOMPLEX"
-  echo "e.g. convert2Xcopmlex.sh ./RSLC/20160914 FCOMPLEX"
+  echo "e.g. convert2Xcomplex.sh ./RSLC/20160914 FCOMPLEX"
   echo "(it will first check if it is needed here, and will fix also if it is in both SLC and RSLC - e.g. ref epoch)"
   exit
 fi
