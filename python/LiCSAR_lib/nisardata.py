@@ -643,14 +643,6 @@ def export_licsar_metadata(h5file, metafile):
     #science/LSAR/GUNW/metadata/radarGrid/perpendicularBaseline
     #science/LSAR/GUNW/metadata/radarGrid/incidenceAngle
     #science/LSAR/GUNW/metadata/radarGrid/heightAboveEllipsoid
-    # Add polygon boundary file
-    try:
-        from LiCSAR_lib.nisardata_polygon import export_nisar_metadata_with_polygons
-        export_nisar_metadata_with_polygons(h5file, metafile)
-    except ImportError as e:
-        print(f'Polygon export module not found: {e}')
-    except Exception as e:
-        print(f'Error creating polygon file: {e}')
     return True
 
 
@@ -1123,4 +1115,3 @@ def get_asf_session():
     asf_pass = re.sub(r'\W+','',f.readline().split('=')[1])
     f.close()
     return asf.ASFSession().auth_with_creds(asf_user, asf_pass)
-
