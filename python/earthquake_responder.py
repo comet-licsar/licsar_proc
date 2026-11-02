@@ -760,22 +760,46 @@ def update_eventfile(eventfile, jasmin_path, update_eqframes = True):
     title = framestr+': '+pp[-1]
     newline = '<a href="{0}">{1}</a> <br /> \n'.format(fullwebpath, title)
     with open(eventfile, 'r', encoding='utf-8') as ef:
-        if newline in ef.readlines():
-            print("The record already existed in the event file")
-            return False
-    with open(eventfile, 'a+', encoding='utf-8') as ef:
-        ef.write(newline)
+        event_entry_exists = newline in ef.readlines()
+    if event_entry_exists:
+        print("The record already existed in the event file")
+    else:
+        with open(eventfile, 'a+', encoding='utf-8') as ef:
+            ef.write(newline)
     if update_eqframes:
         usgsid = os.path.basename(eventfile).split('.')[0]
-        if misc.grep1line(framestr + ';' + usgsid, eqframescsv):
-            print(framestr+' already in eqframescsv for event '+usgsid)
+        metapath = os.path.normpath(os.path.join(jasmin_path, '..', '..', 'metadata'))
+        polygonfile = os.path.join(metapath, 'polygon.txt')
+        the_geom = None
+        if os.path.exists(polygonfile):
+            with open(polygonfile, 'r', encoding='utf-8') as pf:
+                the_geom = pf.read().strip()
         else:
-            hgtfile = jasmin_path+'/../../metadata/'+frame+'.geo.hgt.tif'
+            hgtfile = os.path.join(metapath, frame+'.geo.hgt.tif')
             if not os.path.exists(hgtfile):
                 # workaround:
                 hgtfile = os.path.join(jasmin_path.replace('LiCSAR_products.future/','LiCSAR_products.public/').replace('LiCSAR_products/','LiCSAR_products.public/'), os.path.basename(jasmin_path)+'.geo.unw.tif')
             if os.path.exists(hgtfile):
                 the_geom = get_geom_from_tif(hgtfile)
+        existing_eqframe = misc.grep1line(framestr + ';' + usgsid, eqframescsv)
+        if existing_eqframe:
+            print(framestr+' already in eqframescsv for event '+usgsid)
+            if the_geom and os.path.exists(polygonfile):
+                with open(eqframescsv, 'r', encoding='utf-8') as ef:
+                    lines = ef.readlines()
+                updated = False
+                for i, line in enumerate(lines):
+                    fields = line.rstrip('\n').split(';')
+                    if len(fields) >= 3 and fields[1] == framestr and fields[2] == usgsid:
+                        if fields[0] != the_geom:
+                            fields[0] = the_geom
+                            lines[i] = ';'.join(fields) + '\n'
+                            updated = True
+                if updated:
+                    with open(eqframescsv, 'w', encoding='utf-8') as ef:
+                        ef.writelines(lines)
+        else:
+            if the_geom:
                 import re
                 framewebpath = re.search(r'(https://.+?)interferograms', fullwebpath).group(1)
                 download = "<a href='{0}' target='_blank'>Link</a>".format(framewebpath)
@@ -783,7 +807,7 @@ def update_eventfile(eventfile, jasmin_path, update_eqframes = True):
                 newline = the_geom + ';' + framestr + ';' + usgsid + ';' + download + ';' + post_date + ';' + post_date + ';-999\n'
                 with open(eqframescsv, 'a+', encoding='utf-8') as ef:
                     ef.write(newline)
-    return True
+    return not event_entry_exists
 
 
 def get_geom_from_tif(tif):
@@ -844,6 +868,11 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
             if not os.path.exists(expectedfn):
                 newones.append(i)
             else:
+                metapath = os.path.normpath(os.path.join(expected_path, '..', '..', 'metadata'))
+                os.makedirs(metapath, exist_ok=True)
+                polygonfile = os.path.join(metapath, 'polygon.txt')
+                with open(polygonfile, 'w', encoding='utf-8') as pf:
+                    pf.write(nsrs.at[i, 'geometry'].wkb_hex + '\n')
                 # check and update in the event file
                 inpath = pubpath2webpath(expected_path)
                 if inpath:
@@ -851,7 +880,7 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
         nsrs = nsrs.loc[newones]
         if not nsrs.empty:
             numifgs, filepaths = nd.download_nisar_datapd(nsrs, nisarslcpath=os.environ['LiCSAR_temp']) #, '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC')
-            for f in filepaths:
+            for (_, nsr), f in zip(nsrs.iterrows(), filepaths):
                 output_path = nd.get_frameid(f, return_pubpath = True)
                 oo = output_path.split('/')
                 pair = os.path.basename(output_path)
@@ -867,6 +896,9 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                 metafile = os.path.join(metapath, 'metadata.txt')
                 if not os.path.exists(metafile):
                     nd.export_licsar_metadata(f, metafile)
+                polygonfile = os.path.join(metapath, 'polygon.txt')
+                with open(polygonfile, 'w', encoding='utf-8') as pf:
+                    pf.write(nsr['geometry'].wkb_hex + '\n')
                 unw = nd.load_gunw(f, add_iono = True, add_enu=do_enus)  # , freq_code = 'A', clipping_box = None)
                 if 'iono' in unw:
                     print('Iono correction available - using to correct the unw data')
