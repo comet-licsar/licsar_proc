@@ -814,9 +814,7 @@ if [ "$setides" -gt 0 ]; then
     if [ -f $epochpath/$epoch.$extfull ]; then
       if [ ! -e $epoch/$epoch.$extfull ]; then
           mkdir -p $epoch
-          cd $epoch
-          cp $epochpath/$epoch.$extfull .
-          cd $disdir
+          cp $epochpath/$epoch.$extfull $epoch/.
       fi
     fi
   done
@@ -1072,9 +1070,7 @@ if [ "$iono" -gt 0 ]; then
       if [ -f "$epochpath/$epoch.$ext" ]; then
         if [ ! -e "$epoch/$epoch.$ext" ]; then
           mkdir -p "$epoch"
-          cd "$epoch"
-          cp "$epochpath/$epoch.$ext" .
-          cd "$disdir"
+          cp "$epochpath/$epoch.$ext" $epoch/.
         fi
       fi
     done

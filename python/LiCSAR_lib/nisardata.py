@@ -399,10 +399,51 @@ def get_frameid(fileid, return_pubpath = False):
         return outpath
 
 
-def export_gunw(ds, outpath, name_as_pair = True, coh_thres_mask = 0.22):
+def _estimate_planar_ramp(data, max_samples=250000):
+    if data.ndim != 2:
+        raise ValueError('Planar deramping requires a 2-D unwrapped phase array')
+    nrows, ncols = data.shape
+    step = max(1, int(np.ceil(np.sqrt(nrows * ncols / max_samples))))
+    sample = np.asarray(data.isel({
+        data.dims[0]: slice(None, None, step),
+        data.dims[1]: slice(None, None, step),
+    }).values)
+    valid_rows, valid_cols = np.nonzero(np.isfinite(sample))
+    if valid_rows.size < 3:
+        raise ValueError('At least three finite samples are required to estimate a planar ramp')
+    row_center = (nrows - 1) / 2
+    col_center = (ncols - 1) / 2
+    row_scale = max(row_center, 1)
+    col_scale = max(col_center, 1)
+    rows = valid_rows * step
+    cols = valid_cols * step
+    design = np.column_stack((
+        (rows - row_center) / row_scale,
+        (cols - col_center) / col_scale,
+        np.ones(valid_rows.size),
+    ))
+    coefficients, _, rank, _ = np.linalg.lstsq(
+        design, sample[valid_rows, valid_cols], rcond=None)
+    if rank < 3:
+        raise ValueError('Finite samples do not span a 2-D area for planar deramping')
+    row_values = coefficients[0] * (
+        (np.arange(nrows) - row_center) / row_scale)
+    col_values = coefficients[1] * (
+        (np.arange(ncols) - col_center) / col_scale)
+    row_coords = {data.dims[0]: data.coords[data.dims[0]]} if data.dims[0] in data.coords else None
+    col_coords = {data.dims[1]: data.coords[data.dims[1]]} if data.dims[1] in data.coords else None
+    row_ramp = xr.DataArray(row_values, dims=(data.dims[0],), coords=row_coords)
+    col_ramp = xr.DataArray(col_values, dims=(data.dims[1],), coords=col_coords)
+    return row_ramp, col_ramp, coefficients[2]
+
+
+def export_gunw(ds, outpath, name_as_pair = True,
+                deramp_iono = True,
+                coh_thres_mask = 0.22):
     ''' This will export loaded GUNW dataset into geotiffs to outpath, by default as 202xxxxx_202xxxxx.geo.unw.tif.
     if name_as_pair is False, we will use the source name, e.g. NISAR_xxxxx_xxxx_.geo.unw.tif etc.
-    ( best to use outpath by get_frameid(fileid, True)  )'''
+    ( best to use outpath by get_frameid(fileid, True)  )
+    deramp_iono removes a least-squares 2-D planar ramp from the unwrapped phase.'''
     ds = ds.rio.write_crs(ds.crs)
     fid = os.path.basename(ds.source_file).split('.')[0]
     if name_as_pair:
@@ -416,10 +457,17 @@ def export_gunw(ds, outpath, name_as_pair = True, coh_thres_mask = 0.22):
             if os.path.exists(outif):
                 continue
             outifs.append(outif)
+            unw = ds['unw']
             if 'coh' in ds:
-                outunw = ds['unw'].where(ds['coh']>coh_thres_mask)
+                outunw = unw.where(ds['coh']>coh_thres_mask)
             else:
-                outunw = ds['unw']
+                outunw = unw
+            if deramp_iono:
+                # ok - perhaps best way is to use range and azi offsets
+                # but this actually should lead to the same result - only it is from offset tracking
+                # it would have effect if the coherence is low but.. it actually isn't...
+                row_ramp, col_ramp, ramp_offset = _estimate_planar_ramp(outunw)
+                outunw = outunw - row_ramp - col_ramp - ramp_offset
             outunw.rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif+'.tmp.tif' + " " + outif
             rc = os.system(cmd)
@@ -427,7 +475,7 @@ def export_gunw(ds, outpath, name_as_pair = True, coh_thres_mask = 0.22):
             cmd = "create_preview_unwrapped " + outif
             rc = os.system(cmd)
             # and now wrapped
-            ds['pha'] = ds['unw'].copy()
+            ds['pha'] = unw.copy()
             ds.pha.values = np.angle(np.exp(1j * ds.pha.values))
             outif = os.path.join(outpath, fid + '.geo.diff_pha.tif')
             outifs.append(outif)
@@ -495,12 +543,17 @@ def export_gunw(ds, outpath, name_as_pair = True, coh_thres_mask = 0.22):
         ionobool=1
     else:
         ionobool=0
+    if deramp_iono:
+        derampbool=1
+    else:
+        derampbool=0
     try:
         with open(metafile, "a") as fmet:
             fmet.write(f"bperp={bperp}\n")
             fmet.write(f"polarization={polar}\n")
             fmet.write(f"frequency={freq}\n")
             fmet.write(f"applied_iono_correction={ionobool}\n")
+            fmet.write(f"applied_deramping={derampbool}\n")
     except:
         print('pair metadata write error')
     return outifs
@@ -675,7 +728,11 @@ def print_metadata(metadata):
 
 
 def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
-              add_offsets = True, add_iono = False, add_enu = False):  #, load_more = False):
+              add_offsets = False, add_iono = False, add_enu = False):  #, load_more = False):
+    '''
+
+    add_offsets: to add range and azimuth offsets (not using by default because it is low res - not for coseismics anyway..)
+    '''
     f = h5py.File(path, "r")
     basestr = '/science/LSAR/GUNW/grids/frequency' + freq_code
     try:

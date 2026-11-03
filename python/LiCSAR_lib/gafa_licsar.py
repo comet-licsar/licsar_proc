@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import h5py
+import rasterio
 import datetime as dt
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime,timedelta,timezone
@@ -501,10 +502,17 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
                     future.result()
         print("Focusing finished. Result is in " + str(frame_dir))
     print('done')
-    print('now, you may want just to do:')
-    print('licsar_make_frame.sh -n -f '+frame+' 0 0 2013-01-01 2013-01-02; mkdir $BATCH_CACHE_DIR/'+frame+'/log')
-    print('convert2Xcomplex.sh $BATCH_CACHE_DIR/'+frame+'/RSLC/*')
-    print('cd $BATCH_CACHE_DIR; framebatch_postproc_coreg.sh -f '+frame+' 1; rm -r '+frame+'/LUT')
+    print('now, you may want to do:')
+    hgtif = os.path.join(os.environ('LiCSAR_public'), str(int(frame[:3])),frame,'metadata', frame+'.geo.hgt.tif')
+    hgt = rasterio.open(hgtif)
+    l,b,r,t=hgt.bounds
+    print(f'mkdir DEM; mk_copdem DEM/dem_crop {l} {r} {b} {t}')
+    print('LiCSAR_02_coreg.py -f '+frame+' -d . -m $epoch -R -E -k')
+    print('framebatch_gapfill.sh -b 1')
+    # this will not work due to cross normal SLC with extended SLC
+    # print('licsar_make_frame.sh -n -f '+frame+' 0 0 2013-01-01 2013-01-02; mkdir $BATCH_CACHE_DIR/'+frame+'/log')
+    # print('convert2Xcomplex.sh $BATCH_CACHE_DIR/'+frame+'/RSLC/*')
+    # print('cd $BATCH_CACHE_DIR; framebatch_postproc_coreg.sh -f '+frame+' 1; rm -r '+frame+'/LUT')
 
 
 '''
