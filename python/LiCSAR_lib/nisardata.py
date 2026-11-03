@@ -1204,3 +1204,79 @@ def get_asf_session():
     asf_pass = re.sub(r'\W+','',f.readline().split('=')[1])
     f.close()
     return asf.ASFSession().auth_with_creds(asf_user, asf_pass)
+
+
+# attempt for range offsets -> phase ramp:
+import h5py
+import numpy as np
+
+
+C = 299792458.0  # m/s
+
+
+def get_wavelength(h5):
+    """
+    Read radar wavelength from a NISAR GUNW file.
+    """
+    # Typical NISAR location
+    freq = h5["/science/LSAR/GUNW/metadata/radarGrid/frequencyA/centerFrequency"][()]
+    return C / freq
+
+
+def read_slant_range_offset(h5):
+    """
+    Read slant-range offsets (pixels).
+    """
+    path = (
+        "/science/LSAR/GUNW/grids/frequencyA/"
+        "pixelOffsets/HH/slantRangeOffset"
+    )
+    return h5[path][:]
+
+
+def read_slant_range_spacing(h5):
+    """
+    Read slant-range pixel spacing (m/pixel).
+    Check your product structure; if needed print tree first and
+    adjust the path.
+    """
+    return h5[
+        "/science/LSAR/GUNW/metadata/radarGrid/frequencyA/slantRangeSpacing"
+    ][()]
+
+
+def offsets_to_los_m(offset_pix, slant_range_spacing_m):
+    """
+    Convert range offset pixels -> LOS displacement [m].
+    """
+    return offset_pix * slant_range_spacing_m
+
+
+def los_to_phase(los_m, wavelength_m):
+    """
+    LOS displacement -> interferometric phase [rad].
+    """
+    return -4.0 * np.pi * los_m / wavelength_m
+
+
+def slant_range_offsets_to_phase(gunw_file):
+    with h5py.File(gunw_file, "r") as h5:
+        offset_pix = read_slant_range_offset(h5)
+        dr = read_slant_range_spacing(h5)
+        wavelength = get_wavelength(h5)
+        los_m = offsets_to_los_m(offset_pix, dr)
+        phase_rad = los_to_phase(los_m, wavelength)
+    return los_m, phase_rad
+
+'''Usage:
+with h5py.File(gunw_file, "r") as h5:
+
+    unw = h5[
+        "/science/LSAR/GUNW/grids/frequencyA/"
+        "unwrappedInterferogram/HH/unwrappedPhase"
+    ][:]
+
+los_m, phase_ramp = slant_range_offsets_to_phase(gunw_file)
+
+corrected = unw - phase_ramp
+'''
