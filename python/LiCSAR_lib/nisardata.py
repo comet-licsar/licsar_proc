@@ -468,6 +468,7 @@ def export_gunw(ds, outpath, name_as_pair = True,
                 # it would have effect if the coherence is low but.. it actually isn't...
                 row_ramp, col_ramp, ramp_offset = _estimate_planar_ramp(outunw)
                 outunw = outunw - row_ramp - col_ramp - ramp_offset
+                unw = unw - row_ramp - col_ramp - ramp_offset # need this for pha...
             outunw.rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif+'.tmp.tif' + " " + outif
             rc = os.system(cmd)
@@ -475,7 +476,7 @@ def export_gunw(ds, outpath, name_as_pair = True,
             cmd = "create_preview_unwrapped " + outif
             rc = os.system(cmd)
             # and now wrapped
-            ds['pha'] = unw.copy()
+            ds['pha'] = unw.copy() # this is because pha should not be masked
             ds.pha.values = np.angle(np.exp(1j * ds.pha.values))
             outif = os.path.join(outpath, fid + '.geo.diff_pha.tif')
             outifs.append(outif)
