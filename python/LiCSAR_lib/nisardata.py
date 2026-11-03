@@ -399,42 +399,72 @@ def get_frameid(fileid, return_pubpath = False):
         return outpath
 
 
-def _estimate_planar_ramp(data, max_samples=250000):
+def _estimate_quad_ramp(data, max_samples=250000, block_size=5):
     if data.ndim != 2:
-        raise ValueError('Planar deramping requires a 2-D unwrapped phase array')
+        raise ValueError('Quadratic deramping requires a 2-D unwrapped phase array')
+    if max_samples < 6:
+        raise ValueError('At least six samples are required to estimate a quadratic ramp')
+    if block_size < 1:
+        raise ValueError('Block size must be a positive integer')
     nrows, ncols = data.shape
-    step = max(1, int(np.ceil(np.sqrt(nrows * ncols / max_samples))))
-    sample = np.asarray(data.isel({
-        data.dims[0]: slice(None, None, step),
-        data.dims[1]: slice(None, None, step),
+    window = {data.dims[0]: block_size, data.dims[1]: block_size}
+    valid_data = data.where(np.isfinite(data))
+    block_means = valid_data.coarsen(window, boundary='pad').mean(skipna=True)
+    sample_step = max(1, int(np.ceil(np.sqrt(block_means.size / max_samples))))
+    sample = np.asarray(block_means.isel({
+        data.dims[0]: slice(None, None, sample_step),
+        data.dims[1]: slice(None, None, sample_step),
     }).values)
     valid_rows, valid_cols = np.nonzero(np.isfinite(sample))
-    if valid_rows.size < 3:
-        raise ValueError('At least three finite samples are required to estimate a planar ramp')
+    if valid_rows.size < 6:
+        raise ValueError('At least six finite samples are required to estimate a quadratic ramp')
     row_center = (nrows - 1) / 2
     col_center = (ncols - 1) / 2
     row_scale = max(row_center, 1)
     col_scale = max(col_center, 1)
-    rows = valid_rows * step
-    cols = valid_cols * step
+    row_coords = {data.dims[0]: data.coords[data.dims[0]]} if data.dims[0] in data.coords else None
+    col_coords = {data.dims[1]: data.coords[data.dims[1]]} if data.dims[1] in data.coords else None
+    row_values = (np.arange(nrows) - row_center) / row_scale
+    col_values = (np.arange(ncols) - col_center) / col_scale
+    row_values = xr.DataArray(row_values, dims=(data.dims[0],), coords=row_coords)
+    col_values = xr.DataArray(col_values, dims=(data.dims[1],), coords=col_coords)
+    row_grid, col_grid = xr.broadcast(row_values, col_values)
+    basis = (
+        row_grid,
+        col_grid,
+        row_grid ** 2,
+        row_grid * col_grid,
+        col_grid ** 2,
+        xr.ones_like(row_grid),
+    )
+    sampled_basis = []
+    for term in basis:
+        term_means = term.where(np.isfinite(data)).coarsen(
+            window, boundary='pad').mean(skipna=True)
+        sampled_basis.append(np.asarray(term_means.isel({
+            data.dims[0]: slice(None, None, sample_step),
+            data.dims[1]: slice(None, None, sample_step),
+        }).values)[valid_rows, valid_cols])
     design = np.column_stack((
-        (rows - row_center) / row_scale,
-        (cols - col_center) / col_scale,
-        np.ones(valid_rows.size),
+        *sampled_basis,
     ))
     coefficients, _, rank, _ = np.linalg.lstsq(
         design, sample[valid_rows, valid_cols], rcond=None)
-    if rank < 3:
-        raise ValueError('Finite samples do not span a 2-D area for planar deramping')
-    row_values = coefficients[0] * (
-        (np.arange(nrows) - row_center) / row_scale)
-    col_values = coefficients[1] * (
-        (np.arange(ncols) - col_center) / col_scale)
-    row_coords = {data.dims[0]: data.coords[data.dims[0]]} if data.dims[0] in data.coords else None
-    col_coords = {data.dims[1]: data.coords[data.dims[1]]} if data.dims[1] in data.coords else None
-    row_ramp = xr.DataArray(row_values, dims=(data.dims[0],), coords=row_coords)
-    col_ramp = xr.DataArray(col_values, dims=(data.dims[1],), coords=col_coords)
-    return row_ramp, col_ramp, coefficients[2]
+    if rank < 6:
+        raise ValueError('Finite samples do not span a 2-D area for quadratic deramping')
+    normalized_row_grid = (np.arange(nrows) - row_center) / row_scale
+    normalized_col_grid = (np.arange(ncols) - col_center) / col_scale
+    row_grid, col_grid = np.meshgrid(normalized_row_grid, normalized_col_grid, indexing='ij')
+    ramp_values = (
+        coefficients[0] * row_grid
+        + coefficients[1] * col_grid
+        + coefficients[2] * row_grid ** 2
+        + coefficients[3] * row_grid * col_grid
+        + coefficients[4] * col_grid ** 2
+        + coefficients[5]
+    )
+    coords = {dim: data.coords[dim] for dim in data.dims if dim in data.coords}
+    return xr.DataArray(ramp_values, dims=data.dims, coords=coords)
 
 
 def export_gunw(ds, outpath, name_as_pair = True,
@@ -443,7 +473,7 @@ def export_gunw(ds, outpath, name_as_pair = True,
     ''' This will export loaded GUNW dataset into geotiffs to outpath, by default as 202xxxxx_202xxxxx.geo.unw.tif.
     if name_as_pair is False, we will use the source name, e.g. NISAR_xxxxx_xxxx_.geo.unw.tif etc.
     ( best to use outpath by get_frameid(fileid, True)  )
-    deramp_iono removes a least-squares 2-D planar ramp from the unwrapped phase.'''
+    deramp_iono removes a least-squares 2-D quadratic ramp from the unwrapped phase.'''
     ds = ds.rio.write_crs(ds.crs)
     fid = os.path.basename(ds.source_file).split('.')[0]
     if name_as_pair:
@@ -463,12 +493,13 @@ def export_gunw(ds, outpath, name_as_pair = True,
             else:
                 outunw = unw
             if deramp_iono:
-                # ok - perhaps best way is to use range and azi offsets
+                # ok - perhaps best way is to use range offsets (and iono)
                 # but this actually should lead to the same result - only it is from offset tracking
                 # it would have effect if the coherence is low but.. it actually isn't...
-                row_ramp, col_ramp, ramp_offset = _estimate_planar_ramp(outunw)
-                outunw = outunw - row_ramp - col_ramp - ramp_offset
-                unw = unw - row_ramp - col_ramp - ramp_offset # need this for pha...
+                # so the only downside is application to smaller region - this is TODO
+                ramp = _estimate_quad_ramp(outunw)
+                outunw = outunw - ramp
+                unw = unw - ramp # need this for pha...
             outunw.rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
             cmd = "gdalwarp -t_srs EPSG:4326 -r near -co COMPRESS=DEFLATE -co PREDICTOR=2 " + outif+'.tmp.tif' + " " + outif
             rc = os.system(cmd)
