@@ -722,6 +722,7 @@ def export_licsar_metadata(h5file, metafile):
     with open(metafile, "a") as fmet:
         fmet.write(f"center_time={center_time}\n")
         fmet.write(f"frequency={int(freq)}\n")
+        fmet.write(f"input_product={os.path.basename(h5file)}\n")
     #heading = 
     #appliedDEM = science/LSAR/GUNW/metadata/processingInformation/inputs/demSource
     # science/LSAR/GUNW/metadata/radarGrid/wetTroposphericPhaseScreen
