@@ -910,7 +910,7 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                     # unw = unw.drop_vars(['iono'])
                 '''
                 try:
-                    procstr = ds.attrs['unw postproc']
+                    procstr = unw.attrs['unw postproc']
                 except:
                     procstr = ''
                 if 'deramped' in procstr:
