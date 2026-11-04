@@ -760,10 +760,12 @@ def print_metadata(metadata):
 
 
 def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
-              add_offsets = False, add_iono = False, add_enu = False):  #, load_more = False):
+              add_offsets = False, add_iono = False, add_enu = False,
+              offsets_deramping = True, iono_smooth_removal = True):  #, load_more = False):
     '''
 
     add_offsets: to add range and azimuth offsets (not using by default because it is low res - not for coseismics anyway..)
+    offsets_deramping: it would use offsets if they exist
     '''
     f = h5py.File(path, "r")
     basestr = '/science/LSAR/GUNW/grids/frequency' + freq_code
@@ -801,18 +803,27 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
     coh = da.from_array(coh, chunks=chunks)
     ds['coh'] = ds['unw'].copy()
     ds.coh.values = coh
-    if add_iono:
+    ds.attrs['unw postproc'] = ''
+    if add_iono or iono_smooth_removal:
         try:
             print('getting iono phase')
             iono = f[basestr + '/' + 'unwrappedInterferogram/' + polar + '/ionospherePhaseScreen']
             iono = da.from_array(iono, chunks=chunks)
             ds['iono'] = ds['unw'].copy()
             ds.iono.values = iono
+            if iono_smooth_removal:
+                # ionoramp = _estimate_quad_ramp(ds['iono'])  # github copilot generated - very slow...
+                ionoramp = lp.fit_2D_xarray(ds['iono'], degree='quadratic', maskedonly=False, fit_to_xrda=ds['unw']) # better
+                ds['unw'].values = ds['unw'].values - ionoramp.values
+                ds['unw'] = ds['unw'] - ds['unw'].median()
+                ds.attrs['unw postproc']+='smooth iono removed, '
+            if not add_iono:
+                ds = ds.drop('iono')
         except:
             print('error adding iono phase')
-    if add_offsets:
+    if add_offsets or offsets_deramping:
         try:
-            print('adding pixel offsets')
+            print('adding pixel offsets [m]') # yes, the offsets are already in metres!
             roffs = f[basestr + '/' + 'pixelOffsets/' + polar + '/slantRangeOffset']
             aoffs = f[basestr + '/' + 'pixelOffsets/' + polar + '/alongTrackOffset']
             roffs = da.from_array(roffs, chunks=chunks)
@@ -821,6 +832,23 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
             ds['range_offsets'].values = roffs
             ds['azimuth_offsets'] = ds['unw'].copy()
             ds['azimuth_offsets'].values = aoffs
+            # ds['range_phase'] = ds['unw'].copy()
+            if deramping:
+                if freq_code == 'A':
+                    freq = 1270000000
+                else:
+                    freq = 1221500000
+                # dr = f["/science/LSAR/GUNW/metadata/processingInformation/parameters/reference/frequency"+freq_code+"/slantRangeSpacing"][()]
+                C = 299792458.0  # m/s
+                wavelength = C/freq
+                # phase_ramp = -4.0 * np.pi * (roffs * dr) / wavelength
+                phase_ramp = 4.0 * np.pi * roffs / wavelength
+                ds['unw'].values = ds['unw'].values - phase_ramp
+                ds['unw'] = ds['unw'] - ds['unw'].median()
+                ds.attrs['unw postproc'] += 'deramped using offsets, '
+            if not add_offsets:
+                ds = ds.drop('range_offsets')
+                ds = ds.drop('azimuth_offsets')
         except:
             print('error adding pixel offsets')
     if add_enu:
@@ -1204,79 +1232,3 @@ def get_asf_session():
     asf_pass = re.sub(r'\W+','',f.readline().split('=')[1])
     f.close()
     return asf.ASFSession().auth_with_creds(asf_user, asf_pass)
-
-
-# attempt for range offsets -> phase ramp:
-import h5py
-import numpy as np
-
-
-C = 299792458.0  # m/s
-
-
-def get_wavelength(h5):
-    """
-    Read radar wavelength from a NISAR GUNW file.
-    """
-    # Typical NISAR location
-    freq = h5["/science/LSAR/GUNW/metadata/radarGrid/frequencyA/centerFrequency"][()]
-    return C / freq
-
-
-def read_slant_range_offset(h5):
-    """
-    Read slant-range offsets (pixels).
-    """
-    path = (
-        "/science/LSAR/GUNW/grids/frequencyA/"
-        "pixelOffsets/HH/slantRangeOffset"
-    )
-    return h5[path][:]
-
-
-def read_slant_range_spacing(h5):
-    """
-    Read slant-range pixel spacing (m/pixel).
-    Check your product structure; if needed print tree first and
-    adjust the path.
-    """
-    return h5[
-        "/science/LSAR/GUNW/metadata/radarGrid/frequencyA/slantRangeSpacing"
-    ][()]
-
-
-def offsets_to_los_m(offset_pix, slant_range_spacing_m):
-    """
-    Convert range offset pixels -> LOS displacement [m].
-    """
-    return offset_pix * slant_range_spacing_m
-
-
-def los_to_phase(los_m, wavelength_m):
-    """
-    LOS displacement -> interferometric phase [rad].
-    """
-    return -4.0 * np.pi * los_m / wavelength_m
-
-
-def slant_range_offsets_to_phase(gunw_file):
-    with h5py.File(gunw_file, "r") as h5:
-        offset_pix = read_slant_range_offset(h5)
-        dr = read_slant_range_spacing(h5)
-        wavelength = get_wavelength(h5)
-        los_m = offsets_to_los_m(offset_pix, dr)
-        phase_rad = los_to_phase(los_m, wavelength)
-    return los_m, phase_rad
-
-'''Usage:
-with h5py.File(gunw_file, "r") as h5:
-
-    unw = h5[
-        "/science/LSAR/GUNW/grids/frequencyA/"
-        "unwrappedInterferogram/HH/unwrappedPhase"
-    ][:]
-
-los_m, phase_ramp = slant_range_offsets_to_phase(gunw_file)
-
-corrected = unw - phase_ramp
-'''

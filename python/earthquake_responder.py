@@ -830,9 +830,8 @@ def get_geom_from_tif(tif):
 
 
 # usg='us6000tkt2'
-def add_nisar_coseismic_ifg(usg, start_from_gslcs = False, gunw_use_iono = False):
+def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
     ''' this will search and download any existing coseismic geocoded ifg from NISAR
-    gunw_use_iono: this would extract and apply GUNW iono correction
     '''
     event = get_event_details(usg)
     radius = get_range_from_magnitude(event.magnitude, event.depth, 'rad')
@@ -903,15 +902,25 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False, gunw_use_iono = False
                 if not os.path.exists(polygonfile):
                     with open(polygonfile, 'w', encoding='utf-8') as pf:
                         pf.write(nsr['geometry'].wkb_hex + '\n')
-                unw = nd.load_gunw(f, add_iono = gunw_use_iono, add_enu=do_enus)  # , freq_code = 'A', clipping_box = None)
+                unw = nd.load_gunw(f, add_iono = False, add_enu=do_enus, offsets_deramping = True, iono_smooth_removal = True)  # , freq_code = 'A', clipping_box = None)
+                '''
                 if 'iono' in unw:
                     print('Iono correction available - using to correct the unw data')
                     unw['unw'] = unw['unw'] - unw['iono']
                     # unw = unw.drop_vars(['iono'])
-                outifs = nd.export_gunw(unw, output_path, deramp_iono = True)
+                '''
+                try:
+                    procstr = ds.attrs['unw postproc']
+                except:
+                    procstr = ''
+                if 'deramped' in procstr:
+                    deramp_iono = False
+                else:
+                    print('WARNING, removing quadratic phase')
+                    deramp_iono = True
+                outifs = nd.export_gunw(unw, output_path, deramp_iono = deramp_iono)
                 if do_enus:
                     # also need to create hgt file, so:
-                    # add hgt... TODO
                     import rasterio
                     tif = outifs[0]
                     with rasterio.open(tif) as src:
