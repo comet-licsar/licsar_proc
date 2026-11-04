@@ -815,7 +815,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
                 # ionoramp = _estimate_quad_ramp(ds['iono'])  # github copilot generated - very slow...
                 ionoramp = lp.fit_2D_xarray(ds['iono'], degree='quadratic', maskedonly=False, fit_to_xrda=ds['unw']) # better
                 ds['unw'].values = ds['unw'].values - ionoramp.values
-                ds['unw'] = ds['unw'] - ds['unw'].median()
+                ds['unw'] = ds['unw'] - np.nanmedian(ds['unw'])
                 ds.attrs['unw postproc']+='smooth iono removed, '
             if not add_iono:
                 ds = ds.drop('iono')
@@ -833,7 +833,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
             ds['azimuth_offsets'] = ds['unw'].copy()
             ds['azimuth_offsets'].values = aoffs
             # ds['range_phase'] = ds['unw'].copy()
-            if deramping:
+            if offsets_deramping:
                 if freq_code == 'A':
                     freq = 1270000000
                 else:
@@ -844,7 +844,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
                 # phase_ramp = -4.0 * np.pi * (roffs * dr) / wavelength
                 phase_ramp = 4.0 * np.pi * roffs / wavelength
                 ds['unw'].values = ds['unw'].values - phase_ramp
-                ds['unw'] = ds['unw'] - ds['unw'].median()
+                ds['unw'] = ds['unw'] - np.nanmedian(ds['unw'])
                 ds.attrs['unw postproc'] += 'deramped using offsets, '
             if not add_offsets:
                 ds = ds.drop('range_offsets')
