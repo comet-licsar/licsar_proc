@@ -857,6 +857,7 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
         # print('not ready yet')
         bbox = nd.lp.bbox_to_wkt(lon1, lat1, lon2, lat2)
         nsrs = nd.get_nisar_data(bbox, dtype = 'GUNW', outAspd=True, startdate=eventdate, enddate=eventdate)
+        nsrs_goff = nd.get_nisar_data(bbox, dtype = 'GOFF', outAspd=True, startdate=eventdate, enddate=eventdate)
         eventfile = os.path.join(public_path, 'EQ', event.id + '.html')
         if not os.path.exists(eventfile):
             print('WARNING, no such event file - might get error adding the NISAR data')
@@ -910,15 +911,27 @@ def add_nisar_coseismic_ifg(usg, start_from_gslcs = False):
                     # unw = unw.drop_vars(['iono'])
                 '''
                 try:
-                    procstr = unw.attrs['unw postproc']
+                    corrections = unw.attrs['unw corrections']
                 except:
-                    procstr = ''
-                if 'deramped' in procstr:
-                    deramp_iono = False
+                    corrections = ''
+                if 'range offsets' in corrections:
+                    deramp_quad = False
                 else:
                     print('WARNING, removing quadratic phase')
-                    deramp_iono = True
-                outifs = nd.export_gunw(unw, output_path, deramp_iono = deramp_iono)
+                    deramp_quad = True
+                # checking for offsets:
+                nisarid = nsr.groupID
+                goff = nsrs_goff[nsrs_goff['groupID'] == nisarid.replace('GUNW', 'GOFF')]
+                if len(goff) > 0:
+                    _, goffpaths = nd.download_nisar_datapd(goff, nisarslcpath=os.environ['LiCSAR_temp'])
+                    goffpath = goffpaths[0]
+                    if os.path.exists(goffpath):
+                        print('Preparing pixel offsets as well')
+                        try:
+                            unw = nd.load_goff2gunw(goffpath, unw)
+                        except:
+                            print('Some error adding offsets!')
+                outifs = nd.export_gunw(unw, output_path, deramp_quad = deramp_quad)
                 if do_enus:
                     # also need to create hgt file, so:
                     import rasterio

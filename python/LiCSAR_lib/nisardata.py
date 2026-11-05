@@ -43,6 +43,7 @@ def wgs2utm(polygon, target_crs):
 
 
 def download_nisar_datapd(nsrs, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/SLC'):
+    ''' returns num downloaded files and their paths'''
     numd=0
     outfiles = []
     for i, ln in nsrs.iterrows():
@@ -65,6 +66,8 @@ def download_nisar_datapd(nsrs, nisarslcpath = '/gws/ssde/j25a/nceo_geohazards/v
         url = ln['url']
         fpath = download(url,
                          nisarslcpath)  # using this way, because for some reason i cannot get ASF session established..
+        if not os.path.exists(fpath): # weird but sometimes it just needs to be run twice..
+            fpath = download(url, nisarslcpath)
         if not os.path.exists(fpath):
             print('some error in ' + fpath)
         else:
@@ -468,12 +471,12 @@ def _estimate_quad_ramp(data, max_samples=250000, block_size=5):
 
 
 def export_gunw(ds, outpath, name_as_pair = True,
-                deramp_iono = True,
+                deramp_quad = True,
                 coh_thres_mask = 0.22):
     ''' This will export loaded GUNW dataset into geotiffs to outpath, by default as 202xxxxx_202xxxxx.geo.unw.tif.
     if name_as_pair is False, we will use the source name, e.g. NISAR_xxxxx_xxxx_.geo.unw.tif etc.
     ( best to use outpath by get_frameid(fileid, True)  )
-    deramp_iono removes a least-squares 2-D quadratic ramp from the unwrapped phase.'''
+    deramp_quad removes a least-squares 2-D quadratic ramp from the unwrapped phase.'''
     ds = ds.rio.write_crs(ds.crs)
     fid = os.path.basename(ds.source_file).split('.')[0]
     if name_as_pair:
@@ -492,12 +495,13 @@ def export_gunw(ds, outpath, name_as_pair = True,
                 outunw = unw.where(ds['coh']>coh_thres_mask)
             else:
                 outunw = unw
-            if deramp_iono:
+            if deramp_quad:
                 # ok - perhaps best way is to use range offsets (and iono)
                 # but this actually should lead to the same result - only it is from offset tracking
                 # it would have effect if the coherence is low but.. it actually isn't...
                 # so the only downside is application to smaller region - this is TODO
-                ramp = _estimate_quad_ramp(outunw)
+                # ramp = _estimate_quad_ramp(outunw)
+                ramp = lp.fit_2D_xarray(outunw, degree='quadratic', maskedonly=False) # faster..
                 outunw = outunw - ramp
                 unw = unw - ramp # need this for pha...
             outunw.rio.to_raster(outif+'.tmp.tif')  # no need for compression as i will translate to wgs later
@@ -556,7 +560,7 @@ def export_gunw(ds, outpath, name_as_pair = True,
             os.remove(outif + '.tmp.tif')
             cmd = "create_preview_offsets " + outif
             rc = os.system(cmd)
-        else:
+        else: # for example iono, or later sltd if available
             outif = os.path.join(outpath, fid + '.geo.'+dvar+'.tif')
             if os.path.exists(outif):
                 continue
@@ -571,21 +575,16 @@ def export_gunw(ds, outpath, name_as_pair = True,
     bperp = ds.attrs['bperp']
     polar = ds.attrs['polarization']
     freq = ds.attrs['freq']
-    if 'iono' in ds.data_vars:
-        ionobool=1
-    else:
-        ionobool=0
-    if deramp_iono:
-        derampbool=1
-    else:
-        derampbool=0
+    corrs = ds.attrs['unw corrections']
+    if deramp_quad:
+        corrs.append('quadratic ramp removal')
     try:
         with open(metafile, "a") as fmet:
+            fmet.write(f"filename='{fid}'\n")
             fmet.write(f"bperp={bperp}\n")
-            fmet.write(f"polarization={polar}\n")
+            fmet.write(f"polarization='{polar}'\n")
             fmet.write(f"frequency={freq}\n")
-            fmet.write(f"applied_iono_correction={ionobool}\n")
-            fmet.write(f"applied_deramping={derampbool}\n")
+            fmet.write(f"applied_corrections={str(corrs)}\n")
     except:
         print('pair metadata write error')
     return outifs
@@ -722,7 +721,6 @@ def export_licsar_metadata(h5file, metafile):
     with open(metafile, "a") as fmet:
         fmet.write(f"center_time={center_time}\n")
         fmet.write(f"frequency={int(freq)}\n")
-        fmet.write(f"input_product={os.path.basename(h5file)}\n")
     #heading = 
     #appliedDEM = science/LSAR/GUNW/metadata/processingInformation/inputs/demSource
     # science/LSAR/GUNW/metadata/radarGrid/wetTroposphericPhaseScreen
@@ -760,6 +758,46 @@ def print_metadata(metadata):
     pprint(metadata, width=100, compact=True)
 
 
+def load_goff2gunw(path, gunw_ds,
+                   freq_code = 'A', maxdefo=8):
+    ''' must add gunw xr dataset'''
+    f = h5py.File(path, "r")
+    basestr = '/science/LSAR/GOFF/grids/frequency' + freq_code
+    try:
+        l1 = f[basestr + '/' + 'pixelOffsets/HH/layer1/slantRangeOffset']
+        polar = 'HH'
+    except:
+        l1 = f[basestr + '/' + 'pixelOffsets/VV/layer1/slantRangeOffset']
+        polar = 'VV'
+    l1 = da.from_array(l1, chunks='auto').compute()
+    l1 = l1 - np.nanmedian(l1)
+    l1[np.abs(l1)>maxdefo]=np.nan
+    l1azi = da.from_array(f[basestr + '/' + 'pixelOffsets/'+polar+'/layer1/alongTrackOffset'], chunks='auto').compute()
+    l1azi = l1azi - np.nanmedian(l1azi)
+    l1azi[np.abs(l1azi) > maxdefo] = np.nan
+    # l2 = f[basestr]['pixelOffsets/HH/layer2/slantRangeOffset'][()]
+    gunw_ds['range_offsets'] = gunw_ds['unw'].copy()
+    gunw_ds['range_offsets'].values = l1
+    gunw_ds['azimuth_offsets'] = gunw_ds['unw'].copy()
+    gunw_ds['azimuth_offsets'].values = l1azi
+    '''
+    try:
+        l2 = da.from_array(f[basestr + '/' + 'pixelOffsets/' + polar + '/layer2/slantRangeOffset'],
+                              chunks='auto').compute()
+        l2azi = da.from_array(f[basestr + '/' + 'pixelOffsets/' + polar + '/layer2/alongTrackOffset'],
+                              chunks='auto').compute()
+        gunw_ds['range_offsets2'] = gunw_ds['unw'].copy()
+        gunw_ds['range_offsets2'].values = l2
+        gunw_ds['azimuth_offsets2'] = gunw_ds['unw'].copy()
+        gunw_ds['azimuth_offsets2'].values = l2azi
+    except:
+        print('no more offset layers')
+    '''
+    f.close()
+    return gunw_ds
+
+
+# try: /work/scratch-pw5/licsar/earmla/batchdir/LiCSAR_temp/NISAR_L2_UR_GUNW_033_112_A_018_034_2000_SH_20261019T225848_20261019T225923_20261031T225848_20261031T225923_P05023_F_F_J_001.h5
 def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
               add_offsets = False, add_iono = False, add_enu = False,
               offsets_deramping = True, iono_smooth_removal = True):  #, load_more = False):
@@ -794,7 +832,8 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
             "source_file": path,
             "freq": freq_code,
             "polarization": polar,
-            "bperp": bperp
+            "bperp": bperp,
+            "filename": os.path.basename(path)
         }
     )
     # mask unw where unw is zero
@@ -804,7 +843,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
     coh = da.from_array(coh, chunks=chunks)
     ds['coh'] = ds['unw'].copy()
     ds.coh.values = coh
-    ds.attrs['unw postproc'] = ''
+    ds.attrs['unw corrections'] = []
     if add_iono or iono_smooth_removal:
         try:
             print('getting iono phase')
@@ -817,7 +856,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
                 ionoramp = lp.fit_2D_xarray(ds['iono'], degree='quadratic', maskedonly=False, fit_to_xrda=ds['unw']) # better
                 ds['unw'].values = ds['unw'].values - ionoramp.values
                 ds['unw'] = ds['unw'] - np.nanmedian(ds['unw'])
-                ds.attrs['unw postproc']+='smooth iono removed, '
+                ds.attrs['unw corrections'].append('iono (smooth)')
             if not add_iono:
                 ds = ds.drop('iono')
         except:
@@ -835,6 +874,9 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
             ds['azimuth_offsets'].values = aoffs
             # ds['range_phase'] = ds['unw'].copy()
             if offsets_deramping:
+                # since mid-November, the offsets will not be quad-fitted...
+                roffs = lp.fit_2D_xarray(ds['range_offsets'], degree='quadratic', maskedonly=False,
+                                            fit_to_xrda=ds['unw'])  # better
                 if freq_code == 'A':
                     freq = 1270000000
                 else:
@@ -846,7 +888,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
                 phase_ramp = 4.0 * np.pi * roffs / wavelength
                 ds['unw'].values = ds['unw'].values - phase_ramp
                 ds['unw'] = ds['unw'] - np.nanmedian(ds['unw'])
-                ds.attrs['unw postproc'] += 'deramped using offsets, '
+                ds.attrs['unw corrections'].append('range offsets')
             if not add_offsets:
                 ds = ds.drop('range_offsets')
                 ds = ds.drop('azimuth_offsets')
@@ -867,7 +909,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
         x1, y1, x2, y2 = clipping_box_utm.bounds
         ds = ds.sel(x=slice(x1,x2),
                       y=slice(y2,y1))
-    # f.close()  # i need to keep this open..
+    # f.close()  # i need to keep this open
     return ds
 
 
