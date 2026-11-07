@@ -863,7 +863,7 @@ def load_gunw(path, freq_code = 'A', chunks="auto", clipping_box = None,
             print('error adding iono phase')
     if add_offsets or offsets_deramping:
         try:
-            print('adding pixel offsets [m]') # yes, the offsets are already in metres!
+            print('loading pixel offsets [m]') # yes, the offsets are already in metres!
             roffs = f[basestr + '/' + 'pixelOffsets/' + polar + '/slantRangeOffset']
             aoffs = f[basestr + '/' + 'pixelOffsets/' + polar + '/alongTrackOffset']
             roffs = da.from_array(roffs, chunks=chunks)
