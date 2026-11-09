@@ -85,8 +85,52 @@ def write_fast_slc_gamma_scomplex(data,outname):
    F[1::2]=np.reshape(data.imag,(nlines*WIDTH,1))
    F.tofile(outname)  
 ########################################################################
-########################################################################
 
+def shift_convert_fast_slc_gamma(infile, outname, width, length,
+                                 input_type, output_type, azimuth_offset=0,
+                                 chunk_lines=256):
+  """Shift and convert a GAMMA complex raster using bounded row blocks."""
+  import os
+
+  types = {
+      'SCOMPLEX': np.dtype(np.int16),
+      'FCOMPLEX': np.dtype(np.float32),
+  }
+  if input_type not in types:
+    raise ValueError('Unsupported input complex type: {}'.format(input_type))
+  if output_type not in types:
+    raise ValueError('Unsupported output complex type: {}'.format(output_type))
+  if width <= 0 or length <= 0:
+    raise ValueError('Raster width and length must be positive')
+  if chunk_lines <= 0:
+    raise ValueError('chunk_lines must be positive')
+  if os.path.abspath(infile) == os.path.abspath(outname):
+    raise ValueError('Input and output files must be different')
+
+  input_dtype = types[input_type]
+  output_dtype = types[output_type]
+  row_values = 2 * width
+
+  with open(infile, 'rb') as source, open(outname, 'wb') as destination:
+    for dst_start in range(0, length, chunk_lines):
+      dst_end = min(dst_start + chunk_lines, length)
+      output = np.zeros((dst_end - dst_start, row_values), dtype=output_dtype)
+
+      src_start = max(0, dst_start - azimuth_offset)
+      src_end = min(length, dst_end - azimuth_offset)
+      if src_start < src_end:
+        source.seek(src_start * row_values * input_dtype.itemsize)
+        values = np.fromfile(source, dtype=input_dtype,
+                             count=(src_end - src_start) * row_values)
+        expected = (src_end - src_start) * row_values
+        if values.size != expected:
+          raise IOError('Input complex raster is shorter than its parameter dimensions')
+        dst_offset = src_start + azimuth_offset - dst_start
+        output[dst_offset:dst_offset + (src_end - src_start)] = values.reshape(
+            src_end - src_start, row_values).astype(output_dtype, copy=False)
+
+      output.tofile(destination)
+########################################################################
 ########################################################################
 ########################################################################
 # Read/Write Complex float32 type

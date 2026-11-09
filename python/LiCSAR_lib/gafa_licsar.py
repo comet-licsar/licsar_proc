@@ -506,8 +506,9 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
     hgtif = os.path.join(os.environ('LiCSAR_public'), str(int(frame[:3])),frame,'metadata', frame+'.geo.hgt.tif')
     hgt = rasterio.open(hgtif)
     l,b,r,t=hgt.bounds
-    print(f'mkdir DEM; mk_copdem DEM/dem_crop {l} {r} {b} {t}')
-    print('LiCSAR_02_coreg.py -f '+frame+' -d . -m $epoch -R -E -k')
+    print(f'mkdir DEM; mk_copdem DEM/dem_crop {l-0.2} {r+0.2} {b-0.2} {t+0.2}')
+    print('for x in `ls SLC`; do convert2Xcomplex.sh SLC/$x SCOMPLEX; done')
+    print('LiCSAR_02_coreg.py [-i?] -f '+frame+' -d . -m $epoch -R -E -k') # this would regenerate geo folder..
     print('framebatch_gapfill.sh -b 1')
     # this will not work due to cross normal SLC with extended SLC
     # print('licsar_make_frame.sh -n -f '+frame+' 0 0 2013-01-01 2013-01-02; mkdir $BATCH_CACHE_DIR/'+frame+'/log')

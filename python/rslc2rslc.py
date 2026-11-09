@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import sys,os.path
-import numpy as np
+import sys
 import LiCSAR_iofunc as LICSARio
 #import subprocess
 #import re 
@@ -24,7 +23,7 @@ rslc2rslc.py v1.0 14-Apr-2016 PJG
 Part of LiCSAR software package
 """)
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 4:
   print(""" ERROR: Wrong number of input arguments """)
   usage()
   sys.exit(-1)
@@ -40,31 +39,12 @@ dtype1  = LICSARio.dtype_slc_gamma_par(rslc)
 
 try:
   dtype2=sys.argv[4]
-except:
+except IndexError:
   dtype2 = dtype1
   print('output file will be in '+dtype2)
 
 #print "Master image is: ",RSLCmasterfile, "(",width1,",",length1,")"
 #print "Cropped slave image is: ",RSLCslavefile, "(",width2,",",length2,")"
 
-# Read the slave image to be moved into the master geometry
-if (dtype1 == 'SCOMPLEX'):
-  data = LICSARio.read_fast_slc_gamma_scomplex(rslc)
-elif (dtype1 == 'FCOMPLEX'):
-  data = LICSARio.read_fast_slc_gamma_fcomplex(rslc)
-else:
-  print(" rslc2rslc.py encountered during reading an unsupported data type: ", dtype1)
-  #print "Size Slave of complex file after reading: ", data.shape
-  #print "Data type/Numpy type: ", type(data), data.dtype
-
-# Shift the slave image into the position in the size of the master image
-outdata=np.zeros((length1,width1),np.complex64)
-outdata[0+azoffset:data.shape[0]+azoffset,:]=data
-
-# Write the result to disk
-if (dtype2 == 'FCOMPLEX'):
-  LICSARio.write_fast_slc_gamma_fcomplex(outdata, outrslc)
-elif (dtype2 == 'SCOMPLEX'):
-  LICSARio.write_fast_slc_gamma_scomplex(outdata, outrslc)
-else:
-  print(" rslc2rslc.py encountered during writing an unsupported data type: ", dtype2)
+LICSARio.shift_convert_fast_slc_gamma(
+  rslc, outrslc, width1, length1, dtype1, dtype2, azoffset)
