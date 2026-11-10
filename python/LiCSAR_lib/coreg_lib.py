@@ -463,7 +463,11 @@ def coreg_slave_common(procdir,masterdate,masterrslcdir,slavedate,slaveslcdir,sl
         demhgt = '-'
     #cmd = 'ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --use_existing --no_int --no_cleaning --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
     # 2023/10: ML: tricking the coreg for iono effect in azimuth (pixel shift higher than can be captured by SD). no azi offset is applied to resample after ICC! coh will be a bit lower (azimuth-based) if orbits are not ok or if iono gradient is too strong
-    cmd = 'lics_ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --it1 2 --use_existing --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
+    # cmd = 'lics_ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --it1 2 --use_existing --no_int --wdir {8} '.format(masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks), procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
+    # 2026/11: ML: decreasing --it1 to 1 as speed matters
+    cmd = 'lics_ScanSAR_coreg.py {0} {1} {2} {3} {4} {5} {6} {7} --it1 1 --it2 2 --use_existing --no_int --wdir {8} '.format(
+        masterslctab, masterdatestr, slaveslctab, slavedatestr, slaverslctab, demhgt, str(gc.rglks), str(gc.azlks),
+        procdir) + extracmd + ' > {0} 2> {1}'.format(logfile, errfile)
 
     # DAZ COMMENT: daz db cc_azi values where abs>140 mm are not reliable - their shift is doubled due to my error in lics_ScanSAR_coreg
     # need to divide by 2; this affects cc_azi values between 2023/10 until 2024/06/21 (when this got fixed)
