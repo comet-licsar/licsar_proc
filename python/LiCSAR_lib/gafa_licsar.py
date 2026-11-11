@@ -361,6 +361,10 @@ def download_date(
         asf=False,
         outAspd=True
     )
+    if rawfiles is False or rawfiles is None or rawfiles.empty:
+        raise RuntimeError(
+            f"No RAW products found in CDSE for {frame}/{acquisition_date}."
+        )
 
     print_section(f"RAW products found ({len(rawfiles)})")
     print_items(rawfiles["title"])
@@ -469,9 +473,16 @@ def download_date(
             print(f"  - downloading: {zip_name}")
             try:
                 if xfer_server:
+                    wget_cdse_path = shutil.which("wget_cdse")
+                    if wget_cdse_path is None:
+                        raise FileNotFoundError(
+                            "Could not locate wget_cdse in the local PATH to invoke it "
+                            "by absolute path on the transfer server."
+                        )
+                    wget_cdse_path = str(Path(wget_cdse_path).resolve())
                     remote_command = (
                         f"cd {shlex.quote(str(raw_download_dir))} && "
-                        f"wget_cdse {shlex.quote(zip_name)}"
+                        f"{shlex.quote(wget_cdse_path)} {shlex.quote(zip_name)}"
                     )
                     subprocess.run(
                         [
