@@ -363,9 +363,8 @@ def download_date(
         outAspd=True
     )
     if rawfiles is False or rawfiles is None or rawfiles.empty:
-        raise RuntimeError(
-            f"No RAW products found in CDSE for {frame}/{acquisition_date}."
-        )
+        print(f"WARNING: no RAW products found in CDSE for {frame}/{acquisition_date}; skipping.")
+        return False
 
     print_section(f"RAW products found ({len(rawfiles)})")
     print_items(rawfiles["title"])
@@ -380,11 +379,16 @@ def download_date(
         # try from cdse:
         slcfiles = s1.get_images_for_frame(frame, acquisition_date, acquisition_date, prodType='SLC', asf = False)
 
+    if slcfiles is False or slcfiles is None or len(slcfiles) == 0:
+        print(f"WARNING: no SLC products found for {frame}/{acquisition_date}; skipping.")
+        return False
+
     print_section(f"SLC coverage ({len(slcfiles)} SLC files)")
     covered_raw_products = identify_raw_covering_slcs(slcfiles, rawfiles['title'].values)
 
     if not covered_raw_products:
-        raise RuntimeError(f"No RAW products cover the SLC files for {frame}/{acquisition_date}.")
+        print(f"WARNING: no RAW products cover SLCs for {frame}/{acquisition_date}; skipping.")
+        return False
 
     print_section(f"RAW products selected ({len(covered_raw_products)})")
     print_items(covered_raw_products)
@@ -576,23 +580,14 @@ def process_frame_daterange(frame,
             print(f"Downloading RAW products via {xfer_server} to {general_raw_dir}")
         elif shared_download_dir:
             print(f"No transfer host available; downloading RAW products locally to {general_raw_dir}")
-        download_args = [
-            (
-                acquisition_date,
-                frame,
-                frame_dir,
-                _raw_download_dir(frame_dir, acquisition_date)[0],
-            )
-            for acquisition_date in dates
-        ]
         if nproc == 1:
-            for acquisition_date, download_frame, download_frame_dir, raw_download_dir in download_args:
+            for acquisition_date in dates:
                 download_date(
                     acquisition_date,
-                    download_frame,
-                    download_frame_dir,
+                    frame,
+                    frame_dir,
                     xfer_server=xfer_server,
-                    raw_download_dir=raw_download_dir,
+                    raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
                 )
         else:
             with ThreadPoolExecutor(max_workers=nproc) as executor:
@@ -600,12 +595,12 @@ def process_frame_daterange(frame,
                     executor.submit(
                         download_date,
                         acquisition_date,
-                        download_frame,
-                        download_frame_dir,
+                        frame,
+                        frame_dir,
                         xfer_server=xfer_server,
-                        raw_download_dir=raw_download_dir,
+                        raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
                     )
-                    for acquisition_date, download_frame, download_frame_dir in download_args
+                    for acquisition_date in dates
                 ]
                 for future in futures:
                     future.result()
