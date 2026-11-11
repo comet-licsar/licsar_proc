@@ -12,6 +12,7 @@ import sys, os, subprocess, shutil
 import glob
 import shlex
 import threading
+import time
 import xarray as xr
 import s1data as s1
 from LiCSAR_misc import grep1line
@@ -470,7 +471,7 @@ def download_date(
         if out_file.exists():
             print(f"  - exists: {zip_name}")
         else:
-            print(f"  - downloading: {zip_name}")
+            download_started = time.perf_counter()
             try:
                 if xfer_server:
                     wget_cdse_path = shutil.which("wget_cdse")
@@ -493,18 +494,25 @@ def download_date(
                             xfer_server,
                             remote_command,
                         ],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
                         check=True,
                     )
                 else:
                     subprocess.run(
                         ["wget_cdse", zip_name],
                         cwd=str(raw_download_dir),
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
                         check=True,
                     )
             except subprocess.CalledProcessError as e:
-                print(f"FAILED: {zip_name}")
+                elapsed = time.perf_counter() - download_started
+                print(f"FAILED: {zip_name} (download time: {elapsed:.1f} seconds)")
                 print(f"Return code: {e.returncode}")
                 continue
+            elapsed = time.perf_counter() - download_started
+            print(f"Downloaded {zip_name} in {elapsed:.1f} seconds")
 
         if shared_download_dir:
             frame_raw_file = date_dir / zip_name
