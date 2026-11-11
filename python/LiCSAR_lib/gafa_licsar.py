@@ -3,13 +3,15 @@
 import h5py
 import rasterio
 import datetime as dt
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 import re
 import numpy as np
 import sys, os, subprocess, shutil
 import glob
+import shlex
+import threading
 import xarray as xr
 import s1data as s1
 from LiCSAR_misc import grep1line
@@ -30,6 +32,14 @@ from download_s1_aux import (
     parse_product_or_date,
 )
 
+AUX_DOWNLOAD_LOCK = threading.Lock()
+AUTO_XFER_SERVER = object()
+XFER_SERVERS = (
+    "xfer-vm-01.jasmin.ac.uk",
+    "xfer-vm-03.jasmin.ac.uk",
+    "xfer-ph-01.jasmin.ac.uk",
+)
+
 
 def link_or_copy_file(src, dst_dir):
     src = Path(src)
@@ -47,6 +57,60 @@ def link_or_copy_file(src, dst_dir):
         print(f"  - copied: {dst.name}")
 
     return dst
+
+
+def _raw_download_dir(frame_dir, acquisition_date=None):
+    """Choose the shared RAW download directory, or the frame RAW directory."""
+    licsar_slc = os.environ.get("LiCSAR_SLC")
+    if not licsar_slc:
+        raw_dir = frame_dir / "RAW"
+        if acquisition_date is not None:
+            raw_dir /= acquisition_date
+        return raw_dir, False
+
+    xfcpath = os.environ.get("XFCPATH")
+    if xfcpath and Path(xfcpath).is_dir():
+        return (Path(xfcpath) / "RAW").resolve(), True
+    return (Path(licsar_slc).parent / "RAW").resolve(), True
+
+
+def _find_xfer_server():
+    """Return the first accessible transfer host, or None when none is reachable."""
+    ssh_options = [
+        "-A",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "StrictHostKeyChecking=no",
+    ]
+    for server in XFER_SERVERS:
+        try:
+            result = subprocess.run(
+                ["ssh", *ssh_options, server, "true"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 0:
+            return server
+    return None
+
+
+def _select_monthly_epochs(epochs):
+    """Select the available epoch closest to the 15th of each year-month."""
+    epochs_by_month = {}
+    for epoch in epochs:
+        epoch_date = epoch if isinstance(epoch, dt.date) else dt.datetime.strptime(
+            str(epoch), "%Y%m%d"
+        ).date()
+        epochs_by_month.setdefault((epoch_date.year, epoch_date.month), []).append(epoch_date)
+
+    return [
+        min(month_epochs, key=lambda date: (abs(date.day - 15), date))
+        .strftime("%Y%m%d")
+        for _, month_epochs in sorted(epochs_by_month.items())
+    ]
 
 
 def identify_raw_covering_slc(slcfile, rawfiles):
@@ -263,16 +327,29 @@ def download_date(
     aux_types = ["INS", "CAL"],
     keep_aux_zip = False,
     download_orbits = True, # or link
-    orbit_producttype = "POEORB"
+    orbit_producttype = "POEORB",
+    xfer_server = AUTO_XFER_SERVER,
+    raw_download_dir = None,
 ):
     print("=" * 80)
     print(f"Processing frame {frame} for {acquisition_date}")
     print("=" * 80)
     date_dir = frame_dir / 'RAW' / acquisition_date
     date_dir.mkdir(parents=True, exist_ok=True)
-    if not os.path.exists(aux_dir):
-        os.mkdir(aux_dir)
+    if raw_download_dir is None:
+        raw_download_dir, shared_download_dir = _raw_download_dir(frame_dir, acquisition_date)
+    else:
+        shared_download_dir = Path(raw_download_dir).resolve() != date_dir.resolve()
+    raw_download_dir = Path(raw_download_dir)
+    raw_download_dir.mkdir(parents=True, exist_ok=True)
+    if xfer_server is AUTO_XFER_SERVER:
+        xfer_server = (
+            _find_xfer_server()
+            if shared_download_dir and os.environ.get("LiCSAR_SLC")
+            else None
+        )
     aux_dir = Path(aux_dir)
+    aux_dir.mkdir(parents=True, exist_ok=True)
     # --------------------------------------------------
     # Get RAW product table for this acquisition date
     # --------------------------------------------------
@@ -310,68 +387,69 @@ def download_date(
     # --------------------------------------------------
     # Download Sentinel-1 AUX files needed by GAFA
     # --------------------------------------------------
-    if download_aux:
-        print_section("AUX files")
-        aux_catalogs = {aux_type: list_aux_products(aux_type) for aux_type in aux_types}
-        selected_aux = {}
-        for product in covered_raw_products:
-            product = str(product).strip()
-            if not product:
-                continue
+    with AUX_DOWNLOAD_LOCK:
+        if download_aux:
+            print_section("AUX files")
+            aux_catalogs = {aux_type: list_aux_products(aux_type) for aux_type in aux_types}
+            selected_aux = {}
+            for product in covered_raw_products:
+                product = str(product).strip()
+                if not product:
+                    continue
 
-            platform, acquisition_time = parse_product_or_date(product, None, None)
-            for aux_type in aux_types:
-                aux_product = choose_aux_product(
-                    aux_catalogs[aux_type],
-                    platform,
-                    acquisition_time,
-                    aux_type,
+                platform, acquisition_time = parse_product_or_date(product, None, None)
+                for aux_type in aux_types:
+                    aux_product = choose_aux_product(
+                        aux_catalogs[aux_type],
+                        platform,
+                        acquisition_time,
+                        aux_type,
+                    )
+                    selected_aux[(aux_type, aux_product.name)] = aux_product
+
+            for (aux_type, _), aux_product in sorted(selected_aux.items()):
+                zip_file = aux_dir / f"{aux_product.name}.SAFE.zip"
+                print(
+                    f"  - AUX_{aux_type}: {aux_product.name} "
+                    f"(valid from {aux_product.validity_start:%Y%m%dT%H%M%S})"
                 )
-                selected_aux[(aux_type, aux_product.name)] = aux_product
+                download_file(aux_product.download_url, zip_file)
+                ensure_safe_dir(zip_file, aux_dir)
+                if not keep_aux_zip:
+                    zip_file.unlink(missing_ok=True)
 
-        for (aux_type, _), aux_product in sorted(selected_aux.items()):
-            zip_file = aux_dir / f"{aux_product.name}.SAFE.zip"
-            print(
-                f"  - AUX_{aux_type}: {aux_product.name} "
-                f"(valid from {aux_product.validity_start:%Y%m%dT%H%M%S})"
-            )
-            download_file(aux_product.download_url, zip_file)
-            ensure_safe_dir(zip_file, aux_dir)
-            if not keep_aux_zip:
-                zip_file.unlink(missing_ok=True)
+        # --------------------------------------------------
+        # Link Sentinel-1 orbit files - needed by GAFA to reside in the aux_dir..
+        # --------------------------------------------------
+        if download_orbits:
+            print_section("Orbit files")
+            if orbit_lib is None:
+                raise ImportError("download_orbits=True, but orbit_lib could not be imported.")
 
-    # --------------------------------------------------
-    # Link Sentinel-1 orbit files - needed by GAFA to reside in the aux_dir..
-    # --------------------------------------------------
-    if download_orbits:
-        print_section("Orbit files")
-        if orbit_lib is None:
-            raise ImportError("download_orbits=True, but orbit_lib could not be imported.")
+            selected_orbits = set()
+            for product in covered_raw_products:
+                product = str(product).strip()
+                if not product:
+                    continue
 
-        selected_orbits = set()
-        for product in covered_raw_products:
-            product = str(product).strip()
-            if not product:
-                continue
+                platform, acquisition_time = parse_product_or_date(product, None, None)
+                acquisition_time = acquisition_time.replace(tzinfo=timezone.utc)
+                orbit_list = orbit_lib.get_orbit_filenames_for_datetime(
+                    acquisition_time,
+                    producttype=orbit_producttype,
+                    s1ab=platform,
+                )
 
-            platform, acquisition_time = parse_product_or_date(product, None, None)
-            acquisition_time = acquisition_time.replace(tzinfo=timezone.utc)
-            orbit_list = orbit_lib.get_orbit_filenames_for_datetime(
-                acquisition_time,
-                producttype=orbit_producttype,
-                s1ab=platform,
-            )
+                for orbit_file in orbit_list:
+                    selected_orbits.add(orbit_file)
 
-            for orbit_file in orbit_list:
-                selected_orbits.add(orbit_file)
-
-        for orbit_file in sorted(selected_orbits):
-            link_or_copy_file(orbit_file, aux_dir)
+            for orbit_file in sorted(selected_orbits):
+                link_or_copy_file(orbit_file, aux_dir)
 
     # --------------------------------------------------
     # Download each RAW product into date_dir
     # --------------------------------------------------
-    print_section(f"RAW zip downloads -> {date_dir}")
+    print_section(f"RAW zip downloads -> {raw_download_dir}")
     for product in covered_raw_products:
         product = str(product).strip()
 
@@ -383,29 +461,57 @@ def download_date(
         else:
             zip_name = product + ".zip"
 
-        out_file = date_dir / zip_name
+        out_file = raw_download_dir / zip_name
 
         if out_file.exists():
             print(f"  - exists: {zip_name}")
-            continue
+        else:
+            print(f"  - downloading: {zip_name}")
+            try:
+                if xfer_server:
+                    remote_command = (
+                        f"cd {shlex.quote(str(raw_download_dir))} && "
+                        f"wget_cdse {shlex.quote(zip_name)}"
+                    )
+                    subprocess.run(
+                        [
+                            "ssh",
+                            "-A",
+                            "-o", "UserKnownHostsFile=/dev/null",
+                            "-o", "StrictHostKeyChecking=no",
+                            xfer_server,
+                            remote_command,
+                        ],
+                        check=True,
+                    )
+                else:
+                    subprocess.run(
+                        ["wget_cdse", zip_name],
+                        cwd=str(raw_download_dir),
+                        check=True,
+                    )
+            except subprocess.CalledProcessError as e:
+                print(f"FAILED: {zip_name}")
+                print(f"Return code: {e.returncode}")
+                continue
 
-        print(f"  - downloading: {zip_name}")
-        try:
-            subprocess.run(
-                ["wget_cdse", zip_name],
-                cwd=str(date_dir),
-                check=True
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"FAILED: {zip_name}")
-            print(f"Return code: {e.returncode}")
-            continue
+        if shared_download_dir:
+            frame_raw_file = date_dir / zip_name
+            if not os.path.lexists(frame_raw_file):
+                if not out_file.is_file():
+                    raise FileNotFoundError(
+                        f"Downloaded RAW file is not accessible locally: {out_file}"
+                    )
+                os.symlink(out_file.resolve(), frame_raw_file)
+                print(f"  - linked to frame RAW: {frame_raw_file}")
 
 
-def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.date(2026,2,1),
+def process_frame_daterange(frame,
+                            startdate = dt.date(2026,1,1), enddate = dt.date(2026,2,1),
                             normal_focusing = False, overwrite = False,
                             perform_download = False, perform_focusing = False,
-                            convert_to_gamma_after_focusing = True, nproc = 1):
+                            convert_to_gamma_after_focusing = True, nproc = 1,
+                            test_monthlies = False):
     ''' This will focus raw files for given frame, at given date range.
     We expect the processing to be performed from BATCH_CACHE_DIR where you should have RAW folder ready - or set it to download here?
     normal_focusing: if True, it will perform ordinary focusing (not extended bursts)
@@ -413,9 +519,14 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
     perform_focusing: if False, it will not perform focusing (useful if only download is needed)
     convert_to_gamma_after_focusing: doesn't do anything if perform_focusing is False
     nproc: number of acquisitions to focus in parallel
+    test_monthlies: for Elgan's test, we will select only one epoch per each month
     '''
     # get epochs to process
     dates = s1.get_epochs_for_frame(frame, startdate, enddate)
+    if test_monthlies:
+        print('Selecting one epoch per each month')
+        dates = _select_monthly_epochs(dates)
+
     print('\n Selected epochs are: ')
     print(dates)
     # get reference height
@@ -440,12 +551,45 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
                 dates2.append(acquisition_date)
         dates = dates2
     if perform_download:
-        for acquisition_date in dates:
-            download_date(
+        general_raw_dir, shared_download_dir = _raw_download_dir(frame_dir)
+        xfer_server = _find_xfer_server() if shared_download_dir else None
+        if xfer_server:
+            print(f"Downloading RAW products via {xfer_server} to {general_raw_dir}")
+        elif shared_download_dir:
+            print(f"No transfer host available; downloading RAW products locally to {general_raw_dir}")
+        download_args = [
+            (
                 acquisition_date,
                 frame,
-                frame_dir
+                frame_dir,
+                _raw_download_dir(frame_dir, acquisition_date)[0],
             )
+            for acquisition_date in dates
+        ]
+        if nproc == 1:
+            for acquisition_date, download_frame, download_frame_dir, raw_download_dir in download_args:
+                download_date(
+                    acquisition_date,
+                    download_frame,
+                    download_frame_dir,
+                    xfer_server=xfer_server,
+                    raw_download_dir=raw_download_dir,
+                )
+        else:
+            with ThreadPoolExecutor(max_workers=nproc) as executor:
+                futures = [
+                    executor.submit(
+                        download_date,
+                        acquisition_date,
+                        download_frame,
+                        download_frame_dir,
+                        xfer_server=xfer_server,
+                        raw_download_dir=raw_download_dir,
+                    )
+                    for acquisition_date, download_frame, download_frame_dir in download_args
+                ]
+                for future in futures:
+                    future.result()
         print('Downloading finished')
     if perform_focusing:
         # --------------------------------------------------
@@ -503,7 +647,7 @@ def process_frame_daterange(frame, startdate = dt.date(2026,1,1), enddate = dt.d
         print("Focusing finished. Result is in " + str(frame_dir))
     print('done')
     print('now, you may want to do:')
-    hgtif = os.path.join(os.environ('LiCSAR_public'), str(int(frame[:3])),frame,'metadata', frame+'.geo.hgt.tif')
+    hgtif = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'metadata', frame+'.geo.hgt.tif')
     hgt = rasterio.open(hgtif)
     l,b,r,t=hgt.bounds
     print(f'mkdir DEM; mk_copdem DEM/dem_crop {l-0.2} {r+0.2} {b-0.2} {t+0.2}')
