@@ -478,10 +478,12 @@ def export_gunw(ds, outpath, name_as_pair = True,
     ( best to use outpath by get_frameid(fileid, True)  )
     deramp_quad removes a least-squares 2-D quadratic ramp from the unwrapped phase.'''
     ds = ds.rio.write_crs(ds.crs)
-    fid = os.path.basename(ds.source_file).split('.')[0]
+    filename = os.path.basename(ds.source_file).split('.')[0]
     if name_as_pair:
-        ff = fid.split('_')
+        ff = filename.split('_')
         fid = ff[11].split('T')[0]+'_'+ff[13].split('T')[0]
+    else:
+        fid = filename
     outifs = []
     for dvar in ds.data_vars:
         print('Exporting '+dvar+' (if does not exist)')
@@ -580,7 +582,7 @@ def export_gunw(ds, outpath, name_as_pair = True,
         corrs.append('quadratic ramp removal')
     try:
         with open(metafile, "a") as fmet:
-            fmet.write(f"filename='{fid}'\n")
+            fmet.write(f"filename='{filename}'\n")
             fmet.write(f"bperp={bperp}\n")
             fmet.write(f"polarization='{polar}'\n")
             fmet.write(f"frequency={freq}\n")
@@ -685,6 +687,7 @@ def list_sizes(path = 'NISAR_L2_PR_GSLC_009_034_A_018_4005_DHDH_A_20251230T13075
 
 
 def export_licsar_metadata(h5file, metafile):
+    '''this will only add extra metadata - not full ones (currently not used)'''
     band = os.path.basename(h5file).split('_')[1][0]
     if band == 'S':
         print('this is S band - not ready for metadata')
