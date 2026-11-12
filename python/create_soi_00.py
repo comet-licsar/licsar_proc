@@ -144,8 +144,14 @@ if __name__ == "__main__":
     # batchdir = os.environ['BATCH_CACHE_DIR']
     framedir = os.path.join(tempdir)
     tr = int(frame[:3])
-    metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
-    master = misc.grep1line('master=', metafile).split('=')[1]
+    # need to use local master...
+    try:
+        master = os.path.basename(glob.glob('geo/????????.hgt')[0]).split('.')[0]
+    except:
+        print('WARNING, cannot extract reference epoch from geo folder - using licsar env')
+        metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
+        master = misc.grep1line('master=', metafile).split('=')[1]
+
     RSLC_folder = os.path.join(framedir, 'RSLC')
     tab_folder = os.path.join(framedir, 'tab')
     n_para = args.n_para
