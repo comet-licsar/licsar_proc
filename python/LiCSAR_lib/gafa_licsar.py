@@ -7,6 +7,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 import re
+import json
 import numpy as np
 import sys, os, subprocess, shutil
 import glob
@@ -369,6 +370,93 @@ def convert_to_gamma(gafa_out_dir, slc_out_dir):
     return True
 
 
+def submit_focus_jobs_slurm(
+    dates,
+    frame,
+    frame_dir,
+    config,
+    custom_config,
+    extract_zips,
+    overwrite,
+    output_suffix,
+    convert_to_gamma_output,
+    walltime="03:00:00",
+    memory_per_cpu="16384M",
+    account="nceo_geohazards",
+    partition="standard",
+    qos="standard",
+):
+    """Create one focus task script per epoch and submit them as a SLURM array."""
+    if not dates:
+        print("No epochs to submit for focusing.")
+        return None
+
+    frame_dir = Path(frame_dir).resolve()
+    scripts_dir = frame_dir / "job_scripts"
+    logs_dir = frame_dir / "log"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    module_dir = Path(__file__).resolve().parent
+    for task_id, acquisition_date in enumerate(dates, start=1):
+        task_arguments = {
+            "acquisition_date": acquisition_date,
+            "frame": frame,
+            "frame_dir": str(frame_dir),
+            "config": str(config),
+            "custom_config": custom_config,
+            "extract_zips": extract_zips,
+            "overwrite": overwrite,
+            "output_suffix": output_suffix,
+            "convert_to_gamma_output": convert_to_gamma_output,
+        }
+        serialized_arguments = json.dumps(task_arguments)
+        python_command = (
+            "import json,sys; from pathlib import Path; "
+            f"sys.path.insert(0, {str(module_dir)!r}); "
+            "from gafa_licsar import focus_date; "
+            f"arguments=json.loads({serialized_arguments!r}); "
+            "arguments['frame_dir']=Path(arguments['frame_dir']); "
+            "focus_date(**arguments)"
+        )
+        task_script = scripts_dir / f"focus.job.{task_id}.sh"
+        task_script.write_text(
+            "#!/bin/bash\n"
+            "set -e\n"
+            f"exec {shlex.quote(sys.executable)} -c {shlex.quote(python_command)}\n"
+        )
+        task_script.chmod(0o755)
+
+    array_script = scripts_dir / "focus_jobs.sh"
+    array_script.write_text(
+        "#!/bin/bash\n"
+        f"#SBATCH --job-name={frame}.focus.{len(dates)}\n"
+        f"#SBATCH --time={walltime}\n"
+        f"#SBATCH --account={account}\n"
+        f"#SBATCH --partition={partition}\n"
+        f"#SBATCH --qos={qos}\n"
+        "#SBATCH --output=log/focus.%A.%a.out\n"
+        "#SBATCH --error=log/focus.%A.%a.err\n"
+        f"#SBATCH --array=1-{len(dates)}\n"
+        f"#SBATCH --mem-per-cpu={memory_per_cpu}\n"
+        "set -e\n"
+        f"cd {shlex.quote(str(frame_dir))}\n"
+        'exec "job_scripts/focus.job.${SLURM_ARRAY_TASK_ID}.sh"\n'
+    )
+    array_script.chmod(0o755)
+
+    result = subprocess.run(
+        ["sbatch", "--parsable", str(array_script)],
+        cwd=str(frame_dir),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    job_id = result.stdout.strip().split(";", 1)[0]
+    print(f"Submitted {len(dates)} focusing tasks as SLURM job {job_id}")
+    return job_id
+
+
 def download_date(
     acquisition_date,
     frame,
@@ -614,7 +702,7 @@ def process_frame_daterange(frame,
                             normal_focusing = False, overwrite = False,
                             perform_download = False, perform_focusing = False,
                             convert_to_gamma_after_focusing = True, nproc = 1,
-                            test_monthlies = False):
+                            test_monthlies = False, send2slurm = False):
     ''' This will focus raw files for given frame, at given date range.
     We expect the processing to be performed from BATCH_CACHE_DIR where you should have RAW folder ready - or set it to download here?
     normal_focusing: if True, it will perform ordinary focusing (not extended bursts)
@@ -623,6 +711,7 @@ def process_frame_daterange(frame,
     convert_to_gamma_after_focusing: doesn't do anything if perform_focusing is False
     nproc: number of acquisitions to focus in parallel
     test_monthlies: for Elgan's test, we will select only one epoch per each month
+    send2slurm: if True, it would use parallel processes via SLURM
     '''
     # get epochs to process
     dates = s1.get_epochs_for_frame(frame, startdate, enddate)
@@ -778,7 +867,19 @@ def process_frame_daterange(frame,
                 "ref_height": refhei
             }
         }
-        if nproc == 1:
+        if send2slurm:
+            submit_focus_jobs_slurm(
+                dates,
+                frame,
+                frame_dir,
+                config,
+                custom_config,
+                extract_zips,
+                overwrite,
+                output_suffix,
+                convert_to_gamma_after_focusing,
+            )
+        elif nproc == 1:
             for acquisition_date in dates:
                 focus_date(
                     acquisition_date,
