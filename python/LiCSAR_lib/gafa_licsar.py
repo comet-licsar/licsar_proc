@@ -170,6 +170,42 @@ def identify_raw_covering_slcs(slcfiles, rawfiles):
     return raw_covers
 
 
+def get_required_raw_products(frame, acquisition_date):
+    """Return RAW product names needed to cover the epoch's known SLC products."""
+    rawfiles = s1data.get_images_for_frame(
+        frame,
+        acquisition_date,
+        acquisition_date,
+        prodType="RAW",
+        asf=False,
+        outAspd=True,
+    )
+    if rawfiles is False or rawfiles is None or rawfiles.empty:
+        return []
+
+    start_dt = dt.datetime.strptime(acquisition_date, "%Y%m%d")
+    slcfiles = lq.get_frame_files_date(frame, start_dt, True)
+    if slcfiles is False or slcfiles is None or len(slcfiles) == 0:
+        slcfiles = s1.get_images_for_frame(
+            frame,
+            acquisition_date,
+            acquisition_date,
+            prodType="SLC",
+            asf=False,
+        )
+    if slcfiles is False or slcfiles is None or len(slcfiles) == 0:
+        return []
+
+    required_raw_products = []
+    for slcfile in slcfiles:
+        raw_product = identify_raw_covering_slc(slcfile, rawfiles["title"].values)
+        if raw_product is None:
+            return []
+        if raw_product not in required_raw_products:
+            required_raw_products.append(raw_product)
+    return required_raw_products
+
+
 def get_dates_from_filename(filename):
     ''' Helper function to get t1 and t2 from given S1 filename
 
@@ -694,6 +730,34 @@ def process_frame_daterange(frame,
             print_items(final_corrupt_files)
         print('Downloading finished')
     if perform_focusing:
+        focus_dates = []
+        for acquisition_date in dates:
+            required_raw_products = get_required_raw_products(frame, acquisition_date)
+            raw_date_dir = frame_dir / "RAW" / acquisition_date
+            missing_raw_products = []
+            if not required_raw_products:
+                print(
+                    f"Skipping focusing {acquisition_date}: could not determine "
+                    "the RAW products required for this epoch."
+                )
+                continue
+            for product in required_raw_products:
+                product_name = Path(str(product).strip()).name
+                if not product_name.endswith(".zip"):
+                    product_name += ".zip"
+                raw_zip = raw_date_dir / product_name
+                raw_safe = raw_date_dir / product_name.removesuffix(".zip")
+                if not raw_zip.is_file() and not raw_safe.is_dir():
+                    missing_raw_products.append(product_name)
+            if missing_raw_products:
+                print(
+                    f"Skipping focusing {acquisition_date}: required RAW files are missing:"
+                )
+                print_items(missing_raw_products)
+                continue
+            focus_dates.append(acquisition_date)
+        dates = focus_dates
+
         # --------------------------------------------------
         # Config setup
         # --------------------------------------------------
