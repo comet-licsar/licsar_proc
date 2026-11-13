@@ -57,8 +57,14 @@ pair = sys.argv[1]
 prime, second = pair.split('_')
 # framedir=os.path.join(batchdir, frame)
 tr = int(frame[:3])
-metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
-master = misc.grep1line('master=', metafile).split('=')[1]
+# need to use local master...
+try:
+    master = os.path.basename(glob.glob('geo/????????.hgt')[0]).split('.')[0]
+except:
+    print('WARNING, cannot extract reference epoch from geo folder - using licsar env')
+    metafile = os.path.join(os.environ['LiCSAR_public'], str(tr), frame, 'metadata', 'metadata.txt')
+    master = misc.grep1line('master=', metafile).split('=')[1]
+
 master_slcdir = os.path.join(framedir, 'SLC', master)
 GEOC_folder = os.path.join(framedir, 'GEOC')
 IFG_folder = os.path.join(framedir, 'IFG')
