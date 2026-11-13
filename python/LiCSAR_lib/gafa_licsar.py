@@ -549,7 +549,6 @@ def process_frame_daterange(frame,
     if test_monthlies:
         print('Selecting one epoch per each month')
         dates = _select_monthly_epochs(dates)
-
     print('\n Selected epochs are: ')
     print(dates)
     # get reference height
@@ -573,6 +572,8 @@ def process_frame_daterange(frame,
             else:
                 dates2.append(acquisition_date)
         dates = dates2
+    dates.sort()
+    dates_err = []
     if perform_download:
         general_raw_dir, shared_download_dir = _raw_download_dir(frame_dir)
         xfer_server = _find_xfer_server() if shared_download_dir else None
@@ -582,13 +583,37 @@ def process_frame_daterange(frame,
             print(f"No transfer host available; downloading RAW products locally to {general_raw_dir}")
         if nproc == 1:
             for acquisition_date in dates:
-                download_date(
-                    acquisition_date,
-                    frame,
-                    frame_dir,
-                    xfer_server=xfer_server,
-                    raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
-                )
+                try:
+                    download_date(
+                        acquisition_date,
+                        frame,
+                        frame_dir,
+                        xfer_server=xfer_server,
+                        raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
+                    )
+                except:
+                    dates_err.append(acquisition_date)
+            if dates_err:
+                print('There was error downloading following epochs:')
+                print(dates_err)
+                print('Retrying with pause inbetween')
+                dates_round2 = dates_err
+                dates_err = []
+                for acquisition_date in dates_round2:
+                    print('waiting 5 seconds')
+                    time.sleep(5)
+                    download_date(
+                        acquisition_date,
+                        frame,
+                        frame_dir,
+                        xfer_server=xfer_server,
+                        raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
+                    )
+                    #try:
+                    #
+                    #except:
+                    #    dates_err.append(acquisition_date)
+            # if dates_err:
         else:
             with ThreadPoolExecutor(max_workers=nproc) as executor:
                 futures = [
