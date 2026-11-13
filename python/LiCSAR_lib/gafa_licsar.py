@@ -3,6 +3,7 @@
 import h5py
 import rasterio
 import datetime as dt
+import argparse
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
@@ -929,7 +930,6 @@ def process_frame_daterange(frame,
 
 
 '''
-
 1.gafa_frame_inputs.py
 2.gafa_focusing.py
 are in:
@@ -938,6 +938,83 @@ but libs need:
 /gws/ssde/j25a/nceo_geohazards/vol2/LiCS/temp/insar_proc/mnergizci/ESBOI_mynmar/examples/
 
 '''
+
+
+def _parse_yyyymmdd(value):
+    try:
+        return dt.datetime.strptime(value, "%Y%m%d").date()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("date must be in YYYYMMDD format") from exc
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Download and/or focus Sentinel-1 RAW epochs for a LiCSAR frame."
+    )
+    parser.add_argument("frame", help="LiCSAR frame ID, e.g. 144A_06083_131313")
+    parser.add_argument(
+        "--start-date",
+        type=_parse_yyyymmdd,
+        default=dt.date(2026, 1, 1),
+        help="First date to search (YYYYMMDD; default: 20260101)",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=_parse_yyyymmdd,
+        default=dt.date(2026, 2, 1),
+        help="Last date to search (YYYYMMDD; default: 20260201)",
+    )
+    parser.add_argument("--download", action="store_true", help="Download required RAW products.")
+    parser.add_argument("--focus", action="store_true", help="Focus available RAW epochs.")
+    parser.add_argument("--normal-focusing", action="store_true", help="Use normal IPF focusing.")
+    parser.add_argument("--overwrite", action="store_true", help="Do not skip existing SLC epochs.")
+    parser.add_argument(
+        "--no-gamma-conversion",
+        action="store_true",
+        help="Do not convert focused GAFA products to GAMMA format.",
+    )
+    parser.add_argument(
+        "--nproc",
+        type=int,
+        default=1,
+        help="Number of parallel download/focusing workers (default: 1).",
+    )
+    parser.add_argument(
+        "--test-monthlies",
+        action="store_true",
+        help="Select at most one available epoch per month, near the 15th.",
+    )
+    parser.add_argument(
+        "--send2slurm",
+        action="store_true",
+        help="Submit focusing as a SLURM job array.",
+    )
+    args = parser.parse_args(argv)
+    if not args.download and not args.focus:
+        parser.error("select at least one of --download or --focus")
+    if args.nproc < 1:
+        parser.error("--nproc must be at least 1")
+    if args.end_date < args.start_date:
+        parser.error("--end-date must not be earlier than --start-date")
+
+    process_frame_daterange(
+        args.frame,
+        startdate=args.start_date,
+        enddate=args.end_date,
+        normal_focusing=args.normal_focusing,
+        overwrite=args.overwrite,
+        perform_download=args.download,
+        perform_focusing=args.focus,
+        convert_to_gamma_after_focusing=not args.no_gamma_conversion,
+        nproc=args.nproc,
+        test_monthlies=args.test_monthlies,
+        send2slurm=args.send2slurm,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 
 '''
 to get slcs:
