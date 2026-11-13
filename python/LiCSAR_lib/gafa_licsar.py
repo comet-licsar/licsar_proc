@@ -114,6 +114,20 @@ def _select_monthly_epochs(epochs):
     ]
 
 
+def _is_valid_raw_zip(zip_file):
+    """Use 7za's archive listing check to validate a downloaded RAW archive."""
+    seven_zip = shutil.which("7za")
+    if seven_zip is None:
+        raise FileNotFoundError("7za is required to validate downloaded RAW zip files.")
+    result = subprocess.run(
+        [seven_zip, "l", str(zip_file)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def identify_raw_covering_slc(slcfile, rawfiles):
     ''' Helper function to identify which of the raw files cover given slc file
 
@@ -331,6 +345,7 @@ def download_date(
     orbit_producttype = "POEORB",
     xfer_server = AUTO_XFER_SERVER,
     raw_download_dir = None,
+    raw_products_to_download = None,
 ):
     print("=" * 80)
     print(f"Processing frame {frame} for {acquisition_date}")
@@ -389,6 +404,16 @@ def download_date(
     if not covered_raw_products:
         print(f"WARNING: no RAW products cover SLCs for {frame}/{acquisition_date}; skipping.")
         return False
+
+    if raw_products_to_download is not None:
+        requested_products = {Path(name).name.removesuffix(".zip") for name in raw_products_to_download}
+        covered_raw_products = [
+            product for product in covered_raw_products
+            if Path(str(product).strip()).name.removesuffix(".zip") in requested_products
+        ]
+        if not covered_raw_products:
+            print(f"WARNING: requested RAW products no longer match {frame}/{acquisition_date}.")
+            return []
 
     print_section(f"RAW products selected ({len(covered_raw_products)})")
     print_items(covered_raw_products)
@@ -459,6 +484,7 @@ def download_date(
     # Download each RAW product into date_dir
     # --------------------------------------------------
     print_section(f"RAW zip downloads -> {raw_download_dir}")
+    corrupt_files = []
     for product in covered_raw_products:
         product = str(product).strip()
 
@@ -473,8 +499,13 @@ def download_date(
         out_file = raw_download_dir / zip_name
 
         if out_file.exists():
-            print(f"  - exists: {zip_name}")
-        else:
+            if _is_valid_raw_zip(out_file):
+                print(f"  - exists and is valid: {zip_name}")
+            else:
+                print(f"  - corrupt existing archive, removing: {zip_name}")
+                out_file.unlink()
+
+        if not out_file.exists():
             download_started = time.perf_counter()
             try:
                 if xfer_server:
@@ -514,12 +545,24 @@ def download_date(
                 elapsed = time.perf_counter() - download_started
                 print(f"FAILED: {zip_name} (download time: {elapsed:.1f} seconds)")
                 print(f"Return code: {e.returncode}")
+                if out_file.exists():
+                    out_file.unlink()
+                corrupt_files.append(zip_name)
                 continue
             elapsed = time.perf_counter() - download_started
-            print(f"Downloaded {zip_name} in {elapsed:.1f} seconds")
+            if out_file.exists() and _is_valid_raw_zip(out_file):
+                print(f"Downloaded valid {zip_name} in {elapsed:.1f} seconds")
+            else:
+                print(f"Corrupt or incomplete archive: {zip_name} (download time: {elapsed:.1f} seconds)")
+                out_file.unlink(missing_ok=True)
+                corrupt_files.append(zip_name)
 
         if shared_download_dir:
             frame_raw_file = date_dir / zip_name
+            if zip_name in corrupt_files:
+                if frame_raw_file.is_symlink():
+                    frame_raw_file.unlink()
+                continue
             if not os.path.lexists(frame_raw_file):
                 if not out_file.is_file():
                     raise FileNotFoundError(
@@ -527,6 +570,7 @@ def download_date(
                     )
                 os.symlink(out_file.resolve(), frame_raw_file)
                 print(f"  - linked to frame RAW: {frame_raw_file}")
+    return corrupt_files
 
 
 def process_frame_daterange(frame,
@@ -573,7 +617,6 @@ def process_frame_daterange(frame,
                 dates2.append(acquisition_date)
         dates = dates2
     dates.sort()
-    dates_err = []
     if perform_download:
         general_raw_dir, shared_download_dir = _raw_download_dir(frame_dir)
         xfer_server = _find_xfer_server() if shared_download_dir else None
@@ -581,54 +624,74 @@ def process_frame_daterange(frame,
             print(f"Downloading RAW products via {xfer_server} to {general_raw_dir}")
         elif shared_download_dir:
             print(f"No transfer host available; downloading RAW products locally to {general_raw_dir}")
+        retry_requests = {}
+
+        def download_one(acquisition_date, raw_products_to_download=None):
+            return download_date(
+                acquisition_date,
+                frame,
+                frame_dir,
+                xfer_server=xfer_server,
+                raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
+                raw_products_to_download=raw_products_to_download,
+            )
+
+        def record_download_result(acquisition_date, future_or_result):
+            try:
+                if callable(future_or_result):
+                    corrupt_files = future_or_result()
+                elif hasattr(future_or_result, "result"):
+                    corrupt_files = future_or_result.result()
+                else:
+                    corrupt_files = future_or_result
+            except Exception as exc:
+                print(f"Download failed for {acquisition_date}: {exc}")
+                retry_requests[acquisition_date] = None
+                return
+            if corrupt_files:
+                retry_requests[acquisition_date] = corrupt_files
+
         if nproc == 1:
             for acquisition_date in dates:
-                try:
-                    download_date(
-                        acquisition_date,
-                        frame,
-                        frame_dir,
-                        xfer_server=xfer_server,
-                        raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
-                    )
-                except:
-                    dates_err.append(acquisition_date)
-            if dates_err:
-                print('There was error downloading following epochs:')
-                print(dates_err)
-                print('Retrying with pause inbetween')
-                dates_round2 = dates_err
-                dates_err = []
-                for acquisition_date in dates_round2:
-                    print('waiting 5 seconds')
-                    time.sleep(5)
-                    download_date(
-                        acquisition_date,
-                        frame,
-                        frame_dir,
-                        xfer_server=xfer_server,
-                        raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
-                    )
-                    #try:
-                    #
-                    #except:
-                    #    dates_err.append(acquisition_date)
-            # if dates_err:
+                record_download_result(
+                    acquisition_date,
+                    lambda acquisition_date=acquisition_date: download_one(acquisition_date),
+                )
         else:
             with ThreadPoolExecutor(max_workers=nproc) as executor:
-                futures = [
-                    executor.submit(
-                        download_date,
-                        acquisition_date,
-                        frame,
-                        frame_dir,
-                        xfer_server=xfer_server,
-                        raw_download_dir=_raw_download_dir(frame_dir, acquisition_date)[0],
-                    )
+                futures = {
+                    acquisition_date: executor.submit(download_one, acquisition_date)
                     for acquisition_date in dates
-                ]
-                for future in futures:
-                    future.result()
+                }
+                for acquisition_date, future in futures.items():
+                    record_download_result(acquisition_date, future)
+
+        final_corrupt_files = []
+        if retry_requests:
+            print("Retrying failed or corrupt RAW downloads")
+            for acquisition_date, corrupt_files in retry_requests.items():
+                print(f"waiting 5 seconds before retrying {acquisition_date}")
+                time.sleep(5)
+                try:
+                    remaining_corrupt = download_one(
+                        acquisition_date,
+                        raw_products_to_download=corrupt_files,
+                    )
+                except Exception as exc:
+                    print(f"Retry failed for {acquisition_date}: {exc}")
+                    if corrupt_files:
+                        final_corrupt_files.extend(
+                            f"{acquisition_date}/{name}" for name in corrupt_files
+                        )
+                else:
+                    if remaining_corrupt is False and corrupt_files:
+                        remaining_corrupt = corrupt_files
+                    final_corrupt_files.extend(
+                        f"{acquisition_date}/{name}" for name in (remaining_corrupt or [])
+                    )
+        if final_corrupt_files:
+            print("RAW zip files still corrupt or unavailable after retry:")
+            print_items(final_corrupt_files)
         print('Downloading finished')
     if perform_focusing:
         # --------------------------------------------------
