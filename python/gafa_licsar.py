@@ -342,7 +342,10 @@ def focus_date(
             raise FileNotFoundError(f"No GAFA output directory found in {date_dir}")
         convert_to_gamma(gafa_fldname, slc_fldname)
 
-def convert_to_gamma(gafa_out_dir, slc_out_dir):
+
+def convert_to_gamma(gafa_out_dir,
+                     slc_out_dir,
+                     to_scomplex = True):
     slc_out_dir = Path(slc_out_dir)
     subprocess.run(
         ["par_S1_GAFA_SLC", str(gafa_out_dir)],
@@ -368,6 +371,13 @@ def convert_to_gamma(gafa_out_dir, slc_out_dir):
         if renamed_file.exists():
             raise FileExistsError(f"Cannot rename {output_file} to existing file {renamed_file}")
         output_file.rename(renamed_file)
+    if to_scomplex:
+        print('converting to SCOMPLEX')
+        subprocess.run(
+            ["convert2Xcomplex.sh", str(slc_out_dir), 'SCOMPLEX'],
+            cwd=os.path.realpath(slc_out_dir / '..' / '..'),
+            check=True,
+        )
     return True
 
 
@@ -920,7 +930,7 @@ def process_frame_daterange(frame,
         hgt = rasterio.open(hgtif)
         l,b,r,t=hgt.bounds
         print(f'mkdir DEM; mk_copdem DEM/dem_crop {l-0.2} {r+0.2} {b-0.2} {t+0.2}')
-        print('for x in `ls SLC`; do convert2Xcomplex.sh SLC/$x SCOMPLEX; done')
+        # print('for x in `ls SLC`; do convert2Xcomplex.sh SLC/$x SCOMPLEX; done')
         print('LiCSAR_02_coreg.py [-i?] -f '+frame+' -d . -m $epoch -R -E -k') # this would regenerate geo folder..
         print('framebatch_gapfill.sh -b 1')
         # this will not work due to cross normal SLC with extended SLC
