@@ -299,6 +299,8 @@ def main(argv=None):
         acqMode = 'sm'
         print('processing stripmap frame - EXPERIMENTAL')
     for sd in slavedatelistsort:
+        if sd.date() == masterdate:
+            continue
         lut1 = os.path.join(rslcdir,sd.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d_')+sd.strftime('%Y%m%d.slc.mli.lt'))
         lut2 = os.path.join(lutdir,sd.strftime('%Y%m%d'),masterdate.strftime('%Y%m%d_')+sd.strftime('%Y%m%d.slc.mli.lt'))
         if (os.path.exists(lut1) or os.path.exists(lut2)) and not forceRecreate:

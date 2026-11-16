@@ -929,10 +929,18 @@ def process_frame_daterange(frame,
         hgtif = os.path.join(os.environ['LiCSAR_public'], str(int(frame[:3])),frame,'metadata', frame+'.geo.hgt.tif')
         hgt = rasterio.open(hgtif)
         l,b,r,t=hgt.bounds
-        print(f'mkdir DEM; mk_copdem DEM/dem_crop {l-0.2} {r+0.2} {b-0.2} {t+0.2}')
+        print(f'cd {str(frame_dir)}; mkdir DEM; mk_copdem DEM/dem_crop {l-0.2} {r+0.2} {b-0.2} {t+0.2}')
         # print('for x in `ls SLC`; do convert2Xcomplex.sh SLC/$x SCOMPLEX; done')
-        print('LiCSAR_02_coreg.py [-i?] -f '+frame+' -d . -m $epoch -R -E -k') # this would regenerate geo folder..
-        print('framebatch_gapfill.sh -b 1')
+        # get m:
+        dates.sort()
+        m = dates[int(len(dates)/2)]
+        mn = dates[int(len(dates) / 2)+1]
+        print(f'echo {m} > tocoreg; echo {mn} >> tocoreg')
+        # print('createSLCtab SLC/$epoch/$epoch slc > tab/$epoch_tab')
+        # print('multilookSLC $epoch 20 4')
+        print('LiCSAR_02_coreg.py -f '+frame+' -d . -m '+m+' -R -E -k -l tocoreg') # this would regenerate geo folder.. if this exists, use -i
+        print('framebatch_postproc_coreg.sh '+frame+' 1')
+        print('echo "framebatch_gapfill.sh -b 1" > framebatch_x_postcoreg_iteration.nowait.sh; chmod 777 framebatch_x_postcoreg_iteration.nowait.sh')
         # this will not work due to cross normal SLC with extended SLC
         # print('licsar_make_frame.sh -n -f '+frame+' 0 0 2013-01-01 2013-01-02; mkdir $BATCH_CACHE_DIR/'+frame+'/log')
         # print('convert2Xcomplex.sh $BATCH_CACHE_DIR/'+frame+'/RSLC/*')
