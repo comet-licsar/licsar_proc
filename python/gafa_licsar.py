@@ -939,7 +939,7 @@ def process_frame_daterange(frame,
         # print('createSLCtab SLC/$epoch/$epoch slc > tab/$epoch_tab')
         # print('multilookSLC $epoch 20 4')
         print('LiCSAR_02_coreg.py -f '+frame+' -d . -m '+m+' -R -E -k -l tocoreg') # this would regenerate geo folder.. if this exists, use -i
-        print('framebatch_postproc_coreg.sh '+frame+' 1')
+        print('framebatch_postproc_coreg.sh -R '+frame+' 1')
         print('echo "framebatch_gapfill.sh -b 1" > framebatch_x_postcoreg_iteration.nowait.sh; chmod 777 framebatch_x_postcoreg_iteration.nowait.sh')
         # this will not work due to cross normal SLC with extended SLC
         # print('licsar_make_frame.sh -n -f '+frame+' 0 0 2013-01-01 2013-01-02; mkdir $BATCH_CACHE_DIR/'+frame+'/log')
